@@ -5,6 +5,10 @@ import { UTApi } from "uploadthing/server";
 const utapi = new UTApi();
 
 export async function uploadFile(file: File) {
+  if (!process.env.UPLOADTHING_SECRET || !process.env.UPLOADTHING_APP_ID) {
+    throw new Error('Missing UploadThing environment variables')
+  }
+
   if (!file) {
     throw new Error('No file uploaded')
   }
@@ -19,6 +23,7 @@ export async function uploadFile(file: File) {
     return response[0].data?.url || null
   } catch (error) {
     console.error('Upload error:', error)
-    throw new Error('Upload failed')
+    // Throw the actual error message to the client
+    throw new Error(error instanceof Error ? error.message : 'Upload failed')
   }
 }

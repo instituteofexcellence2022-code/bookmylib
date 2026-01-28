@@ -101,6 +101,11 @@ export async function updateStudentProfile(formData: FormData) {
     const imageFile = formData.get('imageFile') as File | null
 
     if (imageFile && imageFile.size > 0) {
+        // Validate file type
+        if (!imageFile.type.startsWith('image/')) {
+            return { success: false, error: 'Only image files are allowed' }
+        }
+
         try {
             const uploadedUrl = await uploadFile(imageFile)
             if (uploadedUrl) {

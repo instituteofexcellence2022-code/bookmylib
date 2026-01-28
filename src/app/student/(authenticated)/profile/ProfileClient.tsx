@@ -264,11 +264,18 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
             <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
                 <div className="flex items-center gap-4">
                     <div className="relative group">
-                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg overflow-hidden border-4 border-white dark:border-gray-800">
+                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg overflow-hidden border-4 border-white dark:border-gray-800 relative">
                             {profileData.image ? (
                                 <img src={profileData.image} alt={student.name} className="w-full h-full object-cover" />
                             ) : (
                                 student.name.charAt(0).toUpperCase()
+                            )}
+                            {selectedImageFile && (
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                    <span className="text-[10px] font-medium bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded-full">
+                                        Pending
+                                    </span>
+                                </div>
                             )}
                         </div>
                         <button 
