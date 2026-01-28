@@ -3,15 +3,12 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { createHash } from 'crypto'
-import { authenticator } from 'otplib'
+import { generateSecret, generateURI, verify } from 'otplib'
 import QRCode from 'qrcode'
 import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
 import { uploadFile } from './upload'
 
-const generateSecret = () => authenticator.generateSecret()
-const generateURI = ({ secret, issuer, label }: { secret: string; issuer: string; label: string }) => authenticator.keyuri(label, issuer, secret)
-const verify = (options: any) => authenticator.verify(options)
 export async function getOwnerProfile() {
   try {
     const cookieStore = await cookies()
