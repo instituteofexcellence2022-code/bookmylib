@@ -1,4 +1,6 @@
 import { createUploadthing, type FileRouter } from "uploadthing/next";
+import { UploadThingError } from "uploadthing/server";
+import { cookies } from "next/headers";
  
 const f = createUploadthing();
  
@@ -6,12 +8,29 @@ const f = createUploadthing();
 export const ourFileRouter = {
   // Define as many FileRoutes as you like, each with a unique routeSlug
   imageUploader: f({ image: { maxFileSize: "8MB" }, pdf: { maxFileSize: "8MB" } })
+    .middleware(async ({ req }) => {
+      // This code runs on your server before upload
+      const cookieStore = await cookies();
+      const ownerSession = cookieStore.get('owner_session');
+      const staffSession = cookieStore.get('staff_session');
+      const studentSession = cookieStore.get('student_session');
+
+      // Check if user is authenticated (Owner, Staff, or Student)
+      const userId = ownerSession?.value || staffSession?.value || studentSession?.value;
+
+      if (!userId) {
+        throw new UploadThingError("Unauthorized");
+      }
+
+      // Whatever is returned here is accessible in onUploadComplete as `metadata`
+      return { userId };
+    })
     .onUploadComplete(async ({ metadata, file }) => {
       // This code RUNS ON YOUR SERVER after upload
-      console.log("Upload complete for userId:", metadata);
+      console.log("Upload complete for userId:", metadata.userId);
       console.log("file url", file.url);
       // !!! Whatever is returned here is sent to the clientside `onClientUploadComplete` callback
-      return { uploadedBy: "server" };
+      return { uploadedBy: metadata.userId };
     }),
 } satisfies FileRouter;
  
