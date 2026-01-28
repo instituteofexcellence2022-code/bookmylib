@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { motion } from 'framer-motion'
-import { User, ShieldCheck, Download, Share2, CheckCircle } from 'lucide-react'
+import { Shield, User, Download, Share2, CheckCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { jsPDF } from 'jspdf'
 import { toast } from 'react-hot-toast'
@@ -164,7 +164,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                     <div className="absolute inset-0 bg-white/10 opacity-20 transform -skew-x-12 translate-x-1/2" />
                     
                     <div className="flex items-center gap-2 relative z-10">
-                        <ShieldCheck className="w-5 h-5" />
+                        <Shield className="w-5 h-5" />
                         <span className="font-bold tracking-wide text-sm uppercase">Official Student ID</span>
                     </div>
                     <div className="text-xs font-mono opacity-80 relative z-10 bg-white/10 px-2 py-0.5 rounded">
@@ -176,7 +176,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                 <div className="p-5 relative">
                     {/* Watermark */}
                     <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
-                        <ShieldCheck size={200} />
+                        <Shield size={200} />
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-5 relative z-10">

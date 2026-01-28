@@ -97,7 +97,20 @@ export async function updateStudentProfile(formData: FormData) {
     const pincode = formData.get('pincode') as string
     const guardianName = formData.get('guardianName') as string
     const guardianPhone = formData.get('guardianPhone') as string
-    const image = formData.get('image') as string
+    let image = formData.get('image') as string
+    const imageFile = formData.get('imageFile') as File | null
+
+    if (imageFile && imageFile.size > 0) {
+        try {
+            const uploadedUrl = await uploadFile(imageFile)
+            if (uploadedUrl) {
+                image = uploadedUrl
+            }
+        } catch (error) {
+            console.error('Error uploading profile image:', error)
+            return { success: false, error: 'Failed to upload profile image' }
+        }
+    }
 
     if (!name || !phone) {
         return { success: false, error: 'Name and phone are required' }

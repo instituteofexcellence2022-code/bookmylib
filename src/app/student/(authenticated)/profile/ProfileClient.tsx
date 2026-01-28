@@ -59,6 +59,7 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
     })
 
     const [availableAreas, setAvailableAreas] = useState<string[]>([])
+    const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null)
 
     // Password Form State
     const [passwordData, setPasswordData] = useState({
@@ -95,6 +96,8 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
                 toast.error('Image size should be less than 5MB')
                 return
             }
+
+            setSelectedImageFile(file)
 
             const reader = new FileReader()
             reader.onloadend = () => {
@@ -192,15 +195,23 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
             const formData = new FormData()
             // Append all fields
             Object.entries(profileData).forEach(([key, value]) => {
+                if (key === 'image') return // Handle image separately
                 if (value !== null && value !== undefined) {
                     formData.append(key, value)
                 }
             })
 
+            if (selectedImageFile) {
+                formData.append('imageFile', selectedImageFile)
+            } else if (profileData.image) {
+                formData.append('image', profileData.image)
+            }
+
             const result = await updateStudentProfile(formData)
 
             if (result.success) {
                 toast.success('Profile updated successfully')
+                setSelectedImageFile(null)
                 router.refresh()
             } else {
                 toast.error(result.error || 'Failed to update profile')
