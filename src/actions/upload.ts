@@ -5,8 +5,13 @@ import { UTApi } from "uploadthing/server";
 const utapi = new UTApi();
 
 export async function uploadFile(file: File) {
-  if (!process.env.UPLOADTHING_SECRET || !process.env.UPLOADTHING_APP_ID) {
-    throw new Error('Missing UploadThing environment variables')
+  // Check for either the new Token OR the legacy Secret+AppId
+  const hasToken = !!process.env.UPLOADTHING_TOKEN;
+  const hasLegacy = !!process.env.UPLOADTHING_SECRET && !!process.env.UPLOADTHING_APP_ID;
+
+  if (!hasToken && !hasLegacy) {
+    console.error('UploadThing Environment Check Failed: No valid credentials found.');
+    throw new Error('Missing UploadThing environment variables (UPLOADTHING_TOKEN or UPLOADTHING_SECRET + UPLOADTHING_APP_ID)')
   }
 
   if (!file) {

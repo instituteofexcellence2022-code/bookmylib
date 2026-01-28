@@ -2,6 +2,8 @@ import React from 'react'
 import { getStaffTickets } from '@/actions/ticket'
 import TicketListClient from '@/app/owner/(authenticated)/issues/TicketListClient'
 
+export const dynamic = 'force-dynamic'
+
 export default async function IssuesPage() {
   const tickets = await getStaffTickets()
 
