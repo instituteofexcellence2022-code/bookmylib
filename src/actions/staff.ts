@@ -2,11 +2,10 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
-import { writeFile, mkdir } from 'fs/promises'
 import { cookies } from 'next/headers'
-import path from 'path'
 import bcrypt from 'bcryptjs'
 import type { Prisma } from '@prisma/client'
+import { uploadFile } from './upload'
 
 export async function getStaffProfile() {
   try {
@@ -67,33 +66,38 @@ export async function createStaff(formData: FormData) {
     }
 
     // Handle file uploads
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'staff')
-    await mkdir(uploadDir, { recursive: true })
-
     const documents = []
 
     if (idProof && idProof.size > 0) {
-      const filename = `id-${Date.now()}-${idProof.name}`
-      const buffer = Buffer.from(await idProof.arrayBuffer())
-      await writeFile(path.join(uploadDir, filename), buffer)
-      documents.push({
-        name: 'ID Proof',
-        url: `/uploads/staff/${filename}`,
-        type: idProof.type,
-        size: idProof.size
-      })
+      try {
+        const url = await uploadFile(idProof)
+        if (url) {
+          documents.push({
+            name: 'ID Proof',
+            url: url,
+            type: idProof.type,
+            size: idProof.size
+          })
+        }
+      } catch (e) {
+        console.error('Failed to upload ID Proof', e)
+      }
     }
 
     if (resume && resume.size > 0) {
-      const filename = `resume-${Date.now()}-${resume.name}`
-      const buffer = Buffer.from(await resume.arrayBuffer())
-      await writeFile(path.join(uploadDir, filename), buffer)
-      documents.push({
-        name: 'Resume',
-        url: `/uploads/staff/${filename}`,
-        type: resume.type,
-        size: resume.size
-      })
+      try {
+        const url = await uploadFile(resume)
+        if (url) {
+          documents.push({
+            name: 'Resume',
+            url: url,
+            type: resume.type,
+            size: resume.size
+          })
+        }
+      } catch (e) {
+        console.error('Failed to upload Resume', e)
+      }
     }
 
     const hashedPassword = await bcrypt.hash(password, 10)
@@ -281,9 +285,7 @@ export async function updateStaff(id: string, formData: FormData) {
     }
 
     // Handle file uploads
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'staff')
-    await mkdir(uploadDir, { recursive: true })
-
+    
     // Fetch existing documents to append or replace? 
     // For now, let's assume we append new ones or just rely on the fact that we might need a better document management system.
     // The current schema has `documents Json?`.
@@ -301,30 +303,37 @@ export async function updateStaff(id: string, formData: FormData) {
     let documents = (currentStaff?.documents as unknown as Document[]) || []
 
     if (idProof && idProof.size > 0) {
-      const filename = `id-${Date.now()}-${idProof.name}`
-      const buffer = Buffer.from(await idProof.arrayBuffer())
-      await writeFile(path.join(uploadDir, filename), buffer)
-      // Remove old ID proof if exists? Complex logic. Let's just add new one for now or filter out old "ID Proof"
-      documents = documents.filter(d => d.name !== 'ID Proof')
-      documents.push({
-        name: 'ID Proof',
-        url: `/uploads/staff/${filename}`,
-        type: idProof.type,
-        size: idProof.size
-      })
+      try {
+        const url = await uploadFile(idProof)
+        if (url) {
+          documents = documents.filter(d => d.name !== 'ID Proof')
+          documents.push({
+            name: 'ID Proof',
+            url: url,
+            type: idProof.type,
+            size: idProof.size
+          })
+        }
+      } catch (e) {
+        console.error('Failed to upload ID Proof', e)
+      }
     }
 
     if (resume && resume.size > 0) {
-      const filename = `resume-${Date.now()}-${resume.name}`
-      const buffer = Buffer.from(await resume.arrayBuffer())
-      await writeFile(path.join(uploadDir, filename), buffer)
-      documents = documents.filter(d => d.name !== 'Resume')
-      documents.push({
-        name: 'Resume',
-        url: `/uploads/staff/${filename}`,
-        type: resume.type,
-        size: resume.size
-      })
+      try {
+        const url = await uploadFile(resume)
+        if (url) {
+          documents = documents.filter(d => d.name !== 'Resume')
+          documents.push({
+            name: 'Resume',
+            url: url,
+            type: resume.type,
+            size: resume.size
+          })
+        }
+      } catch (e) {
+        console.error('Failed to upload Resume', e)
+      }
     }
 
     let hashedPassword = undefined
@@ -421,22 +430,12 @@ export async function updateStaffImage(staffId: string, formData: FormData) {
       throw new Error('File size exceeds 5MB limit.')
     }
 
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-
-    // Ensure uploads directory exists
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'staff')
-    await mkdir(uploadDir, { recursive: true })
-
-    // Generate unique filename
-    const filename = `${staffId}-${Date.now()}${path.extname(file.name)}`
-    const filepath = path.join(uploadDir, filename)
-
-    // Write file to disk
-    await writeFile(filepath, buffer)
-
-    // Construct public URL
-    const imageUrl = `/uploads/staff/${filename}`
+    // Upload file
+    const imageUrl = await uploadFile(file)
+    
+    if (!imageUrl) {
+        throw new Error('Failed to upload image')
+    }
 
     // Update database
     const updatedStaff = await prisma.staff.update({

@@ -2,13 +2,16 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
 import { createHash } from 'crypto'
-import { generateSecret, generateURI, verify } from 'otplib'
+import { authenticator } from 'otplib'
 import QRCode from 'qrcode'
 import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
+import { uploadFile } from './upload'
+
+const generateSecret = () => authenticator.generateSecret()
+const generateURI = ({ secret, issuer, label }: { secret: string; issuer: string; label: string }) => authenticator.keyuri(label, issuer, secret)
+const verify = (options: any) => authenticator.verify(options)
 export async function getOwnerProfile() {
   try {
     const cookieStore = await cookies()
@@ -88,14 +91,11 @@ export async function updateOwnerImage(formData: FormData) {
         return { success: false, error: 'Invalid file type' }
     }
 
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'owner')
-    await mkdir(uploadDir, { recursive: true })
-
-    const filename = `${id}-${Date.now()}${path.extname(file.name)}`
-    const buffer = Buffer.from(await file.arrayBuffer())
-    await writeFile(path.join(uploadDir, filename), buffer)
-
-    const imageUrl = `/uploads/owner/${filename}`
+    const imageUrl = await uploadFile(file)
+    
+    if (!imageUrl) {
+        return { success: false, error: 'Failed to upload image' }
+    }
 
     await prisma.owner.update({
       where: { id },
@@ -106,7 +106,7 @@ export async function updateOwnerImage(formData: FormData) {
     return { success: true, imageUrl }
   } catch (error) {
     console.error('Error updating owner image:', error)
-    return { success: false, error: 'Failed to update image' }
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to update image' }
   }
 }
 
@@ -196,14 +196,11 @@ export async function updateLibraryLogo(formData: FormData) {
             return { success: false, error: 'Invalid file type' }
         }
 
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'library')
-        await mkdir(uploadDir, { recursive: true })
-
-        const filename = `${id}-${Date.now()}${path.extname(file.name)}`
-        const buffer = Buffer.from(await file.arrayBuffer())
-        await writeFile(path.join(uploadDir, filename), buffer)
-
-        const logoUrl = `/uploads/library/${filename}`
+        const logoUrl = await uploadFile(file)
+        
+        if (!logoUrl) {
+            return { success: false, error: 'Failed to upload logo' }
+        }
 
         await prisma.library.update({
             where: { id },
@@ -214,7 +211,7 @@ export async function updateLibraryLogo(formData: FormData) {
         return { success: true, logoUrl }
     } catch (error) {
         console.error('Error updating library logo:', error)
-        return { success: false, error: 'Failed to update library logo' }
+        return { success: false, error: error instanceof Error ? error.message : 'Failed to update library logo' }
     }
 }
 
