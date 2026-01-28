@@ -19,6 +19,8 @@ import {
   Clock,
   User,
   Globe,
+  Image as ImageIcon,
+  Trash2,
   FileText,
   Layout,
   Fan,
@@ -191,6 +193,7 @@ export default function EditBranchPage() {
               description: data.description || '',
               mapsLink: data.mapsLink || '',
               images: data.images ? JSON.parse(data.images) : [],
+              imageFiles: data.images ? new Array(JSON.parse(data.images).length).fill(null) : [],
               wifiCredentials: data.wifiDetails ? JSON.parse(data.wifiDetails) : [{ ssid: '', password: '' }]
             }
           })
@@ -342,6 +345,52 @@ export default function EditBranchPage() {
     }
   }
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+
+    if (formData.images.length + files.length > MAX_FILES) {
+      alert(`You can only upload up to ${MAX_FILES} images`)
+      return
+    }
+
+    const newImageFiles: File[] = []
+    const newImagePreviews: string[] = []
+
+    Array.from(files).forEach(file => {
+      if (file.size > MAX_FILE_SIZE) {
+        alert(`File ${file.name} is too large. Max size is 5MB`)
+        return
+      }
+
+      newImageFiles.push(file)
+      newImagePreviews.push(URL.createObjectURL(file))
+    })
+
+    setFormData(prev => ({
+      ...prev,
+      images: [...prev.images, ...newImagePreviews],
+      imageFiles: [...prev.imageFiles, ...newImageFiles]
+    }))
+    
+    // Reset input to allow selecting the same file again if needed
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const removeImage = (index: number) => {
+    setFormData(prev => {
+      const newImages = prev.images.filter((_, i) => i !== index)
+      const newImageFiles = prev.imageFiles.filter((_, i) => i !== index)
+      return {
+        ...prev,
+        images: newImages,
+        imageFiles: newImageFiles
+      }
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSaving(true)
@@ -365,7 +414,19 @@ export default function EditBranchPage() {
       formDataToSend.append('area', formData.area)
       formDataToSend.append('description', formData.description)
       formDataToSend.append('mapsLink', formData.mapsLink)
-      formDataToSend.append('images', JSON.stringify(formData.images))
+
+      // Handle Images
+      // 1. Existing images (where imageFile is null)
+      const existingImages = formData.images.filter((_, i) => formData.imageFiles[i] === null)
+      formDataToSend.append('existingImages', JSON.stringify(existingImages))
+
+      // 2. New images (where imageFile is File)
+      formData.imageFiles.forEach(file => {
+        if (file) {
+          formDataToSend.append('imageFiles', file)
+        }
+      })
+
       formDataToSend.append('wifiDetails', JSON.stringify(formData.wifiCredentials))
 
       formDataToSend.append('amenities', JSON.stringify(formData.amenities))
@@ -636,6 +697,64 @@ export default function EditBranchPage() {
                 />
               </div>
             </div>
+          </div>
+        </CompactCard>
+
+        <CompactCard>
+          <div className="space-y-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <ImageIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              Branch Images
+            </h2>
+            
+            <div 
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl p-8 text-center hover:border-purple-500 dark:hover:border-purple-500 transition-colors cursor-pointer bg-gray-50/50 dark:bg-gray-800/50"
+            >
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept="image/*" 
+                multiple 
+                onChange={handleImageUpload}
+              />
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                  <ImageIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    Click to upload images
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    SVG, PNG, JPG or GIF (max. 800x400px)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {formData.images.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {formData.images.map((img, index) => (
+                  <div key={index} className="relative aspect-video rounded-lg overflow-hidden group border border-gray-200 dark:border-gray-700">
+                    <Image
+                      src={img}
+                      alt={`Branch image ${index + 1}`}
+                      fill
+                      className="object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </CompactCard>
 

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { 
   MapPin, Building2, Users, ChevronDown,
   Wifi, Coffee, Wind, Zap, Car, Lock, Camera, BookOpen, ShieldCheck,
@@ -54,6 +55,7 @@ interface BranchCardProps {
     state: string
     pincode: string
     amenities: string | null
+    images: string | null
     _count: {
       seats: number
     }
@@ -74,12 +76,32 @@ export function BranchCard({ branch }: BranchCardProps) {
     ? Math.min(...branch.plans.map(p => p.price)) 
     : null
 
+  let branchImage: string | null = null
+  try {
+    if (branch.images) {
+      const parsed = JSON.parse(branch.images)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        branchImage = parsed[0]
+      }
+    }
+  } catch (e) {}
+
   return (
     <div className="group bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col h-full">
       {/* Branch Image with Overlay Badges */}
       <div className="h-56 bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center relative overflow-hidden">
         {/* Background Pattern/Image Placeholder */}
-        <Building2 className="w-20 h-20 text-emerald-300 dark:text-emerald-700/50 group-hover:scale-110 transition-transform duration-500" />
+        {branchImage ? (
+          <Image 
+            src={branchImage} 
+            alt={branch.name}
+            fill
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          />
+        ) : (
+          <Building2 className="w-20 h-20 text-emerald-300 dark:text-emerald-700/50 group-hover:scale-110 transition-transform duration-500" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-90" />
         
         {/* Top Badges */}

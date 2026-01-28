@@ -32,6 +32,7 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts'
+import Image from 'next/image'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { CompactCard } from '@/components/ui/AnimatedCard'
 import { getBranchById, generateBranchQR } from '@/actions/branch'
@@ -59,6 +60,7 @@ interface BranchDetail {
   staff: number
   revenue: number
   amenities: string[]
+  images: string[]
   recentActivity: RecentActivity[]
   qrCode?: string
 }
@@ -215,6 +217,14 @@ const tabs = [
           setBranch({
             ...data,
             amenities: Array.isArray(data.amenities) ? data.amenities : [],
+            images: (() => {
+              try {
+                const parsed = data.images ? JSON.parse(data.images) : [];
+                return Array.isArray(parsed) ? parsed : [];
+              } catch {
+                return [];
+              }
+            })(),
             status: data.isActive ? 'active' : 'maintenance',
             email: '', // Not in schema yet
             phone: data.contactPhone || '',
@@ -353,6 +363,26 @@ const tabs = [
           >
             {/* Left Column - Stats & Info */}
             <div className="lg:col-span-2 space-y-6">
+              {/* Branch Images */}
+              {branch.images && branch.images.length > 0 && (
+                <CompactCard>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Branch Images</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {branch.images.map((url, index) => (
+                      <div key={index} className="relative aspect-video rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
+                        <Image
+                          src={url}
+                          alt={`Branch image ${index + 1}`}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 50vw, 33vw"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </CompactCard>
+              )}
+
               {/* Stats Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <CompactCard>

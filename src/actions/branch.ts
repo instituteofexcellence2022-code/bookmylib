@@ -96,8 +96,24 @@ export async function createBranch(formData: FormData) {
     const area = formData.get('area') as string
     const description = formData.get('description') as string
     const mapsLink = formData.get('mapsLink') as string
-    const images = formData.get('images') as string
     const wifiDetails = formData.get('wifiDetails') as string
+
+    // Handle Image Uploads
+    const imageFiles = formData.getAll('imageFiles') as File[]
+    const uploadedUrls: string[] = []
+
+    for (const file of imageFiles) {
+      if (file && file.size > 0) {
+        try {
+          const url = await uploadFile(file)
+          if (url) uploadedUrls.push(url)
+        } catch (e) {
+          console.error('Failed to upload branch image:', e)
+        }
+      }
+    }
+
+    const images = JSON.stringify(uploadedUrls)
 
     const branch = await prisma.branch.create({
       data: {
@@ -176,8 +192,32 @@ export async function updateBranch(formData: FormData) {
     const area = formData.get('area') as string
     const description = formData.get('description') as string
     const mapsLink = formData.get('mapsLink') as string
-    const images = formData.get('images') as string
     const wifiDetails = formData.get('wifiDetails') as string
+
+    // Handle Image Uploads
+    const existingImagesRaw = formData.get('existingImages') as string
+    let existingImages: string[] = []
+    try {
+      existingImages = existingImagesRaw ? JSON.parse(existingImagesRaw) : []
+    } catch (e) {
+      existingImages = []
+    }
+
+    const imageFiles = formData.getAll('imageFiles') as File[]
+    const newUrls: string[] = []
+
+    for (const file of imageFiles) {
+      if (file && file.size > 0) {
+        try {
+          const url = await uploadFile(file)
+          if (url) newUrls.push(url)
+        } catch (e) {
+          console.error('Failed to upload branch image:', e)
+        }
+      }
+    }
+
+    const images = JSON.stringify([...existingImages, ...newUrls])
 
     await prisma.branch.update({
       where: { id },

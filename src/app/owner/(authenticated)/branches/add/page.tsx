@@ -258,23 +258,24 @@ export default function AddBranchPage() {
       return
     }
 
+    const newImageFiles: File[] = []
+    const newImagePreviews: string[] = []
+
     Array.from(files).forEach(file => {
       if (file.size > MAX_FILE_SIZE) {
         alert(`File ${file.name} is too large. Max size is 5MB`)
         return
       }
 
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          setFormData(prev => ({
-            ...prev,
-            images: [...prev.images, reader.result as string]
-          }))
-        }
-      }
-      reader.readAsDataURL(file)
+      newImageFiles.push(file)
+      newImagePreviews.push(URL.createObjectURL(file))
     })
+
+    setFormData(prev => ({
+      ...prev,
+      images: [...prev.images, ...newImagePreviews],
+      imageFiles: [...prev.imageFiles, ...newImageFiles]
+    }))
     
     // Reset input to allow selecting the same file again if needed
     if (fileInputRef.current) {
@@ -283,10 +284,15 @@ export default function AddBranchPage() {
   }
 
   const removeImage = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }))
+    setFormData(prev => {
+      const newImages = prev.images.filter((_, i) => i !== index)
+      const newImageFiles = prev.imageFiles.filter((_, i) => i !== index)
+      return {
+        ...prev,
+        images: newImages,
+        imageFiles: newImageFiles
+      }
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -311,7 +317,12 @@ export default function AddBranchPage() {
       formDataToSend.append('area', formData.area)
       formDataToSend.append('description', formData.description)
       formDataToSend.append('mapsLink', formData.mapsLink)
-      formDataToSend.append('images', JSON.stringify(formData.images))
+      
+      // Append image files
+      formData.imageFiles.forEach(file => {
+        formDataToSend.append('imageFiles', file)
+      })
+
       formDataToSend.append('wifiDetails', JSON.stringify(formData.wifiCredentials))
 
       formDataToSend.append('amenities', JSON.stringify(formData.amenities))

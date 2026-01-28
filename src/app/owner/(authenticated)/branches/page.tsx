@@ -12,6 +12,7 @@ import {
   Edit,
   Loader2
 } from 'lucide-react'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { CompactCard } from '@/components/ui/AnimatedCard'
@@ -32,7 +33,7 @@ interface Branch {
   staff: number
   revenue: number
   amenities: string[]
-  image?: string
+  images?: string
 }
 
 const tabs = [
@@ -158,8 +159,30 @@ export default function BranchesPage() {
                 {/* Branch Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center flex-shrink-0 text-purple-600 dark:text-purple-400">
-                      <Building2 className="w-5 h-5" />
+                    <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center flex-shrink-0 text-purple-600 dark:text-purple-400 overflow-hidden relative">
+                      {(() => {
+                        let imageUrl = null;
+                        try {
+                          if (branch.images) {
+                            const parsed = JSON.parse(branch.images);
+                            if (Array.isArray(parsed) && parsed.length > 0) {
+                              imageUrl = parsed[0];
+                            }
+                          }
+                        } catch (e) {}
+                        
+                        return imageUrl ? (
+                          <Image
+                            src={imageUrl}
+                            alt={branch.name}
+                            fill
+                            className="object-cover"
+                            sizes="40px"
+                          />
+                        ) : (
+                          <Building2 className="w-5 h-5" />
+                        );
+                      })()}
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-1">{branch.name}</h3>
