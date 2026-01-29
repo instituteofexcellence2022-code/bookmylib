@@ -7,38 +7,84 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { CompactCard } from '@/components/ui/AnimatedCard'
 import { Gift, Users, Copy, Check, Search, Calendar } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import { getOwnerReferrals } from '@/actions/promo'
+import { getOwnerReferrals, getReferralSettings, saveReferralSettings } from '@/actions/promo'
 import { format } from 'date-fns'
 
 export function ReferAndEarnTab() {
   const [enabled, setEnabled] = useState(false)
-  const [rewardType, setRewardType] = useState('fixed') // fixed or percentage
-  const [referrerReward, setReferrerReward] = useState('100')
-  const [refereeReward, setRefereeReward] = useState('50')
+  
+  // Referrer Settings (Coupon)
+  const [referrerType, setReferrerType] = useState('fixed')
+  const [referrerValue, setReferrerValue] = useState('100')
+  
+  // Referee Settings (Instant Discount)
+  const [refereeType, setRefereeType] = useState('fixed')
+  const [refereeValue, setRefereeValue] = useState('50')
+
   const [copied, setCopied] = useState(false)
   const [referrals, setReferrals] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
-    const fetchReferrals = async () => {
+    const loadData = async () => {
       try {
-        const data = await getOwnerReferrals()
-        setReferrals(data)
+        const [refs, settings] = await Promise.all([
+          getOwnerReferrals(),
+          getReferralSettings()
+        ])
+        setReferrals(refs)
+        
+        if (settings) {
+          // @ts-ignore
+          setEnabled(settings.enabled ?? false)
+          // @ts-ignore
+          setReferrerType(settings.referrerReward?.type ?? 'fixed')
+          // @ts-ignore
+          setReferrerValue(settings.referrerReward?.value?.toString() ?? '100')
+          // @ts-ignore
+          setRefereeType(settings.refereeReward?.type ?? 'fixed')
+          // @ts-ignore
+          setRefereeValue(settings.refereeReward?.value?.toString() ?? '50')
+        }
       } catch (error) {
         console.error(error)
-        toast.error('Failed to load referrals')
+        toast.error('Failed to load data')
       } finally {
         setLoading(false)
       }
     }
-    fetchReferrals()
+    loadData()
   }, [])
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement save logic
-    toast.success('Referral settings saved successfully')
+    setSaving(true)
+    try {
+      const settings = {
+        enabled,
+        referrerReward: {
+          type: referrerType,
+          value: parseFloat(referrerValue)
+        },
+        refereeReward: {
+          type: refereeType,
+          value: parseFloat(refereeValue)
+        }
+      }
+      
+      const res = await saveReferralSettings(settings)
+      if (res.success) {
+        toast.success('Referral settings saved successfully')
+      } else {
+        toast.error(res.error || 'Failed to save')
+      }
+    } catch (error) {
+      toast.error('Something went wrong')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const copyLink = () => {
@@ -90,37 +136,52 @@ export function ReferAndEarnTab() {
             </div>
 
             <div className={`space-y-4 transition-opacity ${enabled ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
-              <FormSelect
-                label="Reward Type"
-                value={rewardType}
-                onChange={(e) => setRewardType(e.target.value)}
-                options={[
-                  { label: 'Fixed Amount (₹)', value: 'fixed' },
-                  { label: 'Percentage (%)', value: 'percentage' }
-                ]}
-              />
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormInput
-                  label="Referrer Gets"
-                  value={referrerReward}
-                  onChange={(e) => setReferrerReward(e.target.value)}
-                  type="number"
-                  min="0"
-                  icon={rewardType === 'fixed' ? undefined : undefined}
-                  placeholder="0"
-                />
-                <FormInput
-                  label="Referee Gets"
-                  value={refereeReward}
-                  onChange={(e) => setRefereeReward(e.target.value)}
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                />
+              
+              {/* Referrer Settings */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Referrer Reward (Coupon)</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormSelect
+                    value={referrerType}
+                    onChange={(e) => setReferrerType(e.target.value)}
+                    options={[
+                      { label: 'Fixed (₹)', value: 'fixed' },
+                      { label: 'Percent (%)', value: 'percentage' }
+                    ]}
+                  />
+                  <FormInput
+                    value={referrerValue}
+                    onChange={(e) => setReferrerValue(e.target.value)}
+                    type="number"
+                    min="0"
+                    placeholder="Value"
+                  />
+                </div>
               </div>
 
-              <AnimatedButton type="submit" variant="primary" fullWidth>
+              {/* Referee Settings */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Referee Reward (Instant Discount)</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormSelect
+                    value={refereeType}
+                    onChange={(e) => setRefereeType(e.target.value)}
+                    options={[
+                      { label: 'Fixed (₹)', value: 'fixed' },
+                      { label: 'Percent (%)', value: 'percentage' }
+                    ]}
+                  />
+                  <FormInput
+                    value={refereeValue}
+                    onChange={(e) => setRefereeValue(e.target.value)}
+                    type="number"
+                    min="0"
+                    placeholder="Value"
+                  />
+                </div>
+              </div>
+
+              <AnimatedButton type="submit" variant="primary" fullWidth isLoading={saving}>
                 Save Settings
               </AnimatedButton>
             </div>
@@ -146,8 +207,8 @@ export function ReferAndEarnTab() {
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalReferrals}</p>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg text-center">
-                  <p className="text-sm text-gray-500 mb-1">Total Paid</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">₹{totalPaid}</p>
+                  <p className="text-sm text-gray-500 mb-1">Coupons Issued</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalReferrals}</p>
                 </div>
               </div>
           </CompactCard>
@@ -155,7 +216,7 @@ export function ReferAndEarnTab() {
           <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl p-6 text-white">
             <h4 className="font-semibold text-lg mb-2">How it looks for students</h4>
             <p className="text-blue-100 text-sm mb-4">
-              "Invite your friends and earn {rewardType === 'fixed' ? `₹${referrerReward}` : `${referrerReward}%`} for every successful subscription!"
+              "Invite your friends! They get {refereeType === 'fixed' ? `₹${refereeValue}` : `${refereeValue}%`} off, and you earn a {referrerType === 'fixed' ? `₹${referrerValue}` : `${referrerValue}%`} coupon for every successful signup!"
             </p>
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 flex items-center justify-between border border-white/20">
               <code className="text-sm">bookmylib.com/r/LIB123</code>
@@ -199,7 +260,8 @@ export function ReferAndEarnTab() {
                   <th className="pb-3 pl-4">Referrer</th>
                   <th className="pb-3">Referee</th>
                   <th className="pb-3">Status</th>
-                  <th className="pb-3">Reward</th>
+                  <th className="pb-3">Coupon Earned</th>
+                  <th className="pb-3">Discount Given</th>
                   <th className="pb-3">Date</th>
                 </tr>
               </thead>
@@ -216,17 +278,22 @@ export function ReferAndEarnTab() {
                     </td>
                     <td className="py-3">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                        referral.status === 'paid' 
+                        referral.status === 'completed' || referral.status === 'redeemed'
                           ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                          : referral.status === 'verified'
-                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
                           : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
                       }`}>
                         {referral.status.charAt(0).toUpperCase() + referral.status.slice(1)}
                       </span>
                     </td>
                     <td className="py-3 font-medium text-gray-900 dark:text-white">
-                      ₹{referral.rewardAmount || 0}
+                      {referral.referrerCouponCode ? (
+                        <span className="font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-xs">
+                          {referral.referrerCouponCode}
+                        </span>
+                      ) : '-'}
+                    </td>
+                    <td className="py-3 font-medium text-gray-900 dark:text-white">
+                      {referral.refereeDiscount ? `₹${referral.refereeDiscount}` : '-'}
                     </td>
                     <td className="py-3 text-gray-500">
                       {format(new Date(referral.createdAt), 'MMM d, yyyy')}

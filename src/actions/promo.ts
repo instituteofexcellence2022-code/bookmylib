@@ -235,3 +235,36 @@ export async function getOwnerReferrals() {
     return []
   }
 }
+
+export async function saveReferralSettings(settings: any) {
+  const owner = await getOwnerProfile()
+  if (!owner || !owner.libraryId) return { success: false, error: 'Unauthorized' }
+
+  try {
+    await prisma.library.update({
+      where: { id: owner.libraryId },
+      data: { referralSettings: settings }
+    })
+    revalidatePath('/owner/promos')
+    return { success: true }
+  } catch (error) {
+    console.error('Error saving referral settings:', error)
+    return { success: false, error: 'Failed to save settings' }
+  }
+}
+
+export async function getReferralSettings() {
+  const owner = await getOwnerProfile()
+  if (!owner || !owner.libraryId) return null
+
+  try {
+    const library = await prisma.library.findUnique({
+      where: { id: owner.libraryId },
+      select: { referralSettings: true }
+    })
+    return library?.referralSettings
+  } catch (error) {
+    console.error('Error fetching referral settings:', error)
+    return null
+  }
+}
