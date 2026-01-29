@@ -212,7 +212,8 @@ export async function getStaffTickets(filters: { status?: string; category?: str
       libraryId: staff.libraryId,
       student: {
         branchId: staff.branchId
-      }
+      },
+      category: { not: 'staff' } // Staff cannot view staff-related issues (handled by owner)
     }
 
     if (filters.status && filters.status !== 'all') {
@@ -260,13 +261,13 @@ export async function updateTicketStatus(ticketId: string, status: string) {
   if (!libraryId) return { success: false, error: 'Unauthorized' }
 
   try {
-    // If staff, ensure ticket belongs to their branch
+    // If staff, ensure ticket belongs to their branch and is not staff-related
     if (staff) {
         const ticket = await prisma.supportTicket.findUnique({
             where: { id: ticketId },
             include: { student: true }
         })
-        if (!ticket || ticket.student?.branchId !== staff.branchId) {
+        if (!ticket || ticket.student?.branchId !== staff.branchId || ticket.category === 'staff') {
             return { success: false, error: 'Unauthorized' }
         }
     }
@@ -321,8 +322,8 @@ export async function getTicketDetails(ticketId: string) {
             }
         })
 
-        // If staff, verify branch access
-        if (staff && ticket?.student?.branchId !== staff.branchId) {
+        // If staff, verify branch access and ensure not staff-related
+        if (staff && (ticket?.student?.branchId !== staff.branchId || ticket?.category === 'staff')) {
             return null
         }
 
@@ -383,13 +384,13 @@ export async function addTicketComment(formData: FormData) {
         userType = 'owner'
         libraryId = owner.libraryId
     } else if (staff && staff.libraryId) {
-        // Verify ticket belongs to staff's branch
+        // Verify ticket belongs to staff's branch and is not staff-related
         const ticket = await prisma.supportTicket.findUnique({
             where: { id: ticketId },
             include: { student: true }
         })
         
-        if (!ticket || ticket.student?.branchId !== staff.branchId) {
+        if (!ticket || ticket.student?.branchId !== staff.branchId || ticket.category === 'staff') {
             return { success: false, error: 'Unauthorized' }
         }
 

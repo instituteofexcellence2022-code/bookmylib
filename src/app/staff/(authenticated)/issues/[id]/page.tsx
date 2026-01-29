@@ -15,7 +15,7 @@ export default async function TicketDetailPage({ params }: { params: { id: strin
     <TicketResponseClient 
         ticket={ticket} 
         baseUrl="/staff/issues"
-        studentUrlPrefix=""
+        studentUrlPrefix="/staff/students"
     />
   )
 }

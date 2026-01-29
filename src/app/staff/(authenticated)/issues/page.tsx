@@ -1,6 +1,6 @@
 import React from 'react'
 import { getStaffTickets } from '@/actions/ticket'
-import TicketListClient from '@/app/owner/(authenticated)/issues/TicketListClient'
+import StaffTicketListClient from '@/components/staff/issues/StaffTicketListClient'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,7 +26,7 @@ export default async function IssuesPage() {
         </div>
       </div>
 
-      <TicketListClient tickets={serializedTickets} baseUrl="/staff/issues" />
+      <StaffTicketListClient tickets={serializedTickets} baseUrl="/staff/issues" />
     </div>
   )
 }
