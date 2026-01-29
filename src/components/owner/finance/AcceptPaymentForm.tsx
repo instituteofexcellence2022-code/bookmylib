@@ -271,7 +271,13 @@ export function AcceptPaymentForm() {
         if (!couponCode) return
         setValidatingCoupon(true)
         try {
-            const result = await validateCoupon(couponCode, subTotal)
+            const result = await validateCoupon(
+                couponCode, 
+                subTotal, 
+                selectedStudent?.id,
+                selectedPlan?.id,
+                selectedBranch?.id
+            )
             if (result.success && result.discount !== undefined && result.finalAmount !== undefined) {
                 setAppliedCoupon({
                     code: couponCode,

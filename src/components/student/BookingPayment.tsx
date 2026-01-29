@@ -78,7 +78,13 @@ export default function BookingPayment({
       // existing validateCoupon takes (code, amount).
       // If we pass subTotal, it might discount fees too.
       // Let's pass subTotal for now.
-      const result = await validateCoupon(couponCode, subTotal)
+      const result = await validateCoupon(
+        couponCode, 
+        subTotal, 
+        undefined, // studentId will be resolved by server action from cookies
+        plan.id, 
+        branchId
+      )
       
       if (result.success && result.discount !== undefined && result.finalAmount !== undefined) {
         setAppliedCoupon({

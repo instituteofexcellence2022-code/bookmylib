@@ -1,6 +1,11 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { formatCurrency, formatDate } from './utils'
+import { formatDate } from './utils'
+
+// Helper for PDF currency formatting (avoiding unicode symbols that might break in standard fonts)
+const formatCurrencyForPDF = (amount: number) => {
+    return `Rs. ${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
 
 interface ReceiptData {
     invoiceNo: string
@@ -36,21 +41,21 @@ export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob
     
     // Define layout constants
     const margin = 14
-    const rightMargin = 30 // Increased right margin significantly to avoid border issues
+    const rightMargin = 14 // Matched with left margin for symmetry
     const pageWidth = 210
-    const rightX = pageWidth - rightMargin // 190
+    const rightX = pageWidth - rightMargin
 
     // --- Header Section ---
     // Left side: Company Brand
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2])
-    doc.setFontSize(22)
+    doc.setFontSize(26) // Increased size
     doc.setFont('helvetica', 'bold')
     doc.text('BookMyLib', margin, 20)
     
     doc.setTextColor(grayColor[0], grayColor[1], grayColor[2])
-    doc.setFontSize(9)
+    doc.setFontSize(11) // Increased size
     doc.setFont('helvetica', 'normal')
-    doc.text('Your Premium Library Experience', margin, 25)
+    doc.text('Your Premium Library Experience', margin, 26) // Adjusted Y position
     
     // Right side: Invoice Label
     doc.setTextColor(grayColor[0], grayColor[1], grayColor[2])
@@ -65,7 +70,7 @@ export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob
     
     // Divider
     doc.setDrawColor(229, 231, 235) // Gray-200
-    doc.line(margin, 34, rightX, 34)
+    doc.line(margin, 31, rightX, 31) // Moved up to reduce space
     
     // --- Info Section ---
     const startY = 42
@@ -169,7 +174,7 @@ export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob
     // --- Table Section ---
     const tableData = data.items.map(item => [
         item.description,
-        formatCurrency(item.amount)
+        formatCurrencyForPDF(item.amount)
     ])
     
     autoTable(doc, {
@@ -177,7 +182,7 @@ export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob
         head: [['Description', 'Amount']],
         body: tableData,
         theme: 'plain',
-        tableWidth: pageWidth - margin - rightMargin, // Explicitly constrain table width
+        // tableWidth: pageWidth - margin - rightMargin, // Let autoTable handle width based on margins
         headStyles: { 
             fillColor: [249, 250, 251], // Gray-50
             textColor: [55, 65, 81], // Gray-700
@@ -186,11 +191,11 @@ export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob
         },
         columnStyles: {
             0: { cellWidth: 'auto' }, // Description
-            1: { cellWidth: 40, halign: 'right' } // Amount - Reduced width slightly
+            1: { cellWidth: 40, halign: 'right', cellPadding: { top: 3, bottom: 3, left: 4, right: 12 } } // Amount - Shift further left to align with header
         },
         styles: {
-            fontSize: 9,
-            cellPadding: 4,
+            fontSize: 11,
+            cellPadding: 3,
             lineColor: [229, 231, 235], // Gray-200
             lineWidth: { bottom: 0.1 }
         },
@@ -201,16 +206,16 @@ export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob
     // @ts-expect-error lastAutoTable exists on doc but is not typed
     const finalY = doc.lastAutoTable.finalY + 8
     
-    const summaryX = 120
-    const valueX = rightX
+    const summaryX = 110 // Shifted left from 120
+    const valueX = rightX - 12 // Match table padding (12)
     
-    doc.setFontSize(9)
+    doc.setFontSize(11)
     
     // Subtotal
     doc.setTextColor(grayColor[0], grayColor[1], grayColor[2])
     doc.text('Subtotal:', summaryX, finalY)
     doc.setTextColor(0, 0, 0)
-    doc.text(formatCurrency(data.subTotal), valueX, finalY, { align: 'right' })
+    doc.text(formatCurrencyForPDF(data.subTotal), valueX, finalY, { align: 'right' })
     
     // Discount
     let currentY = finalY
@@ -218,7 +223,7 @@ export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob
         currentY += 5
         doc.setTextColor(220, 38, 38) // Red
         doc.text('Discount:', summaryX, currentY)
-        doc.text(`-${formatCurrency(data.discount)}`, valueX, currentY, { align: 'right' })
+        doc.text(`-${formatCurrencyForPDF(data.discount)}`, valueX, currentY, { align: 'right' })
     }
     
     // Divider line for total
@@ -227,12 +232,12 @@ export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob
     doc.line(summaryX, currentY - 2, rightX, currentY - 2)
     
     // Total
-    doc.setFontSize(11)
+    doc.setFontSize(14)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(0, 0, 0)
     doc.text('Total Paid:', summaryX, currentY + 3)
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2])
-    doc.text(formatCurrency(data.amount), valueX, currentY + 3, { align: 'right' })
+    doc.text(formatCurrencyForPDF(data.amount), valueX, currentY + 3, { align: 'right' })
     
     // --- Payment Details & Footer ---
     const footerY = currentY + 15
@@ -250,6 +255,21 @@ export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob
     doc.setTextColor(0, 0, 0)
     doc.setFont('helvetica', 'bold')
     doc.text(data.paymentMethod.toUpperCase(), margin + 6, footerY + 15)
+
+    // Terms Badge (Below Payment Method)
+    const termsY = footerY + 24
+    doc.setFillColor(243, 244, 246)
+    doc.roundedRect(margin, termsY, 90, 20, 2, 2, 'F')
+    
+    doc.setFontSize(8)
+    doc.setTextColor(grayColor[0], grayColor[1], grayColor[2])
+    doc.setFont('helvetica', 'normal')
+    doc.text('Important Note', margin + 6, termsY + 7)
+    
+    doc.setFontSize(8)
+    doc.setTextColor(0, 0, 0)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Fees once paid are non-refundable in any circumstances.', margin + 6, termsY + 15, { maxWidth: 78 })
     
     // Bottom Footer
     

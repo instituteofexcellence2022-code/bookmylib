@@ -7,19 +7,19 @@ import bcrypt from 'bcryptjs'
 import type { Prisma } from '@prisma/client'
 import { uploadFile } from './upload'
 
-export async function getStaffProfile() {
+import { cache } from 'react'
+
+export const getStaffProfile = cache(async function getStaffProfile() {
   try {
     const cookieStore = await cookies()
     const staffId = cookieStore.get('staff_session')?.value
 
-    if (!staffId) return null
+    if (!staffId) {
+      return null
+    }
 
     const staff = await prisma.staff.findUnique({
-      where: { id: staffId },
-      include: {
-        library: true,
-        branch: true
-      }
+      where: { id: staffId }
     })
 
     return staff
@@ -31,7 +31,7 @@ export async function getStaffProfile() {
     console.error('Error fetching staff profile:', error)
     return null
   }
-}
+})
 
 export async function createStaff(formData: FormData) {
   try {
@@ -163,13 +163,45 @@ export async function createStaff(formData: FormData) {
 
 export async function updateStaffProfile(formData: FormData) {
   try {
+    const cookieStore = await cookies()
+    const staffId = cookieStore.get('staff_session')?.value
+
+    if (!staffId) {
+        return { success: false, error: 'Unauthorized: No session found' }
+    }
+
     const id = formData.get('id') as string
+
+    if (!id) {
+        return { success: false, error: 'Staff ID is required' }
+    }
+
+    if (id !== staffId) {
+        return { success: false, error: 'Unauthorized: You can only update your own profile' }
+    }
+
     const name = formData.get('name') as string
     const phone = formData.get('phone') as string
     const address = formData.get('address') as string
     const gender = formData.get('gender') as string
     const dob = formData.get('dob') as string
-    const image = formData.get('image') as string
+    
+    // Handle Image Upload
+    const imageFile = formData.get('imageFile') as File | null
+    let image = formData.get('image') as string
+
+    if (imageFile && imageFile.size > 0) {
+        try {
+            const uploadedUrl = await uploadFile(imageFile)
+            if (uploadedUrl) {
+                image = uploadedUrl
+            }
+        } catch (e) {
+            console.error('Failed to upload profile image', e)
+            // Continue without updating image if upload fails? Or return error?
+            // Let's log it and continue, maybe keeping old image or null
+        }
+    }
 
     if (!id) {
         return { success: false, error: 'Staff ID is required' }
@@ -197,6 +229,7 @@ export async function updateStaffProfile(formData: FormData) {
     })
 
     revalidatePath('/staff/profile')
+    revalidatePath('/staff', 'layout')
     return { success: true }
 
   } catch (error) {
@@ -207,7 +240,23 @@ export async function updateStaffProfile(formData: FormData) {
 
 export async function changeStaffPassword(formData: FormData) {
   try {
+    const cookieStore = await cookies()
+    const staffId = cookieStore.get('staff_session')?.value
+
+    if (!staffId) {
+        return { success: false, error: 'Unauthorized: No session found' }
+    }
+
     const id = formData.get('id') as string
+
+    if (!id) {
+        return { success: false, error: 'Staff ID is required' }
+    }
+
+    if (id !== staffId) {
+        return { success: false, error: 'Unauthorized: You can only change your own password' }
+    }
+
     const currentPassword = formData.get('currentPassword') as string
     const newPassword = formData.get('newPassword') as string
     const confirmPassword = formData.get('confirmPassword') as string

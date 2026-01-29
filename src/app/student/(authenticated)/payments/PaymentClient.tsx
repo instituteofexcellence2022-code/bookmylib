@@ -11,11 +11,10 @@ import { toast } from 'react-hot-toast'
 import { 
   initiatePayment, 
   createManualPayment, 
-  validateCoupon, 
   getPaymentHistory,
   getStudentBookingStatus 
 } from '@/actions/payment'
-import { generateReceipt } from '@/utils/receiptGenerator'
+import { generateReceiptPDF } from '@/lib/pdf-generator'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
@@ -54,6 +53,57 @@ export default function PaymentClient() {
 
   const handleManageSubscription = () => {
     router.push('/student/my-plan')
+  }
+
+  const handleDownloadReceipt = (payment: any) => {
+    // Calculate details
+    let subTotal = payment.amount
+    let discount = 0
+    const items = []
+
+    if (payment.subscription) {
+        // If it's a subscription payment
+        subTotal = payment.subscription.plan.price
+        
+        // Calculate discount if paid amount is less than plan price
+        if (subTotal > payment.amount) {
+            discount = subTotal - payment.amount
+        }
+        
+        items.push({
+            description: `${payment.subscription.plan.name} Plan`,
+            amount: subTotal
+        })
+    } else {
+        // Fallback for other payments
+        items.push({
+            description: payment.description || 'Payment',
+            amount: payment.amount
+        })
+    }
+
+    const receiptData = {
+        invoiceNo: payment.id.slice(0, 8).toUpperCase(),
+        date: new Date(payment.createdAt),
+        studentName: payment.student.name,
+        studentEmail: payment.student.email,
+        studentPhone: payment.student.phone,
+        branchName: payment.branch?.name || 'Main Branch',
+        branchAddress: payment.branch ? `${payment.branch.address}, ${payment.branch.city}` : '',
+        planName: payment.subscription?.plan?.name || 'Payment',
+        planType: payment.subscription?.plan?.durationUnit,
+        planDuration: payment.subscription?.plan?.duration?.toString(),
+        seatNumber: payment.subscription?.seat?.number?.toString(),
+        startDate: payment.subscription?.startDate ? new Date(payment.subscription.startDate) : undefined,
+        endDate: payment.subscription?.endDate ? new Date(payment.subscription.endDate) : undefined,
+        amount: payment.amount,
+        paymentMethod: payment.method.replace('_', ' '),
+        subTotal: subTotal,
+        discount: discount,
+        items: items
+    }
+
+    generateReceiptPDF(receiptData)
   }
 
   if (loading) {
@@ -165,7 +215,7 @@ export default function PaymentClient() {
                   </div>
                   {payment.status === 'completed' && (
                     <button 
-                      onClick={() => generateReceipt(payment)}
+                      onClick={() => handleDownloadReceipt(payment)}
                       className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
                       title="Download Receipt"
                     >

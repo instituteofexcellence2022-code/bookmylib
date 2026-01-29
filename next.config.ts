@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  serverExternalPackages: ['@prisma/client', 'bcryptjs'],
   experimental: {
     serverActions: {
       bodySizeLimit: '6mb',

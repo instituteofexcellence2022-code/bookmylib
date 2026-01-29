@@ -141,6 +141,15 @@ export async function getDashboardStats(branchId?: string) {
         }
     })
 
+    const reportedStudentIssues = await prisma.supportTicket.count({
+        where: {
+            libraryId,
+            ...whereBranch,
+            status: 'open',
+            category: 'discipline'
+        }
+    })
+
 
     // 5. Recent Activity (Feed)
     // Combine Payments, Check-ins, and Tickets
@@ -308,6 +317,15 @@ export async function getDashboardStats(branchId?: string) {
             type: 'warning',
             title: 'High Occupancy',
             desc: `Occupancy is at ${occupancyRate}%. Consider adding more seats or a new branch.`
+        })
+    }
+
+    if (reportedStudentIssues > 0) {
+        alerts.push({
+            id: 'reported-students',
+            type: 'error',
+            title: 'Reported Students',
+            desc: `There are ${reportedStudentIssues} active student reports requiring immediate attention.`
         })
     }
 

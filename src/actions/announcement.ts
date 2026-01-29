@@ -66,23 +66,33 @@ export async function getStudentAnnouncements() {
   }
 }
 
-export async function getStaffAnnouncements() {
-  const cookieStore = await cookies()
-  const staffId = cookieStore.get('staff_session')?.value
-  
-  if (!staffId) return []
+import { getStaffProfile } from './staff'
 
+export async function getStaffAnnouncements(
+  context?: { libraryId: string; branchId: string | null }
+) {
   try {
-    const staff = await prisma.staff.findUnique({
-      where: { id: staffId },
-      select: { libraryId: true }
-    })
+    let libraryId = context?.libraryId
+    let branchId = context?.branchId
 
-    if (!staff || !staff.libraryId) return []
+    if (!libraryId) {
+      const staff = await getStaffProfile()
+      if (!staff || !staff.libraryId) return []
+      libraryId = staff.libraryId
+      branchId = staff.branchId
+    }
 
     const announcements = await prisma.announcement.findMany({
       where: { 
-        libraryId: staff.libraryId,
+        libraryId: libraryId,
+        AND: [
+            {
+                OR: [
+                    { branchId: null },
+                    { branchId: branchId }
+                ]
+            }
+        ],
         target: { in: ['all', 'staff'] },
         isActive: true,
         OR: [

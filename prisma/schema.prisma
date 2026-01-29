@@ -644,6 +644,8 @@ model Announcement {
   library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
   
   @@map("announcements")
+  @@index([libraryId])
+  @@index([branchId])
 }
 
 // Student Goal (Gamification)

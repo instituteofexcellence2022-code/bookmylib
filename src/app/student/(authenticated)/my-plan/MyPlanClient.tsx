@@ -11,7 +11,7 @@ import { getStudentBookingStatus } from '@/actions/payment'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { motion } from 'framer-motion'
-import { generateReceipt } from '@/utils/receiptGenerator'
+import { generateReceiptPDF } from '@/lib/pdf-generator'
 
 export default function MyPlanClient() {
   const router = useRouter()
@@ -76,6 +76,46 @@ export default function MyPlanClient() {
   const getDaysRemaining = (end: string) => {
     const diff = new Date(end).getTime() - new Date().getTime()
     return Math.ceil(diff / (1000 * 60 * 60 * 24))
+  }
+
+  const handleDownloadReceipt = (subscription: any) => {
+    const payment = subscription.payment
+    if (!payment) return
+
+    // Calculate details
+    const subTotal = subscription.plan.price
+    let discount = 0
+    if (subTotal > payment.amount) {
+        discount = subTotal - payment.amount
+    }
+    
+    const items = [{
+        description: `${subscription.plan.name} Plan`,
+        amount: subTotal
+    }]
+
+    const receiptData = {
+        invoiceNo: payment.id.slice(0, 8).toUpperCase(),
+        date: new Date(payment.createdAt),
+        studentName: payment.student.name,
+        studentEmail: payment.student.email,
+        studentPhone: payment.student.phone,
+        branchName: payment.branch?.name || subscription.branch.name || 'Main Branch',
+        branchAddress: payment.branch ? `${payment.branch.address}, ${payment.branch.city}` : (subscription.branch.address || ''),
+        planName: subscription.plan.name,
+        planType: subscription.plan.durationUnit,
+        planDuration: subscription.plan.duration?.toString(),
+        seatNumber: subscription.seat?.number?.toString(),
+        startDate: subscription.startDate ? new Date(subscription.startDate) : undefined,
+        endDate: subscription.endDate ? new Date(subscription.endDate) : undefined,
+        amount: payment.amount,
+        paymentMethod: payment.method.replace('_', ' '),
+        subTotal: subTotal,
+        discount: discount,
+        items: items
+    }
+
+    generateReceiptPDF(receiptData)
   }
 
   if (loading) {
@@ -239,7 +279,7 @@ export default function MyPlanClient() {
                 <div className="flex items-center gap-2">
                    {sub?.payment && (
                     <button
-                      onClick={() => generateReceipt(sub.payment)}
+                      onClick={() => handleDownloadReceipt(sub)}
                       className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors border border-white/10"
                       title="Download Receipt"
                     >

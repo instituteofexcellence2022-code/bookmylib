@@ -663,7 +663,7 @@ export async function createManualPayment(formData: FormData) {
   }
 }
 
-export async function validateCoupon(code: string, amount: number) {
+export async function validateCoupon(code: string, amount: number, studentId?: string, planId?: string, branchId?: string) {
   try {
     const promo = await prisma.promotion.findUnique({
       where: { code: code.toUpperCase() }
@@ -686,15 +686,47 @@ export async function validateCoupon(code: string, amount: number) {
       return { success: false, error: 'This coupon has expired' }
     }
 
+    // Branch Restriction Check
+    if (promo.branchId && branchId && promo.branchId !== branchId) {
+      return { success: false, error: 'This coupon is not valid for this branch' }
+    }
+
+    // Plan Restriction Check
+    if (promo.planId && planId && promo.planId !== planId) {
+      return { success: false, error: 'This coupon is not valid for this plan' }
+    }
+
     if (promo.usageLimit) {
-       // Check global usage limit if we can track it. 
-       // Currently schema doesn't have usedCount, so skipping this check or implementing count query
+       // Check global usage limit
        const usedCount = await prisma.payment.count({
-         where: { promotionId: promo.id }
+         where: { promotionId: promo.id, status: 'completed' }
        })
        if (usedCount >= promo.usageLimit) {
          return { success: false, error: 'Coupon usage limit reached' }
        }
+    }
+
+    // Resolve studentId if not provided (for student self-service)
+    let targetStudentId = studentId
+    if (!targetStudentId) {
+        const currentStudent = await getStudent()
+        if (currentStudent) {
+            targetStudentId = currentStudent.id
+        }
+    }
+
+    if (targetStudentId && promo.perUserLimit) {
+        // Check per-user usage limit
+        const userUsedCount = await prisma.payment.count({
+            where: { 
+                promotionId: promo.id, 
+                studentId: targetStudentId,
+                status: 'completed'
+            }
+        })
+        if (userUsedCount >= promo.perUserLimit) {
+            return { success: false, error: 'You have reached the usage limit for this coupon' }
+        }
     }
 
     if (promo.minOrderValue && amount < promo.minOrderValue) {

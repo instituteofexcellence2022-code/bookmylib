@@ -46,6 +46,7 @@ export default function TicketListClient({
   const [priorityFilter, setPriorityFilter] = useState('all')
 
   const categories = [
+    { id: 'discipline', label: 'Discipline & Reports' },
     { id: 'service', label: 'Library Service' },
     { id: 'payment', label: 'Payment' },
     { id: 'staff', label: 'Staff' },
@@ -195,13 +196,18 @@ export default function TicketListClient({
                         <div className="flex items-center gap-2 text-xs text-gray-500">
                           <span className="font-mono">#{ticket.id.slice(0, 8)}</span>
                           <span>•</span>
-                          <span>{ticket.category}</span>
-                          {ticket.priority === 'high' && (
-                            <span className="flex items-center text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded">
+                          <span className="capitalize">{ticket.category}</span>
+                          {ticket.category === 'discipline' ? (
+                             <span className="flex items-center text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded font-medium">
+                               <AlertTriangle className="w-3 h-3 mr-1" />
+                               Reported Student
+                             </span>
+                          ) : ticket.priority === 'high' || ticket.priority === 'urgent' ? (
+                            <span className="flex items-center text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-1.5 py-0.5 rounded">
                               <AlertTriangle className="w-3 h-3 mr-1" />
-                              High
+                              {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
                             </span>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     </td>
