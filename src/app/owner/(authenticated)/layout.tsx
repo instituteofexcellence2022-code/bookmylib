@@ -13,7 +13,8 @@ import {
   TrendingUp,
   Megaphone,
   CalendarCheck,
-  User
+  User,
+  ShieldCheck
 } from 'lucide-react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { TopBar } from '@/components/layout/TopBar'
@@ -26,6 +27,7 @@ const navItems = [
   { href: '/owner/staff', label: 'Staff', icon: Users, group: 'Operations' },
   { href: '/owner/students', label: 'Students', icon: GraduationCap, group: 'Operations' },
   { href: '/owner/attendance', label: 'Attendance', icon: CalendarCheck, group: 'Operations' },
+  { href: '/owner/verification', label: 'Verification', icon: ShieldCheck, group: 'Operations' },
   
   { href: '/owner/plans', label: 'Plans & Fees', icon: CreditCard, group: 'Business' },
   { href: '/owner/promos', label: 'Promotions', icon: Tag, group: 'Business' },

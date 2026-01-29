@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { cookies } from 'next/headers'
+import { revalidatePath } from 'next/cache'
 import { startOfMonth, endOfMonth, subMonths, format, startOfDay, endOfDay } from 'date-fns'
 
 async function getOwner() {
@@ -552,5 +553,7 @@ export async function verifyPayment(paymentId: string, action: 'approve' | 'reje
         return payment
     })
 
-    return result
+    revalidatePath('/owner/finance')
+    revalidatePath('/owner/verification')
+    return { success: true }
 }

@@ -326,9 +326,48 @@ export async function verifyStudentGovtId(studentId: string, status: 'verified' 
     })
     
     revalidatePath(`/owner/students/${studentId}`)
+    revalidatePath('/owner/verification')
     return { success: true }
   } catch (error) {
     console.error('Error verifying govt ID:', error)
     return { success: false, error: 'Verification failed' }
+  }
+}
+
+export async function getPendingVerifications() {
+  try {
+    const cookieStore = await cookies()
+    const ownerId = cookieStore.get('owner_session')?.value
+    if (!ownerId) throw new Error('Unauthorized')
+
+    const owner = await prisma.owner.findUnique({
+      where: { id: ownerId },
+      select: { libraryId: true }
+    })
+
+    if (!owner) throw new Error('Owner not found')
+
+    const students = await prisma.student.findMany({
+      where: {
+        libraryId: owner.libraryId,
+        govtIdStatus: 'pending',
+        govtIdUrl: { not: null }
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        govtIdUrl: true,
+        govtIdStatus: true,
+        createdAt: true
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    return students
+  } catch (error) {
+    console.error('Error fetching pending verifications:', error)
+    return []
   }
 }
