@@ -538,21 +538,21 @@ export async function getGlobalStaffStats() {
 
     const libraryId = owner.libraryId
 
-    const totalStaff = await prisma.staff.count({ where: { libraryId } })
-    const onLeaveStaff = await prisma.staff.count({ where: { libraryId, status: 'on_leave' } })
-    const inactiveStaff = await prisma.staff.count({ where: { libraryId, status: 'inactive' } })
-    
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    const presentToday = await prisma.staffAttendance.count({
-      where: {
-        libraryId,
-        date: {
-          gte: today
-        },
-        status: 'present'
-      }
-    })
+
+    const [totalStaff, onLeaveStaff, inactiveStaff, presentToday] = await Promise.all([
+      prisma.staff.count({ where: { libraryId } }),
+      prisma.staff.count({ where: { libraryId, status: 'on_leave' } }),
+      prisma.staff.count({ where: { libraryId, status: 'inactive' } }),
+      prisma.staffAttendance.count({
+        where: {
+          libraryId,
+          date: { gte: today },
+          status: 'present'
+        }
+      })
+    ])
 
     return {
       totalStaff,
@@ -622,5 +622,68 @@ export async function getStaffStats(id: string) {
       tasksCompleted: 0,
       avgResponseTime: 'N/A'
     }
+  }
+}
+
+export async function getStaffManagementData() {
+  try {
+    const cookieStore = await cookies()
+    const ownerId = cookieStore.get('owner_session')?.value
+    
+    if (!ownerId) return null
+
+    const owner = await prisma.owner.findUnique({
+      where: { id: ownerId },
+      select: { libraryId: true }
+    })
+
+    if (!owner?.libraryId) return null
+
+    const libraryId = owner.libraryId
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const [staff, branches, totalStaff, onLeaveStaff, inactiveStaff, presentToday] = await Promise.all([
+      // 1. Get All Staff
+      prisma.staff.findMany({
+        where: { libraryId },
+        include: { branch: true },
+        orderBy: { createdAt: 'desc' }
+      }),
+      // 2. Get All Branches
+      prisma.branch.findMany({
+        where: { libraryId },
+        select: { id: true, name: true }
+      }),
+      // 3. Stats
+      prisma.staff.count({ where: { libraryId } }),
+      prisma.staff.count({ where: { libraryId, status: 'on_leave' } }),
+      prisma.staff.count({ where: { libraryId, status: 'inactive' } }),
+      prisma.staffAttendance.count({
+        where: {
+          libraryId,
+          date: { gte: today },
+          status: 'present'
+        }
+      })
+    ])
+
+    return {
+      staff,
+      branches,
+      stats: {
+        totalStaff,
+        presentToday,
+        onLeave: onLeaveStaff,
+        inactive: inactiveStaff
+      }
+    }
+
+  } catch (error) {
+    if ((error as any)?.digest === 'DYNAMIC_SERVER_USAGE') {
+      throw error
+    }
+    console.error('Error fetching staff management data:', error)
+    return null
   }
 }

@@ -12,7 +12,7 @@ import { FormInput } from '@/components/ui/FormInput'
 import { FormSelect } from '@/components/ui/FormSelect'
 import { CompactCard } from '@/components/ui/AnimatedCard'
 import Image from 'next/image'
-import { getAllStaff, getGlobalStaffStats } from '@/actions/staff'
+import { getAllStaff, getGlobalStaffStats, getStaffManagementData } from '@/actions/staff'
 import { getOwnerBranches } from '@/actions/branch'
 import { toast } from 'react-hot-toast'
 
@@ -54,16 +54,15 @@ export default function StaffPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [staffData, statsData, branchesData] = await Promise.all([
-          getAllStaff(),
-          getGlobalStaffStats(),
-          getOwnerBranches()
-        ])
+        const data = await getStaffManagementData()
         
-        // Map Prisma result to expected type if needed, but it should match closely
-        setStaffList(staffData as unknown as StaffWithBranch[]) 
-        setStats(statsData)
-        setBranches(branchesData.map((b: { name: string, id: string }) => ({ label: b.name, value: b.name }))) // Value is name for filter matching
+        if (data) {
+          setStaffList(data.staff as unknown as StaffWithBranch[])
+          setStats(data.stats)
+          setBranches(data.branches.map((b: { name: string, id: string }) => ({ label: b.name, value: b.name })))
+        } else {
+            toast.error('Failed to load staff data')
+        }
         
       } catch (error) {
         console.error('Error loading staff data:', error)
