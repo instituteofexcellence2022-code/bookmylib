@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { getOwnerProfile } from './owner'
+import { uploadFile } from '@/actions/upload'
 import { randomUUID } from 'crypto'
 
 export async function getOwnerBranches() {
