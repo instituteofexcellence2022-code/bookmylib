@@ -16,7 +16,6 @@ import {
 } from 'lucide-react'
 import { AnimatedCard, CompactCard } from '@/components/ui/AnimatedCard'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
-import { AnnouncementList } from '@/components/shared/AnnouncementList'
 import { format } from 'date-fns'
 
 interface DashboardStats {
@@ -44,7 +43,6 @@ interface PaymentActivity {
 }
 
 interface DashboardClientProps {
-  announcements: any[]
   staffName: string
   stats?: DashboardStats
   attendance?: StaffAttendance | null
@@ -52,7 +50,6 @@ interface DashboardClientProps {
 }
 
 export default function DashboardClient({ 
-  announcements, 
   staffName,
   stats,
   attendance,
@@ -84,9 +81,6 @@ export default function DashboardClient({
         </div>
       </div>
       
-      {/* Announcements */}
-      <AnnouncementList announcements={announcements} />
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Left Column: Shift & Quick Actions */}
         <div className="space-y-6">

@@ -29,7 +29,7 @@ const navItems = [
   { href: '/staff/profile', label: 'Profile', icon: UserCircle },
 ]
 
-export default function StaffLayoutClient({ children, user }: { 
+export default function StaffLayoutClient({ children, user, announcements }: { 
   children: React.ReactNode
   user: {
     name: string
@@ -37,6 +37,7 @@ export default function StaffLayoutClient({ children, user }: {
     image?: string | null
     initials: string
   }
+  announcements?: any[]
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
@@ -56,6 +57,7 @@ export default function StaffLayoutClient({ children, user }: {
           user={user}
           title="Staff Portal"
           onMenuClick={() => setIsSidebarOpen(true)}
+          announcements={announcements}
         />
         
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">

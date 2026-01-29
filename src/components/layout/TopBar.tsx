@@ -128,7 +128,7 @@ export function TopBar({ user, title, className, onMenuClick, onLogout, announce
                 </div>
                 <div className="p-2 border-t border-gray-100 dark:border-gray-700">
                   <Link 
-                    href="/student/notifications" 
+                    href={user.role === 'student' ? '/student/notifications' : user.role === 'staff' ? '/staff/dashboard' : '/owner/marketing'}
                     className="flex items-center justify-center w-full py-2 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                     onClick={() => setIsNotificationOpen(false)}
                   >

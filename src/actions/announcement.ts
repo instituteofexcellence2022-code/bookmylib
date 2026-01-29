@@ -215,3 +215,22 @@ export async function toggleAnnouncementStatus(id: string, isActive: boolean) {
     return { success: false, error: 'Failed to update announcement' }
   }
 }
+
+export async function getUserAnnouncements() {
+  try {
+    // Check Owner
+    const owner = await getOwnerProfile()
+    if (owner) return getOwnerAnnouncements()
+
+    // Check Staff
+    const staff = await getStaffProfile()
+    if (staff) return getStaffAnnouncements()
+
+    // Check Student
+    // getStudentAnnouncements checks cookies internally
+    return getStudentAnnouncements()
+  } catch (error) {
+    console.error('Error fetching user announcements:', error)
+    return []
+  }
+}
