@@ -24,6 +24,10 @@ export async function getStaffProfile() {
 
     return staff
   } catch (error) {
+    // Re-throw Next.js dynamic server usage errors so the page can opt-out of static generation
+    if ((error as any)?.digest === 'DYNAMIC_SERVER_USAGE') {
+      throw error
+    }
     console.error('Error fetching staff profile:', error)
     return null
   }

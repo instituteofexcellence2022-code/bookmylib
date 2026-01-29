@@ -37,6 +37,10 @@ export async function getOwnerProfile() {
 
     return null
   } catch (error) {
+    // Re-throw Next.js dynamic server usage errors
+    if ((error as any)?.digest === 'DYNAMIC_SERVER_USAGE') {
+      throw error
+    }
     console.error('Error fetching owner profile:', error)
     return null
   }
