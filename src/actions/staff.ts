@@ -514,14 +514,39 @@ export async function getAllStaff() {
 
 export async function getGlobalStaffStats() {
   try {
-    const totalStaff = await prisma.staff.count()
-    const onLeaveStaff = await prisma.staff.count({ where: { status: 'on_leave' } })
-    const inactiveStaff = await prisma.staff.count({ where: { status: 'inactive' } })
+    const cookieStore = await cookies()
+    const ownerId = cookieStore.get('owner_session')?.value
+    
+    if (!ownerId) return {
+      totalStaff: 0,
+      presentToday: 0,
+      onLeave: 0,
+      inactive: 0
+    }
+
+    const owner = await prisma.owner.findUnique({
+      where: { id: ownerId },
+      select: { libraryId: true }
+    })
+
+    if (!owner?.libraryId) return {
+      totalStaff: 0,
+      presentToday: 0,
+      onLeave: 0,
+      inactive: 0
+    }
+
+    const libraryId = owner.libraryId
+
+    const totalStaff = await prisma.staff.count({ where: { libraryId } })
+    const onLeaveStaff = await prisma.staff.count({ where: { libraryId, status: 'on_leave' } })
+    const inactiveStaff = await prisma.staff.count({ where: { libraryId, status: 'inactive' } })
     
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const presentToday = await prisma.staffAttendance.count({
       where: {
+        libraryId,
         date: {
           gte: today
         },
@@ -536,6 +561,9 @@ export async function getGlobalStaffStats() {
       inactive: inactiveStaff
     }
   } catch (error) {
+    if ((error as any)?.digest === 'DYNAMIC_SERVER_USAGE') {
+      throw error
+    }
     console.error('Error fetching global staff stats:', error)
     return {
       totalStaff: 0,

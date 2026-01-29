@@ -68,6 +68,9 @@ export async function getBranchById(id: string) {
       status: branch.isActive ? 'active' : 'maintenance'
     }
   } catch (error) {
+    if ((error as any)?.digest === 'DYNAMIC_SERVER_USAGE') {
+      throw error
+    }
     console.error('Error fetching branch:', error)
     return null
   }

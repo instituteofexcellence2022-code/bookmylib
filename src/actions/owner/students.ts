@@ -1,8 +1,9 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { uploadFile } from '@/actions/upload'
 
 import bcrypt from 'bcryptjs'
@@ -446,12 +447,15 @@ export async function getStudentDetails(studentId: string) {
                 totalAttendance,
                 totalSpent,
                 activePlan: activeSubscription?.plan?.name || 'None',
-                activeBranch: activeSubscription?.branch?.name || 'None'
+                lastActive: student.attendance[0]?.date || null
             }
         }
     } catch (error) {
+        if ((error as any)?.digest === 'DYNAMIC_SERVER_USAGE') {
+            throw error
+        }
         console.error('Error fetching student details:', error)
-        throw new Error('Failed to fetch student details')
+        return null
     }
 }
 
