@@ -10,9 +10,9 @@ import { motion } from 'framer-motion'
 
 interface ReferralClientProps {
     data: {
-        referralCode: string
+        referralCode: string | null
         referrals: any[]
-        libraryName: string | null
+        libraryName: string | null | undefined
         settings: any
         stats: {
             totalReferrals: number
@@ -26,11 +26,13 @@ export default function ReferralClient({ data }: ReferralClientProps) {
     const { referralCode, referrals, libraryName, settings, stats } = data
     const [copied, setCopied] = useState(false)
 
+    const code = referralCode || ''
     const shareUrl = typeof window !== 'undefined' 
-        ? `${window.location.origin}/student/register?ref=${referralCode}`
+        ? `${window.location.origin}/student/register?ref=${code}`
         : ''
 
     const copyToClipboard = async () => {
+        if (!code) return
         try {
             await navigator.clipboard.writeText(shareUrl)
             setCopied(true)
@@ -42,7 +44,8 @@ export default function ReferralClient({ data }: ReferralClientProps) {
     }
 
     const shareOnWhatsApp = () => {
-        const text = `Join ${libraryName || 'BookMyLib'} using my referral code *${referralCode}* and get a discount! Sign up here: ${shareUrl}`
+        if (!code) return
+        const text = `Join ${libraryName || 'BookMyLib'} using my referral code *${code}* and get a discount! Sign up here: ${shareUrl}`
         window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
     }
 
@@ -99,10 +102,11 @@ export default function ReferralClient({ data }: ReferralClientProps) {
 
                             <div className="flex flex-col sm:flex-row gap-3">
                                 <div className="flex-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-1 pl-4 flex items-center justify-between">
-                                    <span className="font-mono font-bold tracking-wider text-lg">{referralCode}</span>
+                                    <span className="font-mono font-bold tracking-wider text-lg">{code || 'Generating...'}</span>
                                     <button 
                                         onClick={copyToClipboard}
-                                        className="p-2 hover:bg-white/20 rounded-md transition-colors"
+                                        disabled={!code}
+                                        className="p-2 hover:bg-white/20 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         title="Copy Link"
                                     >
                                         {copied ? <CheckCircle2 className="w-5 h-5 text-green-300" /> : <Copy className="w-5 h-5" />}

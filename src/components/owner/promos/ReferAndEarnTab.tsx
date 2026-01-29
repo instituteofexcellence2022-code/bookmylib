@@ -44,7 +44,7 @@ export function ReferAndEarnTab() {
         setBranches(branchList)
         
         // Handle migration/normalization of settings
-        let normalizedSettings = settings || {}
+        let normalizedSettings: any = settings || {}
         // If it's the old flat format, move it to 'all'
         if (normalizedSettings.enabled !== undefined && !normalizedSettings.all) {
           normalizedSettings = { all: { ...normalizedSettings } }

@@ -380,6 +380,7 @@ async function processReferralRewards(paymentId: string) {
         minOrderValue: 0,
         isActive: true,
         usageLimit: 1,
+        startDate: new Date(),
         // Valid for 90 days
         endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
       }
@@ -390,8 +391,7 @@ async function processReferralRewards(paymentId: string) {
       where: { id: referral.id },
       data: {
         status: 'completed',
-        referrerCouponCode: code,
-        completedAt: new Date()
+        referrerCouponCode: code
       }
     })
     
