@@ -87,7 +87,6 @@ export function AcceptPaymentForm() {
     // Branch State
     const [branches, setBranches] = useState<Branch[]>([])
     const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null)
-    const [branchLoading, setBranchLoading] = useState(false)
 
     // Booking State
     const [plans, setPlans] = useState<Plan[]>([])
@@ -162,13 +161,10 @@ export function AcceptPaymentForm() {
     useEffect(() => {
         const loadBranches = async () => {
             try {
-                setBranchLoading(true)
                 const res = await getOwnerBranches()
                 setBranches(res)
-            } catch (e) {
+            } catch {
                 toast.error('Failed to load branches')
-            } finally {
-                setBranchLoading(false)
             }
         }
         loadBranches()
@@ -186,7 +182,7 @@ export function AcceptPaymentForm() {
                         setSeats(res.branch.seats)
                         setFees(res.branch.fees || [])
                     }
-                } catch (e) {
+                } catch {
                     toast.error('Failed to load branch details')
                 } finally {
                     setLoadingDetails(false)

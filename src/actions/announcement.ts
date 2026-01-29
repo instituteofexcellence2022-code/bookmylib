@@ -110,6 +110,8 @@ export async function createAnnouncement(data: {
     })
     
     revalidatePath('/owner/marketing')
+    revalidatePath('/student/home')
+    revalidatePath('/staff/dashboard')
     return { success: true }
   } catch (error) {
     console.error('Error creating announcement:', error)
@@ -142,6 +144,8 @@ export async function updateAnnouncement(id: string, data: {
     })
     
     revalidatePath('/owner/marketing')
+    revalidatePath('/student/home')
+    revalidatePath('/staff/dashboard')
     return { success: true }
   } catch (error) {
     console.error('Error updating announcement:', error)
@@ -159,6 +163,8 @@ export async function deleteAnnouncement(id: string) {
     })
     
     revalidatePath('/owner/marketing')
+    revalidatePath('/student/home')
+    revalidatePath('/staff/dashboard')
     return { success: true }
   } catch (error) {
     console.error('Error deleting announcement:', error)
@@ -177,6 +183,8 @@ export async function toggleAnnouncementStatus(id: string, isActive: boolean) {
     })
     
     revalidatePath('/owner/marketing')
+    revalidatePath('/student/home')
+    revalidatePath('/staff/dashboard')
     return { success: true }
   } catch (error) {
     console.error('Error updating announcement:', error)

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { 
-  Loader2, PlusCircle, Search, SlidersHorizontal, 
+  Loader2, Search, SlidersHorizontal, 
   Tag, Calendar, IndianRupee, Trash2, 
   Percent, Hash, X, MapPin, Layers
 } from 'lucide-react'
@@ -23,9 +23,29 @@ import {
 import { getOwnerBranches } from '@/actions/branch'
 import { getOwnerPlans } from '@/actions/plan'
 
+interface Promotion {
+  id: string
+  code: string
+  description?: string
+  isActive: boolean
+  type: string
+  value: number
+  validFrom: string | Date
+  validTo: string | Date
+  usedCount: number
+  usageLimit?: number
+  minOrder?: number
+  maxDiscount?: number
+  perUserLimit?: number
+  branchId?: string | null
+  planId?: string | null
+  branch?: { name: string } | null
+  plan?: { name: string } | null
+}
+
 export function PromotionsList() {
   // Data State
-  const [promotions, setPromotions] = useState<any[]>([])
+  const [promotions, setPromotions] = useState<Promotion[]>([])
   const [branches, setBranches] = useState<{id: string, name: string}[]>([])
   const [plans, setPlans] = useState<{id: string, name: string}[]>([])
   const [loading, setLoading] = useState(true)
@@ -36,7 +56,7 @@ export function PromotionsList() {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingPromo, setEditingPromo] = useState<any>(null)
+  const [editingPromo, setEditingPromo] = useState<Promotion | null>(null)
   const [promoType, setPromoType] = useState('percentage')
 
   useEffect(() => {
@@ -59,7 +79,11 @@ export function PromotionsList() {
         getOwnerBranches(),
         getOwnerPlans()
       ])
-      setPromotions(promosData || [])
+      // Type assertion or mapping might be needed if the API return type is strictly different
+      // but assuming it matches close enough for now or using 'as any' if strictly needed,
+      // but let's try to match structure. 
+      // getOwnerPromotions returns mapped data that should match our interface mostly.
+      setPromotions(promosData as unknown as Promotion[] || [])
       setBranches(branchesData as {id: string, name: string}[] || [])
       setPlans(plansData || [])
     } catch (error) {
@@ -111,7 +135,7 @@ export function PromotionsList() {
         setEditingPromo(null)
         // Refresh
         const newData = await getOwnerPromotions()
-        setPromotions(newData)
+        setPromotions(newData as unknown as Promotion[])
       } else {
         toast.error(result.error || 'Failed to save promotion')
       }
@@ -121,7 +145,7 @@ export function PromotionsList() {
     }
   }
 
-  const handleDelete = async (promo: any) => {
+  const handleDelete = async (promo: Promotion) => {
     if (!confirm(`Delete promotion "${promo.code}"? This cannot be undone.`)) return
     
     try {
@@ -132,12 +156,12 @@ export function PromotionsList() {
       } else {
         toast.error(result.error || 'Failed to delete promotion')
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete promotion')
     }
   }
 
-  const handleToggleStatus = async (promo: any) => {
+  const handleToggleStatus = async (promo: Promotion) => {
     try {
       const result = await togglePromotionStatus(promo.id)
       if (result.success) {
@@ -148,7 +172,7 @@ export function PromotionsList() {
       } else {
         toast.error('Failed to update status')
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to update status')
     }
   }
@@ -449,7 +473,7 @@ export function PromotionsList() {
                 name="description"
                 label="Description"
                 placeholder="Internal notes or terms..."
-                defaultValue={editingPromo?.description}
+                defaultValue={editingPromo?.description || ''}
                 rows={2}
               />
 

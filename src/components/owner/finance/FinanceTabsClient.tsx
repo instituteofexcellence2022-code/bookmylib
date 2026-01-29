@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { RevenueStatsClient } from '@/components/owner/finance/RevenueStatsClient'
 import { RevenueChartClient } from '@/components/owner/finance/RevenueChartClient'

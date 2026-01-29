@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { VerifyDocumentList } from '@/components/owner/verification/VerifyDocumentList'
 import { VerifyPaymentList } from '@/components/owner/finance/VerifyPaymentList'

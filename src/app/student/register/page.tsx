@@ -141,7 +141,7 @@ function RegisterForm() {
                             </div>
                             <div>
                                 <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Referral Code Applied!</p>
-                                <p className="text-xs text-blue-700 dark:text-blue-300">You'll get a special offer on your first booking.</p>
+                                <p className="text-xs text-blue-700 dark:text-blue-300">You&apos;ll get a special offer on your first booking.</p>
                             </div>
                         </div>
                     )}

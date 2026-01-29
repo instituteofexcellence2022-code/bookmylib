@@ -1,12 +1,13 @@
 'use client'
 
 import React, { useState } from 'react'
-import { CheckCircle2, XCircle, AlertCircle, Maximize2, X } from 'lucide-react'
+import { AlertCircle, Maximize2, X } from 'lucide-react'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { verifyStudentGovtId } from '@/actions/owner'
 import { toast } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
+import Image from 'next/image'
 
 interface GovtIdVerificationProps {
     studentId: string
@@ -31,7 +32,7 @@ export default function GovtIdVerification({ studentId, govtIdUrl, govtIdStatus 
             } else {
                 toast.error(result.error || 'Operation failed')
             }
-        } catch (error) {
+        } catch {
             toast.error('An error occurred')
         } finally {
             setLoading(false)
@@ -54,7 +55,7 @@ export default function GovtIdVerification({ studentId, govtIdUrl, govtIdStatus 
                 <div className="flex justify-between items-start mb-4">
                     <div>
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Government ID</h3>
-                        <p className="text-sm text-gray-500">Verify the student's uploaded identity document</p>
+                        <p className="text-sm text-gray-500">Verify the student&apos;s uploaded identity document</p>
                     </div>
                     <div className={`px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wider ${
                         govtIdStatus === 'verified' ? 'bg-green-100 text-green-700' :
@@ -67,10 +68,11 @@ export default function GovtIdVerification({ studentId, govtIdUrl, govtIdStatus 
                 </div>
 
                 <div className="relative group aspect-video w-full max-w-md mx-auto bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 mb-6">
-                    <img 
+                    <Image 
                         src={govtIdUrl} 
                         alt="Student Government ID" 
-                        className="w-full h-full object-contain"
+                        fill
+                        className="object-contain"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
                         <button 

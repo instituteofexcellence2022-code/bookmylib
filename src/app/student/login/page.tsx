@@ -6,7 +6,7 @@ import { FormInput } from '@/components/ui/FormInput'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { loginStudent } from '@/actions/auth'
 import { toast } from 'react-hot-toast'
-import { LogIn, Mail, ArrowRight, ArrowLeft, BookOpen, Eye, EyeOff } from 'lucide-react'
+import { Mail, ArrowLeft, BookOpen, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 
@@ -39,7 +39,7 @@ export default function StudentLoginPage() {
             } else {
                 toast.error(result.error || 'Login failed')
             }
-        } catch (error) {
+        } catch {
             toast.error('An error occurred')
         } finally {
             setLoading(false)

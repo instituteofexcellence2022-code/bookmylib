@@ -3,17 +3,37 @@
 import React, { useState } from 'react'
 import { 
     Copy, Share2, Users, Gift, Ticket, 
-    CheckCircle2, Clock, AlertCircle 
+    CheckCircle2
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import { motion } from 'framer-motion'
+
+interface Referral {
+    id: string
+    referrerCouponCode?: string | null
+    status: string
+    createdAt: string | Date
+    referee?: {
+        name?: string
+    }
+}
+
+interface ReferralSettings {
+    all?: any
+    refereeReward?: { type: string; value: number }
+    refereeDiscountType?: string
+    refereeDiscountValue?: number
+    referrerReward?: { type: string; value: number }
+    referrerDiscountType?: string
+    referrerDiscountValue?: number
+    [key: string]: any
+}
 
 interface ReferralClientProps {
     data: {
         referralCode: string | null
-        referrals: any[]
+        referrals: Referral[]
         libraryName: string | null | undefined
-        settings: any
+        settings: ReferralSettings
         stats: {
             totalReferrals: number
             totalCoupons: number
@@ -56,7 +76,7 @@ export default function ReferralClient({ data }: ReferralClientProps) {
             setCopied(true)
             toast.success('Referral link copied!')
             setTimeout(() => setCopied(false), 2000)
-        } catch (err) {
+        } catch {
             toast.error('Failed to copy link')
         }
     }
@@ -115,7 +135,7 @@ export default function ReferralClient({ data }: ReferralClientProps) {
                         <div className="relative z-10">
                             <h2 className="text-xl font-bold mb-2">Share your referral code</h2>
                             <p className="text-blue-100 mb-6 max-w-lg">
-                                "Invite your friends! They get {refereeType === 'fixed' ? `₹${refereeValue}` : `${refereeValue}%`} off, and you earn a {referrerType === 'fixed' ? `₹${referrerValue}` : `${referrerValue}%`} coupon for every successful joining!"
+                                &quot;Invite your friends! They get {refereeType === 'fixed' ? `₹${refereeValue}` : `${refereeValue}%`} off, and you earn a {referrerType === 'fixed' ? `₹${referrerValue}` : `${referrerValue}%`} coupon for every successful joining!&quot;
                             </p>
 
                             <div className="flex flex-col sm:flex-row gap-3">

@@ -5,16 +5,54 @@ import { FormInput } from '@/components/ui/FormInput'
 import { FormSelect } from '@/components/ui/FormSelect'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { CompactCard } from '@/components/ui/AnimatedCard'
-import { Gift, Users, Copy, Check, Search, Calendar } from 'lucide-react'
+import { Gift, Users, Copy, Check, Search } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { getOwnerReferrals, getReferralSettings, saveReferralSettings } from '@/actions/promo'
 import { getOwnerBranches } from '@/actions/branch'
 import { format } from 'date-fns'
 
+interface Branch {
+  id: string
+  name: string
+}
+
+interface BranchSettings {
+  enabled?: boolean
+  referrerReward?: {
+    type: string
+    value: number
+  }
+  refereeReward?: {
+    type: string
+    value: number
+  }
+}
+
+interface ReferralSettings {
+  [key: string]: BranchSettings
+}
+
+interface Referral {
+  id: string
+  referrer: {
+    name: string
+    email: string
+  }
+  referee: {
+    name: string
+    email: string
+    branchId: string
+  }
+  status: string
+  referrerCouponCode: string | null
+  refereeDiscount: number | null
+  createdAt: string | Date
+}
+
 export function ReferAndEarnTab() {
-  const [branches, setBranches] = useState<any[]>([])
+  const [branches, setBranches] = useState<Branch[]>([])
   const [selectedBranchId, setSelectedBranchId] = useState('all')
-  const [fullSettings, setFullSettings] = useState<any>({})
+  const [fullSettings, setFullSettings] = useState<ReferralSettings>({})
   
   const [enabled, setEnabled] = useState(false)
   
@@ -27,7 +65,7 @@ export function ReferAndEarnTab() {
   const [refereeValue, setRefereeValue] = useState('50')
 
   const [copied, setCopied] = useState(false)
-  const [referrals, setReferrals] = useState<any[]>([])
+  const [referrals, setReferrals] = useState<Referral[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -40,14 +78,17 @@ export function ReferAndEarnTab() {
           getReferralSettings(),
           getOwnerBranches()
         ])
-        setReferrals(refs)
-        setBranches(branchList)
+        setReferrals(refs as unknown as Referral[])
+        setBranches(branchList as Branch[])
         
         // Handle migration/normalization of settings
-        let normalizedSettings: any = settings || {}
+        let normalizedSettings: ReferralSettings = (settings as unknown as ReferralSettings) || {}
         // If it's the old flat format, move it to 'all'
-        if (normalizedSettings.enabled !== undefined && !normalizedSettings.all) {
-          normalizedSettings = { all: { ...normalizedSettings } }
+        // We check if 'enabled' exists at top level which implies old format
+        // safely casting to any to check property existence for migration logic
+        const rawSettings = settings as unknown as { enabled?: boolean; all?: BranchSettings }
+        if (rawSettings && rawSettings.enabled !== undefined && !rawSettings.all) {
+          normalizedSettings = { all: { ...rawSettings } }
         }
         
         setFullSettings(normalizedSettings)
@@ -65,18 +106,13 @@ export function ReferAndEarnTab() {
     loadData()
   }, [])
 
-  const applySettings = (settings: any, branchId: string) => {
+  const applySettings = (settings: ReferralSettings, branchId: string) => {
     const branchSettings = settings[branchId] || settings['all'] || {}
     
-    // @ts-ignore
     setEnabled(branchSettings.enabled ?? false)
-    // @ts-ignore
     setReferrerType(branchSettings.referrerReward?.type ?? 'fixed')
-    // @ts-ignore
     setReferrerValue(branchSettings.referrerReward?.value?.toString() ?? '100')
-    // @ts-ignore
     setRefereeType(branchSettings.refereeReward?.type ?? 'fixed')
-    // @ts-ignore
     setRefereeValue(branchSettings.refereeReward?.value?.toString() ?? '50')
   }
 
@@ -89,7 +125,7 @@ export function ReferAndEarnTab() {
     e.preventDefault()
     setSaving(true)
     try {
-      const currentBranchSettings = {
+      const currentBranchSettings: BranchSettings = {
         enabled,
         referrerReward: {
           type: referrerType,
@@ -113,7 +149,7 @@ export function ReferAndEarnTab() {
       } else {
         toast.error(res.error || 'Failed to save')
       }
-    } catch (error) {
+    } catch {
       toast.error('Something went wrong')
     } finally {
       setSaving(false)
@@ -286,7 +322,7 @@ export function ReferAndEarnTab() {
           <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl p-6 text-white">
             <h4 className="font-semibold text-lg mb-2">How it looks for students</h4>
             <p className="text-blue-100 text-sm mb-4">
-              "Invite your friends! They get {refereeType === 'fixed' ? `₹${refereeValue}` : `${refereeValue}%`} off, and you earn a {referrerType === 'fixed' ? `₹${referrerValue}` : `${referrerValue}%`} coupon for every successful joining!"
+              &quot;Invite your friends! They get {refereeType === 'fixed' ? `₹${refereeValue}` : `${refereeValue}%`} off, and you earn a {referrerType === 'fixed' ? `₹${referrerValue}` : `${referrerValue}%`} coupon for every successful joining!&quot;
             </p>
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 flex items-center justify-between border border-white/20">
               <code className="text-sm">bookmylib.com/r/LIB123</code>

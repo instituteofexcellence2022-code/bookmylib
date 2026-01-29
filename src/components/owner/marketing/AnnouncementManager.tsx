@@ -5,15 +5,32 @@ import { FormInput } from '@/components/ui/FormInput'
 import { FormSelect } from '@/components/ui/FormSelect'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { CompactCard } from '@/components/ui/AnimatedCard'
-import { Megaphone, Trash2, Check, X, Calendar, AlertCircle, Info, CheckCircle, Plus, Edit2, Filter, Search, ArrowUpDown, Clock, Tag, Newspaper, AlertTriangle, AlertOctagon } from 'lucide-react'
+import { Megaphone, Trash2, X, Calendar, Info, CheckCircle, Edit2, Search, Clock, Tag, Newspaper, AlertTriangle, AlertOctagon } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { getOwnerAnnouncements, createAnnouncement, deleteAnnouncement, toggleAnnouncementStatus, updateAnnouncement } from '@/actions/announcement'
 import { getOwnerBranches } from '@/actions/branch'
 import { format, isPast, differenceInDays } from 'date-fns'
 
+interface AnnouncementData {
+  id: string
+  title: string
+  content: string
+  type: string
+  target: string
+  branchId: string | null
+  isActive: boolean
+  expiresAt: Date | string | null
+  createdAt: Date | string
+}
+
+interface BranchData {
+  id: string
+  name: string
+}
+
 export function AnnouncementManager() {
-  const [announcements, setAnnouncements] = useState<any[]>([])
-  const [branches, setBranches] = useState<any[]>([])
+  const [announcements, setAnnouncements] = useState<AnnouncementData[]>([])
+  const [branches, setBranches] = useState<BranchData[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -45,17 +62,16 @@ export function AnnouncementManager() {
         getOwnerAnnouncements(),
         getOwnerBranches()
       ])
-      setAnnouncements(announcementsData)
-      setBranches(branchesData)
-    } catch (error) {
-      console.error(error)
+      setAnnouncements(announcementsData as unknown as AnnouncementData[])
+      setBranches(branchesData as unknown as BranchData[])
+    } catch {
       toast.error('Failed to load data')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleEdit = (announcement: any) => {
+  const handleEdit = (announcement: AnnouncementData) => {
     setEditingId(announcement.id)
     setTitle(announcement.title)
     setContent(announcement.content)
@@ -101,7 +117,7 @@ export function AnnouncementManager() {
       } else {
         toast.error(res.error || 'Operation failed')
       }
-    } catch (error) {
+    } catch {
       toast.error('Something went wrong')
     } finally {
       setSubmitting(false)
@@ -128,7 +144,7 @@ export function AnnouncementManager() {
       } else {
         toast.error('Failed to delete')
       }
-    } catch (error) {
+    } catch {
       toast.error('Something went wrong')
     }
   }
@@ -142,7 +158,7 @@ export function AnnouncementManager() {
           a.id === id ? { ...a, isActive: !currentStatus } : a
         ))
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to update status')
     }
   }
@@ -378,14 +394,14 @@ export function AnnouncementManager() {
                     </span>
                   )}
                   {announcement.expiresAt && isPast(new Date(announcement.expiresAt)) && (
-                     <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 flex items-center gap-1">
-                       <Clock className="w-3 h-3" /> Expired
-                     </span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> Expired
+                    </span>
                   )}
                   {announcement.expiresAt && !isPast(new Date(announcement.expiresAt)) && differenceInDays(new Date(announcement.expiresAt), new Date()) <= 3 && (
-                     <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 flex items-center gap-1">
-                       <Clock className="w-3 h-3" /> Expiring soon
-                     </span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> Expiring soon
+                    </span>
                   )}
                 </div>
                 <div className="flex items-center gap-1">

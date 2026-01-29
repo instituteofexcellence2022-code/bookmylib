@@ -28,26 +28,38 @@ import { toast } from 'sonner'
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d']
 
+interface AnalyticsData {
+  summary: {
+    totalVisits: number
+    attendanceRate: number
+    uniqueStudents: number
+    avgDuration: number
+    avgDailyVisits?: number
+  }
+  dailyTrends: { date: string; count: number }[]
+  hourlyDistribution: { hour: string; count: number }[]
+  branchComparison: { name: string; count: number }[]
+}
+
 export function AttendanceAnalyticsClient() {
   const [loading, setLoading] = useState(true)
   const [days, setDays] = useState(7)
-  const [data, setData] = useState<any>(null)
+  const [data, setData] = useState<AnalyticsData | null>(null)
 
   useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true)
+      try {
+        const result = await getAttendanceAnalytics(days)
+        setData(result)
+      } catch {
+        toast.error('Failed to load analytics')
+      } finally {
+        setLoading(false)
+      }
+    }
     fetchData()
   }, [days])
-
-  const fetchData = async () => {
-    setLoading(true)
-    try {
-      const result = await getAttendanceAnalytics(days)
-      setData(result)
-    } catch (error) {
-      toast.error('Failed to load analytics')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   if (loading && !data) {
     return (
@@ -214,7 +226,7 @@ export function AttendanceAnalyticsClient() {
                       paddingAngle={5}
                       dataKey="count"
                     >
-                      {data.branchComparison.map((entry: any, index: number) => (
+                      {data.branchComparison.map((entry: { name: string; count: number }, index: number) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -228,7 +240,7 @@ export function AttendanceAnalyticsClient() {
              )}
           </div>
           <div className="mt-4 flex flex-wrap justify-center gap-4">
-            {data.branchComparison.map((entry: any, index: number) => (
+            {data.branchComparison.map((entry: { name: string; count: number }, index: number) => (
               <div key={index} className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                 <span className="text-sm text-gray-600 dark:text-gray-400">{entry.name} ({entry.count})</span>

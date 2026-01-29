@@ -84,7 +84,7 @@ export function BranchCard({ branch }: BranchCardProps) {
         branchImage = parsed[0]
       }
     }
-  } catch (e) {}
+  } catch {}
 
   return (
     <div className="group bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col h-full">

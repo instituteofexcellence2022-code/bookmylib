@@ -76,7 +76,7 @@ export function QRGenerationClient() {
             } else {
                 toast.error('Failed to generate QR code')
             }
-        } catch (error) {
+        } catch {
             toast.error('Something went wrong')
         } finally {
             setGenerating(false)

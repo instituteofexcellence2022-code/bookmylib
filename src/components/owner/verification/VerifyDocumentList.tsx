@@ -29,7 +29,7 @@ export function VerifyDocumentList() {
             const data = await getPendingVerifications()
             // The action returns objects with date strings or Date objects depending on serialization
             // But here we just need to display them
-            setDocuments(data as any) 
+            setDocuments(data as unknown as StudentVerification[]) 
         } catch (error) {
             console.error(error)
             toast.error('Failed to fetch pending documents')

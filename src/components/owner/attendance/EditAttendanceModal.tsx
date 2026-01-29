@@ -58,7 +58,7 @@ export function EditAttendanceModal({ record, onClose, onSuccess }: EditAttendan
             } else {
                 toast.error(result.error || 'Failed to update')
             }
-        } catch (error) {
+        } catch {
             toast.error('Something went wrong')
         } finally {
             setLoading(false)

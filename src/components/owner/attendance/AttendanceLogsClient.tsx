@@ -1,25 +1,19 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { 
     Calendar, 
     Search, 
     Filter, 
     RefreshCw, 
-    Download,
     Clock,
     UserCheck,
     Users,
     MapPin,
-    MoreVertical,
     Edit,
-    AlertCircle,
-    CheckCircle,
-    XCircle,
-    CalendarDays,
     ArrowRight
 } from 'lucide-react'
+import Image from 'next/image'
 import { format, subDays } from 'date-fns'
 import { toast } from 'react-hot-toast'
 import { FormSelect } from '@/components/ui/FormSelect'
@@ -29,17 +23,36 @@ import { StatCard } from '@/components/ui/StatCard'
 import { getOwnerAttendanceLogs, getOwnerAttendanceStats } from '@/actions/owner/attendance'
 import { getOwnerBranches } from '@/actions/branch'
 import { EditAttendanceModal } from './EditAttendanceModal'
-import { AnimatedCard } from '@/components/ui/AnimatedCard'
+
+interface Branch {
+    id: string
+    name: string
+}
+
+interface Student {
+    name: string
+    email: string
+    image?: string | null
+}
+
+interface AttendanceLog {
+    id: string
+    checkIn: string | Date
+    checkOut?: string | Date | null
+    duration?: number
+    status: string
+    student: Student
+    branch: Branch
+}
 
 interface AttendanceLogsClientProps {
     defaultView?: 'day' | 'range'
 }
 
 export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClientProps) {
-    const router = useRouter()
     const [loading, setLoading] = useState(true)
     const [statsLoading, setStatsLoading] = useState(true)
-    const [branches, setBranches] = useState<any[]>([])
+    const [branches, setBranches] = useState<Branch[]>([])
     
     // View Mode
     const [viewMode, setViewMode] = useState<'day' | 'range'>(defaultView)
@@ -57,7 +70,7 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
     })
 
     // Data
-    const [logs, setLogs] = useState<any[]>([])
+    const [logs, setLogs] = useState<AttendanceLog[]>([])
     const [total, setTotal] = useState(0)
     const [stats, setStats] = useState({
         totalPresent: 0,
@@ -67,7 +80,7 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
     })
 
     // Modal
-    const [editingRecord, setEditingRecord] = useState<any>(null)
+    const [editingRecord, setEditingRecord] = useState<AttendanceLog | null>(null)
 
     const fetchBranches = useCallback(async () => {
         try {
@@ -87,9 +100,9 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                 startDate: viewMode === 'range' ? new Date(filters.startDate) : undefined,
                 endDate: viewMode === 'range' ? new Date(filters.endDate) : undefined,
             })
-            setLogs(result.logs)
+            setLogs(result.logs as unknown as AttendanceLog[])
             setTotal(result.total)
-        } catch (error) {
+        } catch {
             toast.error('Failed to load attendance logs')
         } finally {
             setLoading(false)
@@ -331,13 +344,13 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                                     <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-xs">
-                                                    {log.student.image ? (
-                                                        <img src={log.student.image} alt={log.student.name} className="w-full h-full object-cover rounded-full" />
-                                                    ) : (
-                                                        log.student.name.charAt(0).toUpperCase()
-                                                    )}
-                                                </div>
+                                                <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-xs relative overflow-hidden">
+                                                {log.student.image ? (
+                                                    <Image src={log.student.image} alt={log.student.name} fill className="object-cover" sizes="32px" />
+                                                ) : (
+                                                    log.student.name.charAt(0).toUpperCase()
+                                                )}
+                                            </div>
                                                 <div>
                                                     <div className="font-medium text-gray-900 dark:text-white text-sm">{log.student.name}</div>
                                                     <div className="text-xs text-gray-500">{log.student.email}</div>
