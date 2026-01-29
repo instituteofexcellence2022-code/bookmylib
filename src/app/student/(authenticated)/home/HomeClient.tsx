@@ -14,7 +14,6 @@ import { AnimatedCard, CompactCard } from '@/components/ui/AnimatedCard'
 import { QuoteCard } from '@/components/student/QuoteCard'
 import { DigitalIdCard } from '@/components/student/DigitalIdCard'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
-import { AnnouncementList } from '@/components/shared/AnnouncementList'
 import { useRouter } from 'next/navigation'
 
 interface HomeClientProps {
@@ -23,10 +22,9 @@ interface HomeClientProps {
   todayAttendance: any
   quotes: any[]
   likedQuoteIds: number[]
-  announcements: any[]
 }
 
-export default function HomeClient({ student, stats, todayAttendance, quotes, likedQuoteIds, announcements }: HomeClientProps) {
+export default function HomeClient({ student, stats, todayAttendance, quotes, likedQuoteIds }: HomeClientProps) {
   const router = useRouter()
   const activeSubscription = student.subscriptions[0]
   const isCheckedIn = !!todayAttendance && !todayAttendance.checkOut
@@ -49,7 +47,6 @@ export default function HomeClient({ student, stats, todayAttendance, quotes, li
       </div>
 
       {/* Announcements */}
-      <AnnouncementList announcements={announcements} />
 
       {/* Daily Quote */}
       <QuoteCard quotes={quotes} initialLikedIds={likedQuoteIds} />

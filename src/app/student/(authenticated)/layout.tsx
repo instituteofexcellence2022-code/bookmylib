@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import StudentLayoutClient from './StudentLayoutClient'
+import { getStudentAnnouncements } from '@/actions/announcement'
 
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies()
@@ -12,10 +13,13 @@ export default async function StudentLayout({ children }: { children: React.Reac
     redirect('/student/login')
   }
 
-  const student = await prisma.student.findUnique({
-    where: { id: studentId },
-    select: { name: true }
-  })
+  const [student, announcements] = await Promise.all([
+    prisma.student.findUnique({
+      where: { id: studentId },
+      select: { name: true, image: true }
+    }),
+    getStudentAnnouncements()
+  ])
 
   if (!student) {
     redirect('/student/logout')
@@ -24,11 +28,15 @@ export default async function StudentLayout({ children }: { children: React.Reac
   const user = {
     name: student.name,
     role: 'student',
-    initials: student.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+    initials: student.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+    image: student.image
   }
 
+  // Serialize announcements to pass to client component
+  const serializedAnnouncements = JSON.parse(JSON.stringify(announcements))
+
   return (
-    <StudentLayoutClient user={user}>
+    <StudentLayoutClient user={user} announcements={serializedAnnouncements}>
       {children}
     </StudentLayoutClient>
   )

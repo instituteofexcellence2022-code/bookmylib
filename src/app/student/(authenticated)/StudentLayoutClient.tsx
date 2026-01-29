@@ -38,10 +38,12 @@ interface StudentLayoutClientProps {
     name: string
     role: string
     initials: string
+    image?: string | null
   }
+  announcements?: any[]
 }
 
-export default function StudentLayoutClient({ children, user }: StudentLayoutClientProps) {
+export default function StudentLayoutClient({ children, user, announcements = [] }: StudentLayoutClientProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   const handleLogout = async () => {
@@ -70,6 +72,7 @@ export default function StudentLayoutClient({ children, user }: StudentLayoutCli
           title="BookMyLib"
           onMenuClick={() => setIsSidebarOpen(true)}
           onLogout={handleLogout}
+          announcements={announcements}
         />
         
         <main className="flex-1 overflow-y-auto overflow-x-hidden scroll-smooth touch-pan-y overscroll-y-contain">
