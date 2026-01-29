@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import Image from 'next/image'
 import { 
   Building2, 
   MapPin, 
@@ -91,6 +92,7 @@ export default function EditBranchPage() {
     is247: false,
     workingDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
     images: [] as string[],
+    imageFiles: [] as File[],
     wifiCredentials: [{ ssid: '', password: '' }]
   })
 
@@ -344,6 +346,11 @@ export default function EditBranchPage() {
       setAvailableAreas([])
     }
   }
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+  const MAX_FILES = 5
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files

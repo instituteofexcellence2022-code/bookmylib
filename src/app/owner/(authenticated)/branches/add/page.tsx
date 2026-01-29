@@ -88,6 +88,7 @@ export default function AddBranchPage() {
     is247: false,
     workingDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
     images: [] as string[],
+    imageFiles: [] as File[],
     wifiCredentials: [{ ssid: '', password: '' }]
   }
 
