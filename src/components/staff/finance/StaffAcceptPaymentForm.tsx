@@ -6,10 +6,10 @@ import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
 import { FormSelect } from '@/components/ui/FormSelect'
-import { getStaffStudents } from '@/actions/staff/students'
+import { getStaffStudents, getStudentDetails } from '@/actions/staff/students'
 import { getStaffBranchDetails, createStaffPayment } from '@/actions/staff/finance'
 import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
 import { validateCoupon } from '@/actions/payment'
@@ -76,6 +76,9 @@ interface AppliedCoupon {
 
 export function StaffAcceptPaymentForm() {
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const initialStudentId = searchParams.get('studentId')
+
     const [submitting, setSubmitting] = useState(false)
     const [step, setStep] = useState<'student' | 'booking' | 'payment' | 'preview' | 'success'>('student')
     
@@ -99,6 +102,32 @@ export function StaffAcceptPaymentForm() {
     
     // Booking State
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
+    
+    // Pre-fill Student from URL
+    useEffect(() => {
+        const fetchInitialStudent = async () => {
+            if (initialStudentId && !selectedStudent) {
+                try {
+                    const result = await getStudentDetails(initialStudentId)
+                    if (result && result.student) {
+                        const s = result.student
+                        setSelectedStudent({
+                            id: s.id,
+                            name: s.name,
+                            email: s.email || '',
+                            phone: s.phone
+                        })
+                        // Auto-advance to booking step
+                        setStep('booking')
+                    }
+                } catch (error) {
+                    console.error('Error fetching initial student:', error)
+                }
+            }
+        }
+        fetchInitialStudent()
+    }, [initialStudentId])
+
     const [selectedFees, setSelectedFees] = useState<string[]>([])
     const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null)
     const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0])
