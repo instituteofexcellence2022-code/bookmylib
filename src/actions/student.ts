@@ -209,6 +209,28 @@ export async function uploadGovtId(formData: FormData) {
     }
 }
 
+export async function updateStudentPreferences(preferences: any) {
+    const cookieStore = await cookies()
+    const studentId = cookieStore.get('student_session')?.value
+
+    if (!studentId) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    try {
+        await prisma.student.update({
+            where: { id: studentId },
+            data: { preferences }
+        })
+
+        revalidatePath('/student/settings')
+        return { success: true }
+    } catch (error) {
+        console.error('Error updating preferences:', error)
+        return { success: false, error: 'Failed to update preferences' }
+    }
+}
+
 export async function getStudentReferralData() {
     const cookieStore = await cookies()
     const studentId = cookieStore.get('student_session')?.value

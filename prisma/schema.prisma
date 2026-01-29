@@ -216,6 +216,7 @@ model Student {
   
   // Account Status
   isBlocked     Boolean  @default(false)
+  preferences   Json?    // User preferences (notifications, theme, etc.)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
