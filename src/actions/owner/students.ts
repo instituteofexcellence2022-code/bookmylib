@@ -45,6 +45,13 @@ export async function createStudent(formData: FormData) {
         return { success: false, error: 'Required fields missing' }
     }
 
+    if (!/^\d{10}$/.test(phone)) {
+        return { success: false, error: 'Phone number must be exactly 10 digits' }
+    }
+    if (guardianPhone && !/^\d{10}$/.test(guardianPhone)) {
+        return { success: false, error: 'Guardian phone number must be exactly 10 digits' }
+    }
+
     try {
         // Check if email exists
         const existing = await prisma.student.findUnique({ where: { email } })
@@ -525,6 +532,13 @@ export async function updateStudent(formData: FormData) {
     // Guardian Fields
     const guardianName = formData.get('guardianName') as string
     const guardianPhone = formData.get('guardianPhone') as string
+
+    if (phone && !/^\d{10}$/.test(phone)) {
+        return { success: false, error: 'Phone number must be exactly 10 digits' }
+    }
+    if (guardianPhone && !/^\d{10}$/.test(guardianPhone)) {
+        return { success: false, error: 'Guardian phone number must be exactly 10 digits' }
+    }
 
     try {
         await prisma.student.update({

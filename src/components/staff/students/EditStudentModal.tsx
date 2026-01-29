@@ -36,6 +36,7 @@ export function EditStudentModal({ isOpen, onClose, student }: EditStudentModalP
     const [loading, setLoading] = useState(false)
     const [loadingPincode, setLoadingPincode] = useState(false)
     const [areaOptions, setAreaOptions] = useState<string[]>([])
+    const [guardianPhone, setGuardianPhone] = useState(student.guardianPhone || '')
     
     // Address State
     const [addressData, setAddressData] = useState({
@@ -252,9 +253,14 @@ export function EditStudentModal({ isOpen, onClose, student }: EditStudentModalP
                                     <FormInput
                                         name="guardianPhone"
                                         label="Guardian Phone"
-                                        defaultValue={student.guardianPhone || ''}
+                                        value={guardianPhone}
+                                        onChange={(e) => {
+                                            const val = e.target.value.replace(/\D/g, '').slice(0, 10)
+                                            setGuardianPhone(val)
+                                        }}
                                         type="tel"
                                         autoComplete="tel"
+                                        maxLength={10}
                                     />
                                 </form>
                             </div>

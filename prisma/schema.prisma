@@ -49,6 +49,7 @@ model Library {
   additionalFees  AdditionalFee[]
   studentNotes    StudentNote[]
   referrals       Referral[]
+  leads           Lead[]
   referralSettings Json?     // Configuration for referral program
   
   @@map("libraries")
@@ -121,6 +122,7 @@ model Branch {
   promotions    Promotion[]
   payments      Payment[]
   supportTickets SupportTicket[]
+  leads          Lead[]
   
   @@map("branches")
 }
@@ -157,6 +159,7 @@ model Staff {
   attendance StaffAttendance[]
   shifts     StaffShift[]
   supportTickets SupportTicket[]
+  leadInteractions LeadInteraction[]
   
   @@map("staff")
 }
@@ -260,6 +263,47 @@ model Referral {
   referee     Student @relation("Referee", fields: [refereeId], references: [id], onDelete: Cascade)
 
   @@map("referrals")
+}
+
+// Lead Management (Enquiries)
+model Lead {
+  id          String   @id @default(uuid())
+  libraryId   String
+  branchId    String?  // Leads might be specific to a branch
+  name        String
+  phone       String
+  email       String?
+  source      String?  // 'walk_in', 'referral', 'online', 'social'
+  status      String   @default("new") // 'new', 'contacted', 'interested', 'converted', 'closed', 'cold', 'hot', 'warm'
+  notes       String?
+  
+  // Interaction Log
+  interactions LeadInteraction[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  library     Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@map("leads")
+  @@index([libraryId])
+  @@index([branchId])
+}
+
+model LeadInteraction {
+  id        String   @id @default(uuid())
+  leadId    String
+  staffId   String?  // Who interacted
+  type      String   // 'call', 'visit', 'message', 'note'
+  notes     String
+  createdAt DateTime @default(now())
+
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  staff     Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
+
+  @@map("lead_interactions")
+  @@index([leadId])
 }
 
 model StudentNote {

@@ -36,6 +36,10 @@ export function EditStudentModal({ isOpen, onClose, student }: EditStudentModalP
     const [loading, setLoading] = useState(false)
     const [loadingPincode, setLoadingPincode] = useState(false)
     const [areaOptions, setAreaOptions] = useState<string[]>([])
+    const [phoneData, setPhoneData] = useState({
+        phone: student.phone || '',
+        guardianPhone: student.guardianPhone || ''
+    })
     
     // Address State
     const [addressData, setAddressData] = useState({
@@ -122,6 +126,12 @@ export function EditStudentModal({ isOpen, onClose, student }: EditStudentModalP
         setAddressData(prev => ({ ...prev, [name]: value }))
     }
 
+    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target
+        const cleanValue = value.replace(/\D/g, '').slice(0, 10)
+        setPhoneData(prev => ({ ...prev, [name]: cleanValue }))
+    }
+
     return (
         <AnimatePresence>
             {isOpen && (
@@ -188,8 +198,11 @@ export function EditStudentModal({ isOpen, onClose, student }: EditStudentModalP
                                     <FormInput
                                         name="phone"
                                         label="Phone"
-                                        defaultValue={student.phone || ''}
+                                        value={phoneData.phone}
+                                        onChange={handlePhoneChange}
                                         required
+                                        maxLength={10}
+                                        type="tel"
                                     />
 
                                     <div className="md:col-span-2 mt-2">
@@ -259,9 +272,11 @@ export function EditStudentModal({ isOpen, onClose, student }: EditStudentModalP
                                     <FormInput
                                         name="guardianPhone"
                                         label="Guardian Phone"
-                                        defaultValue={student.guardianPhone || ''}
+                                        value={phoneData.guardianPhone}
+                                        onChange={handlePhoneChange}
                                         type="tel"
                                         autoComplete="tel"
+                                        maxLength={10}
                                     />
                                 </form>
                             </div>
