@@ -296,6 +296,19 @@ export async function createBooking(data: {
                 })
             }
             
+            // 9. Update Student Profile Context
+            // Update the student's current library/branch context when they book a new plan
+            // This ensures they are linked to the correct library/branch for issues, etc.
+            if (subscriptionStatus === 'active' || subscriptionStatus === 'pending') {
+                await tx.student.update({
+                    where: { id: studentId },
+                    data: {
+                        libraryId: plan.libraryId,
+                        branchId: branchId
+                    }
+                })
+            }
+            
             return { success: true as const, subscriptionId: subscription.id, paymentId: paymentIdToUse }
         })
 

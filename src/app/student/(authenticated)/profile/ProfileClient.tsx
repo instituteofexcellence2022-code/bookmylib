@@ -500,6 +500,8 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
                         <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormInput
+                                    name="guardianName"
+                                    autoComplete="name"
                                     icon={User}
                                     value={profileData.guardianName}
                                     onChange={(e) => setProfileData({ ...profileData, guardianName: e.target.value })}
@@ -507,6 +509,9 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
                                     placeholder="Guardian Name"
                                 />
                                 <FormInput
+                                    name="guardianPhone"
+                                    type="tel"
+                                    autoComplete="tel"
                                     icon={Phone}
                                     value={profileData.guardianPhone}
                                     onChange={(e) => setProfileData({ ...profileData, guardianPhone: e.target.value })}

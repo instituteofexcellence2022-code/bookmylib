@@ -439,6 +439,7 @@ export default function AddStudentPage() {
                         <FormInput 
                             name="guardianPhone" 
                             type="tel" 
+                            autoComplete="tel"
                             label="Guardian Phone" 
                             placeholder="Guardian Contact Number" 
                             icon={Phone}

@@ -610,6 +610,7 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
               value={formData.username}
               onChange={handleChange}
               required
+              autoComplete="new-username"
             />
 
             <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
@@ -624,6 +625,7 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={handleChange}
+                  autoComplete="new-password"
                 />
                 
                 <FormInput
@@ -633,6 +635,7 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
                   placeholder="••••••••"
                   value={formData.confirmPassword}
                   onChange={handleChange}
+                  autoComplete="new-password"
                 />
               </div>
             </div>

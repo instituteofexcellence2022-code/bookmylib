@@ -254,11 +254,14 @@ export function EditStudentModal({ isOpen, onClose, student }: EditStudentModalP
                                         name="guardianName"
                                         label="Guardian Name"
                                         defaultValue={student.guardianName || ''}
+                                        autoComplete="name"
                                     />
                                     <FormInput
                                         name="guardianPhone"
                                         label="Guardian Phone"
                                         defaultValue={student.guardianPhone || ''}
+                                        type="tel"
+                                        autoComplete="tel"
                                     />
                                 </form>
                             </div>

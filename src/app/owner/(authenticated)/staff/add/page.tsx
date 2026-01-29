@@ -444,6 +444,7 @@ export default function AddStaffPage() {
               value={formData.username}
               onChange={handleChange}
               required
+              autoComplete="new-username"
             />
 
             <FormInput
@@ -454,6 +455,7 @@ export default function AddStaffPage() {
               value={formData.password}
               onChange={handleChange}
               required
+              autoComplete="new-password"
             />
             
             <FormInput
@@ -464,6 +466,7 @@ export default function AddStaffPage() {
               value={formData.confirmPassword}
               onChange={handleChange}
               required
+              autoComplete="new-password"
             />
 
             <div className="pt-4 border-t border-gray-100 dark:border-gray-700">

@@ -28,6 +28,15 @@ export async function createTicket(formData: FormData) {
           select: {
             libraryId: true
           }
+        },
+        subscriptions: {
+          where: { status: 'active' },
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            libraryId: true,
+            branchId: true
+          }
         }
       }
     })
@@ -44,18 +53,30 @@ export async function createTicket(formData: FormData) {
     let libraryId = student.libraryId
     let branchId = student.branchId
 
-    // Fallback: Try to get libraryId from branch if missing
+    // Fallback 1: Try to get libraryId from branch if missing
     if (!libraryId && student.branch?.libraryId) {
       libraryId = student.branch.libraryId
-      
-      // Auto-heal: Update student record with missing libraryId
+    }
+
+    // Fallback 2: Try to get context from active subscription
+    if ((!libraryId || !branchId) && student.subscriptions.length > 0) {
+      const activeSub = student.subscriptions[0]
+      if (!libraryId) libraryId = activeSub.libraryId
+      if (!branchId) branchId = activeSub.branchId
+    }
+
+    // Auto-heal: Update student record if we found missing context
+    if ((!student.libraryId && libraryId) || (!student.branchId && branchId)) {
       try {
         await prisma.student.update({
           where: { id: studentId },
-          data: { libraryId }
+          data: { 
+            libraryId: libraryId || undefined,
+            branchId: branchId || undefined
+          }
         })
       } catch (e) {
-        console.warn('Failed to auto-heal student libraryId:', e)
+        console.warn('Failed to auto-heal student context:', e)
       }
     }
 
