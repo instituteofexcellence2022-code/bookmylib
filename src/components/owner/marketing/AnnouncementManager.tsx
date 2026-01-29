@@ -334,8 +334,9 @@ export function AnnouncementManager() {
                 onChange={(e) => setTarget(e.target.value)}
                 options={[
                   { label: 'Everyone', value: 'all' },
-                  { label: 'Students Only', value: 'students' },
-                  { label: 'Staff Only', value: 'staff' }
+                  { label: 'All Students', value: 'students' },
+                  { label: 'Active Students', value: 'active_students' },
+                  { label: 'Staff', value: 'staff' }
                 ]}
               />
 

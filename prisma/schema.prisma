@@ -634,7 +634,7 @@ model Announcement {
   title     String
   content   String
   type      String   // 'info', 'warning', 'success'
-  target    String   // 'all', 'students', 'staff'
+  target    String   // 'all', 'students', 'active_students', 'staff'
   expiresAt DateTime?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())

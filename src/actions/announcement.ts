@@ -30,15 +30,27 @@ export async function getStudentAnnouncements() {
   try {
     const student = await prisma.student.findUnique({
       where: { id: studentId },
-      select: { libraryId: true }
+      select: { 
+        libraryId: true,
+        subscriptions: {
+          where: { status: 'active' },
+          take: 1
+        }
+      }
     })
 
     if (!student || !student.libraryId) return []
 
+    const isActive = student.subscriptions.length > 0
+    const targetIn = ['all', 'students']
+    if (isActive) {
+      targetIn.push('active_students')
+    }
+
     const announcements = await prisma.announcement.findMany({
       where: { 
         libraryId: student.libraryId,
-        target: { in: ['all', 'students'] },
+        target: { in: targetIn },
         isActive: true,
         OR: [
           { expiresAt: null },
