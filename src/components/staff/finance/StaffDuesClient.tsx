@@ -94,33 +94,32 @@ export function StaffDuesClient() {
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg w-fit">
-                    <button
-                        onClick={() => setActiveTab('upcoming')}
-                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                            activeTab === 'upcoming'
-                                ? 'bg-white text-blue-600 shadow-sm dark:bg-gray-950 dark:text-blue-400'
-                                : 'text-gray-500 hover:text-gray-900 dark:text-gray-400'
-                        }`}
-                    >
-                        Expiring Soon ({upcoming.length})
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('overdue')}
-                        className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
-                            activeTab === 'overdue'
-                                ? 'bg-white text-red-600 shadow-sm dark:bg-gray-950 dark:text-red-400'
-                                : 'text-gray-500 hover:text-gray-900 dark:text-gray-400'
-                        }`}
-                    >
-                        Overdue ({overdue.length})
-                    </button>
-                </div>
-                
-                {/* Stats Summary (Optional) */}
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg w-fit">
+                        <button
+                            onClick={() => setActiveTab('upcoming')}
+                            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                                activeTab === 'upcoming'
+                                    ? 'bg-white text-blue-600 shadow-sm dark:bg-gray-950 dark:text-blue-400'
+                                    : 'text-gray-500 hover:text-gray-900 dark:text-gray-400'
+                            }`}
+                        >
+                            Expiring Soon ({upcoming.length})
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('overdue')}
+                            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                                activeTab === 'overdue'
+                                    ? 'bg-white text-red-600 shadow-sm dark:bg-gray-950 dark:text-red-400'
+                                    : 'text-gray-500 hover:text-gray-900 dark:text-gray-400'
+                            }`}
+                        >
+                            Overdue ({overdue.length})
+                        </button>
+                    </div>
+
                     <div className="flex items-center gap-2">
-                        <div className="w-[140px]">
+                        <div className="w-[120px]">
                             <FormSelect
                                 name="days"
                                 value={selectedDays}
@@ -151,9 +150,6 @@ export function StaffDuesClient() {
                                 />
                             </div>
                         )}
-                    </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400 hidden sm:block">
-                        Total {activeTab === 'upcoming' ? 'Expiries' : 'Overdue'}: <span className="font-semibold text-gray-900 dark:text-white">{currentList.length}</span>
                     </div>
                 </div>
             </div>
