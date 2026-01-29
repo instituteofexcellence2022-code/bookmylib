@@ -346,7 +346,7 @@ export async function getBranchDues(days = 7) {
 
     // 2. Overdue (Expired recently)
     const overdueDate = new Date(now)
-    overdueDate.setDate(now.getDate() - 30) // Look back 30 days
+    overdueDate.setDate(now.getDate() - days) // Look back 'days' amount
 
     const overdue = await prisma.studentSubscription.findMany({
         where: {

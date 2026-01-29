@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { getBranchDues } from '@/actions/staff/finance'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { FormSelect } from '@/components/ui/FormSelect'
 import { AlertCircle, Clock, Search, Phone, Mail, MessageCircle, CreditCard, RefreshCw } from 'lucide-react'
 import { format, differenceInDays } from 'date-fns'
 import { toast } from 'sonner'
@@ -36,11 +37,14 @@ export function StaffDuesClient() {
     const [overdue, setOverdue] = useState<SubscriptionItem[]>([])
     const [loading, setLoading] = useState(true)
     const [activeTab, setActiveTab] = useState<'upcoming' | 'overdue'>('upcoming')
+    const [selectedDays, setSelectedDays] = useState<string>('7')
+    const [customDays, setCustomDays] = useState<string>('30')
 
     const fetchData = useCallback(async () => {
         try {
             setLoading(true)
-            const { expiries, overdue: overdueData } = await getBranchDues(7)
+            const days = selectedDays === 'custom' ? (parseInt(customDays) || 7) : parseInt(selectedDays)
+            const { expiries, overdue: overdueData } = await getBranchDues(days)
             setUpcoming(expiries)
             setOverdue(overdueData)
         } catch {
@@ -48,10 +52,13 @@ export function StaffDuesClient() {
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [selectedDays, customDays])
 
     useEffect(() => {
-        fetchData()
+        const timer = setTimeout(() => {
+            fetchData()
+        }, 500)
+        return () => clearTimeout(timer)
     }, [fetchData])
 
     const sendWhatsApp = (item: SubscriptionItem, type: 'upcoming' | 'overdue') => {
@@ -111,8 +118,43 @@ export function StaffDuesClient() {
                 </div>
                 
                 {/* Stats Summary (Optional) */}
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                    Total {activeTab === 'upcoming' ? 'Expiries' : 'Overdue'}: <span className="font-semibold text-gray-900 dark:text-white">{currentList.length}</span>
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <div className="w-[140px]">
+                            <FormSelect
+                                name="days"
+                                value={selectedDays}
+                                onChange={(e) => setSelectedDays(e.target.value)}
+                                options={[
+                                    { label: '7 Days', value: '7' },
+                                    { label: '15 Days', value: '15' },
+                                    { label: '30 Days', value: '30' },
+                                    { label: '60 Days', value: '60' },
+                                    { label: 'Custom', value: 'custom' },
+                                ]}
+                                icon={Clock}
+                                placeholder="Period"
+                                className="text-sm py-1.5 h-9"
+                                containerClassName="w-full"
+                            />
+                        </div>
+                        
+                        {selectedDays === 'custom' && (
+                            <div className="w-[80px]">
+                                <input
+                                    type="number"
+                                    value={customDays}
+                                    onChange={(e) => setCustomDays(e.target.value)}
+                                    className="w-full h-9 px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 bg-white dark:bg-gray-800"
+                                    placeholder="Days"
+                                    min="1"
+                                />
+                            </div>
+                        )}
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 hidden sm:block">
+                        Total {activeTab === 'upcoming' ? 'Expiries' : 'Overdue'}: <span className="font-semibold text-gray-900 dark:text-white">{currentList.length}</span>
+                    </div>
                 </div>
             </div>
 
@@ -145,7 +187,7 @@ export function StaffDuesClient() {
                                             <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-3">
                                                 <AlertCircle className="w-6 h-6 text-gray-400" />
                                             </div>
-                                            No {activeTab} subscriptions found
+                                            No {activeTab} subscriptions found for the selected period
                                         </div>
                                     </td>
                                 </tr>
