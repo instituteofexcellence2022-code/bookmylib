@@ -8,6 +8,8 @@ export async function uploadFile(file: File) {
   // Check for either the new Token OR the legacy Secret+AppId
   const hasToken = !!process.env.UPLOADTHING_TOKEN;
   const hasLegacy = !!process.env.UPLOADTHING_SECRET && !!process.env.UPLOADTHING_APP_ID;
+  
+  console.log('UploadThing Credentials Check:', { hasToken, hasLegacy });
 
   if (!hasToken && !hasLegacy) {
     console.error('UploadThing Environment Check Failed: No valid credentials found.');
