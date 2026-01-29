@@ -2,15 +2,17 @@ import React from 'react'
 import { getStudentProfile } from '@/actions/student'
 import { getTodayAttendance, getAttendanceStats } from '@/actions/attendance'
 import { getQuotes, getLikedQuoteIds } from '@/actions/quotes'
+import { getStudentAnnouncements } from '@/actions/announcement'
 import HomeClient from './HomeClient'
 
 export default async function StudentHome() {
-  const [profile, todayAttendance, attendanceStats, quotes, likedQuoteIds] = await Promise.all([
+  const [profile, todayAttendance, attendanceStats, quotes, likedQuoteIds, announcements] = await Promise.all([
     getStudentProfile(),
     getTodayAttendance(),
     getAttendanceStats(),
     getQuotes(),
-    getLikedQuoteIds()
+    getLikedQuoteIds(),
+    getStudentAnnouncements()
   ])
 
   const { student, stats: profileStats } = profile
@@ -31,6 +33,7 @@ export default async function StudentHome() {
   // Serialize dates to pass to client component
   const serializedStudent = JSON.parse(JSON.stringify(student))
   const serializedAttendance = todayAttendance ? JSON.parse(JSON.stringify(todayAttendance)) : null
+  const serializedAnnouncements = JSON.parse(JSON.stringify(announcements))
 
   return (
     <HomeClient 
@@ -39,6 +42,7 @@ export default async function StudentHome() {
       todayAttendance={serializedAttendance}
       quotes={quotes}
       likedQuoteIds={likedQuoteIds}
+      announcements={serializedAnnouncements}
     />
   )
 }
