@@ -78,11 +78,11 @@ export function QuoteCard({ quotes, className, initialLikedIds = [] }: QuoteCard
     
     // Check both power (flick) and distance (drag and drop)
     if (swipePower < -swipeConfidenceThreshold || offset.x < -100) {
-      // Swiped Left -> Previous (as per user request "left swap to previous")
-      paginate(-1)
-    } else if (swipePower > swipeConfidenceThreshold || offset.x > 100) {
-      // Swiped Right -> Next (as per user request "swap right to show net quotes")
+      // Swiped Left -> Next (New)
       paginate(1)
+    } else if (swipePower > swipeConfidenceThreshold || offset.x > 100) {
+      // Swiped Right -> Previous
+      paginate(-1)
     }
   }
 
@@ -90,9 +90,9 @@ export function QuoteCard({ quotes, className, initialLikedIds = [] }: QuoteCard
 
   const variants = {
     enter: (direction: number) => ({
-      // If direction > 0 (Next/Right Swipe), enter from Left (-1000)
-      // If direction < 0 (Prev/Left Swipe), enter from Right (1000)
-      x: direction > 0 ? -1000 : 1000,
+      // If direction > 0 (Next), enter from Right (1000)
+      // If direction < 0 (Prev), enter from Left (-1000)
+      x: direction > 0 ? 1000 : -1000,
       opacity: 0,
       scale: 0.95
     }),
@@ -104,9 +104,9 @@ export function QuoteCard({ quotes, className, initialLikedIds = [] }: QuoteCard
     },
     exit: (direction: number) => ({
       zIndex: 0,
-      // If direction > 0 (Next/Right Swipe), exit to Right (1000)
-      // If direction < 0 (Prev/Left Swipe), exit to Left (-1000)
-      x: direction > 0 ? 1000 : -1000,
+      // If direction > 0 (Next), exit to Left (-1000)
+      // If direction < 0 (Prev), exit to Right (1000)
+      x: direction > 0 ? -1000 : 1000,
       opacity: 0,
       scale: 0.95
     })
