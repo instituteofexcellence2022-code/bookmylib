@@ -95,10 +95,10 @@ export function StaffDuesClient() {
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg w-fit">
+                    <div className="flex items-center space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg w-fit">
                         <button
                             onClick={() => setActiveTab('upcoming')}
-                            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
                                 activeTab === 'upcoming'
                                     ? 'bg-white text-blue-600 shadow-sm dark:bg-gray-950 dark:text-blue-400'
                                     : 'text-gray-500 hover:text-gray-900 dark:text-gray-400'
@@ -108,7 +108,7 @@ export function StaffDuesClient() {
                         </button>
                         <button
                             onClick={() => setActiveTab('overdue')}
-                            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
                                 activeTab === 'overdue'
                                     ? 'bg-white text-red-600 shadow-sm dark:bg-gray-950 dark:text-red-400'
                                     : 'text-gray-500 hover:text-gray-900 dark:text-gray-400'
@@ -116,9 +116,9 @@ export function StaffDuesClient() {
                         >
                             Overdue ({overdue.length})
                         </button>
-                    </div>
+                        
+                        <div className="w-[1px] h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
 
-                    <div className="flex items-center gap-2">
                         <div className="w-[120px]">
                             <FormSelect
                                 name="days"
@@ -133,24 +133,24 @@ export function StaffDuesClient() {
                                 ]}
                                 icon={Clock}
                                 placeholder="Period"
-                                className="text-sm py-1.5 h-9"
+                                className="text-sm py-1 h-8 bg-transparent border-none shadow-none focus:ring-0"
                                 containerClassName="w-full"
                             />
                         </div>
-                        
-                        {selectedDays === 'custom' && (
-                            <div className="w-[80px]">
-                                <input
-                                    type="number"
-                                    value={customDays}
-                                    onChange={(e) => setCustomDays(e.target.value)}
-                                    className="w-full h-9 px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 bg-white dark:bg-gray-800"
-                                    placeholder="Days"
-                                    min="1"
-                                />
-                            </div>
-                        )}
                     </div>
+                        
+                    {selectedDays === 'custom' && (
+                        <div className="w-[80px]">
+                            <input
+                                type="number"
+                                value={customDays}
+                                onChange={(e) => setCustomDays(e.target.value)}
+                                className="w-full h-9 px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 bg-white dark:bg-gray-800"
+                                placeholder="Days"
+                                min="1"
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 
