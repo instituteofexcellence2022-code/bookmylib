@@ -133,7 +133,7 @@ export function StaffDuesClient() {
                                 ]}
                                 icon={Clock}
                                 placeholder="Period"
-                                className="text-sm py-1 h-8 bg-transparent border-none shadow-none focus:ring-0"
+                                className="text-sm py-1 h-8 bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 shadow-sm focus:ring-0"
                                 containerClassName="w-full"
                             />
                         </div>
