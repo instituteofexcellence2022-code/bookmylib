@@ -1,10 +1,10 @@
 'use server'
 
-import { prisma } from '@/lib/prisma'
-import { revalidatePath } from 'next/cache'
-import { getOwnerProfile } from './owner'
-import { uploadFile } from '@/actions/upload'
 import { randomUUID } from 'crypto'
+import { revalidatePath } from 'next/cache'
+import { uploadFile } from '@/actions/upload'
+import { prisma } from '@/lib/prisma'
+import { getOwnerProfile } from './owner'
 
 export async function getOwnerBranches() {
   const owner = await getOwnerProfile()
