@@ -8,9 +8,14 @@ import { CompactCard } from '@/components/ui/AnimatedCard'
 import { Gift, Users, Copy, Check, Search, Calendar } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { getOwnerReferrals, getReferralSettings, saveReferralSettings } from '@/actions/promo'
+import { getOwnerBranches } from '@/actions/branch'
 import { format } from 'date-fns'
 
 export function ReferAndEarnTab() {
+  const [branches, setBranches] = useState<any[]>([])
+  const [selectedBranchId, setSelectedBranchId] = useState('all')
+  const [fullSettings, setFullSettings] = useState<any>({})
+  
   const [enabled, setEnabled] = useState(false)
   
   // Referrer Settings (Coupon)
@@ -30,24 +35,26 @@ export function ReferAndEarnTab() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [refs, settings] = await Promise.all([
+        const [refs, settings, branchList] = await Promise.all([
           getOwnerReferrals(),
-          getReferralSettings()
+          getReferralSettings(),
+          getOwnerBranches()
         ])
         setReferrals(refs)
+        setBranches(branchList)
         
-        if (settings) {
-          // @ts-ignore
-          setEnabled(settings.enabled ?? false)
-          // @ts-ignore
-          setReferrerType(settings.referrerReward?.type ?? 'fixed')
-          // @ts-ignore
-          setReferrerValue(settings.referrerReward?.value?.toString() ?? '100')
-          // @ts-ignore
-          setRefereeType(settings.refereeReward?.type ?? 'fixed')
-          // @ts-ignore
-          setRefereeValue(settings.refereeReward?.value?.toString() ?? '50')
+        // Handle migration/normalization of settings
+        let normalizedSettings = settings || {}
+        // If it's the old flat format, move it to 'all'
+        if (normalizedSettings.enabled !== undefined && !normalizedSettings.all) {
+          normalizedSettings = { all: { ...normalizedSettings } }
         }
+        
+        setFullSettings(normalizedSettings)
+        
+        // Apply initial settings (for 'all')
+        applySettings(normalizedSettings, 'all')
+        
       } catch (error) {
         console.error(error)
         toast.error('Failed to load data')
@@ -58,11 +65,31 @@ export function ReferAndEarnTab() {
     loadData()
   }, [])
 
+  const applySettings = (settings: any, branchId: string) => {
+    const branchSettings = settings[branchId] || settings['all'] || {}
+    
+    // @ts-ignore
+    setEnabled(branchSettings.enabled ?? false)
+    // @ts-ignore
+    setReferrerType(branchSettings.referrerReward?.type ?? 'fixed')
+    // @ts-ignore
+    setReferrerValue(branchSettings.referrerReward?.value?.toString() ?? '100')
+    // @ts-ignore
+    setRefereeType(branchSettings.refereeReward?.type ?? 'fixed')
+    // @ts-ignore
+    setRefereeValue(branchSettings.refereeReward?.value?.toString() ?? '50')
+  }
+
+  const handleBranchChange = (branchId: string) => {
+    setSelectedBranchId(branchId)
+    applySettings(fullSettings, branchId)
+  }
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     try {
-      const settings = {
+      const currentBranchSettings = {
         enabled,
         referrerReward: {
           type: referrerType,
@@ -74,8 +101,14 @@ export function ReferAndEarnTab() {
         }
       }
       
-      const res = await saveReferralSettings(settings)
+      const newFullSettings = {
+        ...fullSettings,
+        [selectedBranchId]: currentBranchSettings
+      }
+      
+      const res = await saveReferralSettings(newFullSettings)
       if (res.success) {
+        setFullSettings(newFullSettings)
         toast.success('Referral settings saved successfully')
       } else {
         toast.error(res.error || 'Failed to save')
@@ -94,16 +127,74 @@ export function ReferAndEarnTab() {
     toast.success('Referral link copied')
   }
 
-  const filteredReferrals = referrals.filter(ref => 
-    ref.referrer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    ref.referee.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredReferrals = referrals.filter(ref => {
+    const matchesSearch = ref.referrer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ref.referee.name.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    const matchesBranch = selectedBranchId === 'all' || ref.referee.branchId === selectedBranchId
+    
+    return matchesSearch && matchesBranch
+  })
 
-  const totalReferrals = referrals.length
-  const totalPaid = referrals.reduce((sum, ref) => sum + (ref.rewardAmount || 0), 0)
+  const totalReferrals = filteredReferrals.length
+  const totalCoupons = filteredReferrals.filter(r => r.referrerCouponCode).length
+  const totalDiscounts = filteredReferrals.reduce((sum, ref) => sum + (ref.refereeDiscount || 0), 0)
 
   return (
     <div className="space-y-6">
+      {/* Branch Selector */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Refer & Earn</h2>
+        <div className="w-64">
+          <FormSelect
+            value={selectedBranchId}
+            onChange={(e) => handleBranchChange(e.target.value)}
+            options={[
+              { label: 'All Branches', value: 'all' },
+              ...branches.map(b => ({ label: b.name, value: b.id }))
+            ]}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <CompactCard className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600">
+              <Users className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500">Total Referrals</p>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{totalReferrals}</h3>
+            </div>
+          </div>
+        </CompactCard>
+
+        <CompactCard className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg text-green-600">
+              <Gift className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500">Coupons Issued</p>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{totalCoupons}</h3>
+            </div>
+          </div>
+        </CompactCard>
+
+        <CompactCard className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-purple-600">
+              <Check className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500">Discounts Given</p>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">₹{totalDiscounts}</h3>
+            </div>
+          </div>
+        </CompactCard>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Settings Card */}
         <CompactCard className="p-6">
@@ -112,7 +203,9 @@ export function ReferAndEarnTab() {
               <Gift className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Program Settings</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Program Settings ({selectedBranchId === 'all' ? 'Global' : branches.find(b => b.id === selectedBranchId)?.name})
+              </h3>
               <p className="text-sm text-gray-500">Configure rewards for referrals</p>
             </div>
           </div>
@@ -188,35 +281,12 @@ export function ReferAndEarnTab() {
           </form>
         </CompactCard>
 
-        {/* Stats & Preview Card */}
+        {/* Preview Card */}
         <div className="space-y-6">
-          <CompactCard className="p-6">
-             <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-purple-600">
-                  <Users className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Program Stats</h3>
-                  <p className="text-sm text-gray-500">Overview of referral performance</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg text-center">
-                  <p className="text-sm text-gray-500 mb-1">Total Referrals</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalReferrals}</p>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg text-center">
-                  <p className="text-sm text-gray-500 mb-1">Coupons Issued</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalReferrals}</p>
-                </div>
-              </div>
-          </CompactCard>
-
           <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl p-6 text-white">
             <h4 className="font-semibold text-lg mb-2">How it looks for students</h4>
             <p className="text-blue-100 text-sm mb-4">
-              "Invite your friends! They get {refereeType === 'fixed' ? `₹${refereeValue}` : `${refereeValue}%`} off, and you earn a {referrerType === 'fixed' ? `₹${referrerValue}` : `${referrerValue}%`} coupon for every successful signup!"
+              "Invite your friends! They get {refereeType === 'fixed' ? `₹${refereeValue}` : `${refereeValue}%`} off, and you earn a {referrerType === 'fixed' ? `₹${referrerValue}` : `${referrerValue}%`} coupon for every successful joining!"
             </p>
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 flex items-center justify-between border border-white/20">
               <code className="text-sm">bookmylib.com/r/LIB123</code>

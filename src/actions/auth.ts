@@ -307,6 +307,7 @@ export async function registerStudent(formData: FormData) {
     const email = formData.get('email') as string
     const phone = formData.get('phone') as string
     const password = formData.get('password') as string
+    const referralCode = formData.get('referralCode') as string
     
     // Validation
     if (!name || !email || !password) {
@@ -329,14 +330,47 @@ export async function registerStudent(formData: FormData) {
     const hashedPassword = await bcrypt.hash(password, 10)
 
     try {
-        await prisma.student.create({
-            data: {
-                name,
-                email,
-                phone,
-                password: hashedPassword
+        // Start transaction to handle student creation and referral
+        await prisma.$transaction(async (tx) => {
+            // 1. Create Student
+            const newStudent = await tx.student.create({
+                data: {
+                    name,
+                    email,
+                    phone,
+                    password: hashedPassword
+                }
+            })
+
+            // 2. Handle Referral
+            if (referralCode) {
+                const referrer = await tx.student.findUnique({
+                    where: { referralCode },
+                    include: { library: true }
+                })
+
+                if (referrer && referrer.libraryId) {
+                    await tx.referral.create({
+                        data: {
+                            libraryId: referrer.libraryId,
+                            referrerId: referrer.id,
+                            refereeId: newStudent.id,
+                            status: 'pending'
+                        }
+                    })
+                    
+                    // Associate student with library if not already (optional, but good for context)
+                    // But student might want to choose library later. 
+                    // However, if they used a referral, they are likely joining that library context.
+                    // Let's update the student's libraryId to match referrer's library.
+                    await tx.student.update({
+                        where: { id: newStudent.id },
+                        data: { libraryId: referrer.libraryId }
+                    })
+                }
             }
         })
+
         return { success: true }
     } catch (error) {
         console.error('Student registration error:', error)

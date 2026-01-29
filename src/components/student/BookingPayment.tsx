@@ -99,7 +99,7 @@ export default function BookingPayment({
 
   const handlePayment = async () => {
     setProcessing(true)
-    const amount = appliedCoupon ? appliedCoupon.finalAmount : subTotal
+    const amount = subTotal
     
     // Construct description
     let description = `Booking: ${plan.name}`
@@ -115,7 +115,8 @@ export default function BookingPayment({
           plan.id, 
           description,
           paymentMethod as 'razorpay' | 'cashfree',
-          branchId
+          branchId,
+          appliedCoupon?.code
         )
         
         if (result.success) {

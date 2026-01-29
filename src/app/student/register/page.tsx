@@ -1,19 +1,22 @@
 'use client'
 
-import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { FormInput } from '@/components/ui/FormInput'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { registerStudent } from '@/actions/auth'
 import { toast } from 'react-hot-toast'
 import { 
-    UserPlus, User, Lock, Mail, Eye, EyeOff, Phone, ArrowLeft
+    UserPlus, User, Lock, Mail, Eye, EyeOff, Phone, ArrowLeft, Gift
 } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 
-export default function StudentRegisterPage() {
+function RegisterForm() {
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const referralCode = searchParams.get('ref')
+    
     const [loading, setLoading] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
     
@@ -76,6 +79,11 @@ export default function StudentRegisterPage() {
             Object.entries(formData).forEach(([key, value]) => {
                 data.append(key, value.toString())
             })
+            
+            // Append referral code if exists
+            if (referralCode) {
+                data.append('referralCode', referralCode)
+            }
 
             const result = await registerStudent(data)
 
@@ -94,21 +102,7 @@ export default function StudentRegisterPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col justify-center py-6 sm:px-6 lg:px-8 relative overflow-hidden">
-            {/* Back to Home */}
-            <Link 
-                href="/" 
-                className="absolute top-4 left-4 p-2 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors z-20"
-            >
-                <ArrowLeft className="w-6 h-6" />
-            </Link>
-
-            {/* Background Elements */}
-            <div className="fixed inset-0 pointer-events-none">
-                <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full blur-[100px] opacity-20 bg-blue-500" />
-                <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full blur-[100px] opacity-20 bg-sky-500" />
-            </div>
-
+        <>
             <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -140,6 +134,18 @@ export default function StudentRegisterPage() {
                 className="mt-4 sm:mx-auto sm:w-full sm:max-w-lg relative z-10"
             >
                 <div className="bg-white dark:bg-gray-900 py-6 px-4 shadow-xl sm:rounded-2xl sm:px-8 border border-gray-100 dark:border-gray-800">
+                    {referralCode && (
+                        <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-500">
+                            <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-full text-blue-600 dark:text-blue-300">
+                                <Gift className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Referral Code Applied!</p>
+                                <p className="text-xs text-blue-700 dark:text-blue-300">You'll get a special offer on your first booking.</p>
+                            </div>
+                        </div>
+                    )}
+                
                     <form className="space-y-4" onSubmit={handleRegister}>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormInput
@@ -232,7 +238,7 @@ export default function StudentRegisterPage() {
                                 className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800"
                             />
                             <label htmlFor="terms" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
-                                I agree to the <a href="#" className="text-blue-600 hover:text-blue-500">Terms</a> & <a href="#" className="text-blue-600 hover:text-blue-500">Privacy</a>
+                                I agree to the <Link href="/terms" className="text-blue-600 hover:text-blue-500">Terms</Link> & <Link href="/privacy" className="text-blue-600 hover:text-blue-500">Privacy</Link>
                             </label>
                         </div>
 
@@ -248,6 +254,30 @@ export default function StudentRegisterPage() {
                     </form>
                 </div>
             </motion.div>
+        </>
+    )
+}
+
+export default function StudentRegisterPage() {
+    return (
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col justify-center py-6 sm:px-6 lg:px-8 relative overflow-hidden">
+            {/* Back to Home */}
+            <Link 
+                href="/" 
+                className="absolute top-4 left-4 p-2 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors z-20"
+            >
+                <ArrowLeft className="w-6 h-6" />
+            </Link>
+
+            {/* Background Elements */}
+            <div className="fixed inset-0 pointer-events-none">
+                <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full blur-[100px] opacity-20 bg-blue-500" />
+                <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full blur-[100px] opacity-20 bg-sky-500" />
+            </div>
+
+            <Suspense fallback={<div className="text-center text-gray-500">Loading...</div>}>
+                <RegisterForm />
+            </Suspense>
         </div>
     )
 }

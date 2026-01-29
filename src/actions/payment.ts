@@ -211,7 +211,8 @@ export async function initiatePayment(
   relatedId?: string,
   description?: string,
   gatewayProvider: 'razorpay' | 'cashfree' = 'razorpay',
-  branchId?: string
+  branchId?: string,
+  couponCode?: string
 ) {
   const student = await getStudent()
   if (!student) return { success: false, error: 'Unauthorized' }
@@ -241,6 +242,58 @@ export async function initiatePayment(
       return { success: false, error: 'Branch context is missing' }
   }
 
+  // Calculate Final Amount with Discount
+  let finalAmount = amount
+  let promotionId = null
+  let discountAmount = 0
+  let updatedDescription = description
+
+  // 1. Coupon Logic
+  if (couponCode) {
+    const promo = await prisma.promotion.findUnique({
+      where: { code: couponCode }
+    })
+    
+    if (promo && promo.isActive) {
+      promotionId = promo.id
+      if (promo.discountType === 'percentage') {
+        discountAmount = (amount * promo.discountValue) / 100
+        if (promo.maxDiscount && discountAmount > promo.maxDiscount) {
+          discountAmount = promo.maxDiscount
+        }
+      } else if (promo.discountType === 'fixed') {
+        discountAmount = promo.discountValue
+      }
+      finalAmount = Math.max(0, amount - discountAmount)
+      updatedDescription += ` (Coupon: ${couponCode})`
+    }
+  } 
+  // 2. Referral Logic (if no coupon)
+  else {
+    try {
+        const referral = await prisma.referral.findFirst({
+            where: { refereeId: student.id, status: 'pending' }
+        })
+        
+        if (referral) {
+          const lib = await prisma.library.findUnique({ where: { id: libraryId } })
+          const settings = lib?.referralSettings as any || {}
+          
+          if (settings.refereeDiscountValue) {
+            if (settings.refereeDiscountType === 'percentage') {
+              discountAmount = (amount * settings.refereeDiscountValue) / 100
+            } else {
+              discountAmount = settings.refereeDiscountValue
+            }
+            finalAmount = Math.max(0, amount - discountAmount)
+            updatedDescription = updatedDescription ? `${updatedDescription} (Referral Discount)` : `Referral Discount Applied`
+          }
+        }
+    } catch (err) {
+        console.error('Error checking referral discount:', err)
+    }
+  }
+
   try {
     // 1. Create Payment Record (Pending)
     const payment = await prisma.payment.create({
@@ -248,15 +301,17 @@ export async function initiatePayment(
         libraryId,
         branchId,
         studentId: student.id,
-        amount,
+        amount: finalAmount,
         method: gatewayProvider,
         status: 'pending',
         type,
         relatedId,
-        description,
+        description: updatedDescription,
         gatewayProvider,
         // In a real app, you would call the gateway API here to get an order ID
-        gatewayOrderId: `order_${Math.random().toString(36).substring(7)}`
+        gatewayOrderId: `order_${Math.random().toString(36).substring(7)}`,
+        promotionId,
+        discountAmount
       }
     })
 
@@ -272,6 +327,153 @@ export async function initiatePayment(
     console.error('Payment initiation error:', error)
     // Return the actual error message for debugging (in dev)
     return { success: false, error: `Failed to initiate payment: ${(error as Error).message}` }
+  }
+}
+
+// Helper: Process Referral Rewards
+async function processReferralRewards(paymentId: string) {
+  console.log('Processing referral rewards for payment:', paymentId)
+  const payment = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    include: { 
+      student: true, 
+      library: true 
+    }
+  })
+
+  if (!payment || !payment.libraryId || payment.type !== 'subscription' || payment.status !== 'completed') {
+    return
+  }
+
+  // Check if student was referred and referral is pending
+  const referral = await prisma.referral.findFirst({
+    where: {
+      refereeId: payment.studentId,
+      status: 'pending'
+    },
+    include: { referrer: true }
+  })
+
+  if (!referral) {
+    return
+  }
+
+  const settings = payment.library.referralSettings as any || {}
+  const referrerDiscountValue = settings.referrerDiscountValue || 100 // Default 100
+  const referrerDiscountType = settings.referrerDiscountType || 'fixed'
+
+  // Generate Coupon for Referrer
+  // Format: REF-{ReferrerNamePrefix}-{Random4}
+  const namePrefix = (referral.referrer.name || 'USER').replace(/[^a-zA-Z]/g, '').substring(0, 4).toUpperCase()
+  const randomSuffix = Math.floor(1000 + Math.random() * 9000)
+  const code = `REF-${namePrefix}-${randomSuffix}`
+
+  try {
+    // Create Promotion
+    await prisma.promotion.create({
+      data: {
+        libraryId: payment.libraryId,
+        code,
+        description: `Referral Reward for referring ${payment.student.name}`,
+        discountType: referrerDiscountType,
+        discountValue: referrerDiscountValue,
+        minOrderValue: 0,
+        isActive: true,
+        usageLimit: 1,
+        // Valid for 90 days
+        endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
+      }
+    })
+
+    // Update Referral
+    await prisma.referral.update({
+      where: { id: referral.id },
+      data: {
+        status: 'completed',
+        referrerCouponCode: code,
+        completedAt: new Date()
+      }
+    })
+    
+    console.log('Referral reward generated:', code)
+  } catch (error) {
+    console.error('Error generating referral reward:', error)
+  }
+}
+
+// Helper to activate subscription after payment
+async function activateSubscription(paymentId: string) {
+  const payment = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    include: { student: { include: { subscriptions: true } } }
+  })
+
+  if (!payment || payment.type !== 'subscription' || payment.status !== 'completed') return
+
+  // 1. Try to use linked subscription
+  if (payment.subscriptionId) {
+    await prisma.studentSubscription.update({
+      where: { id: payment.subscriptionId },
+      data: { 
+        status: 'active',
+        paymentStatus: 'paid'
+      }
+    })
+  } 
+  // 2. Fallback: Try to find by relatedId (Plan) or Branch
+  else if (payment.relatedId) {
+    const plan = await prisma.plan.findUnique({ where: { id: payment.relatedId } })
+    
+    if (plan) {
+      const startDate = new Date()
+      let endDate = new Date()
+      
+      if (plan.durationUnit === 'months') {
+        endDate.setMonth(endDate.getMonth() + plan.duration)
+      } else if (plan.durationUnit === 'days') {
+        endDate.setDate(endDate.getDate() + plan.duration)
+      }
+      
+      const branchId = plan.branchId || payment.student.subscriptions[0]?.branchId
+      
+      if (branchId) {
+           const existing = await prisma.studentSubscription.findFirst({
+               where: { 
+                 studentId: payment.studentId, 
+                 branchId,
+                 status: 'pending' // Prioritize pending
+               }
+           })
+           
+           if (existing) {
+               await prisma.studentSubscription.update({
+                   where: { id: existing.id },
+                   data: {
+                       planId: plan.id,
+                       startDate,
+                       endDate,
+                       status: 'active',
+                       paymentStatus: 'paid'
+                   }
+               })
+           } else {
+               await prisma.studentSubscription.create({
+                   data: {
+                       libraryId: payment.libraryId,
+                       studentId: payment.studentId,
+                       branchId,
+                       planId: plan.id,
+                       startDate,
+                       endDate,
+                       status: 'active',
+                       paymentStatus: 'paid',
+                       amountPaid: payment.amount,
+                       finalAmount: payment.amount
+                   }
+               })
+           }
+      }
+    }
   }
 }
 
@@ -294,6 +496,12 @@ export async function verifyPaymentSignature(
       }
     })
     
+    // Process referral rewards (async, don't block)
+    processReferralRewards(paymentId).catch(err => console.error('Referral Processing Error', err))
+    
+    // Activate Subscription
+    await activateSubscription(paymentId)
+
     revalidatePath('/student/payments')
     return { success: true }
   } catch (error) {
@@ -310,7 +518,7 @@ export async function createManualPayment(formData: FormData) {
   const method = formData.get('method') as string // 'upi_app', 'qr_code', 'front_desk'
   const type = formData.get('type') as string
   const relatedId = formData.get('relatedId') as string
-  const description = formData.get('description') as string
+  let description = formData.get('description') as string
   const proofUrl = formData.get('proofUrl') as string // In real app, upload file and get URL
   const branchId = formData.get('branchId') as string
 
@@ -361,6 +569,30 @@ export async function createManualPayment(formData: FormData) {
         discountAmount = promo.discountValue
       }
       finalAmount = Math.max(0, amount - discountAmount)
+    }
+  } else {
+    // Check for referral discount eligibility if no coupon used
+    try {
+        const referral = await prisma.referral.findFirst({
+            where: { refereeId: student.id, status: 'pending' }
+        })
+        
+        if (referral) {
+            const lib = await prisma.library.findUnique({ where: { id: libraryId } })
+            const settings = lib?.referralSettings as any || {}
+            
+            if (settings.refereeDiscountValue) {
+                if (settings.refereeDiscountType === 'percentage') {
+                    discountAmount = (amount * settings.refereeDiscountValue) / 100
+                } else {
+                    discountAmount = settings.refereeDiscountValue
+                }
+                finalAmount = Math.max(0, amount - discountAmount)
+                description = description ? `${description} (Referral Discount)` : `Referral Discount Applied`
+            }
+        }
+    } catch (err) {
+        console.error('Error checking referral discount:', err)
     }
   }
 
@@ -479,7 +711,8 @@ export async function verifyPayment(paymentId: string, status: 'completed' | 'fa
           include: {
             subscriptions: true
           }
-        } 
+        },
+        library: true
       }
     })
 
@@ -498,71 +731,12 @@ export async function verifyPayment(paymentId: string, status: 'completed' | 'fa
 
     // If completed and subscription, activate it
     if (status === 'completed' && payment.type === 'subscription') {
-      // 1. Try to use linked subscription
-      if (payment.subscriptionId) {
-        await prisma.studentSubscription.update({
-          where: { id: payment.subscriptionId },
-          data: { 
-            status: 'active',
-            paymentStatus: 'paid'
-          }
-        })
-      } 
-      // 2. Fallback: Try to find by relatedId (Plan) or Branch
-      else if (payment.relatedId) {
-        const plan = await prisma.plan.findUnique({ where: { id: payment.relatedId } })
-        
-        if (plan) {
-          const startDate = new Date()
-          let endDate = new Date()
-          
-          if (plan.durationUnit === 'months') {
-            endDate.setMonth(endDate.getMonth() + plan.duration)
-          } else if (plan.durationUnit === 'days') {
-            endDate.setDate(endDate.getDate() + plan.duration)
-          }
-          
-          const branchId = plan.branchId || payment.student.subscriptions[0]?.branchId
-          
-          if (branchId) {
-               const existing = await prisma.studentSubscription.findFirst({
-                   where: { 
-                     studentId: payment.studentId, 
-                     branchId,
-                     status: 'pending' // Prioritize pending
-                   }
-               })
-               
-               if (existing) {
-                   await prisma.studentSubscription.update({
-                       where: { id: existing.id },
-                       data: {
-                           planId: plan.id,
-                           startDate,
-                           endDate,
-                           status: 'active',
-                           paymentStatus: 'paid'
-                       }
-                   })
-               } else {
-                   await prisma.studentSubscription.create({
-                       data: {
-                           libraryId: payment.libraryId,
-                           studentId: payment.studentId,
-                           branchId,
-                           planId: plan.id,
-                           startDate,
-                           endDate,
-                           status: 'active',
-                           paymentStatus: 'paid',
-                           amountPaid: payment.amount,
-                           finalAmount: payment.amount
-                       }
-                   })
-               }
-          }
-        }
-      }
+      
+      // Trigger Referral Rewards
+      await processReferralRewards(paymentId)
+
+      // Use shared helper
+      await activateSubscription(paymentId)
     }
 
     revalidatePath('/owner/finance')

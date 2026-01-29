@@ -222,7 +222,7 @@ export async function getOwnerReferrals() {
           select: { name: true, email: true, phone: true }
         },
         referee: {
-          select: { name: true, email: true, phone: true }
+          select: { name: true, email: true, phone: true, branchId: true }
         }
       },
       orderBy: {
