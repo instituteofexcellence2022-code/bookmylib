@@ -430,3 +430,203 @@ export async function getStaffBranchInfo() {
         qrCode: staff.branch.qrCode
     }
 }
+
+export async function getStaffSelfAttendanceToday() {
+    const staff = await getAuthenticatedStaff()
+    if (!staff) return null
+
+    const today = startOfDay(new Date())
+    const end = endOfDay(new Date())
+
+    const record = await prisma.staffAttendance.findFirst({
+        where: {
+            staffId: staff.id,
+            checkIn: {
+                gte: today,
+                lte: end
+            }
+        },
+        orderBy: { checkIn: 'desc' }
+    })
+
+    return record
+}
+
+export async function markStaffSelfAttendance(qrContent: string) {
+    const staff = await getAuthenticatedStaff()
+    if (!staff) return { success: false, error: 'Unauthorized' }
+
+    try {
+        let branchId = staff.branchId
+        let qrCodeValue = qrContent
+
+        // Try to parse JSON if applicable
+        try {
+            const data = JSON.parse(qrContent)
+            if (data.branchId) branchId = data.branchId
+            if (data.code) qrCodeValue = data.code
+        } catch {
+            // Not JSON, assume raw code
+        }
+
+        // 1. Verify Branch
+        if (branchId !== staff.branchId) {
+            return { success: false, error: 'Invalid Branch QR: This code belongs to another branch' }
+        }
+
+        // 2. Verify QR Code
+        // If the branch has a QR code set, it MUST match
+        if (staff.branch.qrCode && staff.branch.qrCode !== qrCodeValue) {
+            return { success: false, error: 'Invalid QR Code' }
+        }
+        
+        // If branch has no QR code set, we might want to prevent check-in or allow any (let's be strict: must exist)
+        if (!staff.branch.qrCode) {
+            return { success: false, error: 'Branch QR code not configured' }
+        }
+
+        // 3. Logic: Check-in or Check-out
+        const today = startOfDay(new Date())
+        
+        // Check for open attendance
+        const openAttendance = await prisma.staffAttendance.findFirst({
+            where: {
+                staffId: staff.id,
+                checkOut: null,
+                checkIn: { gte: today }
+            },
+            orderBy: { checkIn: 'desc' }
+        })
+
+        if (openAttendance) {
+            // Check-out
+            const checkOutTime = new Date()
+            const durationMs = checkOutTime.getTime() - openAttendance.checkIn.getTime()
+            
+            // Safety check: Prevent checkout if < 1 minute (60000ms) to avoid accidental double-scans
+            if (durationMs < 60000) {
+                 return { success: false, error: 'You just checked in. Please wait a minute before checking out.' }
+            }
+
+            const duration = Math.floor(durationMs / 60000)
+            
+            let status = 'present'
+            if (duration < 240) status = 'half_day' // Example logic: < 4 hours
+            else status = 'present'
+
+            await prisma.staffAttendance.update({
+                where: { id: openAttendance.id },
+                data: {
+                    checkOut: checkOutTime,
+                    duration: duration > 0 ? duration : 0,
+                    status,
+                    method: 'qr'
+                }
+            })
+
+            revalidatePath('/staff/shift')
+            revalidatePath('/staff/attendance')
+            return { 
+                success: true, 
+                type: 'check-out', 
+                timestamp: checkOutTime,
+                duration
+            }
+        }
+
+        // Create Check-in
+        const checkInDate = new Date()
+        await prisma.staffAttendance.create({
+            data: {
+                staffId: staff.id,
+                libraryId: staff.libraryId,
+                branchId: staff.branchId,
+                date: checkInDate,
+                checkIn: checkInDate,
+                status: 'present', // Default, updated on checkout
+                method: 'qr'
+            }
+        })
+
+        revalidatePath('/staff/shift')
+        revalidatePath('/staff/attendance')
+        return { 
+            success: true, 
+            type: 'check-in', 
+            timestamp: checkInDate
+        }
+
+    } catch (error) {
+        console.error('Error marking staff self attendance:', error)
+        return { success: false, error: 'Failed to process attendance' }
+    }
+}
+
+export async function getStaffSelfAttendanceHistory(limit: number = 30) {
+    const staff = await getAuthenticatedStaff()
+    if (!staff) return []
+
+    try {
+        const history = await prisma.staffAttendance.findMany({
+            where: {
+                staffId: staff.id
+            },
+            orderBy: {
+                checkIn: 'desc'
+            },
+            take: limit
+        })
+
+        return history
+    } catch (error) {
+        console.error('Error fetching staff self attendance history:', error)
+        return []
+    }
+}
+
+export async function getStaffSelfAttendanceStats() {
+    const staff = await getAuthenticatedStaff()
+    if (!staff) return null
+
+    try {
+        const now = new Date()
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+        
+        // Fetch logs for this month
+        const monthlyLogs = await prisma.staffAttendance.findMany({
+            where: {
+                staffId: staff.id,
+                checkIn: {
+                    gte: startOfMonth
+                }
+            }
+        })
+
+        const totalSessions = monthlyLogs.length
+        
+        // Calculate total hours
+        const totalMinutes = monthlyLogs.reduce((acc, log) => acc + (log.duration || 0), 0)
+        const totalHours = Math.round((totalMinutes / 60) * 10) / 10
+
+        // Calculate average duration (for completed sessions)
+        const completedSessions = monthlyLogs.filter(l => l.duration !== null)
+        const avgDurationMinutes = completedSessions.length > 0 
+            ? Math.round(completedSessions.reduce((acc, l) => acc + (l.duration || 0), 0) / completedSessions.length)
+            : 0
+        const avgDurationHours = Math.round((avgDurationMinutes / 60) * 10) / 10
+
+        // On-time rate (This is tricky without strict shift times, so let's use "Full Days" vs "Short Sessions")
+        // Or simply "Present Days"
+        const fullDays = monthlyLogs.filter(l => (l.duration || 0) > 240).length // > 4 hours
+
+        return {
+            totalSessions,
+            totalHours,
+            avgDurationHours,
+            fullDays
+        }
+    } catch (error) {
+        console.error('Error fetching staff self stats:', error)
+        return null
+    }
+}
