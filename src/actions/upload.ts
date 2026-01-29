@@ -27,7 +27,10 @@ export async function uploadFile(file: File) {
 
     return response[0].data?.url || null
   } catch (error) {
-    console.error('Upload error:', error)
+    console.error('Upload error in uploadFile:', error)
+    if (error instanceof Error) {
+        console.error('Stack:', error.stack)
+    }
     // Throw the actual error message to the client
     throw new Error(error instanceof Error ? error.message : 'Upload failed')
   }

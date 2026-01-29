@@ -229,6 +229,10 @@ export async function uploadGovtId(formData: FormData) {
         return { success: true, url }
     } catch (error) {
         console.error('Error uploading govt ID:', error)
-        return { success: false, error: 'Failed to upload ID' }
+        // Check for specific UploadThing errors
+        if (error instanceof Error && error.message.includes('Missing UploadThing')) {
+             return { success: false, error: 'Server configuration error: Missing upload credentials' }
+        }
+        return { success: false, error: error instanceof Error ? error.message : 'Failed to upload ID' }
     }
 }
