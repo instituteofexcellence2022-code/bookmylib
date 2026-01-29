@@ -19,6 +19,9 @@ export async function getOwnerPromotions() {
         },
         plan: {
           select: { name: true }
+        },
+        _count: {
+          select: { payments: true }
         }
       },
       orderBy: {
@@ -29,6 +32,7 @@ export async function getOwnerPromotions() {
     // Map database fields to frontend expected fields
     return promotions.map(p => ({
       ...p,
+      usedCount: p._count.payments,
       type: p.discountType,
       value: p.discountValue,
       validFrom: p.startDate,
