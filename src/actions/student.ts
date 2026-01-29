@@ -238,12 +238,27 @@ export async function getStudentReferralData() {
 
     // Generate referral code if not exists
     if (!student.referralCode) {
-        // Simple code generation: First 4 letters of name + random 4 digits
-        // Ensure name exists and is long enough, fallback to 'STUD'
-        const cleanName = (student.name || 'STUD').replace(/[^a-zA-Z]/g, '').toUpperCase()
-        const codePrefix = (cleanName.length >= 4 ? cleanName : (cleanName + 'XXXX')).slice(0, 4)
-        const randomNum = Math.floor(1000 + Math.random() * 9000)
-        const newCode = `${codePrefix}${randomNum}`
+        const namePrefix = (student.name || 'USER').replace(/[^a-zA-Z]/g, '').substring(0, 4).toUpperCase()
+        
+        // Retry logic for referral code generation
+        let newCode = ''
+        let attempts = 0
+        const maxAttempts = 3
+        
+        while (attempts < maxAttempts) {
+            const randomSuffix = Math.floor(1000 + Math.random() * 9000)
+            newCode = `${namePrefix}${randomSuffix}`
+            
+            // Check if code exists
+            const existing = await prisma.student.findUnique({ where: { referralCode: newCode } })
+            if (!existing) break
+            
+            attempts++
+        }
+        
+        if (attempts >= maxAttempts) {
+             newCode = `${namePrefix}${Date.now().toString().slice(-6)}`
+        }
 
         try {
             student = await prisma.student.update({
@@ -262,8 +277,7 @@ export async function getStudentReferralData() {
                 }
             })
         } catch (e) {
-            // If collision (rare), retry or fail gracefully
-            console.error('Referral code generation collision', e)
+            console.error('Referral code generation error', e)
         }
     }
 

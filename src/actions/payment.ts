@@ -359,14 +359,42 @@ async function processReferralRewards(paymentId: string) {
   }
 
   const settings = payment.library.referralSettings as any || {}
-  const referrerDiscountValue = settings.referrerDiscountValue || 100 // Default 100
-  const referrerDiscountType = settings.referrerDiscountType || 'fixed'
+  
+  // Check if referral program is enabled
+  // Migration logic: if 'enabled' property exists in root, use it. If 'all' exists, check all.enabled.
+  // Default to true if settings exist but no explicit enabled flag? No, safer to default to false if not found?
+  // Based on ReferAndEarnTab.tsx, structure might be { all: { enabled: true, ... } } or old flat structure
+  const isEnabled = settings.all?.enabled ?? settings.enabled ?? false
+  
+  if (!isEnabled) {
+    console.log('Referral program disabled, skipping reward generation')
+    return
+  }
 
-  // Generate Coupon for Referrer
-  // Format: REF-{ReferrerNamePrefix}-{Random4}
+  const referrerDiscountValue = settings.referrerDiscountValue || settings.all?.referrerDiscountValue || 100 
+  const referrerDiscountType = settings.referrerDiscountType || settings.all?.referrerDiscountType || 'fixed'
+
+  // Generate Coupon for Referrer with retry logic for uniqueness
   const namePrefix = (referral.referrer.name || 'USER').replace(/[^a-zA-Z]/g, '').substring(0, 4).toUpperCase()
-  const randomSuffix = Math.floor(1000 + Math.random() * 9000)
-  const code = `REF-${namePrefix}-${randomSuffix}`
+  let code = ''
+  let attempts = 0
+  const maxAttempts = 3
+  
+  while (attempts < maxAttempts) {
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000)
+    code = `REF-${namePrefix}-${randomSuffix}`
+    
+    // Check if code exists
+    const existing = await prisma.promotion.findUnique({ where: { code } })
+    if (!existing) break
+    
+    attempts++
+  }
+  
+  if (attempts >= maxAttempts) {
+     // Fallback to timestamp if random collisions persist
+     code = `REF-${namePrefix}-${Date.now().toString().slice(-6)}`
+  }
 
   try {
     // Create Promotion
