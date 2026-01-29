@@ -123,6 +123,8 @@ export function QuoteCard({ quotes, className, initialLikedIds = [] }: QuoteCard
             total={quotes.length} 
             likedIds={likedIds} 
             onLike={handleLike} 
+            onNext={() => paginate(1)}
+            onPrev={() => paginate(-1)}
           />
         </div>
       ) : (
@@ -150,6 +152,8 @@ export function QuoteCard({ quotes, className, initialLikedIds = [] }: QuoteCard
               total={quotes.length} 
               likedIds={likedIds} 
               onLike={handleLike} 
+              onNext={() => paginate(1)}
+              onPrev={() => paginate(-1)}
             />
           </motion.div>
         </AnimatePresence>
@@ -164,13 +168,17 @@ const CardContent = ({
   index, 
   total, 
   likedIds, 
-  onLike 
+  onLike,
+  onNext,
+  onPrev
 }: { 
   quote: Quote, 
   index: number, 
   total: number, 
   likedIds: Set<number>, 
-  onLike: (e: React.MouseEvent) => void 
+  onLike: (e: React.MouseEvent) => void,
+  onNext: () => void,
+  onPrev: () => void
 }) => (
   <div className="w-full h-full bg-white dark:bg-gray-900 rounded-xl p-3 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col justify-center relative overflow-hidden group select-none">
     {/* Decorative Quote Icon */}
@@ -205,12 +213,18 @@ const CardContent = ({
     </div>
 
     {/* Navigation Hints (Visible on Hover/Touch) */}
-    <div className="absolute inset-y-0 left-0 w-12 flex items-center justify-start pl-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-      <ChevronLeft className="text-gray-300 dark:text-gray-600" />
-    </div>
-    <div className="absolute inset-y-0 right-0 w-12 flex items-center justify-end pr-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-      <ChevronRight className="text-gray-300 dark:text-gray-600" />
-    </div>
+    <button 
+      onClick={(e) => { e.stopPropagation(); onPrev(); }}
+      className="absolute inset-y-0 left-0 w-12 flex items-center justify-start pl-2 opacity-0 group-hover:opacity-100 transition-opacity z-20 hover:bg-gradient-to-r hover:from-black/5 hover:to-transparent outline-none"
+    >
+      <ChevronLeft className="text-gray-400 dark:text-gray-500" />
+    </button>
+    <button 
+      onClick={(e) => { e.stopPropagation(); onNext(); }}
+      className="absolute inset-y-0 right-0 w-12 flex items-center justify-end pr-2 opacity-0 group-hover:opacity-100 transition-opacity z-20 hover:bg-gradient-to-l hover:from-black/5 hover:to-transparent outline-none"
+    >
+      <ChevronRight className="text-gray-400 dark:text-gray-500" />
+    </button>
 
     {/* Category Badge */}
     <div className="absolute bottom-3 right-4">
