@@ -48,6 +48,7 @@ model Library {
   focusSessions   FocusSession[]
   additionalFees  AdditionalFee[]
   studentNotes    StudentNote[]
+  referrals       Referral[]
   
   @@map("libraries")
 }
@@ -229,7 +230,30 @@ model Student {
   likedQuotes   LikedQuote[]
   notes         StudentNote[]
   
+  // Referrals
+  referralCode  String?  @unique
+  sentReferrals Referral[] @relation("Referrer")
+  receivedReferral Referral? @relation("Referee")
+
   @@map("students")
+}
+
+// Referral System
+model Referral {
+  id          String   @id @default(uuid())
+  libraryId   String
+  referrerId  String   // Student who referred
+  refereeId   String   @unique // Student who was referred
+  status      String   @default("pending") // 'pending', 'verified', 'paid'
+  rewardAmount Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  library     Library @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  referrer    Student @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referee     Student @relation("Referee", fields: [refereeId], references: [id], onDelete: Cascade)
+
+  @@map("referrals")
 }
 
 model StudentNote {

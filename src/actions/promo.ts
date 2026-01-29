@@ -207,3 +207,31 @@ export async function togglePromotionStatus(id: string) {
     return { success: false, error: 'Failed to update status' }
   }
 }
+
+export async function getOwnerReferrals() {
+  const owner = await getOwnerProfile()
+  if (!owner || !owner.libraryId) return []
+
+  try {
+    const referrals = await prisma.referral.findMany({
+      where: {
+        libraryId: owner.libraryId
+      },
+      include: {
+        referrer: {
+          select: { name: true, email: true, phone: true }
+        },
+        referee: {
+          select: { name: true, email: true, phone: true }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+    return referrals
+  } catch (error) {
+    console.error('Error fetching referrals:', error)
+    return []
+  }
+}
