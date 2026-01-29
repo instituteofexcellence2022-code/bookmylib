@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { RevenueStatsClient } from '@/components/owner/finance/RevenueStatsClient'
 import { RevenueChartClient } from '@/components/owner/finance/RevenueChartClient'
 import { RevenueDistributionClient } from '@/components/owner/finance/RevenueDistributionClient'
@@ -10,7 +11,13 @@ import { DuesAndExpiriesClient } from '@/components/owner/finance/DuesAndExpirie
 import { LayoutDashboard, PlusCircle, AlertCircle } from 'lucide-react'
 
 export function FinanceTabsClient() {
-    const [activeTab, setActiveTab] = useState<'overview' | 'accept' | 'dues'>('overview')
+    const router = useRouter()
+    const searchParams = useSearchParams()
+    const activeTab = (searchParams.get('tab') as 'overview' | 'accept' | 'dues') || 'overview'
+
+    const setActiveTab = (tab: 'overview' | 'accept' | 'dues') => {
+        router.push(`/owner/finance?tab=${tab}`)
+    }
 
     return (
         <div className="space-y-6">

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import { FinanceTabsClient } from '@/components/owner/finance/FinanceTabsClient'
 
 export default function RevenuePage() {
@@ -11,7 +11,9 @@ export default function RevenuePage() {
         </div>
       </div>
 
-      <FinanceTabsClient />
+      <Suspense>
+        <FinanceTabsClient />
+      </Suspense>
     </div>
   )
 }

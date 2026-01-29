@@ -42,7 +42,7 @@ import {
 import { getDashboardStats } from '@/actions/owner/dashboard'
 import { getOwnerBranches } from '@/actions/branch'
 import { toast } from 'sonner'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, formatRelativeTime } from '@/lib/utils'
 import Link from 'next/link'
 
 interface DashboardData {
@@ -80,6 +80,14 @@ interface DashboardData {
     title: string
     desc: string
   }>
+  recentlyExpired: Array<{
+    id: string
+    studentName: string
+    studentImage: string | null
+    planName: string
+    endDate: string | Date
+    phone?: string | null
+  }>
 }
 
 const initialData: DashboardData = {
@@ -92,6 +100,7 @@ const initialData: DashboardData = {
   recentActivity: [],
   revenueChart: [],
   upcomingExpirations: [],
+  recentlyExpired: [],
   attendance: { today: 0, totalActive: 0, percentage: 0 },
   revenueByMethod: [],
   alerts: []
@@ -183,20 +192,20 @@ export default function OwnerDashboard() {
           <h1 className="text-lg font-bold text-gray-900 dark:text-white">Dashboard Overview</h1>
           <p className="text-xs text-gray-500 dark:text-gray-400">Welcome back, here&apos;s what&apos;s happening today.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-3 w-full md:w-auto">
           <FilterSelect
             icon={Calendar}
             options={['Today', 'This Week', 'Last Week', 'Last Month']}
             value={timeRange}
             onChange={setTimeRange}
-            className="min-w-[140px] flex-shrink-0"
+            className="flex-1 md:min-w-[140px] md:flex-none"
           />
           <FilterSelect
             icon={Building2}
             options={['All Branches', ...branches.map(b => b.name)]}
             value={selectedBranch}
             onChange={setSelectedBranch}
-            className="min-w-[160px] flex-shrink-0"
+            className="flex-1 md:min-w-[120px] md:flex-none"
           />
           <AnimatedButton 
             variant="ghost" 
@@ -212,12 +221,14 @@ export default function OwnerDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
-            { label: 'Add Student', icon: UserPlus, href: '/owner/students/new', color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' },
-            { label: 'Add Staff', icon: Plus, href: '/owner/staff/new', color: 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400' },
-            { label: 'New Ticket', icon: Ticket, href: '/owner/tickets/new', color: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' },
-            { label: 'Broadcast', icon: Megaphone, href: '/owner/announcements', color: 'bg-pink-50 text-pink-600 dark:bg-pink-900/20 dark:text-pink-400' },
+            { label: 'Add Student', icon: UserPlus, href: '/owner/students/add', color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' },
+            { label: 'Add Staff', icon: Plus, href: '/owner/staff/add', color: 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400' },
+            { label: 'Accept Payment', icon: CreditCard, href: '/owner/finance?tab=accept', color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' },
+            { label: 'Verify Doc', icon: FileText, href: '/owner/students?tab=documents', color: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400' },
+            { label: 'New Ticket', icon: Ticket, href: '/owner/issues', color: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' },
+            { label: 'Broadcast', icon: Megaphone, href: '/owner/marketing', color: 'bg-pink-50 text-pink-600 dark:bg-pink-900/20 dark:text-pink-400' },
         ].map((action) => (
             <Link key={action.label} href={action.href} className="block group">
                 <CompactCard className="hover:border-purple-200 dark:hover:border-purple-900/50 transition-all cursor-pointer hover:shadow-md py-4 px-4 h-full">
