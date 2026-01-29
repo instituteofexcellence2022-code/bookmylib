@@ -38,7 +38,8 @@ export async function getStudentAnnouncements() {
     const announcements = await prisma.announcement.findMany({
       where: { 
         libraryId: student.libraryId,
-        target: { in: ['all_users', 'students'] },
+        target: { in: ['all', 'students'] },
+        isActive: true,
         OR: [
           { expiresAt: null },
           { expiresAt: { gt: new Date() } }
@@ -70,7 +71,8 @@ export async function getStaffAnnouncements() {
     const announcements = await prisma.announcement.findMany({
       where: { 
         libraryId: staff.libraryId,
-        target: { in: ['all_users', 'staff'] },
+        target: { in: ['all', 'staff'] },
+        isActive: true,
         OR: [
           { expiresAt: null },
           { expiresAt: { gt: new Date() } }
