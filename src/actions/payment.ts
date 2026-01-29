@@ -279,11 +279,16 @@ export async function initiatePayment(
           const lib = await prisma.library.findUnique({ where: { id: libraryId } })
           const settings = lib?.referralSettings as any || {}
           
-          if (settings.refereeDiscountValue) {
-            if (settings.refereeDiscountType === 'percentage') {
-              discountAmount = (amount * settings.refereeDiscountValue) / 100
+          // Support both new (nested) and old (flat) settings structure
+          const s = settings.all || settings
+          const refereeDiscountValue = s.refereeReward?.value || s.refereeDiscountValue
+          const refereeDiscountType = s.refereeReward?.type || s.refereeDiscountType || 'fixed'
+          
+          if (refereeDiscountValue) {
+            if (refereeDiscountType === 'percentage') {
+              discountAmount = (amount * refereeDiscountValue) / 100
             } else {
-              discountAmount = settings.refereeDiscountValue
+              discountAmount = refereeDiscountValue
             }
             finalAmount = Math.max(0, amount - discountAmount)
             updatedDescription = updatedDescription ? `${updatedDescription} (Referral Discount)` : `Referral Discount Applied`
@@ -371,8 +376,8 @@ async function processReferralRewards(paymentId: string) {
     return
   }
 
-  const referrerDiscountValue = settings.referrerDiscountValue || settings.all?.referrerDiscountValue || 100 
-  const referrerDiscountType = settings.referrerDiscountType || settings.all?.referrerDiscountType || 'fixed'
+  const referrerDiscountValue = settings.all?.referrerReward?.value || settings.referrerReward?.value || settings.all?.referrerDiscountValue || settings.referrerDiscountValue || 100 
+  const referrerDiscountType = settings.all?.referrerReward?.type || settings.referrerReward?.type || settings.all?.referrerDiscountType || settings.referrerDiscountType || 'fixed'
 
   // Generate Coupon for Referrer with retry logic for uniqueness
   const namePrefix = (referral.referrer.name || 'USER').replace(/[^a-zA-Z]/g, '').substring(0, 4).toUpperCase()

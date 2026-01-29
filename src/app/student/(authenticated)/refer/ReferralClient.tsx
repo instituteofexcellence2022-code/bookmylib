@@ -26,6 +26,24 @@ export default function ReferralClient({ data }: ReferralClientProps) {
     const { referralCode, referrals, libraryName, settings, stats } = data
     const [copied, setCopied] = useState(false)
 
+    // Extract settings with fallback to support both old and new formats
+    const getRewardSettings = () => {
+        // Try to get settings from 'all' or root
+        const s = settings?.all || settings || {}
+        
+        // Referee (Friend) - Support nested reward object or flat legacy properties
+        const refereeType = s.refereeReward?.type || s.refereeDiscountType || 'fixed'
+        const refereeValue = s.refereeReward?.value || s.refereeDiscountValue || 50
+        
+        // Referrer (You)
+        const referrerType = s.referrerReward?.type || s.referrerDiscountType || 'fixed'
+        const referrerValue = s.referrerReward?.value || s.referrerDiscountValue || 100
+        
+        return { refereeType, refereeValue, referrerType, referrerValue }
+    }
+
+    const { refereeType, refereeValue, referrerType, referrerValue } = getRewardSettings()
+
     const code = referralCode || ''
     const shareUrl = typeof window !== 'undefined' 
         ? `${window.location.origin}/student/register?ref=${code}`
@@ -97,7 +115,7 @@ export default function ReferralClient({ data }: ReferralClientProps) {
                         <div className="relative z-10">
                             <h2 className="text-xl font-bold mb-2">Share your referral code</h2>
                             <p className="text-blue-100 mb-6 max-w-lg">
-                                Share this code with your friends. When they join and subscribe, you both get rewards!
+                                "Invite your friends! They get {refereeType === 'fixed' ? `₹${refereeValue}` : `${refereeValue}%`} off, and you earn a {referrerType === 'fixed' ? `₹${referrerValue}` : `${referrerValue}%`} coupon for every successful joining!"
                             </p>
 
                             <div className="flex flex-col sm:flex-row gap-3">
