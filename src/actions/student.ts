@@ -98,8 +98,23 @@ export async function updateStudentProfile(formData: FormData) {
     const pincode = formData.get('pincode') as string
     const guardianName = formData.get('guardianName') as string
     const guardianPhone = formData.get('guardianPhone') as string
+
     let image = formData.get('image') as string
+    const imageFile = formData.get('imageFile') as File | null
     const govtIdUrl = formData.get('govtIdUrl') as string
+
+    // Handle Image Upload
+    if (imageFile && imageFile.size > 0) {
+        try {
+            const uploadedUrl = await uploadFile(imageFile)
+            if (uploadedUrl) {
+                image = uploadedUrl
+            }
+        } catch (e) {
+            console.error('Failed to upload profile image', e)
+            return { success: false, error: 'Failed to upload profile image' }
+        }
+    }
 
     try {
         await prisma.student.update({

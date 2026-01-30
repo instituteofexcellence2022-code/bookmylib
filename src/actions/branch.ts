@@ -17,7 +17,16 @@ export async function getOwnerBranches() {
       },
       include: {
         staff: true,
-        seats: true,
+        seats: {
+          include: {
+            subscriptions: {
+              where: {
+                status: 'active',
+                endDate: { gt: new Date() }
+              }
+            }
+          }
+        },
       },
       orderBy: {
         createdAt: 'desc'
@@ -28,7 +37,7 @@ export async function getOwnerBranches() {
       ...branch,
       seats: { 
         total: branch.seatCount, 
-        occupied: branch.seats.filter((s: any) => s.status === 'occupied').length 
+        occupied: branch.seats.filter((s) => s.subscriptions.length > 0).length 
       },
       staff: branch.staff.length,
       revenue: 0, 
@@ -49,7 +58,16 @@ export async function getBranchById(id: string) {
       where: { id },
       include: {
         staff: true,
-        seats: true
+        seats: {
+          include: {
+            subscriptions: {
+              where: {
+                status: 'active',
+                endDate: { gt: new Date() }
+              }
+            }
+          }
+        }
       }
     })
 
@@ -59,7 +77,7 @@ export async function getBranchById(id: string) {
       ...branch,
       seats: { 
         total: branch.seatCount, 
-        occupied: branch.seats.filter((s: any) => s.status === 'occupied').length 
+        occupied: branch.seats.filter((s) => s.subscriptions.length > 0).length 
       },
       staff: branch.staff.length,
       revenue: 0,
@@ -151,8 +169,7 @@ export async function createBranch(formData: FormData) {
           branchId: branch.id,
           libraryId: owner.libraryId,
           number: String(i),
-          status: 'available',
-          type: 'standard',
+          type: 'regular',
           section: 'General'
         })
       }
@@ -165,9 +182,9 @@ export async function createBranch(formData: FormData) {
 
     revalidatePath('/owner/branches')
     return { success: true }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating branch:', error)
-    return { success: false, error: 'Failed to create branch' }
+    return { success: false, error: error.message || 'Failed to create branch' }
   }
 }
 
