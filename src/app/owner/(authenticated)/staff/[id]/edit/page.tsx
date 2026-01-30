@@ -542,14 +542,7 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
               onChange={handleChange}
             />
 
-            <FormInput
-              label="Joining Date"
-              name="joiningDate"
-              type="date"
-              value={formData.joiningDate}
-              onChange={handleChange}
-              required
-            />
+
           </CompactCard>
 
           {/* Recent Attendance */}

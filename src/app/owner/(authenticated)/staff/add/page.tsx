@@ -418,14 +418,7 @@ export default function AddStaffPage() {
               onChange={handleChange}
             />
 
-            <FormInput
-              label="Joining Date"
-              name="joiningDate"
-              type="date"
-              value={formData.joiningDate}
-              onChange={handleChange}
-              required
-            />
+
           </CompactCard>
         </div>
 
