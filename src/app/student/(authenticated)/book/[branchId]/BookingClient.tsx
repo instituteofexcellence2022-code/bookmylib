@@ -507,10 +507,10 @@ export default function BookingClient({ branch, studentId, currentSubscription }
                                                         className={cn(
                                                             "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative group",
                                                             seat.isOccupied
-                                                                ? "bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60"
+                                                                ? "bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60 text-gray-400 dark:text-gray-500"
                                                                 : selectedSeat?.id === seat.id
                                                                     ? "bg-emerald-500 border-emerald-600 text-white shadow-md shadow-emerald-500/20"
-                                                                    : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-emerald-400 dark:hover:border-emerald-500 hover:shadow-sm"
+                                                                    : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-emerald-400 dark:hover:border-emerald-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
                                                         )}
                                                     >
                                                         <Armchair className={cn(
@@ -557,10 +557,10 @@ export default function BookingClient({ branch, studentId, currentSubscription }
                                                     className={cn(
                                                         "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative",
                                                         seat.isOccupied
-                                                            ? "bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60"
+                                                            ? "bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60 text-gray-400 dark:text-gray-500"
                                                             : selectedSeat?.id === seat.id
                                                                 ? "bg-emerald-500 border-emerald-600 text-white shadow-md shadow-emerald-500/20"
-                                                                : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-emerald-400 dark:hover:border-emerald-500 hover:shadow-sm"
+                                                                : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-emerald-400 dark:hover:border-emerald-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
                                                     )}
                                                 >
                                                     <Armchair className={cn(
