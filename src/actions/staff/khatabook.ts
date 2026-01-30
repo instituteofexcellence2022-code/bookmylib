@@ -270,8 +270,10 @@ export async function createHandoverRequest(data: {
 
     // Validate amount
     const summary = await getStaffCashSummary()
-    if (data.amount > summary.cashInHand) {
-        throw new Error('Insufficient cash in hand')
+    const availableCash = summary.cashInHand - summary.pendingHandoverAmount
+    
+    if (data.amount > availableCash) {
+        throw new Error('Insufficient cash in hand (some amount may be pending approval)')
     }
 
     // Use transaction to ensure consistency
@@ -292,16 +294,31 @@ export async function createHandoverRequest(data: {
 
         // 2. Link Payments if provided
         if (data.paymentIds && data.paymentIds.length > 0) {
-            await tx.payment.updateMany({
+            // Find payments that are eligible (not handed over OR part of rejected handover)
+            const eligiblePayments = await tx.payment.findMany({
                 where: {
                     id: { in: data.paymentIds },
-                    collectedBy: staff.id, // Security check
-                    handoverId: null
+                    collectedBy: staff.id,
+                    status: 'completed',
+                    method: { in: ['CASH', 'cash'] },
+                    OR: [
+                        { handoverId: null },
+                        { handover: { status: 'rejected' } }
+                    ]
                 },
-                data: {
-                    handoverId: handover.id
-                }
+                select: { id: true }
             })
+
+            const eligibleIds = eligiblePayments.map(p => p.id)
+
+            if (eligibleIds.length > 0) {
+                await tx.payment.updateMany({
+                    where: {
+                        id: { in: eligibleIds }
+                    },
+                    data: { handoverId: handover.id }
+                })
+            }
         }
 
         // 3. Log Activity

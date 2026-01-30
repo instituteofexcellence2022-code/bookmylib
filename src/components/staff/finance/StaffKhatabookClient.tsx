@@ -125,8 +125,10 @@ export function StaffKhatabookClient() {
             return
         }
 
-        if (summary && numAmount > summary.cashInHand) {
-            toast.error('Insufficient cash in hand')
+        const availableCash = summary ? ((summary.cashInHand || 0) - (summary.pendingHandoverAmount || 0)) : 0
+
+        if (numAmount > availableCash) {
+            toast.error('Insufficient cash in hand (some amount is pending approval)')
             return
         }
 
