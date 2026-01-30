@@ -6,7 +6,7 @@ import { FormInput } from '@/components/ui/FormInput'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { loginStaff } from '@/actions/auth'
 import { toast } from 'react-hot-toast'
-import { Users, Lock, Mail, ArrowLeft, Eye, EyeOff } from 'lucide-react'
+import { Users, Lock, Mail, ArrowLeft, Eye, EyeOff, User } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 
@@ -91,9 +91,9 @@ export default function StaffLoginPage() {
                 <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl py-8 px-4 shadow-2xl ring-1 ring-gray-200 dark:ring-gray-800 sm:rounded-2xl sm:px-10">
                     <form className="space-y-6" onSubmit={handleLogin}>
                         <FormInput
-                            label="Email address"
-                            type="email"
-                            icon={Mail}
+                            label="Email or Username"
+                            type="text"
+                            icon={User}
                             value={formData.email}
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                             required

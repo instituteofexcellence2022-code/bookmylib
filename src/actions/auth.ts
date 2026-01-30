@@ -149,16 +149,21 @@ export async function verifyOwnerTwoFactor(ownerId: string, code: string) {
 // --- Staff Auth ---
 
 export async function loginStaff(formData: FormData) {
-    const email = formData.get('email') as string
+    const identifier = (formData.get('identifier') || formData.get('email')) as string
     const password = formData.get('password') as string
 
-    if (!email || !password) {
-        return { success: false, error: 'Email and password are required' }
+    if (!identifier || !password) {
+        return { success: false, error: 'Email/Username and password are required' }
     }
 
     try {
-        const staff = await prisma.staff.findUnique({
-            where: { email },
+        const staff = await prisma.staff.findFirst({
+            where: {
+                OR: [
+                    { email: identifier },
+                    { username: identifier }
+                ]
+            },
             include: {
                 library: true,
                 branch: true

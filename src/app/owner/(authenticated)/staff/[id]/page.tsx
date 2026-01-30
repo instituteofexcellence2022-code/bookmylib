@@ -325,6 +325,12 @@ export default function StaffDetailsPage({ params }: { params: Promise<{ id: str
                   <Mail className="w-4 h-4 text-gray-400" />
                   <span className="text-gray-600 dark:text-gray-300 truncate">{staffData.email}</span>
                 </div>
+                {staffData.username && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <User className="w-4 h-4 text-gray-400" />
+                      <span className="text-gray-600 dark:text-gray-300 truncate">{staffData.username}</span>
+                    </div>
+                )}
                 <div className="flex items-center gap-3 text-sm">
                   <Phone className="w-4 h-4 text-gray-400" />
                   <span className="text-gray-600 dark:text-gray-300">{staffData.phone || 'N/A'}</span>
