@@ -563,6 +563,23 @@ export default function EditBranchPage() {
                 />
 
                 <div className="grid grid-cols-2 gap-4">
+                  <FormInput
+                    label="City"
+                    required
+                    value={formData.city}
+                    onChange={e => setFormData({...formData, city: e.target.value})}
+                    placeholder="City"
+                  />
+                  <FormInput
+                    label="State"
+                    required
+                    value={formData.state}
+                    onChange={e => setFormData({...formData, state: e.target.value})}
+                    placeholder="State"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div className="relative">
                     <FormInput
                       label="Zip Code"
