@@ -47,7 +47,7 @@ export default function TicketDetailClient({ ticket, student }: TicketDetailClie
       if (result.success) {
         toast.success('Comment added')
         formRef.current?.reset()
-        // router.refresh() // revalidatePath in action handles this on server, but we might need to trigger client update
+        router.refresh()
       } else {
         toast.error(result.error || 'Failed to add comment')
       }

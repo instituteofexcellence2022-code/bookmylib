@@ -50,6 +50,7 @@ export default function TicketResponseClient({
         const result = await updateTicketStatus(ticket.id, newStatus)
         if (result.success) {
             toast.success(`Status updated to ${newStatus.replace('_', ' ')}`)
+            router.refresh()
         } else {
             toast.error(result.error || 'Failed to update status')
         }
