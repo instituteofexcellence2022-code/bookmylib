@@ -79,7 +79,8 @@ export async function getBranchById(id: string) {
         total: branch.seatCount, 
         occupied: branch.seats.filter((s) => s.subscriptions.length > 0).length 
       },
-      staff: branch.staff.length,
+      staffCount: branch.staff.length,
+      staffList: branch.staff,
       revenue: 0,
       amenities: branch.amenities ? JSON.parse(branch.amenities) : [],
       operatingHours: branch.operatingHours ? JSON.parse(branch.operatingHours) : null,

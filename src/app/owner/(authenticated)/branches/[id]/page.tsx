@@ -58,6 +58,7 @@ interface BranchDetail {
   status: string
   seats: { total: number; occupied: number }
   staff: number
+  staffList?: any[]
   revenue: number
   amenities: string[]
   images: string[]
@@ -65,12 +66,7 @@ interface BranchDetail {
   qrCode?: string
 }
 
-const staffList = [
-  { id: 1, name: 'Sarah Johnson', role: 'Branch Manager', status: 'Active', email: 'sarah.j@library.com', phone: '+1 234 567 8901' },
-  { id: 2, name: 'Mike Chen', role: 'Senior Librarian', status: 'On Leave', email: 'mike.c@library.com', phone: '+1 234 567 8902' },
-  { id: 3, name: 'Emma Wilson', role: 'Staff Member', status: 'Active', email: 'emma.w@library.com', phone: '+1 234 567 8903' },
-  { id: 4, name: 'James Rodriguez', role: 'Security', status: 'Active', email: 'james.r@library.com', phone: '+1 234 567 8904' },
-]
+
 
 const revenueData = [
   { name: 'Mon', amount: 1200 },
@@ -226,6 +222,8 @@ const tabs = [
               }
             })(),
             status: data.isActive ? 'active' : 'maintenance',
+            staff: data.staffCount,
+            staffList: data.staffList,
             email: '', // Not in schema yet
             phone: data.contactPhone || '',
             recentActivity: [] // Not implemented yet
@@ -597,14 +595,21 @@ const tabs = [
              <CompactCard>
                <div className="flex items-center justify-between mb-6">
                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Staff Members</h3>
-                 <AnimatedButton variant="outline" size="sm" icon="add">Add Staff</AnimatedButton>
+                 <Link href="/owner/staff/add">
+                    <AnimatedButton variant="outline" size="sm" icon="add">Add Staff</AnimatedButton>
+                 </Link>
                </div>
                <div className="space-y-4">
-                 {staffList.map((staff) => (
+                 {branch.staffList && branch.staffList.length > 0 ? (
+                    branch.staffList.map((staff: any) => (
                    <div key={staff.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700/50">
                      <div className="flex items-center gap-4">
-                       <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 font-medium">
-                         {staff.name.split(' ').map(n => n[0]).join('')}
+                       <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 font-medium overflow-hidden">
+                         {staff.image ? (
+                           <img src={staff.image} alt={staff.name} className="w-full h-full object-cover" />
+                         ) : (
+                           staff.name.split(' ').map((n: string) => n[0]).join('')
+                         )}
                        </div>
                        <div>
                          <p className="font-medium text-gray-900 dark:text-white">{staff.name}</p>
@@ -613,18 +618,27 @@ const tabs = [
                      </div>
                      <div className="flex items-center gap-4">
                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                         staff.status === 'Active' 
+                         staff.status === 'active' 
                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                           : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                           : staff.status === 'on_leave'
+                           ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                           : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                        }`}>
-                         {staff.status}
+                         {staff.status.replace('_', ' ').toUpperCase()}
                        </span>
-                       <AnimatedButton variant="ghost" size="sm" icon="edit">
-                         Edit
-                       </AnimatedButton>
+                       <Link href={`/owner/staff/${staff.id}/edit`}>
+                        <AnimatedButton variant="ghost" size="sm" icon="edit">
+                            Edit
+                        </AnimatedButton>
+                       </Link>
                      </div>
                    </div>
-                 ))}
+                 ))
+                ) : (
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                        No staff members found for this branch.
+                    </div>
+                )}
                </div>
              </CompactCard>
           </motion.div>
