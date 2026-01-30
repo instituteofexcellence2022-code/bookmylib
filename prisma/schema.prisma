@@ -247,7 +247,6 @@ model Student {
   payments      Payment[]
   wallet        StudentWallet?
   supportTickets SupportTicket[]
-  ticketComments TicketComment[]
   goals         StudentGoal[]
   focusSessions FocusSession[]
   notes         StudentNote[]
@@ -602,10 +601,7 @@ model TicketComment {
   // Relationships
   library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
   ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  student   Student? @relation(fields: [userId], references: [id], map: "TicketComment_Student_fkey")
-  // Note: Staff/Owner relations for comments are harder to enforce strictly in Prisma without polymorphic relations
-  // So we rely on userId and application logic, or add optional fields if needed.
-  // For simplicity, we just link ticket.
+  // removed student relation because userId is polymorphic (can be student, staff, or owner)
   
   @@map("ticket_comments")
 }

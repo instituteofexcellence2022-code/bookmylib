@@ -35,20 +35,53 @@ export default function TicketResponseClient({
     setStatus(ticket.status)
   }, [ticket.status])
 
-  const handleSubmit = async (formData: FormData) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (isSubmitting) return
+
+    const formData = new FormData(e.currentTarget)
+    const content = formData.get('content') as string
+    if (!content?.trim()) return
+
     setIsSubmitting(true)
-    formData.append('ticketId', ticket.id)
     
+    // Optimistic Update
+    const optimisticComment = {
+        id: `temp-${Date.now()}`,
+        content: content,
+        createdAt: new Date().toISOString(),
+        userType: 'staff', // Assume staff/owner for this view
+        ticketId: ticket.id,
+        userId: 'current-user'
+    }
+
+    setComments((prev: any[]) => [...prev, optimisticComment])
+    formRef.current?.reset()
+
     try {
       const result = await addTicketComment(formData)
-      if (result.success) {
+      if (result.success && result.comment) {
+        // Replace optimistic comment with real one if needed, 
+        // but since we rely on router.refresh() to sync eventually, 
+        // we can just leave it or swap it. 
+        // Swapping is safer to ensure ID is correct for keys.
+        setComments((prev: any[]) => prev.map((c: any) => c.id === optimisticComment.id ? result.comment : c))
         toast.success('Reply sent')
-        formRef.current?.reset()
         router.refresh()
       } else {
+        // Revert on failure
+        setComments((prev: any[]) => prev.filter((c: any) => c.id !== optimisticComment.id))
         toast.error(result.error || 'Failed to send reply')
+        // Restore content? (Simple version: just alert user)
+        if (formRef.current) {
+            // We can't easily restore value to un-controlled input without state
+            // but we can try setting it back
+            const textarea = formRef.current.querySelector('textarea')
+            if (textarea) textarea.value = content
+        }
       }
     } catch (error) {
+      setComments((prev: any[]) => prev.filter((c: any) => c.id !== optimisticComment.id))
       toast.error('An unexpected error occurred')
     } finally {
       setIsSubmitting(false)
@@ -209,9 +242,10 @@ export default function TicketResponseClient({
             <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
                 <form 
                     ref={formRef}
-                    action={handleSubmit}
+                    onSubmit={handleSubmit}
                     className="flex gap-3"
                 >
+                    <input type="hidden" name="ticketId" value={ticket.id} />
                     <textarea
                         name="content"
                         placeholder="Type a reply to the student..."

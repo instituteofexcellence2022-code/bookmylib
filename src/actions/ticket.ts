@@ -408,7 +408,10 @@ export async function addTicketComment(formData: FormData) {
     const content = formData.get('content') as string
     const ticketId = formData.get('ticketId') as string
     
+    console.log('[addTicketComment] Starting with:', { ticketId, contentLen: content?.length })
+
     if (!content || !ticketId) {
+        console.error('[addTicketComment] Missing fields')
         return { success: false, error: 'Missing required fields' }
     }
 
@@ -417,6 +420,14 @@ export async function addTicketComment(formData: FormData) {
     const staff = await getStaffProfile()
     const cookieStore = await cookies()
     const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+
+    console.log('[addTicketComment] Context:', { 
+        isOwner: !!owner, 
+        isStaff: !!staff, 
+        studentId,
+        ownerId: owner?.id,
+        staffId: staff?.id
+    })
 
     let userId = ''
     let userType = ''
@@ -434,6 +445,7 @@ export async function addTicketComment(formData: FormData) {
         })
         
         if (!ticket || ticket.student?.branchId !== staff.branchId || ticket.category === 'staff') {
+            console.error('[addTicketComment] Staff unauthorized for this ticket')
             return { success: false, error: 'Unauthorized' }
         }
 
@@ -446,16 +458,27 @@ export async function addTicketComment(formData: FormData) {
             where: { id: studentId },
             select: { libraryId: true }
         })
-        if (!student || !student.libraryId) return { success: false, error: 'Unauthorized' }
+        if (!student || !student.libraryId) {
+             console.error('[addTicketComment] Student unauthorized or no library')
+             return { success: false, error: 'Unauthorized' }
+        }
         
         userId = studentId
         userType = 'student'
         libraryId = student.libraryId
     } else {
+        console.error('[addTicketComment] No valid user context found')
         return { success: false, error: 'Unauthorized' }
     }
 
     try {
+        console.log('[addTicketComment] Attempting create:', {
+            ticketId,
+            userId,
+            userType,
+            libraryId
+        })
+
         const comment = await prisma.ticketComment.create({
             data: {
                 ticketId,
@@ -465,6 +488,8 @@ export async function addTicketComment(formData: FormData) {
                 libraryId
             }
         })
+        
+        console.log('[addTicketComment] Success:', comment.id)
 
         // If owner or staff comments, update status to 'in_progress' if it was 'open'
         if (userType === 'owner' || userType === 'staff') {
@@ -483,15 +508,19 @@ export async function addTicketComment(formData: FormData) {
 
                  // Notify Student of new comment
                  if (ticket.student?.email) {
-                    await sendTicketUpdateEmail({
-                        studentName: ticket.student.name,
-                        studentEmail: ticket.student.email,
-                        ticketId: ticket.id,
-                        ticketSubject: ticket.subject,
-                        type: 'new_comment',
-                        comment: content,
-                        updatedBy: userType === 'owner' ? (await getOwnerProfile())?.name || 'Admin' : (await getStaffProfile())?.name || 'Staff'
-                    })
+                    try {
+                        await sendTicketUpdateEmail({
+                            studentName: ticket.student.name,
+                            studentEmail: ticket.student.email,
+                            ticketId: ticket.id,
+                            ticketSubject: ticket.subject,
+                            type: 'new_comment',
+                            comment: content,
+                            updatedBy: userType === 'owner' ? (await getOwnerProfile())?.name || 'Admin' : (await getStaffProfile())?.name || 'Staff'
+                        })
+                    } catch (emailError) {
+                        console.error('[addTicketComment] Failed to send email notification (non-blocking):', emailError)
+                    }
                  }
              }
         }
@@ -513,7 +542,7 @@ export async function addTicketComment(formData: FormData) {
         revalidatePath(`/student/issues/${ticketId}`)
         revalidatePath(`/owner/issues/${ticketId}`)
         revalidatePath(`/staff/issues/${ticketId}`)
-        return { success: true }
+        return { success: true, comment }
     } catch (error) {
         console.error('Error adding comment:', error)
         return { success: false, error: 'Failed to add comment' }

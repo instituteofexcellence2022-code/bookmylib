@@ -43,20 +43,46 @@ export default function TicketDetailClient({ ticket, student }: TicketDetailClie
     }
   }
 
-  const handleSubmit = async (formData: FormData) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (isSubmitting) return
+
+    const formData = new FormData(e.currentTarget)
+    const content = formData.get('content') as string
+    if (!content?.trim()) return
+
     setIsSubmitting(true)
-    formData.append('ticketId', ticket.id)
+
+    // Optimistic Update
+    const optimisticComment = {
+        id: `temp-${Date.now()}`,
+        content: content,
+        createdAt: new Date().toISOString(),
+        userType: 'student',
+        ticketId: ticket.id,
+        userId: 'current-user'
+    }
+
+    setComments((prev: any[]) => [...prev, optimisticComment])
+    formRef.current?.reset()
     
     try {
       const result = await addTicketComment(formData)
-      if (result.success) {
+      if (result.success && result.comment) {
+        setComments((prev: any[]) => prev.map((c: any) => c.id === optimisticComment.id ? result.comment : c))
         toast.success('Comment added')
-        formRef.current?.reset()
         router.refresh()
       } else {
+        setComments((prev: any[]) => prev.filter((c: any) => c.id !== optimisticComment.id))
         toast.error(result.error || 'Failed to add comment')
+        // Restore content
+        if (formRef.current) {
+            const textarea = formRef.current.querySelector('textarea')
+            if (textarea) textarea.value = content
+        }
       }
     } catch (error) {
+      setComments((prev: any[]) => prev.filter((c: any) => c.id !== optimisticComment.id))
       toast.error('An unexpected error occurred')
     } finally {
       setIsSubmitting(false)
@@ -201,9 +227,10 @@ export default function TicketDetailClient({ ticket, student }: TicketDetailClie
         <div className="sticky bottom-[4.5rem] md:bottom-0 bg-gray-50 dark:bg-gray-900 -mx-4 px-4 pb-4 pt-2 md:-mx-6 md:px-6 z-20">
           <form 
             ref={formRef}
-            action={handleSubmit}
+            onSubmit={handleSubmit}
             className="flex items-center gap-2"
           >
+            <input type="hidden" name="ticketId" value={ticket.id} />
             <div className="flex-1 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-2 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent shadow-sm">
               <textarea
                 name="content"
