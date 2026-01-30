@@ -82,6 +82,15 @@ export default function PaymentClient() {
         })
     }
 
+    const formatTime = (timeStr?: string | null) => {
+        if (!timeStr) return '-'
+        const [hours, minutes] = timeStr.split(':')
+        const h = parseInt(hours)
+        const ampm = h >= 12 ? 'PM' : 'AM'
+        const h12 = h % 12 || 12
+        return `${h12}:${minutes} ${ampm}`
+    }
+
     const receiptData = {
         invoiceNo: payment.id.slice(0, 8).toUpperCase(),
         date: new Date(payment.createdAt),
@@ -91,9 +100,14 @@ export default function PaymentClient() {
         branchName: payment.branch?.name || 'Main Branch',
         branchAddress: payment.branch ? `${payment.branch.address}, ${payment.branch.city}` : '',
         planName: payment.subscription?.plan?.name || 'Payment',
-        planType: payment.subscription?.plan?.durationUnit,
-        planDuration: payment.subscription?.plan?.duration?.toString(),
-        seatNumber: payment.subscription?.seat?.number?.toString(),
+        planType: payment.subscription?.plan?.category,
+        planDuration: payment.subscription?.plan ? `${payment.subscription.plan.duration} ${payment.subscription.plan.durationUnit}` : undefined,
+        planHours: payment.subscription?.plan?.hoursPerDay 
+            ? `${payment.subscription.plan.hoursPerDay} Hrs/Day` 
+            : (payment.subscription?.plan?.shiftStart && payment.subscription?.plan?.shiftEnd)
+                ? `${formatTime(payment.subscription.plan.shiftStart)} - ${formatTime(payment.subscription.plan.shiftEnd)}`
+                : undefined,
+        seatNumber: payment.subscription?.seat?.number ? `${payment.subscription.seat.number} (${payment.subscription.seat.section || 'General'})` : undefined,
         startDate: payment.subscription?.startDate ? new Date(payment.subscription.startDate) : undefined,
         endDate: payment.subscription?.endDate ? new Date(payment.subscription.endDate) : undefined,
         amount: payment.amount,

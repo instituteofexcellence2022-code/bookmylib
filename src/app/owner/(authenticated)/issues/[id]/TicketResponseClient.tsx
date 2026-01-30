@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import { ChevronLeft, Send, User, CheckCircle, Clock, AlertTriangle, MoreVertical, RefreshCw, XCircle } from 'lucide-react'
 import Link from 'next/link'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
@@ -24,6 +24,16 @@ export default function TicketResponseClient({
   const formRef = useRef<HTMLFormElement>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+  const [comments, setComments] = useState(ticket.comments || [])
+  const [status, setStatus] = useState(ticket.status)
+
+  useEffect(() => {
+    setComments(ticket.comments || [])
+  }, [ticket.comments])
+
+  useEffect(() => {
+    setStatus(ticket.status)
+  }, [ticket.status])
 
   const handleSubmit = async (formData: FormData) => {
     setIsSubmitting(true)
@@ -164,11 +174,11 @@ export default function TicketResponseClient({
 
             {/* Comments */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {ticket.comments.length === 0 && (
+                {comments.length === 0 && (
                     <div className="text-center text-gray-400 italic py-10">No messages yet</div>
                 )}
                 
-                {ticket.comments.map((comment: any) => {
+                {comments.map((comment: any) => {
                     const isStaff = comment.userType === 'owner' || comment.userType === 'staff'
                     return (
                     <div key={comment.id} className={`flex ${isStaff ? 'justify-end' : 'justify-start'}`}>

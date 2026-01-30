@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import { ChevronLeft, Send, User, CheckCircle, Clock, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
@@ -20,6 +20,11 @@ export default function TicketDetailClient({ ticket, student }: TicketDetailClie
   const formRef = useRef<HTMLFormElement>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isReopening, setIsReopening] = useState(false)
+  const [comments, setComments] = useState(ticket.comments || [])
+
+  useEffect(() => {
+    setComments(ticket.comments || [])
+  }, [ticket.comments])
 
   const handleReopen = async () => {
     setIsReopening(true)
@@ -129,7 +134,7 @@ export default function TicketDetailClient({ ticket, student }: TicketDetailClie
             <div className="h-px bg-gray-200 dark:bg-gray-700 flex-1"></div>
           </div>
 
-          {ticket.comments.map((comment: any) => {
+          {comments.map((comment: any) => {
             const isStudent = comment.userType === 'student'
             return (
               <div key={comment.id} className={`flex ${isStudent ? 'justify-end' : 'justify-start'}`}>

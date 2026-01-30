@@ -160,8 +160,8 @@ export async function loginStaff(formData: FormData) {
         const staff = await prisma.staff.findFirst({
             where: {
                 OR: [
-                    { email: identifier },
-                    { username: identifier }
+                    { email: { equals: identifier, mode: 'insensitive' } },
+                    { username: { equals: identifier, mode: 'insensitive' } }
                 ]
             },
             include: {

@@ -20,6 +20,7 @@ interface ReceiptData {
     planDuration?: string | null
     planHours?: string | null
     seatNumber?: string | null
+    time?: string | null
     startDate?: Date
     endDate?: Date
     amount: number
@@ -132,7 +133,7 @@ export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob
     const headerY = detailsY + 7
     doc.text('Plan Details', 20, headerY)
     doc.text('Duration', 90, headerY)
-    doc.text('Seat Info', 150, headerY)
+    doc.text('Seat & Time', 150, headerY)
     
     // Values
     const valueY = headerY + 7
@@ -152,8 +153,10 @@ export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob
         doc.text(data.planType, 20, planExtraY)
     }
     if (data.planHours) {
-        planExtraY += 4 // Tighter spacing
-        doc.text(data.planHours, 20, planExtraY)
+        // Only show here if it's not shown in Time column, or show description
+        // Actually, planHours is used for Time column now. 
+        // Let's keep it here if it describes the plan (e.g. "Full Day"), but maybe redundant?
+        // User asked for "Time" column.
     }
 
     // Duration Column
@@ -163,27 +166,38 @@ export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob
     
     if (data.planDuration) {
         doc.text(data.planDuration, 90, valueY)
+    } else {
+        doc.text('-', 90, valueY)
     }
 
     if (data.startDate && data.endDate) {
          doc.setFontSize(9)
          doc.setFont('helvetica', 'normal')
+         doc.setTextColor(grayColor[0], grayColor[1], grayColor[2])
          doc.text(`${formatDate(data.startDate)} -`, 90, valueY + 5)
          doc.text(`${formatDate(data.endDate)}`, 90, valueY + 10)
     }
 
-    // Seat Column
+    // Seat & Time Column
     doc.setFontSize(10)
+    doc.setTextColor(0, 0, 0)
     doc.setFont('helvetica', 'bold')
+    let seatY = valueY
     if (data.seatNumber) {
-        doc.text(data.seatNumber, 150, valueY)
+        doc.text(data.seatNumber, 150, seatY)
+        seatY += 5
+    } else {
+        doc.text('-', 150, seatY)
+        seatY += 5
     }
     
-    // Time Column (Added under Seat or separately)
-    if (data.planHours) {
+    // Time
+    const timeText = data.time || data.planHours
+    if (timeText) {
         doc.setFontSize(9)
         doc.setFont('helvetica', 'normal')
-        doc.text(data.planHours, 150, valueY + 5)
+        doc.setTextColor(grayColor[0], grayColor[1], grayColor[2])
+        doc.text(timeText, 150, seatY)
     }
 
     // --- Table Section ---

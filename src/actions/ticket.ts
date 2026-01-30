@@ -456,7 +456,7 @@ export async function addTicketComment(formData: FormData) {
     }
 
     try {
-        await prisma.ticketComment.create({
+        const comment = await prisma.ticketComment.create({
             data: {
                 ticketId,
                 userId,

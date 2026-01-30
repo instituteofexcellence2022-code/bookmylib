@@ -351,6 +351,16 @@ export async function createStaffPayment(data: {
                 })
             }
 
+            // Helper to format time
+            const formatTime = (timeStr?: string | null) => {
+                if (!timeStr) return '-'
+                const [hours, minutes] = timeStr.split(':')
+                const h = parseInt(hours)
+                const ampm = h >= 12 ? 'PM' : 'AM'
+                const h12 = h % 12 || 12
+                return `${h12}:${minutes} ${ampm}`
+            }
+
             await sendReceiptEmail({
                 invoiceNo: enrichedPayment.invoiceNo || enrichedPayment.id.slice(0, 8).toUpperCase(),
                 date: enrichedPayment.date,
@@ -362,8 +372,17 @@ export async function createStaffPayment(data: {
                 planName,
                 planType: enrichedPayment.subscription?.plan?.category || undefined,
                 planDuration: duration,
-                planHours: enrichedPayment.subscription?.plan?.hoursPerDay ? `${enrichedPayment.subscription.plan.hoursPerDay} Hrs/Day` : undefined,
-                seatNumber: enrichedPayment.subscription?.seat?.number ? `${enrichedPayment.subscription.seat.number}` : undefined,
+                planHours: enrichedPayment.subscription?.plan?.hoursPerDay 
+                    ? `${enrichedPayment.subscription.plan.hoursPerDay} Hrs/Day` 
+                    : (enrichedPayment.subscription?.plan?.shiftStart && enrichedPayment.subscription?.plan?.shiftEnd)
+                        ? `${formatTime(enrichedPayment.subscription.plan.shiftStart)} - ${formatTime(enrichedPayment.subscription.plan.shiftEnd)}`
+                        : undefined,
+                seatNumber: enrichedPayment.subscription?.seat?.number 
+                    ? `${enrichedPayment.subscription.seat.number}${enrichedPayment.subscription.seat.section ? ` (${enrichedPayment.subscription.seat.section})` : ''}` 
+                    : undefined,
+                time: (enrichedPayment.subscription?.plan?.shiftStart && enrichedPayment.subscription?.plan?.shiftEnd)
+                    ? `${formatTime(enrichedPayment.subscription.plan.shiftStart)} - ${formatTime(enrichedPayment.subscription.plan.shiftEnd)}`
+                    : undefined,
                 startDate: enrichedPayment.subscription?.startDate || undefined,
                 endDate: enrichedPayment.subscription?.endDate || undefined,
                 amount: enrichedPayment.amount,
