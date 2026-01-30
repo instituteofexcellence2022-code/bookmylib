@@ -167,7 +167,8 @@ export default function EditBranchPage() {
                  // 3. Self-deduplicate remaining parts (crucial for "Palam, Palam" cases)
                  cleanParts = Array.from(new Set(cleanParts));
 
-                 return cleanParts.join(', ');
+                 const result = cleanParts.join(', ');
+                 return result.length > 0 ? result : data.address; // Fallback to original if cleaning removes everything
                }
                return data.address;
             })();

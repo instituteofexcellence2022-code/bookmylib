@@ -233,7 +233,7 @@ const tabs = [
             status: data.isActive ? 'active' : 'maintenance',
             staff: data.staffCount,
             staffList: data.staffList,
-            email: '', // Not in schema yet
+            email: data.contactEmail || '', 
             phone: data.contactPhone || '',
             recentActivity: [] // Not implemented yet
           } as BranchDetail)
