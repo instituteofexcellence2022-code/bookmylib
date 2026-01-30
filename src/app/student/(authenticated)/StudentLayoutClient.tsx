@@ -14,10 +14,11 @@ import {
   Gift,
   CalendarCheck
 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { TopBar } from '@/components/layout/TopBar'
 import { BottomNav } from '@/components/layout/BottomNav'
-import { logoutStudent } from '@/actions/auth'
+import { logout } from '@/actions/auth'
 
 const navItems = [
   { href: '/student/home', label: 'Home', icon: Home },
@@ -45,9 +46,11 @@ interface StudentLayoutClientProps {
 
 export default function StudentLayoutClient({ children, user, announcements = [] }: StudentLayoutClientProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const router = useRouter()
 
   const handleLogout = async () => {
-    await logoutStudent()
+    await logout()
+    router.push('/student/login')
   }
 
   return (

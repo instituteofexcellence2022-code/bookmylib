@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getOwnerProfile } from './owner'
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
+import { sendAnnouncementEmail } from '@/actions/email'
 
 export async function getOwnerAnnouncements() {
   const owner = await getOwnerProfile()
@@ -21,9 +22,11 @@ export async function getOwnerAnnouncements() {
   }
 }
 
+import { COOKIE_KEYS } from '@/lib/auth/session'
+
 export async function getStudentAnnouncements() {
   const cookieStore = await cookies()
-  const studentId = cookieStore.get('student_session')?.value
+  const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
   
   if (!studentId) return []
 
@@ -130,6 +133,69 @@ export async function createAnnouncement(data: {
         libraryId: owner.libraryId
       }
     })
+
+    // Send emails
+    const library = await prisma.library.findUnique({
+      where: { id: owner.libraryId },
+      select: { name: true }
+    })
+
+    if (library) {
+      const recipients: { email: string; name: string }[] = []
+      const branchFilter = data.branchId && data.branchId !== 'all' 
+        ? { branchId: data.branchId } 
+        : {}
+
+      // Fetch Students
+      if (data.target === 'all' || data.target === 'students' || data.target === 'active_students') {
+        const studentWhere: any = { 
+          libraryId: owner.libraryId,
+          ...branchFilter
+        }
+        
+        if (data.target === 'active_students') {
+          studentWhere.subscriptions = { some: { status: 'active' } }
+        }
+
+        const students = await prisma.student.findMany({
+          where: studentWhere,
+          select: { email: true, name: true }
+        })
+        recipients.push(...students)
+      }
+
+      // Fetch Staff
+      if (data.target === 'all' || data.target === 'staff') {
+        const staff = await prisma.staff.findMany({
+          where: { 
+            libraryId: owner.libraryId,
+            ...branchFilter
+          },
+          select: { email: true, name: true }
+        })
+        recipients.push(...staff)
+      }
+
+      // Filter out invalid emails and duplicates
+      const uniqueRecipients = Array.from(
+        new Map(
+          recipients
+            .filter(r => r.email && r.email.includes('@'))
+            .map(item => [item.email, item])
+        ).values()
+      )
+
+      // Send in parallel (limit concurrency if needed, but for now simple Promise.all)
+      // Using Promise.allSettled to prevent one failure from stopping others
+      await Promise.allSettled(uniqueRecipients.map(recipient => 
+        sendAnnouncementEmail({
+          email: recipient.email,
+          title: data.title,
+          content: data.content,
+          libraryName: library.name
+        })
+      ))
+    }
     
     revalidatePath('/owner/marketing')
     revalidatePath('/student/home')

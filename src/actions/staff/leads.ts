@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
+import { sendWelcomeEmail } from '@/actions/email'
+import { COOKIE_KEYS } from '@/lib/auth/session'
 
 export type LeadFilter = {
     page?: number
@@ -25,7 +27,7 @@ export type CreateLeadInput = {
 // Helper to get authenticated staff
 async function getAuthenticatedStaff() {
     const cookieStore = await cookies()
-    const staffId = cookieStore.get('staff_session')?.value
+    const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
 
     if (!staffId) return null
 
@@ -122,7 +124,6 @@ export async function createLead(data: CreateLeadInput) {
                 email: data.email,
                 source: data.source || 'walk_in',
                 status: data.status || 'new',
-                notes: data.notes,
             }
         })
 
@@ -253,8 +254,15 @@ export async function convertLeadToStudent(leadId: string, data: { password: str
                 libraryId: staff.libraryId,
                 branchId: staff.branchId,
                 isBlocked: false,
-                preferences: { source: 'lead_conversion' }
+                source: 'lead_conversion'
             }
+        })
+
+        // Send Welcome Email
+        await sendWelcomeEmail({
+            studentName: student.name,
+            studentEmail: student.email,
+            libraryName: staff.library?.name
         })
 
         // Update lead status

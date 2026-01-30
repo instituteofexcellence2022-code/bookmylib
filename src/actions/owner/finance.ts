@@ -1,13 +1,14 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
+import { cookies } from 'next/headers'
 import { startOfMonth, endOfMonth, subMonths, format, startOfDay, endOfDay } from 'date-fns'
+import { COOKIE_KEYS } from '@/lib/auth/session'
 
 async function getOwner() {
   const cookieStore = await cookies()
-  const ownerId = cookieStore.get('owner_session')?.value
+  const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
   if (!ownerId) return null
   
   // Verify owner exists
@@ -474,8 +475,7 @@ export async function verifyPayment(paymentId: string, action: 'approve' | 'reje
                 await tx.studentSubscription.update({
                     where: { id: payment.subscriptionId },
                     data: { 
-                        status: 'active',
-                        paymentStatus: 'paid'
+                        status: 'active'
                     }
                 })
             } 
@@ -512,32 +512,29 @@ export async function verifyPayment(paymentId: string, action: 'approve' | 'reje
                                  data: {
                                      planId: plan.id,
                                      startDate,
-                                     endDate,
-                                     status: 'active',
-                                     paymentStatus: 'paid'
-                                 }
-                             })
-                             
-                             // Link payment to this subscription
-                             await tx.payment.update({
-                                 where: { id: payment.id },
-                                 data: { subscriptionId: existing.id }
-                             })
-                         } else {
-                             const newSub = await tx.studentSubscription.create({
-                                 data: {
-                                     libraryId: payment.libraryId,
-                                     studentId: payment.studentId,
-                                     branchId,
-                                     planId: plan.id,
-                                     startDate,
-                                     endDate,
-                                     status: 'active',
-                                     paymentStatus: 'paid',
-                                     amountPaid: payment.amount,
-                                     finalAmount: payment.amount
-                                 }
-                             })
+                                    endDate,
+                                    status: 'active'
+                                }
+                            })
+                            
+                            // Link payment to this subscription
+                            await tx.payment.update({
+                                where: { id: payment.id },
+                                data: { subscriptionId: existing.id }
+                            })
+                        } else {
+                            const newSub = await tx.studentSubscription.create({
+                                data: {
+                                    libraryId: payment.libraryId,
+                                    studentId: payment.studentId,
+                                    branchId,
+                                    planId: plan.id,
+                                    startDate,
+                                    endDate,
+                                    status: 'active',
+                                    amount: payment.amount
+                                }
+                            })
                              
                              // Link payment to this new subscription
                              await tx.payment.update({
@@ -600,8 +597,7 @@ export async function verifyHandover(handoverId: string, status: 'verified' | 'r
         },
         data: {
             status,
-            verifiedBy: owner.id,
-            verifiedAt: new Date()
+            verifiedBy: owner.id
         }
     })
 

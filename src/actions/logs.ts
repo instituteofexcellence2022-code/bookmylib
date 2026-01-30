@@ -176,23 +176,8 @@ export async function getBranchLogs(branchId: string, limit = 50): Promise<Activ
 
     const normalizedAttendance: ActivityLog[] = attendanceRecords.map(record => {
       let actor = undefined
-      if (record.verifiedBy) {
-        // Check if verified by Owner
-        if (owner && record.verifiedBy === owner.id) {
-          actor = ownerActor
-        } else {
-          // Check if verified by Staff
-          const staff = staffMap.get(record.verifiedBy)
-          if (staff) {
-            actor = {
-              name: staff.name,
-              role: formatRole(staff.role),
-              image: staff.image
-            }
-          }
-        }
-      }
-
+      // verifiedBy is not in Attendance schema
+      
       return {
         id: record.id,
         type: 'attendance',
@@ -200,8 +185,7 @@ export async function getBranchLogs(branchId: string, limit = 50): Promise<Activ
         description: `${record.student.name} marked as ${record.status}`,
         timestamp: record.createdAt,
         metadata: {
-          status: record.status,
-          method: record.method
+          status: record.status
         },
         user: {
           name: record.student.name,

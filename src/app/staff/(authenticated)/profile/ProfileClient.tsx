@@ -13,7 +13,7 @@ import { FormInput } from '@/components/ui/FormInput'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { updateStaffProfile } from '@/actions/staff'
-import { logoutStaff } from '@/actions/auth'
+import { logout } from '@/actions/auth'
 
 interface ProfileClientProps {
     staff: any
@@ -97,11 +97,10 @@ export default function ProfileClient({ staff }: ProfileClientProps) {
     const handleLogout = async () => {
         setIsLogoutLoading(true)
         try {
-            await logoutStaff()
+            await logout()
             router.push('/staff/login')
         } catch (error) {
             toast.error('Failed to logout')
-        } finally {
             setIsLogoutLoading(false)
         }
     }

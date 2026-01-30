@@ -5,6 +5,8 @@ import ReceiptEmail from '@/emails/ReceiptEmail'
 import WelcomeEmail from '@/emails/WelcomeEmail'
 import SubscriptionExpiryEmail from '@/emails/SubscriptionExpiryEmail'
 import TicketUpdateEmail from '@/emails/TicketUpdateEmail'
+import ResetPasswordEmail from '@/emails/ResetPasswordEmail'
+import AnnouncementEmail from '@/emails/AnnouncementEmail'
 import { ReactElement } from 'react'
 import { generateReceiptPDF, ReceiptData } from '@/lib/pdf-generator'
 import { format } from 'date-fns'
@@ -111,6 +113,7 @@ export async function sendReceiptEmail(data: ReceiptData) {
 export async function sendWelcomeEmail(data: {
   studentName: string
   studentEmail: string
+  libraryName?: string
 }) {
   try {
     if (!process.env.RESEND_API_KEY && !process.env.SMTP_USER) {
@@ -123,7 +126,12 @@ export async function sendWelcomeEmail(data: {
     const { data: emailData, error } = await sendEmail({
       to: data.studentEmail,
       subject: 'Welcome to Library App',
-      react: WelcomeEmail({ studentName: data.studentName, loginUrl }) as ReactElement
+      react: WelcomeEmail({ 
+        studentName: data.studentName, 
+        studentEmail: data.studentEmail,
+        loginUrl,
+        libraryName: data.libraryName
+      }) as ReactElement
     })
 
     if (error) {
@@ -186,6 +194,7 @@ export async function sendTicketUpdateEmail(data: {
   status?: string
   updatedBy?: string
   comment?: string
+  branchName?: string
 }) {
   try {
     if (!process.env.RESEND_API_KEY && !process.env.SMTP_USER) {
@@ -204,7 +213,8 @@ export async function sendTicketUpdateEmail(data: {
         status: data.status,
         updatedBy: data.updatedBy,
         comment: data.comment,
-        actionLink: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/student/issues/${data.ticketId}`
+        actionLink: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/student/issues/${data.ticketId}`,
+        branchName: data.branchName
       }) as ReactElement
     })
 
@@ -216,6 +226,80 @@ export async function sendTicketUpdateEmail(data: {
     return { success: true, data: emailData }
   } catch (error) {
     console.error('Error sending ticket update email:', error)
+    return { success: false, error: 'Internal server error' }
+  }
+}
+
+export async function sendPasswordResetEmail(data: {
+  name: string
+  email: string
+  token: string
+  libraryName?: string
+  resetUrl?: string
+}) {
+  try {
+    if (!process.env.RESEND_API_KEY && !process.env.SMTP_USER) {
+      console.warn('Email service not configured.')
+      return { success: false, error: 'Email service not configured' }
+    }
+
+    const resetUrl = data.resetUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${data.token}`
+
+    const { data: emailData, error } = await sendEmail({
+      to: data.email,
+      subject: 'Reset Your Password - BookMyLib',
+      react: ResetPasswordEmail({
+        userName: data.name,
+        resetUrl,
+        libraryName: data.libraryName
+      }) as ReactElement
+    })
+
+    if (error) {
+      console.error('Failed to send password reset email:', error)
+      return { success: false, error: error.message || 'Unknown error' }
+    }
+
+    return { success: true, data: emailData }
+  } catch (error) {
+    console.error('Error sending password reset email:', error)
+    return { success: false, error: 'Internal server error' }
+  }
+}
+
+export async function sendAnnouncementEmail(data: {
+  email: string;
+  title: string;
+  content: string;
+  libraryName: string;
+}) {
+  try {
+    if (!process.env.RESEND_API_KEY && !process.env.SMTP_USER) {
+      // console.warn('Email service not configured.')
+      return { success: false, error: 'Email service not configured' }
+    }
+
+    const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/login`
+
+    const { data: emailData, error } = await sendEmail({
+      to: data.email,
+      subject: `New Announcement: ${data.title}`,
+      react: AnnouncementEmail({
+        title: data.title,
+        content: data.content,
+        libraryName: data.libraryName,
+        portalUrl
+      }) as ReactElement
+    })
+
+    if (error) {
+      console.error('Failed to send announcement email:', error)
+      return { success: false, error: error.message || 'Unknown error' }
+    }
+
+    return { success: true, data: emailData }
+  } catch (error) {
+    console.error('Error sending announcement email:', error)
     return { success: false, error: 'Internal server error' }
   }
 }

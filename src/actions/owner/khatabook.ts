@@ -256,9 +256,7 @@ export async function getStaffLedgerForOwner(staffId: string, limit = 50, dateRa
             status: h.status,
             referenceId: h.id,
             notes: h.notes,
-            details: {
-                method: h.method
-            }
+            details: {}
         }))
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
      .slice(0, limit)

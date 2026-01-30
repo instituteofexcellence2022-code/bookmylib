@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { startOfDay, endOfDay, subDays } from 'date-fns'
+import { COOKIE_KEYS } from '@/lib/auth/session'
 
 export type AttendanceFilter = {
     page?: number
@@ -18,7 +19,7 @@ export type AttendanceFilter = {
 
 export async function getOwnerAttendanceLogs(filters: AttendanceFilter) {
     const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
 
     if (!ownerId) throw new Error('Unauthorized')
 
@@ -114,7 +115,7 @@ export async function getOwnerAttendanceLogs(filters: AttendanceFilter) {
 
 export async function getOwnerAttendanceStats(branchId?: string, date: Date = new Date()) {
     const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
 
     if (!ownerId) throw new Error('Unauthorized')
 
@@ -182,7 +183,7 @@ export async function getOwnerAttendanceStats(branchId?: string, date: Date = ne
 
 export async function getAttendanceAnalytics(days: number = 7) {
     const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
 
     if (!ownerId) throw new Error('Unauthorized')
 
@@ -280,7 +281,7 @@ export async function getAttendanceAnalytics(days: number = 7) {
 
 export async function updateAttendanceRecord(id: string, data: { checkIn?: Date, checkOut?: Date, status?: string }) {
     const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
 
     if (!ownerId) return { success: false, error: 'Unauthorized' }
 
@@ -326,7 +327,7 @@ export async function updateAttendanceRecord(id: string, data: { checkIn?: Date,
 
 export async function verifyStudentQR(studentId: string, branchId: string) {
     const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
 
     if (!ownerId) return { success: false, error: 'Unauthorized' }
 

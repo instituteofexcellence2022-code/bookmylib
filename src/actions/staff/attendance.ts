@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { startOfDay, endOfDay, subDays } from 'date-fns'
 
+
 export type AttendanceFilter = {
     page?: number
     limit?: number
@@ -15,10 +16,12 @@ export type AttendanceFilter = {
     status?: string
 }
 
+import { COOKIE_KEYS } from '@/lib/auth/session'
+
 // Helper to get authenticated staff
 async function getAuthenticatedStaff() {
     const cookieStore = await cookies()
-    const staffId = cookieStore.get('staff_session')?.value
+    const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
 
     if (!staffId) return null
 

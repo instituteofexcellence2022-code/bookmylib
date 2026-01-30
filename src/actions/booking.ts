@@ -77,15 +77,17 @@ export async function getBranchDetails(branchId: string) {
         // Transform seats to add isOccupied flag
         const seatsWithStatus = branch.seats.map(seat => ({
             ...seat,
+            row: null,
+            column: null,
             isOccupied: seat.subscriptions.length > 0,
-            subscriptions: undefined // Remove detailed subscription info for privacy
+            subscriptions: undefined
         }))
 
         // Combine branch-specific and global fees
         const allFees = [
             ...branch.additionalFees,
             ...(branch.library?.additionalFees || [])
-        ]
+        ].map(f => ({ ...f, type: 'additional' }))
 
         // Combine branch-specific and global plans
         const allPlans = [
@@ -258,8 +260,7 @@ export async function createBooking(data: {
                         amount: amountPaid,
                         method: paymentDetails?.method || 'unknown',
                         status: paymentStatus,
-                        description: feeDescription,
-                        notes: paymentDetails?.remarks,
+                        notes: paymentDetails?.remarks ? `${feeDescription}. ${paymentDetails.remarks}` : feeDescription,
                         invoiceNo: `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
                         relatedId: planId,
                         discountAmount: discount
@@ -281,10 +282,7 @@ export async function createBooking(data: {
                     status: subscriptionStatus,
                     startDate: start,
                     endDate: end,
-                    amountPaid,
-                    paymentStatus,
-                    discount,
-                    finalAmount
+                    amount: finalAmount
                 }
             })
             

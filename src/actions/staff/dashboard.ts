@@ -25,10 +25,11 @@ export async function getStaffDashboardStats() {
       }
     })
 
-    const occupiedSeats = await prisma.seat.count({
+    const occupiedSeats = await prisma.studentSubscription.count({
       where: {
         branchId: staff.branchId,
-        status: 'occupied'
+        status: 'active',
+        seatId: { not: null }
       }
     })
 

@@ -41,11 +41,11 @@ export async function createFee(formData: FormData) {
   try {
     const name = formData.get('name') as string
     const amountRaw = formData.get('amount') as string
-    const type = formData.get('type') as string
+    // const type = formData.get('type') as string // Removed as not in schema
     const description = formData.get('description') as string | null
     const branchId = formData.get('branchId') as string | null
 
-    if (!name || !amountRaw || !type) {
+    if (!name || !amountRaw) {
       return { success: false, error: 'All required fields must be provided' }
     }
 
@@ -59,7 +59,7 @@ export async function createFee(formData: FormData) {
         libraryId: owner.libraryId,
         name,
         amount,
-        type,
+        // type, // Removed
         description,
         branchId: branchId && branchId !== 'all' ? branchId : null,
         isActive: true
@@ -98,11 +98,11 @@ export async function updateFee(formData: FormData) {
     // If full update
     const name = formData.get('name') as string
     const amountRaw = formData.get('amount') as string
-    const type = formData.get('type') as string
+    // const type = formData.get('type') as string
     const description = formData.get('description') as string | null
     const branchId = formData.get('branchId') as string | null
 
-    if (!name || !amountRaw || !type) {
+    if (!name || !amountRaw) {
       return { success: false, error: 'All required fields must be provided' }
     }
 
@@ -116,7 +116,7 @@ export async function updateFee(formData: FormData) {
       data: {
         name,
         amount,
-        type,
+        // type,
         description,
         branchId: branchId && branchId !== 'all' ? branchId : null
       }

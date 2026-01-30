@@ -33,8 +33,8 @@ export async function getOwnerPromotions() {
     return promotions.map(p => ({
       ...p,
       usedCount: p._count.payments,
-      type: p.discountType,
-      value: p.discountValue,
+      type: p.type,
+      value: p.value,
       validFrom: p.startDate,
       validTo: p.endDate,
       minOrder: p.minOrderValue
@@ -85,8 +85,8 @@ export async function createPromotion(formData: FormData) {
         libraryId: owner.libraryId,
         code: normalizedCode,
         description,
-        discountType: type,
-        discountValue: value,
+        type,
+        value,
         startDate: validFrom,
         endDate: validTo,
         usageLimit,
@@ -151,8 +151,8 @@ export async function updatePromotion(formData: FormData) {
       data: {
         code,
         description,
-        discountType: type,
-        discountValue: value,
+        type,
+        value,
         startDate: validFrom,
         endDate: validTo,
         usageLimit,

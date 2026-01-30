@@ -5,18 +5,25 @@ import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { uploadFile } from '@/actions/upload'
+import { sendWelcomeEmail } from '@/actions/email'
+import { COOKIE_KEYS } from '@/lib/auth/session'
 
 import bcrypt from 'bcryptjs'
 
 export async function createStudent(formData: FormData) {
     const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
 
     if (!ownerId) throw new Error('Unauthorized')
 
     const owner = await prisma.owner.findUnique({
         where: { id: ownerId },
-        select: { libraryId: true }
+        select: { 
+            libraryId: true,
+            library: {
+                select: { name: true }
+            }
+        }
     })
 
     if (!owner) throw new Error('Owner not found')
@@ -112,7 +119,7 @@ export type StudentFilter = {
 
 export async function getOwnerStudents(filters: StudentFilter = {}) {
     const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
 
     if (!ownerId) {
         throw new Error('Unauthorized')
@@ -364,7 +371,7 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
 
 export async function verifyStudentGovtId(studentId: string, status: 'verified' | 'rejected') {
     const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
 
     if (!ownerId) throw new Error('Unauthorized')
 
@@ -383,7 +390,7 @@ export async function verifyStudentGovtId(studentId: string, status: 'verified' 
 
 export async function getStudentDetails(studentId: string) {
     const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
 
     if (!ownerId) throw new Error('Unauthorized')
 
@@ -468,7 +475,7 @@ export async function getStudentDetails(studentId: string) {
 
 export async function toggleBlockStudent(studentId: string, isBlocked: boolean) {
     const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
 
     if (!ownerId) return { success: false, error: 'Unauthorized' }
 
@@ -490,7 +497,7 @@ export async function toggleBlockStudent(studentId: string, isBlocked: boolean) 
 
 export async function deleteStudent(studentId: string) {
     const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
 
     if (!ownerId) return { success: false, error: 'Unauthorized' }
 
@@ -509,7 +516,7 @@ export async function deleteStudent(studentId: string) {
 
 export async function updateStudent(formData: FormData) {
     const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
 
     if (!ownerId) return { success: false, error: 'Unauthorized' }
 
@@ -570,7 +577,7 @@ export async function updateStudent(formData: FormData) {
 
 export async function addStudentNote(studentId: string, content: string) {
     const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
 
     if (!ownerId) return { success: false, error: 'Unauthorized' }
 
@@ -586,7 +593,7 @@ export async function addStudentNote(studentId: string, content: string) {
                 studentId,
                 libraryId: owner.libraryId,
                 content,
-                createdBy: 'Owner'
+                createdBy: `Owner: ${owner.name}`
             }
         })
 
@@ -600,7 +607,7 @@ export async function addStudentNote(studentId: string, content: string) {
 
 export async function deleteStudentNote(noteId: string, studentId: string) {
     const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
 
     if (!ownerId) return { success: false, error: 'Unauthorized' }
 

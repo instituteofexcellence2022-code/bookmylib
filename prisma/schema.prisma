@@ -72,6 +72,8 @@ model Owner {
   preferences String?
   twoFactorSecret String?
   twoFactorEnabled Boolean @default(false)
+  resetToken      String?
+  resetTokenExpiry DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -125,6 +127,7 @@ model Branch {
   supportTickets SupportTicket[]
   leads          Lead[]
   cashHandovers  CashHandover[] // New relation
+  announcements  Announcement[]
   
   @@map("branches")
 }
@@ -145,6 +148,8 @@ model Staff {
   gender    String?
   employmentType String? // 'full_time', 'part_time', 'contract'
   password  String?  // Hashed password
+  resetToken      String?
+  resetTokenExpiry DateTime?
   username  String?  @unique
   status    String   @default("active") // 'active', 'on_leave', 'inactive'
   documents String?    // Array of { name, url, type, size }
@@ -198,162 +203,83 @@ model Student {
   image         String?
   dob           DateTime?
   gender        String?
-  
-  // Address
   address       String?
   area          String?
   city          String?
   state         String?
   pincode       String?
   
-  // Guardian
+  // Guardian Info
   guardianName  String?
   guardianPhone String?
-
-  // Origin/Home Context (for multi-tenancy)
-  libraryId     String?
-  branchId      String?
-  library       Library? @relation(fields: [libraryId], references: [id])
-  branch        Branch?  @relation(fields: [branchId], references: [id])
-
-  // Govt ID Verification
-  govtIdUrl     String?
-  govtIdStatus  String   @default("none") // 'none', 'pending', 'verified', 'rejected'
+  guardianRelation String?
   
-  // Account Status
-  isBlocked     Boolean  @default(false)
-  preferences   Json?    // User preferences (notifications, theme, etc.)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // Professional/Academic
+  occupation    String? // 'student', 'working_professional', 'other'
+  institution   String? // School/College/Company name
+  course        String? // CA, UPSC, JEE, etc.
+  
+  // Documents
+  govtIdType    String? // 'aadhaar', 'pan', 'license'
+  govtIdUrl     String?
+  govtIdStatus  String  @default("none") // 'none', 'pending', 'verified', 'rejected'
+  
+  // System
+  referralCode  String? @unique // Code this student can share
+  source        String? // 'walk_in', 'referral', 'online', 'lead_conversion'
+  preferences   Json?   // User preferences (theme, notifications, etc.)
+  isBlocked     Boolean @default(false)
+  resetToken    String?
+  resetTokenExpiry DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
   
   // Relationships
+  // Primary association (can be null if self-registered without branch initially)
+  libraryId     String? 
+  branchId      String? // Primary branch
+  
+  library       Library? @relation(fields: [libraryId], references: [id])
+  branch        Branch?  @relation(fields: [branchId], references: [id])
+  
   subscriptions StudentSubscription[]
   attendance    Attendance[]
   payments      Payment[]
-  wallets       StudentWallet[]
+  wallet        StudentWallet?
   supportTickets SupportTicket[]
+  ticketComments TicketComment[]
   goals         StudentGoal[]
   focusSessions FocusSession[]
-  likedQuotes   LikedQuote[]
   notes         StudentNote[]
+  likedQuotes   LikedQuote[]
   
-  // Referrals
-  referralCode  String?  @unique
-  sentReferrals Referral[] @relation("Referrer")
-  receivedReferral Referral? @relation("Referee")
-
+  // Referral System
+  referralsMade Referral[] @relation("Referrer")
+  referralsReceived Referral[] @relation("Referee")
+  
   @@map("students")
 }
 
-// Referral System
-model Referral {
-  id          String   @id @default(uuid())
-  libraryId   String
-  referrerId  String   // Student who referred
-  refereeId   String   @unique // Student who was referred
-  status      String   @default("pending") // 'pending', 'completed' (referee paid), 'redeemed' (referrer used coupon)
-  
-  // Rewards Details
-  referrerCouponCode String? // Generated one-time coupon for referrer
-  refereeDiscount    Float?  // Discount amount given to referee
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  library     Library @relation(fields: [libraryId], references: [id], onDelete: Cascade)
-  referrer    Student @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
-  referee     Student @relation("Referee", fields: [refereeId], references: [id], onDelete: Cascade)
-
-  @@map("referrals")
-}
-
-// Lead Management (Enquiries)
-model Lead {
-  id          String   @id @default(uuid())
-  libraryId   String
-  branchId    String?  // Leads might be specific to a branch
-  name        String
-  phone       String
-  email       String?
-  source      String?  // 'walk_in', 'referral', 'online', 'social'
-  status      String   @default("new") // 'new', 'contacted', 'interested', 'converted', 'closed', 'cold', 'hot', 'warm'
-  notes       String?
-  
-  // Interaction Log
-  interactions LeadInteraction[]
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  library     Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
-  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: Cascade)
-
-  @@map("leads")
-  @@index([libraryId])
-  @@index([branchId])
-}
-
-model LeadInteraction {
-  id        String   @id @default(uuid())
-  leadId    String
-  staffId   String?  // Who interacted
-  type      String   // 'call', 'visit', 'message', 'note'
-  notes     String
-  createdAt DateTime @default(now())
-
-  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  staff     Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
-
-  @@map("lead_interactions")
-  @@index([leadId])
-}
-
-model StudentNote {
-  id        String   @id @default(uuid())
-  studentId String
-  libraryId String
-  content   String
-  createdBy String?  // "Owner" or "Staff: {name}"
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
-
-  @@map("student_notes")
-}
-
-model LikedQuote {
-  id        String   @id @default(uuid())
-  studentId String
-  quoteId   Int
-  createdAt DateTime @default(now())
-
-  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@unique([studentId, quoteId])
-  @@map("liked_quotes")
-}
-
-// Subscription Plan (Defined by Library/Branch)
+// Subscriptions & Plans
 model Plan {
   id          String   @id @default(uuid())
   libraryId   String
-  branchId    String?  // Null if plan is global for library (optional)
+  branchId    String?  // If null, global plan for library
   name        String
-  description String?
   price       Float
-  duration    Int      // value
-  durationUnit String  @default("months") // 'days', 'months'
-  category     String  @default("fixed")  // 'fixed', 'flexible'
-  billingCycle String  @default("per_month") // 'per_month', 'one_time'
-  hoursPerDay  Float?  // For flexible plans
-  shiftStart   String? // For fixed plans
-  shiftEnd     String? // For fixed plans
-  type        String?  // 'monthly', 'quarterly', 'yearly', 'custom' - Deprecated in favor of new structure
-  features    String?  // JSON list of features
+  duration    Int      // Number of units
+  durationUnit String  // 'days', 'months'
+  description String?
+  category    String   // 'regular', 'premium', 'night', 'weekend'
+  
+  // Shift Details
+  shiftStart  String?   // "09:00"
+  shiftEnd    String?   // "18:00"
+  hoursPerDay Int?
+  
+  // Config
   isActive    Boolean  @default(true)
+  billingCycle String  // 'one_time', 'recurring'
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
@@ -366,43 +292,21 @@ model Plan {
   @@map("plans")
 }
 
-// Additional Fee (Defined by Library/Branch)
-model AdditionalFee {
-  id          String   @id @default(uuid())
-  libraryId   String
-  branchId    String?  // Null if global
-  name        String
-  description String?
-  amount      Float
-  type        String   // 'one_time', 'monthly'
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relationships
-  library     Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
-  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  payments    Payment[]
-
-  @@map("additional_fees")
-}
-
-// Student Subscription (Active/Past plans)
 model StudentSubscription {
   id        String   @id @default(uuid())
   libraryId String
   branchId  String
   studentId String
   planId    String
+  seatId    String?
+  
+  // Dates
   startDate DateTime
   endDate   DateTime
+  
   status    String   // 'active', 'expired', 'cancelled', 'pending'
-  amountPaid Float
-  discount  Float?
-  finalAmount Float?
-  paymentStatus String // 'paid', 'partial', 'pending'
-  seatId    String?  // Optional seat assignment
-  shiftId   String?  // Optional shift assignment (if shifts are strict)
+  amount    Float
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -412,24 +316,23 @@ model StudentSubscription {
   student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   plan      Plan     @relation(fields: [planId], references: [id])
   seat      Seat?    @relation(fields: [seatId], references: [id])
-  payments  Payment[]
+  payments  Payment[] // Payments linked to this subscription
   
   @@map("student_subscriptions")
+  @@index([libraryId])
+  @@index([branchId])
+  @@index([studentId])
+  @@index([status])
 }
 
-// Seat Management
 model Seat {
   id        String   @id @default(uuid())
   libraryId String
   branchId  String
-  number    String
-  section   String?
-  row       String?
-  column    String?
-  status    String   // 'available', 'occupied', 'maintenance', 'reserved'
-  type      String?  // 'standard', 'premium', 'cubicle'
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  number    String   // "A1", "101", etc.
+  section   String?  // "Quiet Zone", "Main Hall"
+  type      String   // 'regular', 'premium', 'cubicle'
+  isActive  Boolean  @default(true)
   
   // Relationships
   library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
@@ -438,21 +341,24 @@ model Seat {
   
   @@unique([branchId, number])
   @@map("seats")
+  @@index([libraryId])
+  @@index([branchId])
 }
 
-// Attendance Record
 model Attendance {
   id        String   @id @default(uuid())
   libraryId String
   branchId  String
   studentId String
+  
   date      DateTime // YYYY-MM-DD
   checkIn   DateTime
   checkOut  DateTime?
-  duration  Int?     // in minutes
-  status    String   // 'present', 'absent', 'late', 'half_day'
+  duration  Int?     // Minutes
+  status    String   // 'present', 'absent', 'late'
   method    String?  // 'qr', 'manual', 'biometric'
-  verifiedBy String? // Staff ID if manual
+  remarks   String?
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -461,23 +367,24 @@ model Attendance {
   branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
   student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   
-  @@index([studentId, date])
-  @@index([branchId, date])
   @@map("attendance")
 }
 
-// Staff Attendance Record
+// Staff Attendance
 model StaffAttendance {
   id        String   @id @default(uuid())
   libraryId String
   branchId  String
   staffId   String
+  
   date      DateTime // YYYY-MM-DD
   checkIn   DateTime
   checkOut  DateTime?
-  duration  Int?     // in minutes
-  status    String   // 'present', 'absent', 'late', 'half_day'
-  method    String?  // 'qr', 'manual'
+  duration  Int?     // Minutes
+  status    String   // 'present', 'absent', 'late'
+  method    String?  // 'qr', 'manual', 'biometric'
+  remarks   String?
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -486,74 +393,58 @@ model StaffAttendance {
   branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
   staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
   
-  @@index([staffId, date])
   @@map("staff_attendance")
 }
 
-// Staff Shift (For scheduling)
 model StaffShift {
   id        String   @id @default(uuid())
   libraryId String
   branchId  String
   staffId   String
-  dayOfWeek Int      // 0-6 (Sun-Sat)
-  startTime String   // HH:mm
-  endTime   String   // HH:mm
+  
+  dayOfWeek Int      // 0-6
+  startTime String   // "09:00"
+  endTime   String   // "18:00"
   isActive  Boolean  @default(true)
   
   // Relationships
   library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
   branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
   staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
-
+  
   @@map("staff_shifts")
 }
 
-// Payment Transaction
+// Finance & Payments
 model Payment {
   id        String   @id @default(uuid())
   libraryId String
-  branchId  String
+  branchId  String?
   studentId String
   
-  // Relations to other entities
-  subscriptionId String?
-  feeId     String? 
-  
-  // Flexible relation fields used by application logic
-  type      String   // 'subscription', 'fee'
-  relatedId String?  // ID of Plan, Subscription, or Fee
-  
   amount    Float
-  method    String   // 'razorpay', 'cashfree', 'upi_app', 'qr_code', 'front_desk'
-  status    String   // 'pending', 'pending_verification', 'completed', 'failed', 'refunded'
-  
-  description String?
-  notes       String?
-  
-  // Gateway Details
-  gatewayProvider   String?
-  gatewayOrderId    String?
-  gatewayPaymentId  String?
-  gatewaySignature  String?
-  
-  // Manual Payment Details
-  proofUrl    String?
-  
-  // Handover Link (For Khatabook)
-  handoverId  String?
-  handover    CashHandover? @relation(fields: [handoverId], references: [id])
-
-  // Promotion Details
-  promotionId    String?
-  discountAmount Float?
+  type      String   // 'subscription', 'fine', 'other'
+  method    String   // 'cash', 'upi', 'card', 'bank_transfer'
+  status    String   // 'completed', 'pending', 'failed', 'refunded'
+  date      DateTime @default(now())
   
   transactionId String?
-  invoiceNo String?  @unique
-  date      DateTime @default(now())
+  invoiceNo String?
+  description String?
+  proofUrl String?
+  gatewayProvider String?
+  gatewayOrderId String?
+  gatewayPaymentId String?
+  gatewaySignature String?
+  
+  // Context
+  relatedId String?  // ID of related entity (Subscription ID, etc.)
+  notes     String?
+  
+  // Tracking
   collectedBy String? // Staff ID
-  verifiedBy  String?
-  verifierRole String?
+  verifiedBy  String? // Staff ID
+  verifierRole String? // 'owner', 'manager', 'staff'
   verifiedAt  DateTime?
   
   createdAt DateTime @default(now())
@@ -561,23 +452,55 @@ model Payment {
   
   // Relationships
   library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
-  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  branch    Branch?  @relation(fields: [branchId], references: [id])
   student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  subscription StudentSubscription? @relation(fields: [subscriptionId], references: [id])
-  additionalFee AdditionalFee? @relation(fields: [feeId], references: [id])
-  promotion     Promotion? @relation(fields: [promotionId], references: [id])
   
+  // Optional links for easier querying
+  subscription StudentSubscription? @relation(fields: [subscriptionId], references: [id])
+  subscriptionId String?
+  
+  additionalFee AdditionalFee? @relation(fields: [feeId], references: [id])
+  feeId String?
+  
+  promotion Promotion? @relation(fields: [promotionId], references: [id])
+  promotionId String?
+
+  discountAmount Float? @default(0)
+
+  handover    CashHandover? @relation(fields: [handoverId], references: [id])
+  handoverId  String?
+
   @@map("payments")
+  @@index([libraryId])
+  @@index([branchId])
+  @@index([studentId])
+  @@index([date])
 }
 
-// Student Wallet
+model AdditionalFee {
+  id        String   @id @default(uuid())
+  libraryId String
+  branchId  String?
+  name      String
+  amount    Float
+  description String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  // Relationships
+  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  payments  Payment[]
+
+  @@map("additional_fees")
+}
+
 model StudentWallet {
   id        String   @id @default(uuid())
   libraryId String
-  studentId String
+  studentId String   @unique
   balance   Float    @default(0)
-  currency  String   @default("INR")
-  status    String   @default("active")
+  createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
   // Relationships
@@ -585,19 +508,17 @@ model StudentWallet {
   student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   transactions WalletTransaction[]
   
-  @@unique([libraryId, studentId])
   @@map("student_wallets")
 }
 
-// Wallet Transaction
 model WalletTransaction {
   id        String   @id @default(uuid())
   libraryId String
   walletId  String
   amount    Float
   type      String   // 'credit', 'debit'
-  reason    String   // 'recharge', 'payment', 'refund'
-  referenceId String? // Payment ID or Subscription ID
+  reason    String?
+  referenceId String?
   createdAt DateTime @default(now())
   
   // Relationships
@@ -607,55 +528,245 @@ model WalletTransaction {
   @@map("wallet_transactions")
 }
 
-// Promotion System
+// Promotions & Coupons
 model Promotion {
-  id          String   @id @default(uuid())
-  libraryId   String
-  branchId    String?  // Null if global
-  code        String   @unique
+  id        String   @id @default(uuid())
+  libraryId String
+  branchId  String?
+  code      String   @unique
   description String?
-  discountType String  // 'percentage', 'fixed'
-  discountValue Float
+  type      String   // 'percentage', 'fixed'
+  value     Float
   minOrderValue Float?
-  maxDiscount   Float? // Cap for percentage discount
-  startDate   DateTime
-  endDate     DateTime
-  usageLimit  Int?     // Total max usages
-  perUserLimit Int?    // Max usages per student
-  usedCount   Int      @default(0)
-  isActive    Boolean  @default(true)
+  maxDiscount Float?
+  startDate DateTime?
+  endDate   DateTime?
+  usageLimit Int?
+  perUserLimit Int?
+  usageCount Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
   
-  // Target Audience
-  planId      String?  // If specific to a plan
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
   // Relationships
-  library     Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
-  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  plan        Plan?    @relation(fields: [planId], references: [id])
-  payments    Payment[]
-
+  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  plan      Plan?    @relation(fields: [planId], references: [id])
+  planId    String?
+  payments  Payment[]
+  
+  // Referral Link (If this promo is a reward for a referral)
+  referral  Referral?
+  
   @@map("promotions")
 }
 
-// Support Ticket System
+// Support System
 model SupportTicket {
   id        String   @id @default(uuid())
   libraryId String
-  branchId  String
-  studentId String?  // Optional if ticket created by staff for student
-  staffId   String?  // Optional if ticket created by staff
+  branchId  String?
+  studentId String?  // Optional (could be staff ticket?)
+  staffId   String?  // If created by staff
   
   subject   String
   description String
-  priority  String   @default("medium") // 'low', 'medium', 'high', 'critical'
-  status    String   @default("open")   // 'open', 'in_progress', 'resolved', 'closed'
-  category  String   // 'payment', 'wifi', 'seat', 'noise', 'cleanliness', 'other'
+  category  String   // 'payment', 'wifi', 'cleaning', 'other'
+  priority  String   // 'low', 'medium', 'high', 'urgent'
+  status    String   // 'open', 'in_progress', 'resolved', 'closed', 'reopen_requested'
   
-  assignedTo String? // Staff ID
   attachmentUrl String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relationships
+  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  branch    Branch?  @relation(fields: [branchId], references: [id])
+  student   Student? @relation(fields: [studentId], references: [id])
+  staff     Staff?   @relation(fields: [staffId], references: [id])
+  comments  TicketComment[]
+  
+  @@map("support_tickets")
+}
+
+model TicketComment {
+  id        String   @id @default(uuid())
+  libraryId String
+  ticketId  String
+  userId    String
+  userType  String   // 'student', 'staff', 'owner'
+  content   String
+  attachmentUrl String?
+  createdAt DateTime @default(now())
+  
+  // Relationships
+  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  student   Student? @relation(fields: [userId], references: [id], map: "TicketComment_Student_fkey")
+  // Note: Staff/Owner relations for comments are harder to enforce strictly in Prisma without polymorphic relations
+  // So we rely on userId and application logic, or add optional fields if needed.
+  // For simplicity, we just link ticket.
+  
+  @@map("ticket_comments")
+}
+
+// Marketing & Announcements
+model Announcement {
+  id        String   @id @default(uuid())
+  libraryId String
+  branchId  String?
+  
+  title     String
+  content   String
+  target    String   // 'all', 'students', 'staff', 'active_students'
+  expiresAt DateTime?
+  isActive  Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relationships
+  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  
+  @@map("announcements")
+}
+
+// Student Goals & Focus
+model StudentGoal {
+  id        String   @id @default(uuid())
+  libraryId String
+  studentId String
+  
+  title     String
+  type      String   // 'daily', 'weekly', 'exam'
+  targetDate DateTime?
+  status    String   // 'active', 'completed', 'failed'
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relationships
+  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  @@map("student_goals")
+}
+
+model FocusSession {
+  id        String   @id @default(uuid())
+  libraryId String
+  studentId String
+  
+  startTime DateTime
+  endTime   DateTime?
+  duration  Int?     // Minutes
+  label     String?  // 'Study', 'Reading', etc.
+  
+  createdAt DateTime @default(now())
+  
+  // Relationships
+  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  @@map("focus_sessions")
+}
+
+model StudentNote {
+  id        String   @id @default(uuid())
+  libraryId String
+  studentId String
+  
+  title     String?
+  content   String
+  isPrivate Boolean  @default(true)
+  createdBy String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relationships
+  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  @@map("student_notes")
+}
+
+// Referral System
+model Referral {
+  id        String   @id @default(uuid())
+  libraryId String
+  
+  referrerId String
+  refereeId  String  @unique // One referral per new student
+  
+  codeUsed   String?
+  status     String  // 'pending', 'completed', 'rewarded'
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  // Relationships
+  library    Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  referrer   Student  @relation("Referrer", fields: [referrerId], references: [id])
+  referee    Student  @relation("Referee", fields: [refereeId], references: [id])
+  
+  rewardCoupon Promotion? @relation(fields: [couponId], references: [id])
+  couponId     String?  @unique
+  
+  @@map("referrals")
+}
+
+model Lead {
+  id        String   @id @default(uuid())
+  libraryId String
+  branchId  String?
+  
+  name      String
+  phone     String
+  email     String?
+  source    String? // 'walk_in', 'referral', 'online'
+  status    String  @default("new") // 'new', 'contacted', 'converted', 'lost'
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relationships
+  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  branch    Branch?  @relation(fields: [branchId], references: [id])
+  interactions LeadInteraction[]
+  
+  @@map("leads")
+}
+
+model LeadInteraction {
+  id        String   @id @default(uuid())
+  leadId    String
+  staffId   String
+  type      String   // 'call', 'visit', 'message'
+  notes     String?
+  createdAt DateTime @default(now())
+  
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  staff     Staff    @relation(fields: [staffId], references: [id])
+  
+  @@map("lead_interactions")
+}
+
+model CashHandover {
+  id        String   @id @default(uuid())
+  libraryId String
+  branchId  String
+  
+  staffId   String   // Staff who is handing over cash
+  amount    Float
+  method    String   @default("cash") // 'cash', 'upi', 'bank_transfer'
+  notes     String?
+  attachmentUrl String? // Proof of handover
+  
+  status    String   @default("pending") // 'pending', 'accepted', 'rejected'
+  verifiedBy String?
+  verifiedAt DateTime?
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -663,117 +774,31 @@ model SupportTicket {
   // Relationships
   library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
   branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  student   Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
-  staff     Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
-  comments  TicketComment[]
-
-  @@map("support_tickets")
-}
-
-model TicketComment {
-  id        String   @id @default(uuid())
-  ticketId  String
-  userId    String   // Student ID or Staff ID or Owner ID
-  userType  String   // 'student', 'staff', 'owner'
-  content   String
-  isInternal Boolean @default(false) // If true, only visible to staff/owner
-  
-  createdAt DateTime @default(now())
-  
-  // Relationships
-  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  library   Library       @relation(fields: [libraryId], references: [id], onDelete: Cascade)
-  libraryId String
-
-  @@map("ticket_comments")
-}
-
-// Announcement System
-model Announcement {
-  id        String   @id @default(uuid())
-  libraryId String
-  branchId  String?  // Null if global
-  title     String
-  content   String
-  target    String   // 'all', 'students', 'staff', 'active_students'
-  priority  String   @default("normal") // 'normal', 'high'
-  
-  isActive  Boolean  @default(true)
-  expiresAt DateTime?
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-  
-  // Relationships
-  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
-
-  @@map("announcements")
-}
-
-// Student Goal Setting
-model StudentGoal {
-  id        String   @id @default(uuid())
-  studentId String
-  libraryId String
-  title     String
-  description String?
-  deadline  DateTime?
-  status    String   @default("in_progress") // 'in_progress', 'completed', 'abandoned'
-  progress  Int      @default(0) // 0-100
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
-
-  @@map("student_goals")
-}
-
-// Focus Session Tracking
-model FocusSession {
-  id        String   @id @default(uuid())
-  studentId String
-  libraryId String
-  startTime DateTime
-  endTime   DateTime?
-  duration  Int?     // in minutes
-  label     String?  // 'study', 'reading', 'project'
-  notes     String?
-  
-  createdAt DateTime @default(now())
-
-  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
-
-  @@map("focus_sessions")
-}
-
-// Cash Handover / Khatabook System
-model CashHandover {
-  id          String   @id @default(uuid())
-  libraryId   String
-  branchId    String
-  staffId     String
-  amount      Float
-  status      String   // 'pending', 'verified', 'rejected'
-  method      String   @default("CASH") // 'CASH', 'UPI', 'BANK_TRANSFER'
-  attachmentUrl String?
-  notes       String?
-  
-  verifiedBy  String?
-  verifiedAt  DateTime?
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relationships
-  library     Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
-  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  staff       Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  payments    Payment[]
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  payments  Payment[]
 
   @@map("cash_handovers")
-  @@index([staffId])
-  @@index([branchId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([email, token])
+  @@map("password_reset_tokens")
+}
+
+model LikedQuote {
+  id        String   @id @default(uuid())
+  studentId String
+  quoteId   Int
+  createdAt DateTime @default(now())
+
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, quoteId])
+  @@map("liked_quotes")
 }

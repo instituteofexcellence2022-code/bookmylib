@@ -3,10 +3,11 @@ import { getBranchDetails } from '@/actions/booking'
 import BookingClient from './BookingClient'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { COOKIE_KEYS } from '@/lib/auth/session'
 
 export default async function BranchBookingPage({ params }: { params: { branchId: string } }) {
     const cookieStore = await cookies()
-    const studentId = cookieStore.get('student_session')?.value
+    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
 
     if (!studentId) {
         redirect('/student/login')

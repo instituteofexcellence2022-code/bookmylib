@@ -4,10 +4,11 @@ import { prisma } from '@/lib/prisma'
 import { cookies } from 'next/headers'
 import { startOfMonth, endOfMonth, subMonths, format, startOfDay, endOfDay, addDays } from 'date-fns'
 import { formatRelativeTime } from '@/lib/utils'
+import { COOKIE_KEYS } from '@/lib/auth/session'
 
 async function getOwner() {
   const cookieStore = await cookies()
-  const ownerId = cookieStore.get('owner_session')?.value
+  const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
   if (!ownerId) return null
   
   // Verify owner exists

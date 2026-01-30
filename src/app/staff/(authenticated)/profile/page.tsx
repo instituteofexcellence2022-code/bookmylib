@@ -2,10 +2,11 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import ProfileClient from './ProfileClient'
+import { COOKIE_KEYS } from '@/lib/auth/session'
 
 async function getStaffProfile() {
   const cookieStore = await cookies()
-  const staffId = cookieStore.get('staff_session')?.value
+  const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
 
   if (!staffId) {
     redirect('/staff/login')

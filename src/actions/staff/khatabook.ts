@@ -5,9 +5,11 @@ import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 
 // Helper to get authenticated staff
+import { COOKIE_KEYS } from '@/lib/auth/session'
+
 async function getAuthenticatedStaff() {
     const cookieStore = await cookies()
-    const staffId = cookieStore.get('staff_session')?.value
+    const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
 
     if (!staffId) return null
 

@@ -6,9 +6,11 @@ import { revalidatePath } from 'next/cache'
 import { sendReceiptEmail } from '@/actions/email'
 
 // Helper to get current student
-async function getStudent() {
+import { COOKIE_KEYS } from '@/lib/auth/session'
+
+export async function getStudent() {
   const cookieStore = await cookies()
-  const studentId = cookieStore.get('student_session')?.value
+  const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
   if (!studentId) return null
   return prisma.student.findUnique({ 
     where: { id: studentId },
@@ -257,13 +259,13 @@ export async function initiatePayment(
     
     if (promo && promo.isActive) {
       promotionId = promo.id
-      if (promo.discountType === 'percentage') {
-        discountAmount = (amount * promo.discountValue) / 100
+      if (promo.type === 'percentage') {
+        discountAmount = (amount * promo.value) / 100
         if (promo.maxDiscount && discountAmount > promo.maxDiscount) {
           discountAmount = promo.maxDiscount
         }
-      } else if (promo.discountType === 'fixed') {
-        discountAmount = promo.discountValue
+      } else if (promo.type === 'fixed') {
+        discountAmount = promo.value
       }
       finalAmount = Math.max(0, amount - discountAmount)
       updatedDescription += ` (Coupon: ${couponCode})`
@@ -404,13 +406,12 @@ async function processReferralRewards(paymentId: string) {
 
   try {
     // Create Promotion
-    await prisma.promotion.create({
+    const reward = await prisma.promotion.create({
       data: {
         libraryId: payment.libraryId,
         code,
-        description: `Referral Reward for referring ${payment.student.name}`,
-        discountType: referrerDiscountType,
-        discountValue: referrerDiscountValue,
+        type: referrerDiscountType,
+        value: referrerDiscountValue,
         minOrderValue: 0,
         isActive: true,
         usageLimit: 1,
@@ -425,7 +426,7 @@ async function processReferralRewards(paymentId: string) {
       where: { id: referral.id },
       data: {
         status: 'completed',
-        referrerCouponCode: code
+        couponId: reward.id
       }
     })
     
@@ -449,8 +450,7 @@ async function activateSubscription(paymentId: string) {
     await prisma.studentSubscription.update({
       where: { id: payment.subscriptionId },
       data: { 
-        status: 'active',
-        paymentStatus: 'paid'
+        status: 'active'
       }
     })
   } 
@@ -486,8 +486,7 @@ async function activateSubscription(paymentId: string) {
                        planId: plan.id,
                        startDate,
                        endDate,
-                       status: 'active',
-                       paymentStatus: 'paid'
+                       status: 'active'
                    }
                })
            } else {
@@ -500,9 +499,7 @@ async function activateSubscription(paymentId: string) {
                        startDate,
                        endDate,
                        status: 'active',
-                       paymentStatus: 'paid',
-                       amountPaid: payment.amount,
-                       finalAmount: payment.amount
+                       amount: payment.amount
                    }
                })
            }
@@ -569,7 +566,7 @@ export async function verifyPaymentSignature(
                 invoiceNo: enrichedPayment.invoiceNo || enrichedPayment.id.slice(0, 8).toUpperCase(),
                 planName,
                 planDuration: duration,
-                branchName: enrichedPayment.branch.name,
+                branchName: enrichedPayment.branch?.name || 'N/A',
                 paymentMethod: enrichedPayment.method,
                 subTotal: enrichedPayment.amount,
                 discount: 0,
@@ -641,13 +638,13 @@ export async function createManualPayment(formData: FormData) {
     // Basic validation (should be more robust)
     if (promo && promo.isActive) {
       promotionId = promo.id
-      if (promo.discountType === 'percentage') {
-        discountAmount = (amount * promo.discountValue) / 100
+      if (promo.type === 'percentage') {
+        discountAmount = (amount * promo.value) / 100
         if (promo.maxDiscount && discountAmount > promo.maxDiscount) {
           discountAmount = promo.maxDiscount
         }
-      } else if (promo.discountType === 'fixed') {
-        discountAmount = promo.discountValue
+      } else if (promo.type === 'fixed') {
+        discountAmount = promo.value
       }
       finalAmount = Math.max(0, amount - discountAmount)
     }
@@ -726,11 +723,11 @@ export async function validateCoupon(code: string, amount: number, studentId?: s
     }
 
     const now = new Date()
-    if (now < promo.startDate) {
+    if (promo.startDate && now < promo.startDate) {
       return { success: false, error: 'This coupon is not valid yet' }
     }
     
-    if (now > promo.endDate) {
+    if (promo.endDate && now > promo.endDate) {
       return { success: false, error: 'This coupon has expired' }
     }
 
@@ -763,16 +760,16 @@ export async function validateCoupon(code: string, amount: number, studentId?: s
         }
     }
 
-    if (targetStudentId && promo.perUserLimit) {
-        // Check per-user usage limit
-        const userUsedCount = await prisma.payment.count({
+    // Per-user usage limit
+    if (promo.perUserLimit && targetStudentId) {
+        const userUsageCount = await prisma.payment.count({
             where: { 
                 promotionId: promo.id, 
                 studentId: targetStudentId,
-                status: 'completed'
+                status: 'completed' 
             }
         })
-        if (userUsedCount >= promo.perUserLimit) {
+        if (userUsageCount >= promo.perUserLimit) {
             return { success: false, error: 'You have reached the usage limit for this coupon' }
         }
     }
@@ -783,13 +780,13 @@ export async function validateCoupon(code: string, amount: number, studentId?: s
     
     // Calculate discount
     let discount = 0
-    if (promo.discountType === 'percentage') {
-      discount = (amount * promo.discountValue) / 100
+    if (promo.type === 'percentage') {
+      discount = (amount * promo.value) / 100
       if (promo.maxDiscount && discount > promo.maxDiscount) {
         discount = promo.maxDiscount
       }
-    } else if (promo.discountType === 'fixed') {
-      discount = promo.discountValue
+    } else if (promo.type === 'fixed') {
+      discount = promo.value
     }
 
     return { 
@@ -806,8 +803,8 @@ export async function validateCoupon(code: string, amount: number, studentId?: s
 
 export async function verifyPayment(paymentId: string, status: 'completed' | 'failed') {
   const cookieStore = await cookies()
-  const ownerId = cookieStore.get('owner_session')?.value
-  const staffId = cookieStore.get('staff_session')?.value
+  const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
+  const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
   
   if (!ownerId && !staffId) {
     return { success: false, error: 'Unauthorized' }
@@ -902,8 +899,8 @@ export async function verifyPayment(paymentId: string, status: 'completed' | 'fa
             studentName: enrichedPayment.student.name,
             studentEmail: enrichedPayment.student.email,
             studentPhone: enrichedPayment.student.phone,
-            branchName: enrichedPayment.branch.name,
-            branchAddress: `${enrichedPayment.branch.address || ''}, ${enrichedPayment.branch.city || ''}`,
+            branchName: enrichedPayment.branch?.name || 'N/A',
+            branchAddress: `${enrichedPayment.branch?.address || ''}, ${enrichedPayment.branch?.city || ''}`,
             planName,
             planType: enrichedPayment.subscription?.plan?.category || undefined,
             planDuration: duration,

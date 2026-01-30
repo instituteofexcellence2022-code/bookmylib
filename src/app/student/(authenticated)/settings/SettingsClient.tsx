@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Shield, 
@@ -22,7 +23,7 @@ import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
 import { changeStudentPassword, updateStudentPreferences } from '@/actions/student'
-import { logoutStudent } from '@/actions/auth'
+import { logout } from '@/actions/auth'
 
 interface SettingsClientProps {
   student: any
@@ -38,6 +39,7 @@ export default function SettingsClient({ student }: SettingsClientProps) {
   const [activeTab, setActiveTab] = useState('general')
   const { theme, setTheme } = useTheme()
   const [loading, setLoading] = useState(false)
+  const router = useRouter()
 
   // Preferences State
   const [preferences, setPreferences] = useState(student.preferences || {
@@ -117,7 +119,8 @@ export default function SettingsClient({ student }: SettingsClientProps) {
   }
 
   const handleLogout = async () => {
-    await logoutStudent()
+    await logout()
+    router.push('/student/login')
   }
 
   return (

@@ -18,7 +18,7 @@ import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { QuoteCard } from '@/components/student/QuoteCard'
 import { Quote } from '@/lib/quotes'
 import { updateStudentProfile, changeStudentPassword, uploadGovtId } from '@/actions/student'
-import { logoutStudent } from '@/actions/auth'
+import { logout } from '@/actions/auth'
 
 interface ProfileClientProps {
     initialData: {
@@ -255,7 +255,9 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
     }
 
     const handleLogout = async () => {
-        await logoutStudent()
+        setLoading(true)
+        await logout()
+        router.push('/student/login')
     }
 
     return (

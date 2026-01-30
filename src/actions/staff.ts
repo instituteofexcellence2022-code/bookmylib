@@ -9,10 +9,12 @@ import { uploadFile } from './upload'
 
 import { cache } from 'react'
 
+import { COOKIE_KEYS } from '@/lib/auth/session'
+
 export const getStaffProfile = cache(async function getStaffProfile() {
   try {
     const cookieStore = await cookies()
-    const staffId = cookieStore.get('staff_session')?.value
+    const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
 
     if (!staffId) {
       return null
@@ -35,6 +37,14 @@ export const getStaffProfile = cache(async function getStaffProfile() {
 
 export async function createStaff(formData: FormData) {
   try {
+    const cookieStore = await cookies()
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
+    const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
+
+    if (!ownerId && !staffId) {
+      return { success: false, error: 'Unauthorized: You must be logged in to create staff' }
+    }
+
     const firstName = formData.get('firstName') as string
     const lastName = formData.get('lastName') as string
     const email = formData.get('email') as string
@@ -129,9 +139,7 @@ export async function createStaff(formData: FormData) {
     })
 
     // Determine actor
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
-    const staffId = cookieStore.get('staff_session')?.value
+    // cookieStore, ownerId, staffId already defined at top
     
     const performedBy = ownerId 
       ? { type: 'owner', id: ownerId }
@@ -164,7 +172,7 @@ export async function createStaff(formData: FormData) {
 export async function updateStaffProfile(formData: FormData) {
   try {
     const cookieStore = await cookies()
-    const staffId = cookieStore.get('staff_session')?.value
+    const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
 
     if (!staffId) {
         return { success: false, error: 'Unauthorized: No session found' }
@@ -241,7 +249,7 @@ export async function updateStaffProfile(formData: FormData) {
 export async function changeStaffPassword(formData: FormData) {
   try {
     const cookieStore = await cookies()
-    const staffId = cookieStore.get('staff_session')?.value
+    const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
 
     if (!staffId) {
         return { success: false, error: 'Unauthorized: No session found' }
@@ -301,6 +309,14 @@ export async function changeStaffPassword(formData: FormData) {
 
 export async function updateStaff(id: string, formData: FormData) {
   try {
+    const cookieStore = await cookies()
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
+    const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
+
+    if (!ownerId && !staffId) {
+      return { success: false, error: 'Unauthorized: You must be logged in to update staff' }
+    }
+
     const firstName = formData.get('firstName') as string
     const lastName = formData.get('lastName') as string
     const email = formData.get('email') as string
@@ -418,9 +434,7 @@ export async function updateStaff(id: string, formData: FormData) {
     })
 
     // Determine actor
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
-    const staffId = cookieStore.get('staff_session')?.value
+    // cookieStore, ownerId, staffId already defined at top
     
     const performedBy = ownerId 
       ? { type: 'owner', id: ownerId }
@@ -455,6 +469,13 @@ export async function updateStaff(id: string, formData: FormData) {
 
 export async function deleteStaff(id: string) {
   try {
+    const cookieStore = await cookies()
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
+
+    if (!ownerId) {
+      return { success: false, error: 'Unauthorized: Only owners can delete staff' }
+    }
+
     await prisma.staff.delete({
       where: { id }
     })
@@ -468,6 +489,14 @@ export async function deleteStaff(id: string) {
 
 export async function updateStaffImage(staffId: string, formData: FormData) {
   try {
+    const cookieStore = await cookies()
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
+    const currentStaffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
+
+    if (!ownerId && (!currentStaffId || currentStaffId !== staffId)) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
     const file = formData.get('image') as File
     if (!file) {
       throw new Error('No image provided')
@@ -498,9 +527,7 @@ export async function updateStaffImage(staffId: string, formData: FormData) {
     })
 
     // Log Activity
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
-    const currentStaffId = cookieStore.get('staff_session')?.value
+    // cookieStore, ownerId, currentStaffId already defined at top
     
     const performedBy = ownerId 
       ? { type: 'owner', id: ownerId }
@@ -564,7 +591,7 @@ export async function getAllStaff() {
 export async function getGlobalStaffStats() {
   try {
     const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
     
     if (!ownerId) return {
       totalStaff: 0,
@@ -677,7 +704,7 @@ export async function getStaffStats(id: string) {
 export async function getStaffManagementData() {
   try {
     const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
     
     if (!ownerId) return null
 

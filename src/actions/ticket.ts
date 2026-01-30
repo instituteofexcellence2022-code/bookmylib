@@ -7,12 +7,13 @@ import { getOwnerProfile } from './owner'
 import { getStaffProfile } from './staff'
 import { uploadFile } from './upload'
 import { sendTicketUpdateEmail } from './email'
+import { COOKIE_KEYS } from '@/lib/auth/session'
 
 // Student Actions
 
 export async function createTicket(formData: FormData) {
   const cookieStore = await cookies()
-  const studentId = cookieStore.get('student_session')?.value
+  const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
 
   if (!studentId) {
     return { success: false, error: 'Unauthorized' }
@@ -117,8 +118,24 @@ export async function createTicket(formData: FormData) {
         priority,
         status: 'open',
         attachmentUrl
+      },
+      include: {
+        student: true,
+        branch: true
       }
     })
+
+    // Send Ticket Received Email
+    if (ticket.student?.email) {
+       await sendTicketUpdateEmail({
+        studentName: ticket.student.name,
+        studentEmail: ticket.student.email,
+        ticketId: ticket.id,
+        ticketSubject: ticket.subject,
+        type: 'created',
+        branchName: ticket.branch?.name
+      })
+    }
 
     revalidatePath('/student/issues')
     return { success: true, ticket }
@@ -130,7 +147,7 @@ export async function createTicket(formData: FormData) {
 
 export async function getStudentTickets() {
   const cookieStore = await cookies()
-  const studentId = cookieStore.get('student_session')?.value
+  const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
 
   if (!studentId) return []
 
@@ -282,6 +299,16 @@ export async function updateTicketStatus(ticketId: string, status: string) {
 
     // Notify Student
     if (updatedTicket.student?.email) {
+      // Fetch branch name if available
+      let branchName = undefined
+      if (updatedTicket.student?.branchId) {
+        const branch = await prisma.branch.findUnique({
+            where: { id: updatedTicket.student.branchId },
+            select: { name: true }
+        })
+        if (branch) branchName = branch.name
+      }
+
       await sendTicketUpdateEmail({
         studentName: updatedTicket.student.name,
         studentEmail: updatedTicket.student.email,
@@ -289,7 +316,8 @@ export async function updateTicketStatus(ticketId: string, status: string) {
         ticketSubject: updatedTicket.subject,
         type: 'status_change',
         status: status,
-        updatedBy: staff ? staff.name : (owner ? owner.name : 'System')
+        updatedBy: staff ? staff.name : (owner ? owner.name : 'System'),
+        branchName
       })
     }
 
@@ -349,7 +377,7 @@ export async function getTicketDetails(ticketId: string) {
 
 export async function getStudentTicketDetails(ticketId: string) {
     const cookieStore = await cookies()
-    const studentId = cookieStore.get('student_session')?.value
+    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
 
     if (!studentId) return null
 
@@ -386,7 +414,7 @@ export async function addTicketComment(formData: FormData) {
     const owner = await getOwnerProfile()
     const staff = await getStaffProfile()
     const cookieStore = await cookies()
-    const studentId = cookieStore.get('student_session')?.value
+    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
 
     let userId = ''
     let userType = ''
@@ -492,7 +520,7 @@ export async function addTicketComment(formData: FormData) {
 
 export async function reopenTicket(ticketId: string) {
     const cookieStore = await cookies()
-    const studentId = cookieStore.get('student_session')?.value
+    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
 
     if (!studentId) {
         return { success: false, error: 'Unauthorized' }

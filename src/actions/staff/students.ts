@@ -3,7 +3,9 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { uploadFile } from '@/actions/upload'
+import { sendWelcomeEmail } from '@/actions/email'
 import bcrypt from 'bcryptjs'
 
 export type StudentFilter = {
@@ -14,9 +16,11 @@ export type StudentFilter = {
 }
 
 // Helper to get authenticated staff
+import { COOKIE_KEYS } from '@/lib/auth/session'
+
 async function getAuthenticatedStaff() {
-    const cookieStore = await cookies()
-    const staffId = cookieStore.get('staff_session')?.value
+  const cookieStore = await cookies()
+  const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
 
     if (!staffId) return null
 
@@ -265,6 +269,13 @@ export async function createStudent(formData: FormData) {
                 govtIdStatus: govtIdPath ? 'pending' : 'none'
             }
         })
+
+        // Send Welcome Email
+        await sendWelcomeEmail({
+            studentName: student.name,
+            studentEmail: student.email,
+            libraryName: staff.library?.name
+        })
         
         // Log activity
         await prisma.staffActivity.create({
@@ -321,8 +332,10 @@ export async function getStudentDetails(studentId: string) {
                 },
                 payments: {
                     where: { 
-                        // Payments might be linked to subscription -> branch
-                        subscription: { branchId: staff.branchId }
+                        OR: [
+                            { branchId: staff.branchId },
+                            { subscription: { branchId: staff.branchId } }
+                        ]
                     },
                     orderBy: { date: 'desc' },
                     include: { 

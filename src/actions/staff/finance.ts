@@ -5,11 +5,12 @@ import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { sendReceiptEmail } from '@/actions/email'
 import { startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns'
+import { COOKIE_KEYS } from '@/lib/auth/session'
 
 // Helper to get authenticated staff
 async function getAuthenticatedStaff() {
     const cookieStore = await cookies()
-    const staffId = cookieStore.get('staff_session')?.value
+    const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
 
     if (!staffId) return null
 
@@ -242,11 +243,8 @@ export async function createStaffPayment(data: {
                     seatId: data.seatId,
                     startDate: start,
                     endDate: end,
-                    amountPaid: data.amount,
-                    discount: data.discount || 0,
-                    finalAmount: data.amount,
-                    status: 'active', // Immediate activation for staff payments
-                    paymentStatus: 'paid'
+                    amount: data.amount,
+                    status: 'active' // Immediate activation for staff payments
                 }
             })
             subscriptionId = subscription.id
@@ -280,8 +278,16 @@ export async function createStaffPayment(data: {
                 feeId: data.feeId || undefined,
                 subscriptionId: subscriptionId,
                 discountAmount: data.discount || 0
+            },
+            include: {
+                student: true,
+                branch: true,
+                library: true
             }
         })
+
+        // Send Receipt Email - Removed to avoid duplication and type errors. Handled after transaction.
+        // if (payment.student?.email) { ... }
 
         return payment
     }, {
@@ -351,8 +357,8 @@ export async function createStaffPayment(data: {
                 studentName: enrichedPayment.student.name,
                 studentEmail: enrichedPayment.student.email,
                 studentPhone: enrichedPayment.student.phone,
-                branchName: enrichedPayment.branch.name,
-                branchAddress: `${enrichedPayment.branch.address || ''}, ${enrichedPayment.branch.city || ''}`,
+                branchName: enrichedPayment.branch?.name || 'N/A',
+                branchAddress: `${enrichedPayment.branch?.address || ''}, ${enrichedPayment.branch?.city || ''}`,
                 planName,
                 planType: enrichedPayment.subscription?.plan?.category || undefined,
                 planDuration: duration,
@@ -514,5 +520,4 @@ export async function getStaffBranchDetails() {
         }
     }
 }
-
 

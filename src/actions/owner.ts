@@ -8,11 +8,12 @@ import QRCode from 'qrcode'
 import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
 import { uploadFile } from './upload'
+import { COOKIE_KEYS } from '@/lib/auth/session'
 
 export async function getOwnerProfile() {
   try {
     const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
 
     let owner = null
 
@@ -337,7 +338,7 @@ export async function verifyStudentGovtId(studentId: string, status: 'verified' 
 export async function getPendingVerifications() {
   try {
     const cookieStore = await cookies()
-    const ownerId = cookieStore.get('owner_session')?.value
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
     if (!ownerId) throw new Error('Unauthorized')
 
     const owner = await prisma.owner.findUnique({

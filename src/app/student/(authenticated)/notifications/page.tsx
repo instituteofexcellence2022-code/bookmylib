@@ -12,7 +12,7 @@ export default async function NotificationsPage() {
         <p className="text-gray-600 dark:text-gray-400">Stay informed about library news and important updates.</p>
       </div>
       
-      <NotificationsClient initialAnnouncements={announcements} />
+      <NotificationsClient initialAnnouncements={announcements.map(a => ({ ...a, priority: 'normal' }))} />
     </div>
   )
 }

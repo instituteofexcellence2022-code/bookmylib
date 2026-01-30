@@ -56,12 +56,12 @@ interface Promotion {
     id: string
     code: string
     description: string | null
-    discountType: string
-    discountValue: number
+    type: string
+    value: number
     minOrderValue: number | null
     maxDiscount: number | null
-    startDate: Date | string
-    endDate: Date | string
+    startDate: Date | string | null
+    endDate: Date | string | null
     isActive: boolean
     usageLimit: number | null
     perUserLimit: number | null

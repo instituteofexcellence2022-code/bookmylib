@@ -61,12 +61,7 @@ export default function OwnerLoginPage() {
         setLoading(true)
 
         try {
-            const data = new FormData()
-            data.append('ownerId', tempOwnerId)
-            data.append('token', formData.code)
-            if (rememberMe) data.append('rememberMe', 'true')
-
-            const result = await verifyOwnerTwoFactor(data)
+            const result = await verifyOwnerTwoFactor(tempOwnerId, formData.code)
 
             if (result.success) {
                 toast.success('Verification successful')

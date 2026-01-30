@@ -6,10 +6,11 @@ import { redirect } from 'next/navigation'
 import bcrypt from 'bcryptjs'
 import { revalidatePath } from 'next/cache'
 import { uploadFile } from './upload'
+import { COOKIE_KEYS } from '@/lib/auth/session'
 
 export async function getStudentProfile() {
     const cookieStore = await cookies()
-    const studentId = cookieStore.get('student_session')?.value
+    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
 
     if (!studentId) {
         redirect('/student/login')
@@ -78,7 +79,7 @@ export async function getStudentProfile() {
 
 export async function updateStudentProfile(formData: FormData) {
     const cookieStore = await cookies()
-    const studentId = cookieStore.get('student_session')?.value
+    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
 
     if (!studentId) {
         return { success: false, error: 'Unauthorized' }
@@ -131,7 +132,7 @@ export async function updateStudentProfile(formData: FormData) {
 
 export async function changeStudentPassword(formData: FormData) {
     const cookieStore = await cookies()
-    const studentId = cookieStore.get('student_session')?.value
+    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
 
     if (!studentId) {
         return { success: false, error: 'Unauthorized' }
@@ -174,7 +175,7 @@ export async function changeStudentPassword(formData: FormData) {
 
 export async function uploadGovtId(formData: FormData) {
     const cookieStore = await cookies()
-    const studentId = cookieStore.get('student_session')?.value
+    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
 
     if (!studentId) {
         return { success: false, error: 'Unauthorized' }
@@ -211,7 +212,7 @@ export async function uploadGovtId(formData: FormData) {
 
 export async function updateStudentPreferences(preferences: any) {
     const cookieStore = await cookies()
-    const studentId = cookieStore.get('student_session')?.value
+    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
 
     if (!studentId) {
         return { success: false, error: 'Unauthorized' }
@@ -233,7 +234,7 @@ export async function updateStudentPreferences(preferences: any) {
 
 export async function getStudentReferralData() {
     const cookieStore = await cookies()
-    const studentId = cookieStore.get('student_session')?.value
+    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
 
     if (!studentId) {
         redirect('/student/login')
@@ -243,9 +244,12 @@ export async function getStudentReferralData() {
         where: { id: studentId },
         include: {
             library: true,
-            sentReferrals: {
+            referralsMade: {
                 include: {
-                    referee: true
+                    referee: true,
+                    rewardCoupon: {
+                        select: { code: true }
+                    }
                 },
                 orderBy: {
                     createdAt: 'desc'
@@ -288,9 +292,12 @@ export async function getStudentReferralData() {
                 data: { referralCode: newCode },
                 include: {
                     library: true,
-                    sentReferrals: {
+                    referralsMade: {
                         include: {
-                            referee: true
+                            referee: true,
+                            rewardCoupon: {
+                                select: { code: true }
+                            }
                         },
                         orderBy: {
                             createdAt: 'desc'
@@ -306,23 +313,19 @@ export async function getStudentReferralData() {
     const settings = student.library?.referralSettings as any || {}
     
     // Calculate stats
-    const totalReferrals = student.sentReferrals.length
-    const totalCoupons = student.sentReferrals.filter(r => r.referrerCouponCode).length
-    const coupons = student.sentReferrals
-        .filter(r => r.referrerCouponCode && r.status === 'completed') // 'completed' means coupon issued but not redeemed? 
-        // Wait, status definitions:
-        // 'pending': referee joined but not paid
-        // 'completed': referee paid, coupon issued
-        // 'redeemed': referrer used the coupon
+    const totalReferrals = student.referralsMade.length
+    const totalCoupons = student.referralsMade.filter(r => r.rewardCoupon?.code).length
+    const coupons = student.referralsMade
+        .filter(r => r.rewardCoupon?.code && r.status === 'completed')
         .map(r => ({
-            code: r.referrerCouponCode,
+            code: r.rewardCoupon?.code || '',
             status: r.status,
             createdAt: r.createdAt
         }))
 
     return {
         referralCode: student.referralCode,
-        referrals: student.sentReferrals,
+        referrals: student.referralsMade,
         libraryName: student.library?.name,
         settings,
         stats: {

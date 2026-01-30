@@ -4,6 +4,7 @@ import { quotes, Quote } from '@/lib/quotes'
 import { prisma } from '@/lib/prisma'
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
+import { COOKIE_KEYS } from '@/lib/auth/session'
 
 /**
  * Fetches the list of quotes.
@@ -31,7 +32,7 @@ export async function getRandomQuote(): Promise<Quote> {
  */
 export async function getLikedQuoteIds(): Promise<number[]> {
   const cookieStore = await cookies()
-  const studentId = cookieStore.get('student_session')?.value
+  const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
 
   if (!studentId) return []
 
@@ -52,7 +53,7 @@ export async function getLikedQuoteIds(): Promise<number[]> {
  */
 export async function toggleQuoteLike(quoteId: number) {
   const cookieStore = await cookies()
-  const studentId = cookieStore.get('student_session')?.value
+  const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
 
   if (!studentId) {
     return { success: false, error: 'Unauthorized' }

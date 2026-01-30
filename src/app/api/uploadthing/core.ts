@@ -1,6 +1,7 @@
 import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
 import { cookies } from "next/headers";
+import { COOKIE_KEYS } from "@/lib/auth/session";
  
 const f = createUploadthing();
  
@@ -11,9 +12,9 @@ export const ourFileRouter = {
     .middleware(async ({ req }) => {
       // This code runs on your server before upload
       const cookieStore = await cookies();
-      const ownerSession = cookieStore.get('owner_session');
-      const staffSession = cookieStore.get('staff_session');
-      const studentSession = cookieStore.get('student_session');
+      const ownerSession = cookieStore.get(COOKIE_KEYS.OWNER);
+      const staffSession = cookieStore.get(COOKIE_KEYS.STAFF);
+      const studentSession = cookieStore.get(COOKIE_KEYS.STUDENT);
 
       // Check if user is authenticated (Owner, Staff, or Student)
       const userId = ownerSession?.value || staffSession?.value || studentSession?.value;

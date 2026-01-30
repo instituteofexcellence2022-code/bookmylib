@@ -4,10 +4,11 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import StudentLayoutClient from './StudentLayoutClient'
 import { getStudentAnnouncements } from '@/actions/announcement'
+import { COOKIE_KEYS } from '@/lib/auth/session'
 
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies()
-  const studentId = cookieStore.get('student_session')?.value
+  const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
 
   if (!studentId) {
     redirect('/student/login')
