@@ -477,9 +477,7 @@ export default function PlansAndFeesPage() {
                             {fee.name}
                         </h2>
                         <div className="flex flex-wrap items-center gap-2 mt-1">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200 capitalize">
-                                {fee.type.replace(/_/g, ' ')}
-                            </span>
+
                             {fee.branch && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200">
                                 <MapPin className="w-3 h-3" />
@@ -607,15 +605,7 @@ export default function PlansAndFeesPage() {
                             defaultValue={editingFee?.amount}
                             required
                         />
-                        <FormSelect
-                            name="type"
-                            label="Fee Type"
-                            defaultValue={editingFee?.type || 'one_time'}
-                            options={[
-                                { label: 'One Time', value: 'one_time' },
-                                { label: 'Monthly', value: 'monthly' }
-                            ]}
-                        />
+
                     </div>
 
                     <FormSelect

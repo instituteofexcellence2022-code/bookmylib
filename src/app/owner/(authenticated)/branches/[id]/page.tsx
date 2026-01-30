@@ -53,6 +53,10 @@ interface BranchDetail {
   id: string
   name: string
   address: string
+  area?: string
+  city?: string
+  state?: string
+  pincode?: string
   email: string
   phone: string
   status: string
