@@ -156,9 +156,9 @@ export function StaffAcceptPaymentForm() {
         async function loadData() {
             try {
                 const data = await getStaffBranchDetails()
-                setPlans(data.plans as any) // Type assertion due to slight mismatch potential
-                setFees(data.fees as any)
-                setSeats(data.seats as any)
+                setPlans(data.plans as any || []) 
+                setFees(data.fees as any || [])
+                setSeats(data.seats as any || [])
                 setBranchDetails(data.branch)
             } catch (error) {
                 console.error(error)
@@ -190,6 +190,8 @@ export function StaffAcceptPaymentForm() {
                 try {
                     const result = await getStaffStudents({ search: searchQuery, limit: 5 })
                     setStudents(result.students)
+                } catch (error) {
+                    console.error('Search error:', error)
                 } finally {
                     setSearching(false)
                 }

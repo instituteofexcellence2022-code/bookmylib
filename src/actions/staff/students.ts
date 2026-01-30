@@ -39,8 +39,6 @@ export async function getStaffStudents(filters: StudentFilter = {}) {
     const staff = await getAuthenticatedStaff()
     if (!staff) throw new Error('Unauthorized')
 
-    console.log(`[DEBUG] getStaffStudents: Authenticated staff ${staff.email} (${staff.id}) for Library ${staff.libraryId} Branch ${staff.branchId}`)
-
     const { search, status, page = 1, limit = 10 } = filters
     const skip = (page - 1) * limit
 
