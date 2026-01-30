@@ -67,6 +67,20 @@ interface BranchDetail {
   images: string[]
   recentActivity: RecentActivity[]
   qrCode?: string
+  operatingHours?: {
+    openingTime: string
+    closingTime: string
+    is247: boolean
+    workingDays: string[]
+  } | null
+}
+
+const formatTime = (time: string) => {
+  if (!time) return ''
+  const [hours, minutes] = time.split(':')
+  const date = new Date()
+  date.setHours(parseInt(hours), parseInt(minutes))
+  return format(date, 'hh:mm a')
 }
 
 type TimeRange = 'today' | '7d' | '30d' | '90d' | 'custom'
@@ -543,7 +557,13 @@ const tabs = [
                       <Clock className="w-5 h-5 text-gray-400 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium text-gray-900 dark:text-white">Operating Hours</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">09:00 AM - 09:00 PM</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {branch.operatingHours?.is247 
+                            ? 'Open 24 Hours' 
+                            : branch.operatingHours 
+                              ? `${formatTime(branch.operatingHours.openingTime)} - ${formatTime(branch.operatingHours.closingTime)}`
+                              : 'Not specified'}
+                        </p>
                       </div>
                     </div>
                   </div>

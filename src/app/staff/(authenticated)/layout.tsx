@@ -3,16 +3,12 @@ import { getStaffProfile } from '@/actions/staff'
 import { getStaffAnnouncements } from '@/actions/announcement'
 import StaffLayoutClient from './StaffLayoutClient'
 import { redirect } from 'next/navigation'
-import { cookies } from 'next/headers'
-import { COOKIE_KEYS } from '@/lib/auth/session'
 
 export default async function StaffLayout({ children }: { children: React.ReactNode }) {
   const staff = await getStaffProfile()
 
   if (!staff) {
-      const cookieStore = await cookies()
-      cookieStore.delete(COOKIE_KEYS.STAFF)
-      redirect('/staff/login')
+      redirect('/api/auth/clear-session?role=staff')
   }
 
   const announcements = await getStaffAnnouncements(
