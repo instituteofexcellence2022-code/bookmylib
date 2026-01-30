@@ -74,7 +74,7 @@ export const TicketUpdateEmail = ({
       <Preview>{previewText}</Preview>
       <Tailwind>
         <Body className="bg-gray-100 my-auto mx-auto font-sans px-2">
-          <Container className="bg-white border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[465px] w-full shadow-sm">
+          <Container className="bg-white border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[600px] w-full shadow-sm">
              {/* Header */}
             <Section className="text-center mt-[20px] mb-[20px]">
               <Heading className="text-black text-[24px] font-bold p-0 my-0 mx-0 tracking-tight">
@@ -142,7 +142,7 @@ export const TicketUpdateEmail = ({
                     </Text>
                     <div className="bg-gray-50 border-l-4 border-gray-300 p-4 rounded-r">
                         <Text className="text-gray-800 text-[14px] leading-[24px] italic m-0">
-                            "{comment}"
+                            &quot;{comment}&quot;
                         </Text>
                     </div>
                  </Section>

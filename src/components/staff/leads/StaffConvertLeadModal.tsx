@@ -7,16 +7,20 @@ import { convertLeadToStudent } from '@/actions/staff/leads'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
 import { toast } from 'react-hot-toast'
-import { useRouter } from 'next/navigation'
+
+interface Lead {
+    id: string
+    name: string
+    email?: string | null
+}
 
 interface StaffConvertLeadModalProps {
-    lead: any
+    lead: Lead
     onClose: () => void
     onSuccess: () => void
 }
 
 export function StaffConvertLeadModal({ lead, onClose, onSuccess }: StaffConvertLeadModalProps) {
-    const router = useRouter()
     const [isLoading, setIsLoading] = useState(false)
     const [formData, setFormData] = useState({
         email: lead.email || '',
@@ -64,9 +68,10 @@ export function StaffConvertLeadModal({ lead, onClose, onSuccess }: StaffConvert
                 // Optional: Redirect to student profile
                 // router.push(`/staff/students/${result.studentId}`)
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(err)
-            setError(err.message || 'Failed to convert lead')
+            const errorMessage = err instanceof Error ? err.message : 'Failed to convert lead'
+            setError(errorMessage)
         } finally {
             setIsLoading(false)
         }

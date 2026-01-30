@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { X, Phone, Mail, Calendar, User, Clock, Tag, UserPlus } from 'lucide-react'
+import { X, Clock, Phone, Mail, UserPlus } from 'lucide-react'
 import { getLeadDetails, updateLeadStatus } from '@/actions/staff/leads'
 import { StaffLeadInteractionForm } from './StaffLeadInteractionForm'
 import { StaffConvertLeadModal } from './StaffConvertLeadModal'
@@ -14,8 +14,29 @@ interface StaffLeadDetailsModalProps {
     onUpdate: () => void
 }
 
+interface Interaction {
+    id: string
+    type: string
+    notes: string | null
+    createdAt: Date | string
+    staff?: {
+        name: string
+    }
+}
+
+interface LeadDetails {
+    id: string
+    name: string
+    phone: string
+    email?: string | null
+    status: string
+    source?: string | null
+    createdAt: Date | string
+    interactions: Interaction[]
+}
+
 export function StaffLeadDetailsModal({ leadId, onClose, onUpdate }: StaffLeadDetailsModalProps) {
-    const [lead, setLead] = useState<any>(null)
+    const [lead, setLead] = useState<LeadDetails | null>(null)
     const [loading, setLoading] = useState(true)
     const [isConvertModalOpen, setIsConvertModalOpen] = useState(false)
 
@@ -33,6 +54,7 @@ export function StaffLeadDetailsModal({ leadId, onClose, onUpdate }: StaffLeadDe
 
     useEffect(() => {
         fetchLead()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [leadId])
 
     const handleStatusChange = async (newStatus: string) => {
@@ -155,7 +177,7 @@ export function StaffLeadDetailsModal({ leadId, onClose, onUpdate }: StaffLeadDe
                                         No interactions yet. Add a note to start tracking.
                                     </div>
                                 ) : (
-                                    lead.interactions.map((interaction: any) => (
+                                    lead.interactions.map((interaction: Interaction) => (
                                         <div key={interaction.id} className="relative pl-6 pb-6 last:pb-0 border-l border-gray-200 dark:border-gray-700 last:border-0">
                                             <div className="absolute left-[-5px] top-0 h-2.5 w-2.5 rounded-full bg-gray-300 dark:bg-gray-600 ring-4 ring-white dark:ring-gray-800" />
                                             

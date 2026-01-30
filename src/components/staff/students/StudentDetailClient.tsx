@@ -13,12 +13,7 @@ import {
     Phone, 
     Mail, 
     Shield, 
-    FileText,
-    History,
-    Edit,
-    Trash2,
     MessageSquare,
-    ExternalLink,
     StickyNote,
     ArrowLeft
 } from 'lucide-react'
@@ -30,9 +25,6 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { EditStudentModal } from './EditStudentModal'
 import { ReportStudentModal } from './ReportStudentModal'
 import { StudentNotesClient } from './StudentNotesClient'
-import { toggleBlockStudent } from '@/actions/staff/students'
-import { toast } from 'react-hot-toast'
-import { useRouter } from 'next/navigation'
 
 interface Subscription {
   id: string
@@ -120,11 +112,9 @@ interface StudentDetailClientProps {
 }
 
 export function StudentDetailClient({ student, stats }: StudentDetailClientProps) {
-    const router = useRouter()
     const [activeTab, setActiveTab] = useState('profile')
     const [showEditModal, setShowEditModal] = useState(false)
     const [showReportModal, setShowReportModal] = useState(false)
-    const [isBlocking, setIsBlocking] = useState(false)
     
     const activeSub = student.subscriptions.find(s => s.status === 'active')
 

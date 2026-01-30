@@ -26,6 +26,8 @@ interface ReceiptEmailProps {
   branchName: string;
   paymentMethod: string;
   receiptUrl?: string;
+  seatNumber?: string;
+  time?: string;
 }
 
 export const ReceiptEmail = ({
@@ -39,6 +41,8 @@ export const ReceiptEmail = ({
   branchName,
   paymentMethod,
   receiptUrl,
+  seatNumber,
+  time,
 }: ReceiptEmailProps) => {
   const previewText = `Payment Receipt - ${invoiceNo}`;
 
@@ -48,7 +52,7 @@ export const ReceiptEmail = ({
       <Preview>{previewText}</Preview>
       <Tailwind>
         <Body className="bg-gray-100 my-auto mx-auto font-sans px-2">
-          <Container className="bg-white border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[465px] w-full shadow-sm">
+          <Container className="bg-white border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[600px] w-full shadow-sm">
             {/* Header */}
             <Section className="text-center mt-[20px] mb-[20px]">
               <Heading className="text-black text-[24px] font-bold p-0 my-0 mx-0 tracking-tight">
@@ -95,6 +99,8 @@ export const ReceiptEmail = ({
                     <Column>
                         <Text className="text-gray-600 text-[14px] m-0 font-medium">{planName}</Text>
                         <Text className="text-gray-400 text-[12px] m-0">Duration: {duration}</Text>
+                        {seatNumber && <Text className="text-gray-400 text-[12px] m-0">Seat: {seatNumber}</Text>}
+                        {time && <Text className="text-gray-400 text-[12px] m-0">Time: {time}</Text>}
                     </Column>
                     <Column align="right">
                         <Text className="text-black text-[14px] font-semibold m-0">₹{amount.toFixed(2)}</Text>

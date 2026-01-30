@@ -1,8 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Calendar, Clock, MapPin } from 'lucide-react'
-import { AnimatedCard } from '@/components/ui/AnimatedCard'
+import { Calendar, Clock } from 'lucide-react'
 
 interface StaffShift {
     id: string

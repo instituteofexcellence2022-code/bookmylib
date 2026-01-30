@@ -83,7 +83,9 @@ export async function sendReceiptEmail(data: ReceiptData) {
       planName: data.planName,
       duration: data.planDuration || 'N/A',
       branchName: data.branchName,
-      paymentMethod: data.paymentMethod
+      paymentMethod: data.paymentMethod,
+      seatNumber: data.seatNumber || undefined,
+      time: data.planHours || undefined,
     }
 
     const { data: emailData, error } = await sendEmail({

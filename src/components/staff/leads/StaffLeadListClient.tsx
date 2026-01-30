@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Plus, Search, Filter, MoreVertical, Phone, MessageSquare, Calendar } from 'lucide-react'
+import { Plus, Search, Filter, Phone, MessageSquare } from 'lucide-react'
 import { getLeads, LeadFilter } from '@/actions/staff/leads'
 import { StaffCreateLeadModal } from './StaffCreateLeadModal'
 import { StaffLeadDetailsModal } from './StaffLeadDetailsModal'
@@ -10,10 +10,29 @@ import { FilterSelect } from '@/components/ui/FilterSelect'
 import { format } from 'date-fns'
 import { useDebounce } from '@/hooks/use-debounce'
 
+interface Lead {
+    id: string
+    name: string
+    phone: string
+    status: string
+    createdAt: Date
+    interactions: {
+        createdAt: Date
+        notes: string | null
+    }[]
+}
+
+interface Metadata {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+}
+
 export function StaffLeadListClient() {
-    const [leads, setLeads] = useState<any[]>([])
+    const [leads, setLeads] = useState<Lead[]>([])
     const [loading, setLoading] = useState(true)
-    const [metadata, setMetadata] = useState<any>(null)
+    const [metadata, setMetadata] = useState<Metadata | null>(null)
     const [filters, setFilters] = useState<LeadFilter>({
         page: 1,
         limit: 10,
@@ -42,6 +61,7 @@ export function StaffLeadListClient() {
 
     useEffect(() => {
         fetchLeads()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filters.page, filters.status, filters.source, debouncedSearch])
 
     const getStatusColor = (status: string) => {
@@ -127,7 +147,7 @@ export function StaffLeadListClient() {
                                         <span className="font-medium text-xs text-gray-400 block mb-1">
                                             Last interaction • {format(new Date(lead.interactions[0].createdAt), 'MMM d')}
                                         </span>
-                                        "{lead.interactions[0].notes}"
+                                        &quot;{lead.interactions[0].notes}&quot;
                                     </div>
                                 ) : (
                                     <div className="text-sm text-gray-400 italic p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">

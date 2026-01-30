@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { format } from 'date-fns'
-import { Clock, Calendar, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Clock, Calendar } from 'lucide-react'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { cn } from '@/lib/utils'
 

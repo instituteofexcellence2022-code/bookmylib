@@ -104,15 +104,6 @@ export function EditStudentModal({ isOpen, onClose, student }: EditStudentModalP
         setLoading(false)
     }
 
-    const formatDate = (date: string | Date | null | undefined) => {
-        if (!date) return ''
-        try {
-            return new Date(date).toISOString().split('T')[0]
-        } catch {
-            return ''
-        }
-    }
-
     const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target
         setAddressData(prev => ({ ...prev, [name]: value }))

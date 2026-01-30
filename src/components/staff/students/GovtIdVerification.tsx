@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { Shield, Upload, FileText } from 'lucide-react'
+import { Shield, FileText } from 'lucide-react'
 import { uploadStudentGovtId } from '@/actions/staff/students'
 import { toast } from 'react-hot-toast'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
@@ -41,7 +41,7 @@ export default function GovtIdVerification({ studentId, govtIdUrl, govtIdStatus,
             } else {
                 toast.error(result.error || 'Upload failed')
             }
-        } catch (error) {
+        } catch {
             toast.error('An error occurred')
         } finally {
             setUploading(false)

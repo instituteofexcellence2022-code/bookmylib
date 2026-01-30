@@ -1,17 +1,16 @@
 import {
   Body,
+  Button,
   Container,
   Head,
   Heading,
   Html,
+  Link,
   Preview,
   Section,
   Text,
   Tailwind,
-  Button,
   Hr,
-  Img,
-  Link,
 } from "@react-email/components";
 import * as React from "react";
 
@@ -34,7 +33,7 @@ export const ResetPasswordEmail = ({
       <Preview>{previewText}</Preview>
       <Tailwind>
         <Body className="bg-gray-100 my-auto mx-auto font-sans px-2">
-          <Container className="bg-white border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[465px] w-full shadow-sm">
+          <Container className="bg-white border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[600px] w-full shadow-sm">
             {/* Header */}
             <Section className="text-center mt-[20px] mb-[20px]">
               <Heading className="text-black text-[24px] font-bold p-0 my-0 mx-0 tracking-tight">
@@ -62,7 +61,7 @@ export const ResetPasswordEmail = ({
             {/* Main Content */}
             <Section className="mb-[32px] px-4 text-center">
               <Text className="text-gray-700 text-[15px] leading-[24px]">
-                We received a request to reset your password. If you didn't make this request, you can safely ignore this email.
+                We received a request to reset your password. If you didn&apos;t make this request, you can safely ignore this email.
               </Text>
               
               <Section className="mt-[24px] mb-[24px]">

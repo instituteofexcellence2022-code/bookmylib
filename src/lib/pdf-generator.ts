@@ -119,7 +119,7 @@ export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob
     
     // --- Subscription Details Section ---
     const detailsY = nextY
-    const boxHeight = 28
+    const boxHeight = 35
     const boxWidth = rightX - margin // Width based on margins
     
     doc.setFillColor(249, 250, 251) // Gray-50
@@ -161,16 +161,29 @@ export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob
     doc.setTextColor(0, 0, 0)
     doc.setFont('helvetica', 'bold')
     
-    if (data.startDate && data.endDate) {
-         doc.text(`${formatDate(data.startDate)} -`, 90, valueY)
-         doc.text(`${formatDate(data.endDate)}`, 90, valueY + 5)
-    } else if (data.planDuration) {
+    if (data.planDuration) {
         doc.text(data.planDuration, 90, valueY)
     }
 
+    if (data.startDate && data.endDate) {
+         doc.setFontSize(9)
+         doc.setFont('helvetica', 'normal')
+         doc.text(`${formatDate(data.startDate)} -`, 90, valueY + 5)
+         doc.text(`${formatDate(data.endDate)}`, 90, valueY + 10)
+    }
+
     // Seat Column
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
     if (data.seatNumber) {
         doc.text(data.seatNumber, 150, valueY)
+    }
+    
+    // Time Column (Added under Seat or separately)
+    if (data.planHours) {
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        doc.text(data.planHours, 150, valueY + 5)
     }
 
     // --- Table Section ---

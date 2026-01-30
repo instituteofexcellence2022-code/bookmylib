@@ -17,7 +17,7 @@ export default function StaffLoginPage() {
     const [rememberMe, setRememberMe] = useState(false)
     
     const [formData, setFormData] = useState({
-        email: '',
+        identifier: '',
         password: ''
     })
 
@@ -27,7 +27,7 @@ export default function StaffLoginPage() {
 
         try {
             const data = new FormData()
-            data.append('email', formData.email)
+            data.append('identifier', formData.identifier)
             data.append('password', formData.password)
             if (rememberMe) data.append('rememberMe', 'true')
 
@@ -94,8 +94,9 @@ export default function StaffLoginPage() {
                             label="Email or Username"
                             type="text"
                             icon={User}
-                            value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            value={formData.identifier}
+                            onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
+                            placeholder="Enter your email or username"
                             required
                             className="focus:ring-emerald-500"
                         />

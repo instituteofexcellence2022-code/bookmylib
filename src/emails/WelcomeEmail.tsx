@@ -12,8 +12,6 @@ import {
   Hr,
   Row,
   Column,
-  Img,
-  Link,
 } from "@react-email/components";
 import * as React from "react";
 
@@ -38,7 +36,7 @@ export const WelcomeEmail = ({
       <Preview>{previewText}</Preview>
       <Tailwind>
         <Body className="bg-gray-100 my-auto mx-auto font-sans px-2">
-          <Container className="bg-white border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[465px] w-full shadow-sm">
+          <Container className="bg-white border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[600px] w-full shadow-sm">
             {/* Header */}
             <Section className="text-center mt-[20px] mb-[20px]">
               <Heading className="text-black text-[24px] font-bold p-0 my-0 mx-0 tracking-tight">
@@ -57,7 +55,7 @@ export const WelcomeEmail = ({
                 Welcome to the Community!
               </Heading>
               <Text className="text-gray-500 text-[14px]">
-                We're thrilled to have you with us, <strong>{studentName}</strong>.
+                We&apos;re thrilled to have you with us, <strong>{studentName}</strong>.
               </Text>
             </Section>
 

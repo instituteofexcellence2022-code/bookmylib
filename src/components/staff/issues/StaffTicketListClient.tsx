@@ -1,8 +1,9 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Search, Filter, CheckCircle, Clock, AlertTriangle, ChevronRight, User, Building, X } from 'lucide-react'
+import { Search, CheckCircle, Clock, AlertTriangle, ChevronRight, User, X } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { format } from 'date-fns'
 
 interface Ticket {
@@ -194,7 +195,13 @@ export default function StaffTicketListClient({
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 overflow-hidden">
                             {ticket.student.image ? (
-                              <img src={ticket.student.image} alt={ticket.student.name} className="w-full h-full object-cover" />
+                              <Image 
+                                src={ticket.student.image} 
+                                alt={ticket.student.name} 
+                                width={32}
+                                height={32}
+                                className="w-full h-full object-cover" 
+                              />
                             ) : (
                               <User className="w-4 h-4" />
                             )}
