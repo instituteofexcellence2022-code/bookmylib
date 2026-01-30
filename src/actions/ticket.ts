@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
 import { getOwnerProfile } from './owner'
 import { getStaffProfile } from './staff'
 import { uploadFile } from './upload'
@@ -297,29 +298,35 @@ export async function updateTicketStatus(ticketId: string, status: string) {
       include: { student: true }
     })
 
-    // Notify Student
-    if (updatedTicket.student?.email) {
-      // Fetch branch name if available
-      let branchName = undefined
-      if (updatedTicket.student?.branchId) {
-        const branch = await prisma.branch.findUnique({
-            where: { id: updatedTicket.student.branchId },
-            select: { name: true }
-        })
-        if (branch) branchName = branch.name
-      }
+    // Notify Student (Background)
+    after(async () => {
+        if (updatedTicket.student?.email) {
+            try {
+              // Fetch branch name if available
+              let branchName = undefined
+              if (updatedTicket.student?.branchId) {
+                const branch = await prisma.branch.findUnique({
+                    where: { id: updatedTicket.student.branchId },
+                    select: { name: true }
+                })
+                if (branch) branchName = branch.name
+              }
 
-      await sendTicketUpdateEmail({
-        studentName: updatedTicket.student.name,
-        studentEmail: updatedTicket.student.email,
-        ticketId: updatedTicket.id,
-        ticketSubject: updatedTicket.subject,
-        type: 'status_change',
-        status: status,
-        updatedBy: staff ? staff.name : (owner ? owner.name : 'System'),
-        branchName
-      })
-    }
+              await sendTicketUpdateEmail({
+                studentName: updatedTicket.student.name,
+                studentEmail: updatedTicket.student.email,
+                ticketId: updatedTicket.id,
+                ticketSubject: updatedTicket.subject,
+                type: 'status_change',
+                status: status,
+                updatedBy: staff ? staff.name : (owner ? owner.name : 'System'),
+                branchName
+              })
+            } catch (error) {
+                console.error('Failed to send status update email:', error)
+            }
+        }
+    })
 
     revalidatePath('/owner/issues')
     revalidatePath('/staff/issues')
@@ -508,19 +515,27 @@ export async function addTicketComment(formData: FormData) {
 
                  // Notify Student of new comment
                  if (ticket.student?.email) {
-                    try {
-                        await sendTicketUpdateEmail({
-                            studentName: ticket.student.name,
-                            studentEmail: ticket.student.email,
-                            ticketId: ticket.id,
-                            ticketSubject: ticket.subject,
-                            type: 'new_comment',
-                            comment: content,
-                            updatedBy: userType === 'owner' ? (await getOwnerProfile())?.name || 'Admin' : (await getStaffProfile())?.name || 'Staff'
-                        })
-                    } catch (emailError) {
-                        console.error('[addTicketComment] Failed to send email notification (non-blocking):', emailError)
-                    }
+                    const studentName = ticket.student.name
+                    const studentEmail = ticket.student.email
+                    const ticketId = ticket.id
+                    const ticketSubject = ticket.subject
+                    const updatedByName = userType === 'owner' ? owner?.name || 'Admin' : staff?.name || 'Staff'
+
+                    after(async () => {
+                        try {
+                            await sendTicketUpdateEmail({
+                                studentName,
+                                studentEmail,
+                                ticketId,
+                                ticketSubject,
+                                type: 'new_comment',
+                                comment: content,
+                                updatedBy: updatedByName
+                            })
+                        } catch (emailError) {
+                            console.error('[addTicketComment] Failed to send email notification (background):', emailError)
+                        }
+                    })
                  }
              }
         }
