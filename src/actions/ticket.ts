@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { getOwnerProfile } from './owner'
 import { getStaffProfile } from './staff'
 import { uploadFile } from './upload'
+import { sendTicketUpdateEmail } from './email'
 
 // Student Actions
 
@@ -270,13 +271,27 @@ export async function updateTicketStatus(ticketId: string, status: string) {
         }
     }
 
-    await prisma.supportTicket.update({
+    const updatedTicket = await prisma.supportTicket.update({
       where: { 
         id: ticketId,
         libraryId // Security check
       },
-      data: { status }
+      data: { status },
+      include: { student: true }
     })
+
+    // Notify Student
+    if (updatedTicket.student?.email) {
+      await sendTicketUpdateEmail({
+        studentName: updatedTicket.student.name,
+        studentEmail: updatedTicket.student.email,
+        ticketId: updatedTicket.id,
+        ticketSubject: updatedTicket.subject,
+        type: 'status_change',
+        status: status,
+        updatedBy: staff ? staff.name : (owner ? owner.name : 'System')
+      })
+    }
 
     revalidatePath('/owner/issues')
     revalidatePath('/staff/issues')
@@ -425,13 +440,29 @@ export async function addTicketComment(formData: FormData) {
         if (userType === 'owner' || userType === 'staff') {
              const ticket = await prisma.supportTicket.findUnique({
                 where: { id: ticketId },
-                select: { status: true }
+                include: { student: true }
              })
-             if (ticket?.status === 'open') {
-                 await prisma.supportTicket.update({
-                     where: { id: ticketId },
-                     data: { status: 'in_progress' }
-                 })
+             
+             if (ticket) {
+                 if (ticket.status === 'open') {
+                     await prisma.supportTicket.update({
+                         where: { id: ticketId },
+                         data: { status: 'in_progress' }
+                     })
+                 }
+
+                 // Notify Student of new comment
+                 if (ticket.student?.email) {
+                    await sendTicketUpdateEmail({
+                        studentName: ticket.student.name,
+                        studentEmail: ticket.student.email,
+                        ticketId: ticket.id,
+                        ticketSubject: ticket.subject,
+                        type: 'new_comment',
+                        comment: content,
+                        updatedBy: userType === 'owner' ? (await getOwnerProfile())?.name || 'Admin' : (await getStaffProfile())?.name || 'Staff'
+                    })
+                 }
              }
         }
 

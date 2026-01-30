@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
+import { sendReceiptEmail } from '@/actions/email'
 import { startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns'
 
 // Helper to get authenticated staff
@@ -301,8 +302,74 @@ export async function createStaffPayment(data: {
                 status: 'success'
             }
         })
+
+        // Send Receipt Email
+        const enrichedPayment = await prisma.payment.findUnique({
+            where: { id: payment.id },
+            include: {
+                student: true,
+                branch: true,
+                subscription: {
+                    include: { 
+                        plan: true,
+                        seat: true
+                    }
+                },
+                additionalFee: true
+            }
+        })
+
+        if (enrichedPayment && enrichedPayment.student.email) {
+            let planName = 'N/A'
+            let duration = 'N/A'
+            let items: Array<{ description: string, amount: number }> = []
+            const subTotal = enrichedPayment.amount + (enrichedPayment.discountAmount || 0)
+
+            if (enrichedPayment.subscription?.plan) {
+                planName = enrichedPayment.subscription.plan.name
+                duration = `${enrichedPayment.subscription.plan.duration} ${enrichedPayment.subscription.plan.durationUnit}`
+                items.push({
+                    description: `Plan: ${enrichedPayment.subscription.plan.name}`,
+                    amount: enrichedPayment.subscription.plan.price
+                })
+            } else if (enrichedPayment.additionalFee) {
+                planName = enrichedPayment.additionalFee.name
+                items.push({
+                    description: enrichedPayment.additionalFee.name,
+                    amount: enrichedPayment.additionalFee.amount
+                })
+            } else {
+                items.push({
+                    description: 'Payment',
+                    amount: subTotal
+                })
+            }
+
+            await sendReceiptEmail({
+                invoiceNo: enrichedPayment.invoiceNo || enrichedPayment.id.slice(0, 8).toUpperCase(),
+                date: enrichedPayment.date,
+                studentName: enrichedPayment.student.name,
+                studentEmail: enrichedPayment.student.email,
+                studentPhone: enrichedPayment.student.phone,
+                branchName: enrichedPayment.branch.name,
+                branchAddress: `${enrichedPayment.branch.address || ''}, ${enrichedPayment.branch.city || ''}`,
+                planName,
+                planType: enrichedPayment.subscription?.plan?.category || undefined,
+                planDuration: duration,
+                planHours: enrichedPayment.subscription?.plan?.hoursPerDay ? `${enrichedPayment.subscription.plan.hoursPerDay} Hrs/Day` : undefined,
+                seatNumber: enrichedPayment.subscription?.seat?.number ? `${enrichedPayment.subscription.seat.number}` : undefined,
+                startDate: enrichedPayment.subscription?.startDate || undefined,
+                endDate: enrichedPayment.subscription?.endDate || undefined,
+                amount: enrichedPayment.amount,
+                paymentMethod: enrichedPayment.method.replace('_', ' '),
+                subTotal: subTotal,
+                discount: enrichedPayment.discountAmount || 0,
+                items: items
+            })
+        }
+
     } catch (error) {
-        console.error('Failed to log staff activity:', error)
+        console.error('Failed to log staff activity or send email:', error)
         // We don't throw here to avoid failing the request after successful payment
     }
 

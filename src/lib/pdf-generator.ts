@@ -32,7 +32,9 @@ interface ReceiptData {
     }>
 }
 
-export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob' = 'download'): Blob | void => {
+export type { ReceiptData }
+
+export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob' | 'arraybuffer' = 'download'): Blob | ArrayBuffer | void => {
     const doc = new jsPDF()
     
     // Define colors
@@ -282,6 +284,8 @@ export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob
     // Save or Return Blob
     if (action === 'blob') {
         return doc.output('blob')
+    } else if (action === 'arraybuffer') {
+        return doc.output('arraybuffer')
     } else {
         doc.save(`Receipt-${data.invoiceNo}.pdf`)
     }

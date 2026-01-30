@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState, useCallback } from 'react'
 import { getBranchDues } from '@/actions/staff/finance'
+import { checkAndSendExpiryReminders } from '@/actions/cron'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormSelect } from '@/components/ui/FormSelect'
-import { AlertCircle, Clock, Search, Phone, Mail, MessageCircle, CreditCard, RefreshCw } from 'lucide-react'
+import { AlertCircle, Clock, Search, Phone, Mail, MessageCircle, CreditCard, RefreshCw, Send } from 'lucide-react'
 import { format, differenceInDays } from 'date-fns'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -39,6 +40,23 @@ export function StaffDuesClient() {
     const [activeTab, setActiveTab] = useState<'upcoming' | 'overdue'>('upcoming')
     const [selectedDays, setSelectedDays] = useState<string>('7')
     const [customDays, setCustomDays] = useState<string>('30')
+    const [sendingReminders, setSendingReminders] = useState(false)
+
+    const handleSendReminders = async () => {
+        setSendingReminders(true)
+        try {
+            const result = await checkAndSendExpiryReminders()
+            if (result.success) {
+                toast.success(`Sent ${result.sent} reminders. (${result.errors} failed)`)
+            } else {
+                toast.error(result.error)
+            }
+        } catch {
+            toast.error('Failed to send reminders')
+        } finally {
+            setSendingReminders(false)
+        }
+    }
 
     const fetchData = useCallback(async () => {
         try {
@@ -152,6 +170,16 @@ export function StaffDuesClient() {
                         </div>
                     )}
                 </div>
+
+                <AnimatedButton
+                    onClick={handleSendReminders}
+                    isLoading={sendingReminders}
+                    variant="outline"
+                    className="flex items-center gap-2 border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                >
+                    <Send className="w-4 h-4" />
+                    Send 3-Day Reminders
+                </AnimatedButton>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">

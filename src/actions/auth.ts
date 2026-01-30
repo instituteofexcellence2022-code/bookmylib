@@ -8,6 +8,8 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import bcrypt from 'bcryptjs'
+import { sendWelcomeEmail } from '@/actions/email'
+
 export async function loginOwner(formData: FormData) {
     const email = formData.get('email') as string
     const password = formData.get('password') as string
@@ -331,9 +333,9 @@ export async function registerStudent(formData: FormData) {
 
     try {
         // Start transaction to handle student creation and referral
-        await prisma.$transaction(async (tx) => {
+        const newStudent = await prisma.$transaction(async (tx) => {
             // 1. Create Student
-            const newStudent = await tx.student.create({
+            const student = await tx.student.create({
                 data: {
                     name,
                     email,
@@ -354,21 +356,25 @@ export async function registerStudent(formData: FormData) {
                         data: {
                             libraryId: referrer.libraryId,
                             referrerId: referrer.id,
-                            refereeId: newStudent.id,
+                            refereeId: student.id,
                             status: 'pending'
                         }
                     })
                     
-                    // Associate student with library if not already (optional, but good for context)
-                    // But student might want to choose library later. 
-                    // However, if they used a referral, they are likely joining that library context.
-                    // Let's update the student's libraryId to match referrer's library.
+                    // Associate student with library if not already
                     await tx.student.update({
-                        where: { id: newStudent.id },
+                        where: { id: student.id },
                         data: { libraryId: referrer.libraryId }
                     })
                 }
             }
+            return student
+        })
+
+        // Send Welcome Email
+        await sendWelcomeEmail({
+            studentName: newStudent.name,
+            studentEmail: newStudent.email
         })
 
         return { success: true }
