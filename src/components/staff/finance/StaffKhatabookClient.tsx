@@ -187,7 +187,7 @@ export function StaffKhatabookClient() {
                     <div className="grid grid-cols-2 divide-x divide-gray-100 dark:divide-gray-700">
                         <div className="p-4 flex items-center justify-between bg-green-50/50 dark:bg-green-900/10">
                             <div>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">Total Cash Collected</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Total You Got</p>
                                 <p className="text-xl font-bold text-green-600 dark:text-green-400">
                                     {formatCurrency(summary.totalCollected)}
                                 </p>
@@ -197,7 +197,7 @@ export function StaffKhatabookClient() {
                         <div className="px-4 pt-4 pb-2 flex flex-col justify-between bg-red-50/50 dark:bg-red-900/10">
                             <div className="flex items-center justify-between w-full">
                                 <div>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">Verified Handed Over</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">Total You Gave</p>
                                     <p className="text-xl font-bold text-red-600 dark:text-red-400">
                                         {formatCurrency(summary.totalHandedOver)}
                                     </p>
