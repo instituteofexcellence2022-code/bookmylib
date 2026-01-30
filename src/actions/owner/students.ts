@@ -424,8 +424,14 @@ export async function getStudentDetails(studentId: string) {
                     where: { libraryId: owner.libraryId },
                     orderBy: { date: 'desc' },
                     include: { 
-                        subscription: { include: { plan: true } },
-                        additionalFee: true 
+                        subscription: { 
+                            include: { 
+                                plan: true,
+                                seat: true
+                            } 
+                        },
+                        additionalFee: true,
+                        branch: { select: { name: true, address: true, city: true } }
                     }
                 },
                 supportTickets: {

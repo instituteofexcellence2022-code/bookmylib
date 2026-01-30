@@ -37,8 +37,8 @@ export const WelcomeEmail = ({
       <Head />
       <Preview>{previewText}</Preview>
       <Tailwind>
-        <Body className="bg-gray-100 my-auto mx-auto font-sans">
-          <Container className="bg-white border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[465px] shadow-sm">
+        <Body className="bg-gray-100 my-auto mx-auto font-sans px-2">
+          <Container className="bg-white border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[465px] w-full shadow-sm">
             {/* Header */}
             <Section className="text-center mt-[20px] mb-[20px]">
               <Heading className="text-black text-[24px] font-bold p-0 my-0 mx-0 tracking-tight">

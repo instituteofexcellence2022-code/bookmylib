@@ -632,10 +632,10 @@ export function StaffAcceptPaymentForm() {
                                                     </div>
                                                 )}
                                             </div>
-                                            <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">₹{plan.price}</span>
-                                        </div>
-                                        
-                                        <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{plan.description}</p>
+                                            <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">₹{plan.price.toFixed(2)}</span>
+                                                </div>
+                                                
+                                                <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{plan.description}</p>
                                         
                                         <div className="flex items-center gap-2 mb-2 text-[11px] text-gray-600 dark:text-gray-300">
                                             <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
@@ -893,7 +893,7 @@ export function StaffAcceptPaymentForm() {
                             {feesTotal > 0 && (
                                 <div className="flex justify-between text-sm">
                                     <span className="text-gray-500">Additional Fees ({selectedFees.length})</span>
-                                    <span className="font-medium text-gray-900 dark:text-white">+ ₹{feesTotal}</span>
+                                    <span className="font-medium text-gray-900 dark:text-white">+ ₹{feesTotal.toFixed(2)}</span>
                                 </div>
                             )}
                             {selectedSeat && (
@@ -906,21 +906,21 @@ export function StaffAcceptPaymentForm() {
                             {appliedCoupon && (
                                 <div className="flex justify-between text-sm text-green-600 font-medium">
                                     <span>Coupon Discount ({appliedCoupon.code})</span>
-                                    <span>- ₹{appliedCoupon.discount}</span>
+                                    <span>- ₹{appliedCoupon.discount.toFixed(2)}</span>
                                 </div>
                             )}
 
                             {parseFloat(additionalDiscount) > 0 && (
                                 <div className="flex justify-between text-sm text-orange-600 font-medium">
                                     <span>Additional Discount</span>
-                                    <span>- ₹{parseFloat(additionalDiscount)}</span>
+                                    <span>- ₹{parseFloat(additionalDiscount).toFixed(2)}</span>
                                 </div>
                             )}
 
                             <div className="pt-3 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
                                 <span className="font-medium text-gray-900 dark:text-white">Total Amount</span>
                                 <span className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                                    ₹{Math.max(0, (appliedCoupon ? appliedCoupon.finalAmount : subTotal) - (parseFloat(additionalDiscount) || 0))}
+                                    ₹{Math.max(0, (appliedCoupon ? appliedCoupon.finalAmount : subTotal) - (parseFloat(additionalDiscount) || 0)).toFixed(2)}
                                 </span>
                             </div>
                         </div>
@@ -1077,38 +1077,38 @@ export function StaffAcceptPaymentForm() {
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
                                     <span className="text-gray-500">Plan Price</span>
-                                    <span>₹{selectedPlan.price}</span>
+                                    <span>₹{selectedPlan.price.toFixed(2)}</span>
                                 </div>
                                 
                                 {feesTotal > 0 && (
                                     <div className="flex justify-between">
                                         <span className="text-gray-500">Additional Fees</span>
-                                        <span>+ ₹{feesTotal}</span>
+                                        <span>+ ₹{feesTotal.toFixed(2)}</span>
                                     </div>
                                 )}
                                 
                                 <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex justify-between font-medium">
                                     <span>Subtotal</span>
-                                    <span>₹{subTotal}</span>
+                                    <span>₹{subTotal.toFixed(2)}</span>
                                 </div>
 
                                 {appliedCoupon && (
                                     <div className="flex justify-between text-green-600">
                                         <span>Coupon Discount ({appliedCoupon.code})</span>
-                                        <span>- ₹{appliedCoupon.discount}</span>
+                                        <span>- ₹{appliedCoupon.discount.toFixed(2)}</span>
                                     </div>
                                 )}
 
                                 {parseFloat(additionalDiscount) > 0 && (
                                     <div className="flex justify-between text-orange-600">
                                         <span>Additional Discount</span>
-                                        <span>- ₹{parseFloat(additionalDiscount)}</span>
+                                        <span>- ₹{parseFloat(additionalDiscount).toFixed(2)}</span>
                                     </div>
                                 )}
 
                                 <div className="pt-2 border-t border-gray-100 dark:border-gray-800 flex justify-between text-lg font-bold">
                                     <span>Total Payable</span>
-                                    <span className="text-blue-600">₹{Math.max(0, (appliedCoupon ? appliedCoupon.finalAmount : subTotal) - (parseFloat(additionalDiscount) || 0))}</span>
+                                    <span className="text-blue-600">₹{Math.max(0, (appliedCoupon ? appliedCoupon.finalAmount : subTotal) - (parseFloat(additionalDiscount) || 0)).toFixed(2)}</span>
                                 </div>
                             </div>
 
@@ -1119,12 +1119,12 @@ export function StaffAcceptPaymentForm() {
                                 </div>
                                 <div>
                                     <span className="block text-gray-500 mb-1">Amount Received</span>
-                                    <span className="font-medium text-green-600">₹{amount}</span>
+                                    <span className="font-medium text-green-600">₹{parseFloat(amount || '0').toFixed(2)}</span>
                                 </div>
                                 <div>
                                     <span className="block text-gray-500 mb-1">Due Amount</span>
                                     <span className="font-medium text-red-500">
-                                        ₹{Math.max(0, (Math.max(0, (appliedCoupon ? appliedCoupon.finalAmount : subTotal) - (parseFloat(additionalDiscount) || 0))) - (parseFloat(amount) || 0))}
+                                        ₹{Math.max(0, (Math.max(0, (appliedCoupon ? appliedCoupon.finalAmount : subTotal) - (parseFloat(additionalDiscount) || 0))) - (parseFloat(amount) || 0)).toFixed(2)}
                                     </span>
                                 </div>
                                 {remarks && (

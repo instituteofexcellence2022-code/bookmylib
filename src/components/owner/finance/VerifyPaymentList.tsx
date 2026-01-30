@@ -119,7 +119,7 @@ export function VerifyPaymentList() {
                                 </div>
                                 <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2">
                                     <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                                        ₹{payment.amount}
+                                        ₹{payment.amount.toFixed(2)}
                                     </p>
                                     <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
                                         Pending

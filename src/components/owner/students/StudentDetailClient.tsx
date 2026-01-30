@@ -20,7 +20,9 @@ import {
     MessageSquare,
     ExternalLink,
     StickyNote,
-    ArrowLeft
+    ArrowLeft,
+    Download,
+    CheckCircle
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
@@ -32,6 +34,9 @@ import { StudentNotesClient } from './StudentNotesClient'
 import { deleteStudent, toggleBlockStudent } from '@/actions/owner/students'
 import { toast } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
+import { sendReceiptEmail } from '@/actions/email'
+import { generateReceiptPDF, ReceiptData } from '@/lib/pdf-generator'
+import { verifyPayment } from '@/actions/payment'
 
 interface Subscription {
   id: string
@@ -67,10 +72,24 @@ interface Payment {
   invoiceNo?: string | null
   description?: string | null
   subscription?: {
-    plan: { name: string }
+    plan: { 
+        name: string
+        duration?: number | null
+        durationUnit?: string | null
+        hoursPerDay?: number | null
+    }
+    seat?: { number: string } | null
+    startDate?: string | Date
+    endDate?: string | Date
   } | null
   additionalFee?: {
     name: string
+  } | null
+  discountAmount?: number | null
+  branch?: {
+      name: string
+      address?: string | null
+      city?: string | null
   } | null
 }
 
@@ -170,6 +189,103 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
         }
     }
 
+    const handleSendReceipt = async (payment: Payment) => {
+        if (!payment.branch) {
+            toast.error('Branch details missing for receipt')
+            return
+        }
+        
+        const toastId = toast.loading('Sending receipt...')
+        
+        try {
+            const receiptData: ReceiptData = {
+                invoiceNo: payment.invoiceNo || payment.id.slice(0, 8).toUpperCase(),
+                date: new Date(payment.date),
+                studentName: student.name,
+                studentEmail: student.email,
+                studentPhone: student.phone,
+                branchName: payment.branch.name,
+                branchAddress: payment.branch.address ? `${payment.branch.address}, ${payment.branch.city || ''}` : undefined,
+                planName: payment.subscription?.plan?.name || payment.additionalFee?.name || 'Payment',
+                planDuration: payment.subscription?.plan?.duration ? `${payment.subscription.plan.duration} ${payment.subscription.plan.durationUnit}` : undefined,
+                planHours: payment.subscription?.plan?.hoursPerDay ? `${payment.subscription.plan.hoursPerDay} Hrs/Day` : undefined,
+                seatNumber: payment.subscription?.seat?.number,
+                startDate: payment.subscription?.startDate ? new Date(payment.subscription.startDate) : undefined,
+                endDate: payment.subscription?.endDate ? new Date(payment.subscription.endDate) : undefined,
+                amount: payment.amount,
+                paymentMethod: payment.method,
+                subTotal: payment.amount,
+                discount: payment.discountAmount || 0,
+                items: [{
+                    description: payment.subscription?.plan?.name || payment.additionalFee?.name || payment.description || 'Payment',
+                    amount: payment.amount
+                }]
+            }
+            
+            const result = await sendReceiptEmail(receiptData)
+            if (result.success) {
+                toast.success('Receipt sent successfully', { id: toastId })
+            } else {
+                toast.error(result.error || 'Failed to send receipt', { id: toastId })
+            }
+        } catch (error) {
+            console.error(error)
+            toast.error('An unexpected error occurred', { id: toastId })
+        }
+    }
+
+    const handleDownloadReceipt = (payment: Payment) => {
+        if (!payment.branch) {
+             toast.error('Branch details missing for receipt')
+             return
+        }
+
+        const receiptData: ReceiptData = {
+                invoiceNo: payment.invoiceNo || payment.id.slice(0, 8).toUpperCase(),
+                date: new Date(payment.date),
+                studentName: student.name,
+                studentEmail: student.email,
+                studentPhone: student.phone,
+                branchName: payment.branch.name,
+                branchAddress: payment.branch.address ? `${payment.branch.address}, ${payment.branch.city || ''}` : undefined,
+                planName: payment.subscription?.plan?.name || payment.additionalFee?.name || 'Payment',
+                planDuration: payment.subscription?.plan?.duration ? `${payment.subscription.plan.duration} ${payment.subscription.plan.durationUnit}` : undefined,
+                planHours: payment.subscription?.plan?.hoursPerDay ? `${payment.subscription.plan.hoursPerDay} Hrs/Day` : undefined,
+                seatNumber: payment.subscription?.seat?.number,
+                startDate: payment.subscription?.startDate ? new Date(payment.subscription.startDate) : undefined,
+                endDate: payment.subscription?.endDate ? new Date(payment.subscription.endDate) : undefined,
+                amount: payment.amount,
+                paymentMethod: payment.method,
+                subTotal: payment.amount,
+                discount: payment.discountAmount || 0, 
+                items: [{
+                    description: payment.subscription?.plan?.name || payment.additionalFee?.name || payment.description || 'Payment',
+                    amount: payment.amount
+                }]
+        }
+        
+        generateReceiptPDF(receiptData, 'download')
+        toast.success('Receipt downloaded')
+    }
+
+    const handleAcceptPayment = async (paymentId: string) => {
+        if (!confirm('Are you sure you want to accept this payment?')) return
+
+        const toastId = toast.loading('Verifying payment...')
+        try {
+            const result = await verifyPayment(paymentId, 'completed')
+            if (result.success) {
+                toast.success('Payment verified successfully', { id: toastId })
+                router.refresh()
+            } else {
+                toast.error(result.error || 'Verification failed', { id: toastId })
+            }
+        } catch (error) {
+            console.error(error)
+            toast.error('An unexpected error occurred', { id: toastId })
+        }
+    }
+
     return (
         <div className="space-y-6">
             <Link 
@@ -232,7 +348,7 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                     <div className="flex-1 flex items-center justify-around gap-2 lg:gap-6 border-t lg:border-t-0 lg:border-l border-gray-100 dark:border-gray-700 pt-3 lg:pt-0 pl-0 lg:pl-6 overflow-x-auto">
                         <div className="text-center">
                             <div className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">Spent</div>
-                            <div className="font-bold text-gray-900 dark:text-white text-lg">₹{stats.totalSpent.toLocaleString()}</div>
+                            <div className="font-bold text-gray-900 dark:text-white text-lg">₹{stats.totalSpent.toFixed(2)}</div>
                         </div>
                         <div className="w-px h-8 bg-gray-100 dark:bg-gray-700 hidden lg:block"></div>
                         <div className="text-center">
@@ -522,7 +638,7 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                                                     <td className="p-4 text-gray-500">{sub.branch.name}</td>
                                                     <td className="p-4 text-gray-500">{format(new Date(sub.startDate), 'PP')}</td>
                                                     <td className="p-4 text-gray-500">{format(new Date(sub.endDate), 'PP')}</td>
-                                                    <td className="p-4 text-gray-900 dark:text-white font-medium">₹{sub.finalAmount || sub.amountPaid}</td>
+                                                    <td className="p-4 text-gray-900 dark:text-white font-medium">₹{(sub.finalAmount || sub.amountPaid || 0).toFixed(2)}</td>
                                                     <td className="p-4">
                                                         <span className={`capitalize px-2 py-0.5 rounded text-xs font-medium ${
                                                             sub.status === 'active' ? 'bg-green-100 text-green-700' : 
@@ -557,12 +673,13 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                                             <th className="p-4 font-medium">Transaction ID</th>
                                             <th className="p-4 font-medium text-right">Amount</th>
                                             <th className="p-4 font-medium text-center">Status</th>
+                                            <th className="p-4 font-medium text-right">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                                         {student.payments.length === 0 ? (
                                             <tr>
-                                                <td colSpan={6} className="p-8 text-center text-gray-500">No payments found</td>
+                                                <td colSpan={7} className="p-8 text-center text-gray-500">No payments found</td>
                                             </tr>
                                         ) : (
                                             student.payments.map((pay) => (
@@ -577,7 +694,7 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                                                     </td>
                                                     <td className="p-4 text-gray-500 capitalize">{pay.method.replace('_', ' ')}</td>
                                                     <td className="p-4 text-gray-500 font-mono text-xs">{pay.transactionId || '-'}</td>
-                                                    <td className="p-4 text-right font-medium text-gray-900 dark:text-white">₹{pay.amount}</td>
+                                                    <td className="p-4 text-right font-medium text-gray-900 dark:text-white">₹{pay.amount.toFixed(2)}</td>
                                                     <td className="p-4 text-center">
                                                         <span className={`capitalize px-2 py-0.5 rounded text-xs font-medium ${
                                                             pay.status === 'completed' ? 'bg-green-100 text-green-700' : 
@@ -586,6 +703,37 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                                                         }`}>
                                                             {pay.status}
                                                         </span>
+                                                    </td>
+                                                    <td className="p-4 text-right">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            {pay.status !== 'completed' && (
+                                                                <button 
+                                                                    onClick={() => handleAcceptPayment(pay.id)}
+                                                                    className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
+                                                                    title="Accept Payment"
+                                                                >
+                                                                    <CheckCircle size={16} />
+                                                                </button>
+                                                            )}
+                                                            {pay.status === 'completed' && (
+                                                                <>
+                                                                    <button 
+                                                                        onClick={() => handleSendReceipt(pay)}
+                                                                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                                        title="Send Receipt Email"
+                                                                    >
+                                                                        <Mail size={16} />
+                                                                    </button>
+                                                                    <button 
+                                                                        onClick={() => handleDownloadReceipt(pay)}
+                                                                        className="p-1.5 text-gray-600 hover:bg-gray-50 rounded transition-colors"
+                                                                        title="Download Receipt"
+                                                                    >
+                                                                        <Download size={16} />
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))
