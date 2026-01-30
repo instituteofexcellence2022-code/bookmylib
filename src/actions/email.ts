@@ -1,6 +1,6 @@
 'use server'
 
-import { resend, EMAIL_SENDER } from '@/lib/mail'
+import { resend, transporter, useResend, EMAIL_SENDER } from '@/lib/mail'
 import ReceiptEmail from '@/emails/ReceiptEmail'
 import WelcomeEmail from '@/emails/WelcomeEmail'
 import SubscriptionExpiryEmail from '@/emails/SubscriptionExpiryEmail'
@@ -8,11 +8,52 @@ import TicketUpdateEmail from '@/emails/TicketUpdateEmail'
 import { ReactElement } from 'react'
 import { generateReceiptPDF, ReceiptData } from '@/lib/pdf-generator'
 import { format } from 'date-fns'
+import { render } from '@react-email/render'
+
+// Helper function to send email via Resend or Nodemailer
+async function sendEmail({
+  to,
+  subject,
+  react,
+  attachments
+}: {
+  to: string
+  subject: string
+  react: ReactElement
+  attachments?: { filename: string; content: Buffer }[]
+}) {
+  if (useResend) {
+    return resend.emails.send({
+      from: EMAIL_SENDER,
+      to,
+      subject,
+      react,
+      attachments
+    })
+  } else {
+    // Render React component to HTML
+    const html = await render(react)
+    
+    // Send via Nodemailer
+    const info = await transporter.sendMail({
+      from: EMAIL_SENDER,
+      to,
+      subject,
+      html,
+      attachments: attachments?.map(att => ({
+        filename: att.filename,
+        content: att.content
+      }))
+    })
+
+    return { data: info, error: null }
+  }
+}
 
 export async function sendReceiptEmail(data: ReceiptData) {
   try {
-    if (!process.env.RESEND_API_KEY) {
-      console.warn('RESEND_API_KEY is not set. Email sending skipped.')
+    if (!process.env.RESEND_API_KEY && !process.env.SMTP_USER) {
+      console.warn('Neither RESEND_API_KEY nor SMTP_USER is set. Email sending skipped.')
       return { success: false, error: 'Email service not configured' }
     }
 
@@ -43,8 +84,7 @@ export async function sendReceiptEmail(data: ReceiptData) {
       paymentMethod: data.paymentMethod
     }
 
-    const { data: emailData, error } = await resend.emails.send({
-      from: EMAIL_SENDER,
+    const { data: emailData, error } = await sendEmail({
       to: data.studentEmail,
       subject: `Payment Receipt - ${data.invoiceNo}`,
       react: ReceiptEmail(emailProps) as ReactElement,
@@ -58,7 +98,7 @@ export async function sendReceiptEmail(data: ReceiptData) {
 
     if (error) {
       console.error('Failed to send receipt email:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: error.message || 'Unknown error' }
     }
 
     return { success: true, data: emailData }
@@ -73,15 +113,14 @@ export async function sendWelcomeEmail(data: {
   studentEmail: string
 }) {
   try {
-    if (!process.env.RESEND_API_KEY) {
-      console.warn('RESEND_API_KEY is not set. Email sending skipped.')
+    if (!process.env.RESEND_API_KEY && !process.env.SMTP_USER) {
+      console.warn('Email service not configured.')
       return { success: false, error: 'Email service not configured' }
     }
 
     const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/student/login`
 
-    const { data: emailData, error } = await resend.emails.send({
-      from: EMAIL_SENDER,
+    const { data: emailData, error } = await sendEmail({
       to: data.studentEmail,
       subject: 'Welcome to Library App',
       react: WelcomeEmail({ studentName: data.studentName, loginUrl }) as ReactElement
@@ -89,7 +128,7 @@ export async function sendWelcomeEmail(data: {
 
     if (error) {
       console.error('Failed to send welcome email:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: error.message || 'Unknown error' }
     }
 
     return { success: true, data: emailData }
@@ -108,13 +147,12 @@ export async function sendSubscriptionExpiryEmail(data: {
   branchName: string
 }) {
   try {
-    if (!process.env.RESEND_API_KEY) {
-      console.warn('RESEND_API_KEY is not set. Email sending skipped.')
+    if (!process.env.RESEND_API_KEY && !process.env.SMTP_USER) {
+      console.warn('Email service not configured.')
       return { success: false, error: 'Email service not configured' }
     }
 
-    const { data: emailData, error } = await resend.emails.send({
-      from: EMAIL_SENDER,
+    const { data: emailData, error } = await sendEmail({
       to: data.studentEmail,
       subject: `Action Required: Subscription Expiring in ${data.daysLeft} Days`,
       react: SubscriptionExpiryEmail({
@@ -129,7 +167,7 @@ export async function sendSubscriptionExpiryEmail(data: {
 
     if (error) {
       console.error('Failed to send expiry email:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: error.message || 'Unknown error' }
     }
 
     return { success: true, data: emailData }
@@ -150,13 +188,12 @@ export async function sendTicketUpdateEmail(data: {
   comment?: string
 }) {
   try {
-    if (!process.env.RESEND_API_KEY) {
-      console.warn('RESEND_API_KEY is not set. Email sending skipped.')
+    if (!process.env.RESEND_API_KEY && !process.env.SMTP_USER) {
+      console.warn('Email service not configured.')
       return { success: false, error: 'Email service not configured' }
     }
 
-    const { data: emailData, error } = await resend.emails.send({
-      from: EMAIL_SENDER,
+    const { data: emailData, error } = await sendEmail({
       to: data.studentEmail,
       subject: `Update on Ticket #${data.ticketId.slice(0, 8).toUpperCase()} - ${data.ticketSubject}`,
       react: TicketUpdateEmail({
@@ -173,7 +210,7 @@ export async function sendTicketUpdateEmail(data: {
 
     if (error) {
       console.error('Failed to send ticket update email:', error)
-      return { success: false, error: error.message }
+      return { success: false, error: error.message || 'Unknown error' }
     }
 
     return { success: true, data: emailData }
