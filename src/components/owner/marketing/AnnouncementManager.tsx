@@ -5,7 +5,7 @@ import { FormInput } from '@/components/ui/FormInput'
 import { FormSelect } from '@/components/ui/FormSelect'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { CompactCard } from '@/components/ui/AnimatedCard'
-import { Megaphone, Trash2, X, Calendar, Info, CheckCircle, Edit2, Search, Clock, Tag, Newspaper, AlertTriangle, AlertOctagon } from 'lucide-react'
+import { Megaphone, Trash2, X, Calendar, CheckCircle, Edit2, Search, Clock } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { getOwnerAnnouncements, createAnnouncement, deleteAnnouncement, toggleAnnouncementStatus, updateAnnouncement } from '@/actions/announcement'
 import { getOwnerBranches } from '@/actions/branch'
@@ -15,7 +15,6 @@ interface AnnouncementData {
   id: string
   title: string
   content: string
-  type: string
   target: string
   branchId: string | null
   isActive: boolean
@@ -39,7 +38,6 @@ export function AnnouncementManager() {
   const [editingId, setEditingId] = useState<string | null>(null)
 
   // Filters & Search
-  const [filterType, setFilterType] = useState('all')
   const [filterTarget, setFilterTarget] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('newest') // newest, oldest, expiring
@@ -47,7 +45,6 @@ export function AnnouncementManager() {
   // Form State
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [type, setType] = useState('info')
   const [target, setTarget] = useState('all')
   const [branchId, setBranchId] = useState('all')
   const [expiresAt, setExpiresAt] = useState('')
@@ -75,7 +72,6 @@ export function AnnouncementManager() {
     setEditingId(announcement.id)
     setTitle(announcement.title)
     setContent(announcement.content)
-    setType(announcement.type)
     setTarget(announcement.target)
     setBranchId(announcement.branchId || 'all')
     setExpiresAt(announcement.expiresAt ? new Date(announcement.expiresAt).toISOString().split('T')[0] : '')
@@ -95,7 +91,6 @@ export function AnnouncementManager() {
       const payload = {
         title,
         content,
-        type,
         target,
         branchId,
         expiresAt: expiresAt ? new Date(expiresAt) : null
@@ -127,7 +122,6 @@ export function AnnouncementManager() {
   const resetForm = () => {
     setTitle('')
     setContent('')
-    setType('info')
     setTarget('all')
     setBranchId('all')
     setExpiresAt('')
@@ -165,7 +159,6 @@ export function AnnouncementManager() {
 
   const filteredAnnouncements = announcements
     .filter(a => {
-      if (filterType !== 'all' && a.type !== filterType) return false
       if (filterTarget !== 'all' && a.target !== filterTarget) return false
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase()
@@ -188,17 +181,6 @@ export function AnnouncementManager() {
       }
       return 0
     })
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'warning': return <AlertTriangle className="w-5 h-5 text-amber-500" />
-      case 'alert': return <AlertOctagon className="w-5 h-5 text-red-500" />
-      case 'offers': return <Tag className="w-5 h-5 text-purple-500" />
-      case 'news': return <Newspaper className="w-5 h-5 text-indigo-500" />
-      case 'success': return <CheckCircle className="w-5 h-5 text-green-500" />
-      default: return <Info className="w-5 h-5 text-blue-500" />
-    }
-  }
 
   const getTargetLabel = (target: string) => {
     switch (target) {
@@ -232,20 +214,6 @@ export function AnnouncementManager() {
             </div>
             
             <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all w-full sm:w-auto"
-              >
-                <option value="all">All Types</option>
-                <option value="info">Info</option>
-                <option value="warning">Warning</option>
-                <option value="alert">Alert</option>
-                <option value="offers">Offers</option>
-                <option value="news">News</option>
-                <option value="success">Success</option>
-              </select>
-
               <select
                 value={filterTarget}
                 onChange={(e) => setFilterTarget(e.target.value)}
@@ -289,27 +257,13 @@ export function AnnouncementManager() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <h3 className="text-lg font-medium mb-4">{editingId ? 'Edit Announcement' : 'New Announcement'}</h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <FormInput
                 label="Title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Library closed on Sunday"
                 required
-              />
-              
-              <FormSelect
-                label="Type"
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-                options={[
-                  { label: 'Information', value: 'info' },
-                  { label: 'Warning', value: 'warning' },
-                  { label: 'Alert', value: 'alert' },
-                  { label: 'Offers', value: 'offers' },
-                  { label: 'News', value: 'news' },
-                  { label: 'Success', value: 'success' }
-                ]}
               />
             </div>
 
@@ -385,7 +339,7 @@ export function AnnouncementManager() {
             <CompactCard key={announcement.id} className={`p-5 ${!announcement.isActive ? 'opacity-60' : ''}`}>
               <div className="flex justify-between items-start mb-2">
                 <div className="flex items-center gap-2">
-                  {getTypeIcon(announcement.type)}
+                  <Megaphone className="w-5 h-5 text-blue-500" />
                   <h3 className="font-medium text-gray-900 dark:text-white">
                     {announcement.title}
                   </h3>

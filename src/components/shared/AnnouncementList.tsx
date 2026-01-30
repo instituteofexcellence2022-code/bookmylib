@@ -9,7 +9,6 @@ interface Announcement {
   id: string
   title: string
   content: string
-  type: string
   createdAt: Date
   expiresAt: Date | null
 }
@@ -24,28 +23,6 @@ export function AnnouncementList({ announcements, title = "Announcements" }: Ann
 
   if (!announcements || announcements.length === 0) return null
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'warning': return <AlertTriangle className="w-5 h-5 text-amber-500" />
-      case 'alert': return <AlertOctagon className="w-5 h-5 text-red-500" />
-      case 'offers': return <Tag className="w-5 h-5 text-purple-500" />
-      case 'news': return <Newspaper className="w-5 h-5 text-indigo-500" />
-      case 'success': return <CheckCircle className="w-5 h-5 text-green-500" />
-      default: return <Info className="w-5 h-5 text-blue-500" />
-    }
-  }
-
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'warning': return 'bg-amber-50 dark:bg-amber-900/10 border-amber-100 dark:border-amber-900/30'
-      case 'alert': return 'bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30'
-      case 'offers': return 'bg-purple-50 dark:bg-purple-900/10 border-purple-100 dark:border-purple-900/30'
-      case 'news': return 'bg-indigo-50 dark:bg-indigo-900/10 border-indigo-100 dark:border-indigo-900/30'
-      case 'success': return 'bg-green-50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30'
-      default: return 'bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30'
-    }
-  }
-
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -58,12 +35,12 @@ export function AnnouncementList({ announcements, title = "Announcements" }: Ann
         {announcements.map((announcement) => (
           <div
             key={announcement.id}
-            className={`p-4 rounded-xl border ${getTypeColor(announcement.type)} transition-all duration-200 cursor-pointer hover:shadow-sm`}
+            className={`p-4 rounded-xl border bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-900/30 transition-all duration-200 cursor-pointer hover:shadow-sm`}
             onClick={() => setExpandedId(expandedId === announcement.id ? null : announcement.id)}
           >
             <div className="flex gap-3">
               <div className="mt-0.5 shrink-0">
-                {getTypeIcon(announcement.type)}
+                <Info className="w-5 h-5 text-blue-500" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start gap-2">

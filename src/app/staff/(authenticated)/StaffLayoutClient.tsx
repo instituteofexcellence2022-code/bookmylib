@@ -11,22 +11,31 @@ import {
   CalendarCheck,
   AlertTriangle, 
   UserCircle,
-  Settings
+  Settings,
+  NotebookTabs
 } from 'lucide-react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { TopBar } from '@/components/layout/TopBar'
 import { BottomNav } from '@/components/layout/BottomNav'
 
 const navItems = [
-  { href: '/staff/dashboard', label: 'Dashboard', icon: LayoutGrid },
-  { href: '/staff/shift', label: 'My Shift', icon: Clock },
-  { href: '/staff/leads', label: 'Leads', icon: Users },
-  { href: '/staff/students', label: 'Students', icon: GraduationCap },
-  { href: '/staff/seats', label: 'Seats', icon: Armchair },
-  { href: '/staff/finance', label: 'Finance', icon: IndianRupee },
-  { href: '/staff/attendance', label: 'Attendance', icon: CalendarCheck },
-  { href: '/staff/issues', label: 'Issues', icon: AlertTriangle },
-  { href: '/staff/profile', label: 'Profile', icon: UserCircle },
+  // Main
+  { href: '/staff/dashboard', label: 'Dashboard', icon: LayoutGrid, group: 'Main' },
+
+  // Operations
+  { href: '/staff/leads', label: 'Leads', icon: Users, group: 'Operations' },
+  { href: '/staff/students', label: 'Students', icon: GraduationCap, group: 'Operations' },
+  { href: '/staff/attendance', label: 'Attendance', icon: CalendarCheck, group: 'Operations' },
+  { href: '/staff/issues', label: 'Issues', icon: AlertTriangle, group: 'Operations' },
+
+  // Finance
+  { href: '/staff/finance', label: 'Finance', icon: IndianRupee, group: 'Finance' },
+  { href: '/staff/khatabook', label: 'Khatabook', icon: NotebookTabs, group: 'Finance' },
+
+  // Others
+  { href: '/staff/seats', label: 'Seats', icon: Armchair, group: 'Others' },
+  { href: '/staff/shift', label: 'My Shift', icon: Clock, group: 'Others' },
+  { href: '/staff/profile', label: 'Profile', icon: UserCircle, group: 'Others' },
 ]
 
 export default function StaffLayoutClient({ children, user, announcements }: { 

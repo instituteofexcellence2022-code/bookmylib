@@ -557,3 +557,54 @@ export async function verifyPayment(paymentId: string, action: 'approve' | 'reje
     revalidatePath('/owner/verification')
     return { success: true }
 }
+
+export async function getPendingHandovers() {
+    const owner = await getOwner()
+    if (!owner) throw new Error('Unauthorized')
+
+    const handovers = await prisma.cashHandover.findMany({
+        where: {
+            libraryId: owner.libraryId,
+            status: 'pending'
+        },
+        include: {
+            staff: {
+                select: {
+                    name: true,
+                    email: true,
+                    image: true
+                }
+            },
+            branch: {
+                select: {
+                    name: true
+                }
+            }
+        },
+        orderBy: {
+            createdAt: 'desc'
+        }
+    })
+
+    return handovers
+}
+
+export async function verifyHandover(handoverId: string, status: 'verified' | 'rejected') {
+    const owner = await getOwner()
+    if (!owner) throw new Error('Unauthorized')
+
+    const handover = await prisma.cashHandover.update({
+        where: {
+            id: handoverId,
+            libraryId: owner.libraryId
+        },
+        data: {
+            status,
+            verifiedBy: owner.id,
+            verifiedAt: new Date()
+        }
+    })
+
+    revalidatePath('/owner/finance')
+    return handover
+}

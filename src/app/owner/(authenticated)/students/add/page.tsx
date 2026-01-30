@@ -59,6 +59,9 @@ export default function AddStudentPage() {
             try {
                 const branches = await getOwnerBranches()
                 setBranchOptions(branches.map(b => ({ label: b.name, value: b.id })))
+                if (branches.length === 1) {
+                    setFormData(prev => ({ ...prev, branchId: branches[0].id }))
+                }
             } catch (error) {
                 console.error('Failed to load branches')
             }

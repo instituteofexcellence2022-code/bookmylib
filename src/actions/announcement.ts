@@ -112,7 +112,6 @@ export async function getStaffAnnouncements(
 export async function createAnnouncement(data: {
   title: string
   content: string
-  type: string
   target: string
   branchId?: string | null
   expiresAt?: Date | null
@@ -125,7 +124,6 @@ export async function createAnnouncement(data: {
       data: {
         title: data.title,
         content: data.content,
-        type: data.type,
         target: data.target,
         branchId: data.branchId === 'all' ? null : data.branchId,
         expiresAt: data.expiresAt,
@@ -146,7 +144,6 @@ export async function createAnnouncement(data: {
 export async function updateAnnouncement(id: string, data: {
   title: string
   content: string
-  type: string
   target: string
   branchId?: string | null
   expiresAt?: Date | null
@@ -160,7 +157,6 @@ export async function updateAnnouncement(id: string, data: {
       data: {
         title: data.title,
         content: data.content,
-        type: data.type,
         target: data.target,
         branchId: data.branchId === 'all' ? null : data.branchId,
         expiresAt: data.expiresAt

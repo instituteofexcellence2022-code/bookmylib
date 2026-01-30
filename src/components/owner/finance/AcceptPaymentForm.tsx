@@ -163,6 +163,10 @@ export function AcceptPaymentForm() {
             try {
                 const res = await getOwnerBranches()
                 setBranches(res)
+                if (res.length === 1) {
+                    setSelectedBranch(res[0])
+                    setStep('student')
+                }
             } catch {
                 toast.error('Failed to load branches')
             }

@@ -100,6 +100,9 @@ export default function AddStaffPage() {
     const fetchBranches = async () => {
       const branchData = await getOwnerBranches()
       setBranches(branchData.map((b: { name: string, id: string }) => ({ label: b.name, value: b.id })))
+      if (branchData.length === 1) {
+        setFormData(prev => ({ ...prev, branchId: branchData[0].id }))
+      }
     }
     fetchBranches()
   }, [])

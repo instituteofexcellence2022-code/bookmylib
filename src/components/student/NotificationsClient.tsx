@@ -1,19 +1,13 @@
 'use client'
 
 import React, { useState } from 'react'
-import { format, isPast, differenceInDays } from 'date-fns'
+import { format, differenceInDays } from 'date-fns'
 import { 
   Megaphone, 
-  Calendar, 
   Info, 
-  CheckCircle, 
   AlertTriangle, 
-  AlertOctagon, 
-  Tag, 
-  Newspaper,
   Clock,
-  Search,
-  Filter
+  Search
 } from 'lucide-react'
 import { CompactCard } from '@/components/ui/AnimatedCard'
 
@@ -21,7 +15,7 @@ interface Announcement {
   id: string
   title: string
   content: string
-  type: string
+  priority: string
   target: string
   branchId: string | null
   isActive: boolean
@@ -35,44 +29,8 @@ interface NotificationsClientProps {
 
 export function NotificationsClient({ initialAnnouncements }: NotificationsClientProps) {
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterType, setFilterType] = useState('all')
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'warning': return <AlertTriangle className="w-5 h-5 text-amber-500" />
-      case 'alert': return <AlertOctagon className="w-5 h-5 text-red-500" />
-      case 'offers': return <Tag className="w-5 h-5 text-purple-500" />
-      case 'news': return <Newspaper className="w-5 h-5 text-indigo-500" />
-      case 'success': return <CheckCircle className="w-5 h-5 text-green-500" />
-      default: return <Info className="w-5 h-5 text-blue-500" />
-    }
-  }
-
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'warning': return 'Warning'
-      case 'alert': return 'Important'
-      case 'offers': return 'Offer'
-      case 'news': return 'News'
-      case 'success': return 'Success'
-      default: return 'Info'
-    }
-  }
-
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'warning': return 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border-amber-200 dark:border-amber-800'
-      case 'alert': return 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border-red-200 dark:border-red-800'
-      case 'offers': return 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400 border-purple-200 dark:border-purple-800'
-      case 'news': return 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800'
-      case 'success': return 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-green-200 dark:border-green-800'
-      default: return 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800'
-    }
-  }
 
   const filteredAnnouncements = initialAnnouncements.filter(announcement => {
-    if (filterType !== 'all' && announcement.type !== filterType) return false
-    
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase()
       return (
@@ -80,13 +38,24 @@ export function NotificationsClient({ initialAnnouncements }: NotificationsClien
         announcement.content.toLowerCase().includes(searchLower)
       )
     }
-    
     return true
   })
 
+  const getPriorityColor = (priority: string) => {
+    return priority === 'high' 
+      ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border-red-200 dark:border-red-800'
+      : 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800'
+  }
+
+  const getPriorityIcon = (priority: string) => {
+    return priority === 'high'
+      ? <AlertTriangle className="w-5 h-5 text-red-500" />
+      : <Info className="w-5 h-5 text-blue-500" />
+  }
+
   return (
     <div className="space-y-6">
-      {/* Search and Filter */}
+      {/* Search */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -98,22 +67,6 @@ export function NotificationsClient({ initialAnnouncements }: NotificationsClien
             className="w-full pl-9 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
           />
         </div>
-        <div className="relative min-w-[150px]">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all appearance-none"
-          >
-            <option value="all">All Types</option>
-            <option value="info">Information</option>
-            <option value="warning">Warning</option>
-            <option value="alert">Important</option>
-            <option value="offers">Offers</option>
-            <option value="news">News</option>
-            <option value="success">Success</option>
-          </select>
-        </div>
       </div>
 
       {/* Announcements List */}
@@ -123,8 +76,8 @@ export function NotificationsClient({ initialAnnouncements }: NotificationsClien
             <Megaphone className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-gray-600" />
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">No updates found</h3>
             <p className="text-gray-500 dark:text-gray-400">
-              {searchTerm || filterType !== 'all' 
-                ? "Try adjusting your search or filters" 
+              {searchTerm 
+                ? "Try adjusting your search" 
                 : "Check back later for new announcements"}
             </p>
           </div>
@@ -132,12 +85,12 @@ export function NotificationsClient({ initialAnnouncements }: NotificationsClien
           filteredAnnouncements.map((announcement) => (
             <CompactCard 
               key={announcement.id} 
-              className={`p-5 border-l-4 overflow-hidden ${getTypeColor(announcement.type).split(' ')[0].replace('bg-', 'border-l-')}`}
+              className={`p-5 border-l-4 overflow-hidden ${announcement.priority === 'high' ? 'border-l-red-500' : 'border-l-blue-500'}`}
             >
               <div className="flex flex-col gap-3">
                 <div className="flex justify-between items-start gap-4">
                   <div className="flex items-center gap-2">
-                    {getTypeIcon(announcement.type)}
+                    {getPriorityIcon(announcement.priority)}
                     <h3 className="font-semibold text-gray-900 dark:text-white">
                       {announcement.title}
                     </h3>
@@ -152,9 +105,11 @@ export function NotificationsClient({ initialAnnouncements }: NotificationsClien
                 </p>
 
                 <div className="flex flex-wrap items-center gap-3 mt-1">
-                  <span className={`text-xs px-2 py-1 rounded-full border ${getTypeColor(announcement.type)}`}>
-                    {getTypeLabel(announcement.type)}
-                  </span>
+                  {announcement.priority === 'high' && (
+                    <span className={`text-xs px-2 py-1 rounded-full border ${getPriorityColor(announcement.priority)}`}>
+                      Important
+                    </span>
+                  )}
 
                   {announcement.expiresAt && (
                     <span className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 border ${

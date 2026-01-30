@@ -86,10 +86,8 @@ export async function createTicket(formData: FormData) {
     }
 
     if (!branchId) {
-       console.warn('Student has no branch assigned, ticket will be library-level only:', studentId)
-       // Optional: We could block ticket creation if branch is mandatory, 
-       // but for now allowing library-level tickets seems safer unless strict tenancy is required.
-       // Given the user request "report to respective branch", we should try to ensure it.
+       console.error('Student has no branch assigned:', studentId)
+       return { success: false, error: 'Could not determine your branch. Please contact support.' }
     }
 
     const subject = formData.get('subject') as string

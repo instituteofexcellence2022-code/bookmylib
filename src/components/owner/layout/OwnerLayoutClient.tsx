@@ -14,7 +14,8 @@ import {
   Megaphone,
   CalendarCheck,
   User,
-  ShieldCheck
+  ShieldCheck,
+  BookOpen
 } from 'lucide-react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { TopBar } from '@/components/layout/TopBar'
@@ -34,6 +35,7 @@ const navItems = [
   { href: '/owner/promos', label: 'Promotions', icon: Tag, group: 'Business' },
   { href: '/owner/marketing', label: 'Marketing', icon: Megaphone, group: 'Business' },
   { href: '/owner/finance', label: 'Finance', icon: TrendingUp, group: 'Business' },
+  { href: '/owner/khatabook', label: 'Khatabook', icon: BookOpen, group: 'Business' },
   
   { href: '/owner/issues', label: 'Issues', icon: AlertCircle, group: 'System', badge: 3, badgeColor: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
   { href: '/owner/profile', label: 'My Profile', icon: User, group: 'System' },

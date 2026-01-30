@@ -23,7 +23,7 @@ model Library {
   address   String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
   
   // Relationships
   owners    Owner[]
@@ -51,6 +51,7 @@ model Library {
   referrals       Referral[]
   leads           Lead[]
   referralSettings Json?     // Configuration for referral program
+  cashHandovers   CashHandover[] // New relation
   
   @@map("libraries")
 }
@@ -123,6 +124,7 @@ model Branch {
   payments      Payment[]
   supportTickets SupportTicket[]
   leads          Lead[]
+  cashHandovers  CashHandover[] // New relation
   
   @@map("branches")
 }
@@ -160,6 +162,7 @@ model Staff {
   shifts     StaffShift[]
   supportTickets SupportTicket[]
   leadInteractions LeadInteraction[]
+  cashHandovers  CashHandover[] // New relation
   
   @@map("staff")
 }
@@ -537,6 +540,10 @@ model Payment {
   // Manual Payment Details
   proofUrl    String?
   
+  // Handover Link (For Khatabook)
+  handoverId  String?
+  handover    CashHandover? @relation(fields: [handoverId], references: [id])
+
   // Promotion Details
   promotionId    String?
   discountAmount Float?
@@ -600,58 +607,66 @@ model WalletTransaction {
   @@map("wallet_transactions")
 }
 
-// Promotion/Coupon
+// Promotion System
 model Promotion {
-  id        String   @id @default(uuid())
-  libraryId String
-  branchId  String?  // Optional: specific to branch
-  planId    String?  // Optional: specific to plan
-  code      String   @unique
+  id          String   @id @default(uuid())
+  libraryId   String
+  branchId    String?  // Null if global
+  code        String   @unique
   description String?
-  discountType String // 'percentage', 'fixed'
+  discountType String  // 'percentage', 'fixed'
   discountValue Float
   minOrderValue Float?
-  maxDiscount   Float?
-  startDate     DateTime
-  endDate       DateTime
-  isActive      Boolean  @default(true)
-  usageLimit    Int?     // Total global usage limit
-  perUserLimit  Int?     // Limit per student
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  maxDiscount   Float? // Cap for percentage discount
+  startDate   DateTime
+  endDate     DateTime
+  usageLimit  Int?     // Total max usages
+  perUserLimit Int?    // Max usages per student
+  usedCount   Int      @default(0)
+  isActive    Boolean  @default(true)
   
+  // Target Audience
+  planId      String?  // If specific to a plan
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   // Relationships
-  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
-  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  plan      Plan?    @relation(fields: [planId], references: [id], onDelete: Cascade)
-  payments  Payment[]
-  
+  library     Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  plan        Plan?    @relation(fields: [planId], references: [id])
+  payments    Payment[]
+
   @@map("promotions")
 }
 
-// Support Ticket
+// Support Ticket System
 model SupportTicket {
   id        String   @id @default(uuid())
   libraryId String
-  studentId String?
-  staffId   String?  // Created by staff
-  branchId  String?  // Associated branch
+  branchId  String
+  studentId String?  // Optional if ticket created by staff for student
+  staffId   String?  // Optional if ticket created by staff
+  
   subject   String
   description String
-  priority  String   // 'low', 'medium', 'high', 'urgent'
-  status    String   // 'open', 'in_progress', 'resolved', 'closed'
-  category  String   // 'payment', 'wifi', 'cleaning', 'other'
+  priority  String   @default("medium") // 'low', 'medium', 'high', 'critical'
+  status    String   @default("open")   // 'open', 'in_progress', 'resolved', 'closed'
+  category  String   // 'payment', 'wifi', 'seat', 'noise', 'cleanliness', 'other'
+  
+  assignedTo String? // Staff ID
   attachmentUrl String?
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
   // Relationships
   library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
-  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  student   Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  staff     Staff?   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  student   Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  staff     Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
   comments  TicketComment[]
-  
+
   @@map("support_tickets")
 }
 
@@ -661,72 +676,104 @@ model TicketComment {
   userId    String   // Student ID or Staff ID or Owner ID
   userType  String   // 'student', 'staff', 'owner'
   content   String
+  isInternal Boolean @default(false) // If true, only visible to staff/owner
+  
   createdAt DateTime @default(now())
   
   // Relationships
   ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   library   Library       @relation(fields: [libraryId], references: [id], onDelete: Cascade)
-  libraryId String // For multi-tenancy context
-  
+  libraryId String
+
   @@map("ticket_comments")
 }
 
-// Announcement
+// Announcement System
 model Announcement {
   id        String   @id @default(uuid())
   libraryId String
-  branchId  String?  // Optional: specific to branch
+  branchId  String?  // Null if global
   title     String
   content   String
-  type      String   // 'info', 'warning', 'success'
-  target    String   // 'all', 'students', 'active_students', 'staff'
-  expiresAt DateTime?
+  target    String   // 'all', 'students', 'staff', 'active_students'
+  priority  String   @default("normal") // 'normal', 'high'
+  
   isActive  Boolean  @default(true)
+  expiresAt DateTime?
+  
   createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
   
   // Relationships
   library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
-  
+
   @@map("announcements")
-  @@index([libraryId])
-  @@index([branchId])
 }
 
-// Student Goal (Gamification)
+// Student Goal Setting
 model StudentGoal {
   id        String   @id @default(uuid())
-  libraryId String
   studentId String
+  libraryId String
   title     String
-  targetHours Int    // Target study hours
+  description String?
   deadline  DateTime?
-  progress  Int      @default(0) // Current hours
-  status    String   // 'active', 'completed', 'failed'
+  status    String   @default("in_progress") // 'in_progress', 'completed', 'abandoned'
+  progress  Int      @default(0) // 0-100
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  // Relationships
-  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+
   student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  
+  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+
   @@map("student_goals")
 }
 
-// Focus Session (Pomodoro/Timer logs)
+// Focus Session Tracking
 model FocusSession {
   id        String   @id @default(uuid())
-  libraryId String
   studentId String
+  libraryId String
   startTime DateTime
   endTime   DateTime?
   duration  Int?     // in minutes
-  label     String?  // Subject/Task
-  rating    Int?     // 1-5 focus rating
+  label     String?  // 'study', 'reading', 'project'
+  notes     String?
+  
   createdAt DateTime @default(now())
-  
-  // Relationships
-  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+
   student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  
+  library   Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+
   @@map("focus_sessions")
+}
+
+// Cash Handover / Khatabook System
+model CashHandover {
+  id          String   @id @default(uuid())
+  libraryId   String
+  branchId    String
+  staffId     String
+  amount      Float
+  status      String   // 'pending', 'verified', 'rejected'
+  method      String   @default("CASH") // 'CASH', 'UPI', 'BANK_TRANSFER'
+  attachmentUrl String?
+  notes       String?
+  
+  verifiedBy  String?
+  verifiedAt  DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  library     Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  staff       Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  payments    Payment[]
+
+  @@map("cash_handovers")
+  @@index([staffId])
+  @@index([branchId])
 }

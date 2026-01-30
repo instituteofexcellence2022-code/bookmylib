@@ -7,7 +7,7 @@ import { ComponentErrorBoundary } from './ErrorBoundary'
  * Props for the AnimatedCard component
  * Note: 'animation' and 'delay' props are kept for backward compatibility but ignored.
  */
-interface AnimatedCardProps {
+interface AnimatedCardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode
   className?: string
   hoverEffect?: boolean
