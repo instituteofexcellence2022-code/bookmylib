@@ -15,6 +15,9 @@ interface CashSummary {
     cashInHand: number
     totalCollected: number
     totalHandedOver: number
+    currentMonthCollected: number
+    currentMonthHandedOver: number
+    carriedForward: number
     pendingHandoverAmount?: number
     recentHandovers: any[]
 }
@@ -153,11 +156,21 @@ export function StaffKhatabookClient() {
         }
     }
 
+    // Safe summary access
+    const safeSummary = summary ? {
+        ...summary,
+        currentMonthCollected: summary.currentMonthCollected ?? 0,
+        carriedForward: summary.carriedForward ?? 0,
+        currentMonthHandedOver: summary.currentMonthHandedOver ?? 0,
+        pendingHandoverAmount: summary.pendingHandoverAmount ?? 0,
+        cashInHand: summary.cashInHand ?? 0
+    } : null
+
     if (loading) {
         return <div className="p-12 text-center text-gray-500">Loading your Khatabook...</div>
     }
 
-    if (!summary) return null
+    if (!safeSummary) return null
 
     return (
         <div className="flex flex-col h-[calc(100vh-6rem)] max-w-4xl mx-auto relative">
@@ -176,7 +189,7 @@ export function StaffKhatabookClient() {
                         <div className="flex justify-between items-start">
                             <div>
                                 <p className="text-blue-100 font-medium mb-1">Net Balance (Cash in Hand)</p>
-                                <h2 className="text-4xl font-bold">{formatCurrency(summary.cashInHand)}</h2>
+                                <h2 className="text-4xl font-bold">{formatCurrency(safeSummary.cashInHand)}</h2>
                             </div>
                             <div className="p-3 bg-white/10 rounded-lg backdrop-blur-sm">
                                 <Wallet className="w-8 h-8 text-white" />
@@ -185,29 +198,36 @@ export function StaffKhatabookClient() {
                     </div>
                     
                     <div className="grid grid-cols-2 divide-x divide-gray-100 dark:divide-gray-700">
-                        <div className="p-4 flex items-center justify-between bg-green-50/50 dark:bg-green-900/10">
-                            <div>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">Total You Got</p>
-                                <p className="text-xl font-bold text-green-600 dark:text-green-400">
-                                    {formatCurrency(summary.totalCollected)}
-                                </p>
+                        <div className="p-4 flex flex-col justify-between bg-green-50/50 dark:bg-green-900/10">
+                            <div className="flex items-center justify-between w-full">
+                                <div>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">Total You Have</p>
+                                    <p className="text-xl font-bold text-green-600 dark:text-green-400">
+                                        {formatCurrency(safeSummary.currentMonthCollected + safeSummary.carriedForward)}
+                                    </p>
+                                </div>
+                                <ArrowDownLeft className="w-6 h-6 text-green-500" />
                             </div>
-                            <ArrowDownLeft className="w-6 h-6 text-green-500" />
+                            {safeSummary.carriedForward !== 0 && (
+                                <p className="text-xs text-gray-400 mt-1">
+                                    {safeSummary.carriedForward > 0 ? '+' : ''}{formatCurrency(safeSummary.carriedForward)} carried forward
+                                </p>
+                            )}
                         </div>
                         <div className="px-4 pt-4 pb-2 flex flex-col justify-between bg-red-50/50 dark:bg-red-900/10">
                             <div className="flex items-center justify-between w-full">
                                 <div>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">Total You Gave</p>
                                     <p className="text-xl font-bold text-red-600 dark:text-red-400">
-                                        {formatCurrency(summary.totalHandedOver)}
+                                        {formatCurrency(safeSummary.currentMonthHandedOver)}
                                     </p>
                                 </div>
                                 <ArrowUpRight className="w-6 h-6 text-red-500" />
                             </div>
                             {/* Pending Amount Indicator */}
-                            {summary.pendingHandoverAmount && summary.pendingHandoverAmount > 0 ? (
+                            {safeSummary.pendingHandoverAmount > 0 ? (
                                 <div className="mt-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-md inline-block w-fit">
-                                    + {formatCurrency(summary.pendingHandoverAmount)} Pending Verif.
+                                    + {formatCurrency(safeSummary.pendingHandoverAmount)} Pending Verif.
                                 </div>
                             ) : null}
                         </div>

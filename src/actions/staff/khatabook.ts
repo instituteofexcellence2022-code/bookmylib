@@ -160,9 +160,11 @@ export async function getStaffCashSummary() {
     const staff = await getAuthenticatedStaff()
     if (!staff) throw new Error('Unauthorized')
 
-    // 1. Total Cash Collected by Staff
-    // Assuming 'cash' and 'front_desk' are cash methods. Adjust if needed.
-    const totalCollected = await prisma.payment.aggregate({
+    const now = new Date()
+    const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+    // 1. Total Cash Collected (All Time) - Keep for Cash In Hand calc
+    const totalCollectedAgg = await prisma.payment.aggregate({
         where: {
             libraryId: staff.libraryId,
             branchId: staff.branchId,
@@ -173,8 +175,8 @@ export async function getStaffCashSummary() {
         _sum: { amount: true }
     })
 
-    // 2. Total Handed Over (Verified Only)
-    const totalHandedOver = await prisma.cashHandover.aggregate({
+    // 2. Total Handed Over (Verified Only, All Time) - Keep for Cash In Hand calc
+    const totalHandedOverAgg = await prisma.cashHandover.aggregate({
         where: {
             libraryId: staff.libraryId,
             branchId: staff.branchId,
@@ -184,7 +186,32 @@ export async function getStaffCashSummary() {
         _sum: { amount: true }
     })
 
-    // 3. Pending Handover Amount
+    // 3. Current Month Collected
+    const currentMonthCollectedAgg = await prisma.payment.aggregate({
+        where: {
+            libraryId: staff.libraryId,
+            branchId: staff.branchId,
+            collectedBy: staff.id,
+            status: 'completed',
+            method: { in: ['CASH', 'cash'] },
+            date: { gte: startOfCurrentMonth }
+        },
+        _sum: { amount: true }
+    })
+
+    // 4. Current Month Handed Over (Verified Only)
+    const currentMonthHandedOverAgg = await prisma.cashHandover.aggregate({
+        where: {
+            libraryId: staff.libraryId,
+            branchId: staff.branchId,
+            staffId: staff.id,
+            status: 'verified',
+            createdAt: { gte: startOfCurrentMonth }
+        },
+        _sum: { amount: true }
+    })
+
+    // 5. Pending Handover Amount
     const pendingHandover = await prisma.cashHandover.aggregate({
         where: {
             libraryId: staff.libraryId,
@@ -195,13 +222,20 @@ export async function getStaffCashSummary() {
         _sum: { amount: true }
     })
 
-    const collectedAmount = totalCollected._sum.amount || 0
-    const handedOverAmount = totalHandedOver._sum.amount || 0
+    const totalCollected = totalCollectedAgg._sum.amount || 0
+    const totalHandedOver = totalHandedOverAgg._sum.amount || 0
+    const currentMonthCollected = currentMonthCollectedAgg._sum.amount || 0
+    const currentMonthHandedOver = currentMonthHandedOverAgg._sum.amount || 0
     const pendingAmount = pendingHandover._sum.amount || 0
     
     // Cash In Hand = Collected - Verified Handed Over
-    // Note: This includes pending amount as "in hand" liability until verified
-    const cashInHand = collectedAmount - handedOverAmount
+    const cashInHand = totalCollected - totalHandedOver
+
+    // Carried Forward Balance = (Total Collected before this month) - (Total Handed Over before this month)
+    // = (Total Collected - Current Month Collected) - (Total Handed Over - Current Month Handed Over)
+    const collectedBefore = totalCollected - currentMonthCollected
+    const handedOverBefore = totalHandedOver - currentMonthHandedOver
+    const carriedForward = collectedBefore - handedOverBefore
 
     // Get recent handovers
     const recentHandovers = await prisma.cashHandover.findMany({
@@ -214,8 +248,11 @@ export async function getStaffCashSummary() {
 
     return {
         cashInHand,
-        totalCollected: collectedAmount,
-        totalHandedOver: handedOverAmount,
+        totalCollected, // Keep if needed elsewhere, but UI will use monthly
+        totalHandedOver, // Keep if needed elsewhere
+        currentMonthCollected,
+        currentMonthHandedOver,
+        carriedForward,
         pendingHandoverAmount: pendingAmount,
         recentHandovers
     }
