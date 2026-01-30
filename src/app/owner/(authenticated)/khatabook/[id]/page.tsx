@@ -8,11 +8,13 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { 
     Wallet, ArrowRight, History, ArrowDownLeft, ArrowUpRight, 
     ArrowLeft, Phone, Mail, User, FileText, CheckCircle, XCircle,
-    Filter, Paperclip, Clock
+    Filter, Paperclip, Clock, Calendar, Search, AlertCircle
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/utils'
-import { format } from 'date-fns'
+import { format, startOfMonth, endOfMonth, subMonths, isSameDay, startOfDay, endOfDay } from 'date-fns'
+import { FormSelect } from '@/components/ui/FormSelect'
+import { FormInput } from '@/components/ui/FormInput'
 
 interface StaffLedgerData {
     staff: {
@@ -24,6 +26,8 @@ interface StaffLedgerData {
         totalCollected: number
         totalHandedOver: number
         balance: number
+        periodCollected: number
+        periodHandedOver: number
     }
     transactions: {
         id: string
@@ -45,6 +49,8 @@ interface StaffLedgerData {
 
 import { VerifyHandoverModal } from '@/components/owner/finance/VerifyHandoverModal'
 
+type DateRangePreset = 'ALL' | 'THIS_MONTH' | 'LAST_MONTH' | 'CUSTOM'
+
 export default function StaffLedgerPage() {
     const params = useParams()
     const router = useRouter()
@@ -52,7 +58,15 @@ export default function StaffLedgerPage() {
     const [loading, setLoading] = useState(true)
     const [actionLoading, setActionLoading] = useState<string | null>(null)
     const [filter, setFilter] = useState<'ALL' | 'IN' | 'OUT'>('ALL')
+    const [searchQuery, setSearchQuery] = useState('')
     
+    // Date Range State
+    const [datePreset, setDatePreset] = useState<DateRangePreset>('ALL')
+    const [customDateRange, setCustomDateRange] = useState<{ from: string; to: string }>({
+        from: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
+        to: format(new Date(), 'yyyy-MM-dd')
+    })
+
     // Modal State
     const [selectedHandover, setSelectedHandover] = useState<any | null>(null)
     const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false)
@@ -61,11 +75,32 @@ export default function StaffLedgerPage() {
         if (params.id) {
             loadData(params.id as string)
         }
-    }, [params.id])
+    }, [params.id, datePreset, customDateRange.from, customDateRange.to])
 
     const loadData = async (staffId: string) => {
+        setLoading(true)
         try {
-            const result = await getStaffLedgerForOwner(staffId)
+            let range: { from: Date; to: Date } | undefined
+
+            if (datePreset === 'THIS_MONTH') {
+                range = {
+                    from: startOfMonth(new Date()),
+                    to: endOfMonth(new Date())
+                }
+            } else if (datePreset === 'LAST_MONTH') {
+                const lastMonth = subMonths(new Date(), 1)
+                range = {
+                    from: startOfMonth(lastMonth),
+                    to: endOfMonth(lastMonth)
+                }
+            } else if (datePreset === 'CUSTOM') {
+                range = {
+                    from: startOfDay(new Date(customDateRange.from)),
+                    to: endOfDay(new Date(customDateRange.to))
+                }
+            }
+
+            const result = await getStaffLedgerForOwner(staffId, 100, range)
             setData(result as unknown as StaffLedgerData)
         } catch (error) {
             toast.error('Failed to load staff ledger')
@@ -106,260 +141,277 @@ export default function StaffLedgerPage() {
         }
     }
 
-    const openVerifyModal = (tx: any) => {
-        setSelectedHandover({
-            ...tx,
-            staffName: data?.staff.name || 'Staff',
-            staffImage: data?.staff.image
-        })
-        setIsVerifyModalOpen(true)
+    const filteredTransactions = data?.transactions.filter(tx => {
+        const matchesType = filter === 'ALL' || tx.type === filter
+        const matchesSearch = searchQuery === '' || 
+            tx.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            tx.details?.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            tx.amount.toString().includes(searchQuery)
+        
+        return matchesType && matchesSearch
+    }) || []
+
+    // Group transactions by date
+    const groupedTransactions = filteredTransactions.reduce((groups, tx) => {
+        const date = format(new Date(tx.date), 'yyyy-MM-dd')
+        if (!groups[date]) groups[date] = []
+        groups[date].push(tx)
+        return groups
+    }, {} as Record<string, typeof filteredTransactions>)
+
+    if (loading && !data) {
+        return (
+            <div className="flex justify-center items-center min-h-screen">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+        )
     }
 
-    if (loading) {
-        return <div className="p-12 text-center text-gray-500">Loading ledger...</div>
-    }
-
-    if (!data) return <div className="p-12 text-center text-gray-500">Staff not found</div>
-
-    const { staff, summary, transactions } = data
+    if (!data) return <div>Staff not found</div>
 
     return (
-        <div className="flex flex-col h-[calc(100vh-6rem)] max-w-5xl mx-auto relative">
-            {/* TOP SECTION: Header + Balance */}
-            <div className="shrink-0 space-y-4 pb-4 bg-gray-50 dark:bg-gray-900 z-20"> 
-                {/* Header */}
+        <div className="space-y-6 max-w-5xl mx-auto pb-20">
+            {/* Header */}
+            <div className="flex items-center gap-4">
+                <AnimatedButton onClick={() => router.back()} variant="outline" className="p-2">
+                    <ArrowLeft className="w-5 h-5" />
+                </AnimatedButton>
                 <div className="flex items-center gap-4">
-                    <AnimatedButton
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.back()}
-                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                    >
-                        <ArrowLeft className="w-5 h-5" />
-                    </AnimatedButton>
-                    
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden flex items-center justify-center text-xl font-bold text-gray-500">
-                            {staff.image ? (
-                                <img src={staff.image} alt={staff.name} className="w-full h-full object-cover" />
-                            ) : (
-                                staff.name.charAt(0)
-                            )}
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{staff.name}</h1>
-                            <p className="text-gray-500 dark:text-gray-400 capitalize">{staff.role.replace('_', ' ')}</p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Balance Card (Blue part only) */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <div className="p-6 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-blue-100 font-medium mb-1">Total Cash to Collect</p>
-                                <h2 className="text-4xl font-bold">{formatCurrency(summary.balance)}</h2>
-                            </div>
-                            <div className="p-3 bg-white/10 rounded-lg backdrop-blur-sm">
-                                <Wallet className="w-8 h-8 text-white" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* MIDDLE SECTION: Transactions (Scrollable) */}
-            <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pb-4">
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-                    <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex flex-wrap justify-between items-center gap-3 sticky top-0 z-10 backdrop-blur-sm bg-white/80 dark:bg-gray-800/80">
-                        <div className="flex items-center gap-3">
-                            <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                                <History className="w-4 h-4 text-gray-500" />
-                                Transaction History
-                            </h3>
-
-                            <div className="flex bg-white dark:bg-gray-700 rounded-lg p-1 border border-gray-200 dark:border-gray-600">
-                                <button 
-                                    onClick={() => setFilter('ALL')}
-                                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                                        filter === 'ALL' 
-                                            ? 'bg-gray-100 text-gray-900 dark:bg-gray-600 dark:text-white shadow-sm' 
-                                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                                    }`}
-                                >
-                                    All
-                                </button>
-                                <button 
-                                    onClick={() => setFilter('IN')}
-                                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                                        filter === 'IN' 
-                                            ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300 shadow-sm' 
-                                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                                    }`}
-                                >
-                                    Collections
-                                </button>
-                                <button 
-                                    onClick={() => setFilter('OUT')}
-                                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                                        filter === 'OUT' 
-                                            ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 shadow-sm' 
-                                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                                    }`}
-                                >
-                                    Handovers
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                        {transactions.length === 0 ? (
-                            <div className="p-8 text-center text-gray-500">
-                                No transactions found
-                            </div>
+                    <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden flex items-center justify-center text-xl font-bold text-gray-500 border-2 border-white dark:border-gray-800 shadow-sm">
+                        {data.staff.image ? (
+                            <img src={data.staff.image} alt={data.staff.name} className="w-full h-full object-cover" />
                         ) : (
-                            transactions
-                                .filter(tx => filter === 'ALL' || tx.type === filter)
-                                .map((tx) => (
-                                <div 
-                                    key={`${tx.type}-${tx.id}`} 
-                                    className={`p-3 transition-colors flex items-center justify-between gap-3 group relative ${
-                                        tx.type === 'OUT' && tx.status === 'pending'
-                                            ? 'bg-yellow-50/50 dark:bg-yellow-900/10'
-                                            : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'
-                                    }`}
-                                >
-                                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                                        {/* Icon Column */}
-                                        <div className="flex flex-col items-center gap-2 shrink-0">
-                                            <div className={`p-2 rounded-full flex items-center justify-center transition-all ${
-                                                tx.type === 'IN' 
-                                                    ? 'bg-red-100 text-red-600 dark:bg-red-900/30' 
-                                                    : 'bg-green-100 text-green-600 dark:bg-green-900/30'
-                                            }`}>
-                                                {tx.type === 'IN' ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-0.5 flex-1 min-w-0">
-                                            {/* Description & Tag */}
-                                            <div className="flex items-center gap-2 min-w-0">
-                                                <p className="font-semibold text-lg truncate text-gray-900 dark:text-white">
-                                                    {tx.description}
-                                                </p>
-                                                
-                                                {tx.type === 'IN' && tx.details?.planName && (
-                                                    <span className="text-base text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap shrink-0">
-                                                        • {tx.details.planName}
-                                                    </span>
-                                                )}
-
-                                                {tx.type === 'OUT' && (
-                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap shrink-0 ${
-                                                        tx.status === 'verified' 
-                                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                            : tx.status === 'rejected'
-                                                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                                            : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                                                    }`}>
-                                                        {tx.status === 'pending' ? 'Needs Action' : tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            {/* Date & Details */}
-                                            <div className="flex items-center flex-wrap gap-2 text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                                <span>{format(new Date(tx.date), 'MMM d, h:mm a')}</span>
-                                                
-                                                {tx.type === 'OUT' && tx.details?.method && (
-                                                    <span className="flex items-center gap-1 text-xs bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300">
-                                                        <Wallet size={10} />
-                                                        {tx.details.method}
-                                                    </span>
-                                                )}
-
-                                                {tx.attachmentUrl && (
-                                                    <a href={tx.attachmentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 hover:text-blue-700 transition-colors ml-1" onClick={(e) => e.stopPropagation()}>
-                                                        <Paperclip size={14} />
-                                                        Attachment
-                                                    </a>
-                                                )}
-                                            </div>
-
-                                            {tx.notes && (
-                                                <p className="text-sm text-gray-500 italic mt-1 bg-gray-50 dark:bg-gray-800/50 p-1.5 rounded border border-gray-100 dark:border-gray-700 inline-block">
-                                                    "{tx.notes}"
-                                                </p>
-                                            )}
-
-                                            {/* Actions for Pending Handovers */}
-                                            {tx.type === 'OUT' && tx.status === 'pending' && (
-                                                <div className="flex gap-3 mt-3">
-                                                    <button
-                                                        onClick={() => openVerifyModal(tx)}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-all shadow-sm"
-                                                    >
-                                                        <CheckCircle className="w-4 h-4" />
-                                                        Verify Handover
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className={`text-right font-bold text-xl whitespace-nowrap shrink-0 self-start ${
-                                        tx.type === 'IN' 
-                                            ? 'text-red-600 dark:text-red-400' 
-                                            : 'text-green-600 dark:text-green-400'
-                                    }`}>
-                                        {tx.type === 'IN' ? '+' : '-'}{formatCurrency(tx.amount)}
-                                    </div>
-                                </div>
-                            ))
+                            data.staff.name.charAt(0)
                         )}
                     </div>
-                </div>
-            </div>
-
-            {/* BOTTOM SECTION: Stats (Collected/Received) */}
-            <div className="shrink-0 pt-2 bg-gray-50 dark:bg-gray-900 z-20">
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <div className="grid grid-cols-2 divide-x divide-gray-100 dark:divide-gray-700">
-                        <div className="p-4 flex items-center justify-between bg-red-50/50 dark:bg-red-900/10">
-                            <div>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">Total Collected</p>
-                                <p className="text-xl font-bold text-red-600 dark:text-red-400">
-                                    {formatCurrency(summary.totalCollected)}
-                                </p>
-                            </div>
-                            <ArrowDownLeft className="w-6 h-6 text-red-500" />
-                        </div>
-                        <div className="p-4 flex items-center justify-between bg-green-50/50 dark:bg-green-900/10">
-                            <div>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">Total Received</p>
-                                <p className="text-xl font-bold text-green-600 dark:text-green-400">
-                                    {formatCurrency(summary.totalHandedOver)}
-                                </p>
-                            </div>
-                            <ArrowUpRight className="w-6 h-6 text-green-500" />
-                        </div>
+                    <div>
+                        <h1 className="text-xl font-bold text-gray-900 dark:text-white">{data.staff.name}</h1>
+                        <p className="text-sm text-gray-500">{data.staff.role}</p>
                     </div>
                 </div>
             </div>
 
-            <VerifyHandoverModal
-                isOpen={isVerifyModalOpen}
-                onClose={() => {
-                    setIsVerifyModalOpen(false)
-                    setSelectedHandover(null)
-                }}
-                onVerify={() => handleVerify(selectedHandover?.referenceId)}
-                onReject={() => handleReject(selectedHandover?.referenceId)}
-                transaction={selectedHandover}
-                loading={!!actionLoading}
-            />
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <AnimatedCard className="bg-gradient-to-br from-blue-600 to-blue-700 text-white border-none">
+                    <div className="p-5">
+                        <div className="flex items-center gap-2 mb-2 opacity-80">
+                            <Wallet className="w-4 h-4" />
+                            <span className="text-xs font-medium uppercase tracking-wider">Current Cash In Hand</span>
+                        </div>
+                        <p className="text-3xl font-bold">{formatCurrency(data.summary.balance)}</p>
+                        <p className="text-xs text-blue-100 mt-2 opacity-80">
+                            Amount held by staff right now
+                        </p>
+                    </div>
+                </AnimatedCard>
+
+                <AnimatedCard>
+                    <div className="p-5">
+                        <div className="flex items-center gap-2 mb-2 text-green-600 dark:text-green-400">
+                            <ArrowDownLeft className="w-4 h-4" />
+                            <span className="text-xs font-medium uppercase tracking-wider">
+                                {datePreset === 'ALL' ? 'Total Collected' : 'Period Collected'}
+                            </span>
+                        </div>
+                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                            {formatCurrency(data.summary.periodCollected)}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-2">
+                            Cash received from students
+                        </p>
+                    </div>
+                </AnimatedCard>
+
+                <AnimatedCard>
+                    <div className="p-5">
+                        <div className="flex items-center gap-2 mb-2 text-orange-600 dark:text-orange-400">
+                            <ArrowUpRight className="w-4 h-4" />
+                            <span className="text-xs font-medium uppercase tracking-wider">
+                                {datePreset === 'ALL' ? 'Total Handed Over' : 'Period Handed Over'}
+                            </span>
+                        </div>
+                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                            {formatCurrency(data.summary.periodHandedOver)}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-2">
+                            Verified cash given to owner
+                        </p>
+                    </div>
+                </AnimatedCard>
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-col md:flex-row gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                <div className="flex-1">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <input
+                            type="text"
+                            placeholder="Search transactions..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0">
+                    <select 
+                        value={datePreset}
+                        onChange={(e) => setDatePreset(e.target.value as DateRangePreset)}
+                        className="px-3 py-2 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[120px]"
+                    >
+                        <option value="ALL">All Time</option>
+                        <option value="THIS_MONTH">This Month</option>
+                        <option value="LAST_MONTH">Last Month</option>
+                        <option value="CUSTOM">Custom</option>
+                    </select>
+
+                    <select
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value as any)}
+                        className="px-3 py-2 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[100px]"
+                    >
+                        <option value="ALL">All Types</option>
+                        <option value="IN">Collected (In)</option>
+                        <option value="OUT">Handed Over (Out)</option>
+                    </select>
+                </div>
+            </div>
+
+            {datePreset === 'CUSTOM' && (
+                <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-900 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <Calendar className="w-4 h-4 text-gray-500" />
+                    <input 
+                        type="date" 
+                        value={customDateRange.from}
+                        onChange={(e) => setCustomDateRange(prev => ({ ...prev, from: e.target.value }))}
+                        className="bg-transparent text-sm focus:outline-none"
+                    />
+                    <span className="text-gray-400">-</span>
+                    <input 
+                        type="date" 
+                        value={customDateRange.to}
+                        onChange={(e) => setCustomDateRange(prev => ({ ...prev, to: e.target.value }))}
+                        className="bg-transparent text-sm focus:outline-none"
+                    />
+                </div>
+            )}
+
+            {/* Transactions List */}
+            <div className="space-y-6">
+                {Object.keys(groupedTransactions).length === 0 ? (
+                    <div className="text-center py-12">
+                        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <History className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <p className="text-gray-500 font-medium">No transactions found</p>
+                        <p className="text-sm text-gray-400">Try adjusting your filters</p>
+                    </div>
+                ) : (
+                    Object.entries(groupedTransactions).map(([date, txs]) => (
+                        <div key={date}>
+                            <h3 className="text-sm font-medium text-gray-500 mb-3 sticky top-0 bg-gray-50 dark:bg-gray-900 py-2 z-10 flex items-center gap-2">
+                                <Calendar className="w-4 h-4" />
+                                {format(new Date(date), 'EEEE, MMMM d, yyyy')}
+                                <span className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full text-gray-600 dark:text-gray-300">
+                                    {txs.length}
+                                </span>
+                            </h3>
+                            <div className="space-y-3">
+                                {txs.map((tx) => (
+                                    <AnimatedCard key={tx.id} className="group hover:border-blue-300 dark:hover:border-blue-700 transition-all">
+                                        <div className="p-4 flex items-center justify-between gap-4">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                                                    tx.type === 'IN' 
+                                                        ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' 
+                                                        : 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400'
+                                                }`}>
+                                                    {tx.type === 'IN' ? <ArrowDownLeft className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-gray-900 dark:text-white">
+                                                        {tx.description}
+                                                    </p>
+                                                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                                                        <Clock className="w-3 h-3" />
+                                                        {format(new Date(tx.date), 'h:mm a')}
+                                                        {tx.details?.planName && (
+                                                            <>
+                                                                <span className="w-1 h-1 rounded-full bg-gray-300" />
+                                                                <span>{tx.details.planName}</span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="text-right">
+                                                <p className={`font-bold ${
+                                                    tx.type === 'IN' 
+                                                        ? 'text-green-600 dark:text-green-400' 
+                                                        : 'text-gray-900 dark:text-white'
+                                                }`}>
+                                                    {tx.type === 'IN' ? '+' : '-'} {formatCurrency(tx.amount)}
+                                                </p>
+                                                
+                                                {tx.type === 'OUT' ? (
+                                                    <div className="flex items-center justify-end gap-2 mt-1">
+                                                        {tx.status === 'pending' && (
+                                                            <div className="flex gap-2">
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setSelectedHandover(tx)
+                                                                        setIsVerifyModalOpen(true)
+                                                                    }}
+                                                                    className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                                                                >
+                                                                    Verify
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-medium capitalize ${
+                                                            tx.status === 'verified' ? 'bg-green-100 text-green-700' :
+                                                            tx.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                                            'bg-yellow-100 text-yellow-700'
+                                                        }`}>
+                                                            {tx.status}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 mt-1 inline-block">
+                                                        {tx.status}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </AnimatedCard>
+                                ))}
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+
+            {selectedHandover && data && (
+                <VerifyHandoverModal
+                    isOpen={isVerifyModalOpen}
+                    onClose={() => {
+                        setIsVerifyModalOpen(false)
+                        setSelectedHandover(null)
+                    }}
+                    onVerify={() => handleVerify(selectedHandover.id)}
+                    onReject={() => handleReject(selectedHandover.id)}
+                    transaction={{
+                        ...selectedHandover,
+                        staffName: data.staff.name,
+                        staffImage: data.staff.image
+                    }}
+                    loading={!!actionLoading}
+                />
+            )}
         </div>
     )
 }

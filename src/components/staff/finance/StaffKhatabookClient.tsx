@@ -15,6 +15,7 @@ interface CashSummary {
     cashInHand: number
     totalCollected: number
     totalHandedOver: number
+    pendingHandoverAmount?: number
     recentHandovers: any[]
 }
 
@@ -186,21 +187,29 @@ export function StaffKhatabookClient() {
                     <div className="grid grid-cols-2 divide-x divide-gray-100 dark:divide-gray-700">
                         <div className="p-4 flex items-center justify-between bg-green-50/50 dark:bg-green-900/10">
                             <div>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">Total You Got</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Total Cash Collected</p>
                                 <p className="text-xl font-bold text-green-600 dark:text-green-400">
                                     {formatCurrency(summary.totalCollected)}
                                 </p>
                             </div>
                             <ArrowDownLeft className="w-6 h-6 text-green-500" />
                         </div>
-                        <div className="p-4 flex items-center justify-between bg-red-50/50 dark:bg-red-900/10">
-                            <div>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">Total You Gave</p>
-                                <p className="text-xl font-bold text-red-600 dark:text-red-400">
-                                    {formatCurrency(summary.totalHandedOver)}
-                                </p>
+                        <div className="px-4 pt-4 pb-2 flex flex-col justify-between bg-red-50/50 dark:bg-red-900/10">
+                            <div className="flex items-center justify-between w-full">
+                                <div>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">Verified Handed Over</p>
+                                    <p className="text-xl font-bold text-red-600 dark:text-red-400">
+                                        {formatCurrency(summary.totalHandedOver)}
+                                    </p>
+                                </div>
+                                <ArrowUpRight className="w-6 h-6 text-red-500" />
                             </div>
-                            <ArrowUpRight className="w-6 h-6 text-red-500" />
+                            {/* Pending Amount Indicator */}
+                            {summary.pendingHandoverAmount && summary.pendingHandoverAmount > 0 ? (
+                                <div className="mt-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-md inline-block w-fit">
+                                    + {formatCurrency(summary.pendingHandoverAmount)} Pending Verif.
+                                </div>
+                            ) : null}
                         </div>
                     </div>
                 </div>
@@ -313,11 +322,18 @@ export function StaffKhatabookClient() {
                                                             • {tx.details.planName}
                                                         </span>
                                                     )}
+                                                    {tx.type === 'IN' && tx.details?.method && (
+                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap shrink-0 bg-blue-50 text-blue-600 border border-blue-100 uppercase">
+                                                            {tx.details.method}
+                                                        </span>
+                                                    )}
                                                     {tx.type === 'IN' && tx.details?.handoverStatus && (
                                                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap shrink-0 ${
                                                             tx.details.handoverStatus === 'Handed Over'
                                                                 ? 'bg-gray-100 text-gray-600'
-                                                                : 'bg-yellow-50 text-yellow-600 border border-yellow-100'
+                                                                : tx.details.handoverStatus === 'Pending'
+                                                                    ? 'bg-yellow-50 text-yellow-600 border border-yellow-100'
+                                                                    : 'bg-blue-50 text-blue-600 border border-blue-100'
                                                         }`}>
                                                             {tx.details.handoverStatus}
                                                         </span>
@@ -330,7 +346,7 @@ export function StaffKhatabookClient() {
                                                                 ? 'bg-red-100 text-red-700'
                                                                 : 'bg-yellow-50 text-yellow-600 border border-yellow-100'
                                                         }`}>
-                                                            {tx.status === 'pending' ? 'Waiting' : tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
+                                                            {tx.status === 'pending' ? 'Pending' : tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
                                                         </span>
                                                     )}
                                                 </div>

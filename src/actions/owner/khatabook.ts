@@ -36,33 +36,12 @@ export async function getStaffBalances() {
             _sum: { amount: true }
         })
 
-        // 2. Total Handed Over (VERIFIED only for Owner's view of "Cash in Staff Hand")
-        // Wait, "Cash In Hand" physically with staff includes pending handovers technically until they are accepted.
-        // But usually, if staff says "I handed it over", it's out of their hand.
-        // Let's stick to: Cash In Hand = Total Collected - Total Handed Over (All Statuses? or just Verified?)
-        // If staff says "I gave it to you", they deducted it. If Owner rejects, it comes back.
-        // For Owner View: "Cash to be collected from Staff".
-        // If status is Pending, it's "In Transit".
-        // If status is Verified, it's "Received".
-        // If status is Rejected, it's "Back with Staff".
-        
-        // Let's match Staff logic:
-        // Cash In Hand = Total Collected - Total Handed Over (All non-rejected?)
-        // Staff logic was: cashInHand = totalCollected - totalHandedOver (where totalHandedOver included ALL handovers? let's check `getStaffCashSummary`)
-        
-        /* 
-           Staff Logic Check:
-           const totalHandedOver = await prisma.cashHandover.aggregate({
-               where: { staffId: staff.id, status: { not: 'rejected' } },
-               _sum: { amount: true }
-           })
-        */
-       
-        // So here:
+        // 2. Total Handed Over (VERIFIED only)
+        // Owner only sees confirmed cash receipt
         const totalHandedOver = await prisma.cashHandover.aggregate({
             where: {
                 staffId: staff.id,
-                status: { not: 'rejected' }
+                status: 'verified'
             },
             _sum: { amount: true }
         })
@@ -72,17 +51,25 @@ export async function getStaffBalances() {
         
         // Also get last handover date
         const lastHandover = await prisma.cashHandover.findFirst({
-            where: { staffId: staff.id },
+            where: { 
+                staffId: staff.id,
+                status: 'verified'
+            },
             orderBy: { createdAt: 'desc' }
         })
 
-        // Count pending handovers
-        const pendingHandoverCount = await prisma.cashHandover.count({
+        // Count pending handovers and amount
+        const pendingHandovers = await prisma.cashHandover.aggregate({
             where: {
                 staffId: staff.id,
                 status: 'pending'
-            }
+            },
+            _count: { id: true },
+            _sum: { amount: true }
         })
+
+        const pendingHandoverCount = pendingHandovers._count.id
+        const pendingHandoverAmount = pendingHandovers._sum.amount || 0
 
         return {
             id: staff.id,
@@ -93,7 +80,8 @@ export async function getStaffBalances() {
             totalHandedOver: handedOver,
             balance: collected - handedOver,
             lastHandoverAt: lastHandover?.createdAt || null,
-            pendingHandoverCount
+            pendingHandoverCount,
+            pendingHandoverAmount
         }
     }))
 
@@ -152,7 +140,7 @@ export async function rejectHandover(handoverId: string) {
     revalidatePath(`/owner/khatabook/${handover.staffId}`)
 }
 
-export async function getStaffLedgerForOwner(staffId: string, limit = 50) {
+export async function getStaffLedgerForOwner(staffId: string, limit = 50, dateRange?: { from: Date; to: Date }) {
     const owner = await getOwnerProfile()
     if (!owner) throw new Error('Unauthorized')
 
@@ -166,12 +154,18 @@ export async function getStaffLedgerForOwner(staffId: string, limit = 50) {
 
     if (!staff) throw new Error('Staff not found')
 
+    const dateFilter = dateRange ? {
+        gte: dateRange.from,
+        lte: dateRange.to
+    } : undefined
+
     // 1. Fetch Collections (Cash In)
     const collections = await prisma.payment.findMany({
         where: {
             collectedBy: staffId,
             status: 'completed',
-            method: { in: ['CASH', 'cash'] }
+            method: { in: ['CASH', 'cash'] },
+            ...(dateFilter && { date: dateFilter })
         },
         orderBy: { date: 'desc' },
         take: limit,
@@ -184,13 +178,14 @@ export async function getStaffLedgerForOwner(staffId: string, limit = 50) {
     // 2. Fetch Handovers (Cash Out)
     const handovers = await prisma.cashHandover.findMany({
         where: {
-            staffId: staffId
+            staffId: staffId,
+            ...(dateFilter && { createdAt: dateFilter })
         },
         orderBy: { createdAt: 'desc' },
         take: limit
     })
 
-    // 3. Calculate Totals
+    // 3. Calculate Global Totals (All Time)
     const totalCollected = await prisma.payment.aggregate({
         where: {
             collectedBy: staffId,
@@ -203,7 +198,7 @@ export async function getStaffLedgerForOwner(staffId: string, limit = 50) {
     const totalHandedOver = await prisma.cashHandover.aggregate({
         where: {
             staffId: staffId,
-            status: { not: 'rejected' }
+            status: 'verified'
         },
         _sum: { amount: true }
     })
@@ -211,7 +206,33 @@ export async function getStaffLedgerForOwner(staffId: string, limit = 50) {
     const collected = totalCollected._sum.amount || 0
     const handedOver = totalHandedOver._sum.amount || 0
 
-    // 4. Combine
+    // 4. Calculate Period Totals (if range provided)
+    let periodCollected = 0
+    let periodHandedOver = 0
+    
+    if (dateRange) {
+        const pCollected = await prisma.payment.aggregate({
+            where: {
+                collectedBy: staffId,
+                status: 'completed',
+                method: { in: ['CASH', 'cash'] },
+                date: dateFilter
+            },
+            _sum: { amount: true }
+        })
+        const pHandedOver = await prisma.cashHandover.aggregate({
+            where: {
+                staffId: staffId,
+                status: 'verified',
+                createdAt: dateFilter
+            },
+            _sum: { amount: true }
+        })
+        periodCollected = pCollected._sum.amount || 0
+        periodHandedOver = pHandedOver._sum.amount || 0
+    }
+
+    // 5. Combine
     const transactions = [
         ...collections.map(c => ({
             id: c.id,
@@ -251,7 +272,10 @@ export async function getStaffLedgerForOwner(staffId: string, limit = 50) {
         summary: {
             totalCollected: collected,
             totalHandedOver: handedOver,
-            balance: collected - handedOver
+            balance: collected - handedOver,
+            // Add period stats
+            periodCollected: dateRange ? periodCollected : collected,
+            periodHandedOver: dateRange ? periodHandedOver : handedOver
         },
         transactions
     }

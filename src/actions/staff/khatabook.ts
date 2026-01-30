@@ -34,7 +34,6 @@ export async function getStaffKhatabook(limit = 50) {
             branchId: staff.branchId,
             collectedBy: staff.id,
             status: 'completed',
-            method: { in: ['CASH', 'cash'] }
         },
         orderBy: { date: 'desc' },
         take: limit,
@@ -50,6 +49,11 @@ export async function getStaffKhatabook(limit = 50) {
                     plan: {
                         select: { name: true }
                     }
+                }
+            },
+            handover: {
+                select: {
+                    status: true
                 }
             }
         }
@@ -84,7 +88,12 @@ export async function getStaffKhatabook(limit = 50) {
                 studentEmail: c.student?.email || '',
                 planName: c.subscription?.plan?.name || 'N/A',
                 paymentId: c.id,
-                handoverStatus: c.handoverId ? 'Handed Over' : 'In Hand'
+                handoverStatus: !c.handoverId 
+                    ? 'In Hand' 
+                    : c.handover?.status === 'verified' 
+                        ? 'Handed Over' 
+                        : 'Pending',
+                method: c.method
             },
             status: c.status,
             referenceId: c.id,
@@ -164,19 +173,34 @@ export async function getStaffCashSummary() {
         _sum: { amount: true }
     })
 
-    // 2. Total Handed Over (Verified + Pending)
+    // 2. Total Handed Over (Verified Only)
     const totalHandedOver = await prisma.cashHandover.aggregate({
         where: {
             libraryId: staff.libraryId,
             branchId: staff.branchId,
             staffId: staff.id,
-            status: { not: 'rejected' }
+            status: 'verified'
+        },
+        _sum: { amount: true }
+    })
+
+    // 3. Pending Handover Amount
+    const pendingHandover = await prisma.cashHandover.aggregate({
+        where: {
+            libraryId: staff.libraryId,
+            branchId: staff.branchId,
+            staffId: staff.id,
+            status: 'pending'
         },
         _sum: { amount: true }
     })
 
     const collectedAmount = totalCollected._sum.amount || 0
     const handedOverAmount = totalHandedOver._sum.amount || 0
+    const pendingAmount = pendingHandover._sum.amount || 0
+    
+    // Cash In Hand = Collected - Verified Handed Over
+    // Note: This includes pending amount as "in hand" liability until verified
     const cashInHand = collectedAmount - handedOverAmount
 
     // Get recent handovers
@@ -192,6 +216,7 @@ export async function getStaffCashSummary() {
         cashInHand,
         totalCollected: collectedAmount,
         totalHandedOver: handedOverAmount,
+        pendingHandoverAmount: pendingAmount,
         recentHandovers
     }
 }
