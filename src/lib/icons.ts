@@ -10,12 +10,13 @@ import {
   ThumbsUp, ThumbsDown, Smile, Frown, Meh, Zap,
   Target, Award, Trophy, Crown, Coffee, Wifi, Battery,
   Volume2, VolumeX, Play, Pause, Square, SkipBack, SkipForward,
-  Building2, Armchair, MoreVertical, Save, Wind, Car, UserPlus, RefreshCw, Printer
+  Building2, Armchair, MoreVertical, Save, Wind, Car, UserPlus, RefreshCw, Printer, Send
 } from 'lucide-react'
 
 export const Icons = {
   // Navigation
   home: Home,
+  send: Send,
   userPlus: UserPlus,
   refresh: RefreshCw,
   print: Printer,

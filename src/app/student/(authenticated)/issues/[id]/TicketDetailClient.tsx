@@ -26,6 +26,27 @@ export default function TicketDetailClient({ ticket, student }: TicketDetailClie
     setComments(ticket.comments || [])
   }, [ticket.comments])
 
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [content, setContent] = useState('')
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [comments])
+
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setContent(e.target.value)
+    // Auto-resize
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+    }
+  }
+
   const handleReopen = async () => {
     setIsReopening(true)
     try {
@@ -45,11 +66,11 @@ export default function TicketDetailClient({ ticket, student }: TicketDetailClie
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (isSubmitting) return
+    if (isSubmitting || !content.trim()) return
 
-    const formData = new FormData(e.currentTarget)
-    const content = formData.get('content') as string
-    if (!content?.trim()) return
+    const formData = new FormData()
+    formData.append('content', content)
+    formData.append('ticketId', ticket.id)
 
     setIsSubmitting(true)
 
@@ -60,11 +81,13 @@ export default function TicketDetailClient({ ticket, student }: TicketDetailClie
         createdAt: new Date().toISOString(),
         userType: 'student',
         ticketId: ticket.id,
-        userId: 'current-user'
+        userId: 'current-user',
+        isOptimistic: true
     }
 
     setComments((prev: any[]) => [...prev, optimisticComment])
-    formRef.current?.reset()
+    setContent('') // Clear input immediately
+    if (textareaRef.current) textareaRef.current.style.height = 'auto' // Reset height
     
     try {
       const result = await addTicketComment(formData)
@@ -75,15 +98,12 @@ export default function TicketDetailClient({ ticket, student }: TicketDetailClie
       } else {
         setComments((prev: any[]) => prev.filter((c: any) => c.id !== optimisticComment.id))
         toast.error(result.error || 'Failed to add comment')
-        // Restore content
-        if (formRef.current) {
-            const textarea = formRef.current.querySelector('textarea')
-            if (textarea) textarea.value = content
-        }
+        setContent(content) // Restore content on error
       }
     } catch (error) {
       setComments((prev: any[]) => prev.filter((c: any) => c.id !== optimisticComment.id))
       toast.error('An unexpected error occurred')
+      setContent(content) // Restore content on error
     } finally {
       setIsSubmitting(false)
     }
@@ -163,7 +183,7 @@ export default function TicketDetailClient({ ticket, student }: TicketDetailClie
           {comments.map((comment: any) => {
             const isStudent = comment.userType === 'student'
             return (
-              <div key={comment.id} className={`flex ${isStudent ? 'justify-end' : 'justify-start'}`}>
+              <div key={comment.id} className={`flex ${isStudent ? 'justify-end' : 'justify-start'} ${comment.isOptimistic ? 'opacity-70 transition-opacity duration-300' : ''}`}>
                 <div className={`flex max-w-[85%] ${isStudent ? 'flex-row-reverse' : 'flex-row'} items-end gap-2`}>
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
                     isStudent ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'
@@ -185,6 +205,7 @@ export default function TicketDetailClient({ ticket, student }: TicketDetailClie
               </div>
             )
           })}
+          <div ref={messagesEndRef} />
         </div>
       </div>
 
@@ -233,10 +254,13 @@ export default function TicketDetailClient({ ticket, student }: TicketDetailClie
             <input type="hidden" name="ticketId" value={ticket.id} />
             <div className="flex-1 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-2 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent shadow-sm">
               <textarea
+                ref={textareaRef}
                 name="content"
+                value={content}
+                onChange={handleInput}
                 placeholder="Type your reply..."
                 rows={1}
-                className="w-full bg-transparent border-none focus:ring-0 resize-none max-h-32 min-h-[40px] py-2 px-2 text-gray-900 dark:text-white placeholder-gray-400"
+                className="w-full bg-transparent border-none focus:ring-0 resize-none max-h-32 min-h-[40px] py-2 px-2 text-gray-900 dark:text-white placeholder-gray-400 overflow-y-auto"
                 required
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -251,6 +275,7 @@ export default function TicketDetailClient({ ticket, student }: TicketDetailClie
               variant="primary"
               className="rounded-full w-12 h-12 p-0 flex items-center justify-center shrink-0 self-end mb-0.5"
               isLoading={isSubmitting}
+              disabled={!content.trim() || isSubmitting}
             >
               <Send className="w-5 h-5" />
             </AnimatedButton>

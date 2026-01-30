@@ -35,13 +35,34 @@ export default function TicketResponseClient({
     setStatus(ticket.status)
   }, [ticket.status])
 
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [content, setContent] = useState('')
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [comments])
+
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setContent(e.target.value)
+    // Auto-resize
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (isSubmitting) return
+    if (isSubmitting || !content.trim()) return
 
-    const formData = new FormData(e.currentTarget)
-    const content = formData.get('content') as string
-    if (!content?.trim()) return
+    const formData = new FormData()
+    formData.append('content', content)
+    formData.append('ticketId', ticket.id)
 
     setIsSubmitting(true)
     
@@ -52,37 +73,29 @@ export default function TicketResponseClient({
         createdAt: new Date().toISOString(),
         userType: 'staff', // Assume staff/owner for this view
         ticketId: ticket.id,
-        userId: 'current-user'
+        userId: 'current-user',
+        isOptimistic: true
     }
 
     setComments((prev: any[]) => [...prev, optimisticComment])
-    formRef.current?.reset()
+    setContent('') // Clear input immediately
+    if (textareaRef.current) textareaRef.current.style.height = 'auto' // Reset height
 
     try {
       const result = await addTicketComment(formData)
       if (result.success && result.comment) {
-        // Replace optimistic comment with real one if needed, 
-        // but since we rely on router.refresh() to sync eventually, 
-        // we can just leave it or swap it. 
-        // Swapping is safer to ensure ID is correct for keys.
         setComments((prev: any[]) => prev.map((c: any) => c.id === optimisticComment.id ? result.comment : c))
         toast.success('Reply sent')
         router.refresh()
       } else {
-        // Revert on failure
         setComments((prev: any[]) => prev.filter((c: any) => c.id !== optimisticComment.id))
         toast.error(result.error || 'Failed to send reply')
-        // Restore content? (Simple version: just alert user)
-        if (formRef.current) {
-            // We can't easily restore value to un-controlled input without state
-            // but we can try setting it back
-            const textarea = formRef.current.querySelector('textarea')
-            if (textarea) textarea.value = content
-        }
+        setContent(content) // Restore content on error
       }
     } catch (error) {
       setComments((prev: any[]) => prev.filter((c: any) => c.id !== optimisticComment.id))
       toast.error('An unexpected error occurred')
+      setContent(content) // Restore content on error
     } finally {
       setIsSubmitting(false)
     }
@@ -214,7 +227,7 @@ export default function TicketResponseClient({
                 {comments.map((comment: any) => {
                     const isStaff = comment.userType === 'owner' || comment.userType === 'staff'
                     return (
-                    <div key={comment.id} className={`flex ${isStaff ? 'justify-end' : 'justify-start'}`}>
+                    <div key={comment.id} className={`flex ${isStaff ? 'justify-end' : 'justify-start'} ${comment.isOptimistic ? 'opacity-70 transition-opacity duration-300' : ''}`}>
                         <div className={`flex max-w-[80%] ${isStaff ? 'flex-row-reverse' : 'flex-row'} items-end gap-3`}>
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm font-bold ${
                                 isStaff ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'
@@ -236,6 +249,7 @@ export default function TicketResponseClient({
                     </div>
                     )
                 })}
+                <div ref={messagesEndRef} />
             </div>
 
             {/* Reply Input */}
@@ -247,10 +261,13 @@ export default function TicketResponseClient({
                 >
                     <input type="hidden" name="ticketId" value={ticket.id} />
                     <textarea
+                        ref={textareaRef}
                         name="content"
-                        placeholder="Type a reply to the student..."
-                        rows={2}
-                        className="flex-1 rounded-xl border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none p-3 text-sm"
+                        value={content}
+                        onChange={handleInput}
+                        placeholder="Type your reply..."
+                        rows={1}
+                        className="flex-1 min-h-[44px] max-h-48 p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none overflow-y-auto"
                         required
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
@@ -262,10 +279,12 @@ export default function TicketResponseClient({
                     <AnimatedButton
                         type="submit"
                         variant="primary"
-                        className="self-end rounded-xl h-10 w-10 p-0 flex items-center justify-center bg-purple-600 hover:bg-purple-700"
+                        icon="send"
                         isLoading={isSubmitting}
+                        disabled={!content.trim() || isSubmitting}
+                        className="rounded-xl px-6"
                     >
-                        <Send className="w-5 h-5" />
+                        Send
                     </AnimatedButton>
                 </form>
             </div>
