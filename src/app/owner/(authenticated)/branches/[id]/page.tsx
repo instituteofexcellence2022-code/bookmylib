@@ -534,7 +534,11 @@ const tabs = [
                       <MapPin className="w-5 h-5 text-gray-400 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium text-gray-900 dark:text-white">Address</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{branch.address}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {[branch.address, branch.area, branch.city, branch.state, branch.pincode]
+                            .filter(Boolean)
+                            .join(', ')}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
