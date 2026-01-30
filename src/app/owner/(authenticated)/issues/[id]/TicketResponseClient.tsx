@@ -34,6 +34,7 @@ export default function TicketResponseClient({
       if (result.success) {
         toast.success('Reply sent')
         formRef.current?.reset()
+        router.refresh()
       } else {
         toast.error(result.error || 'Failed to send reply')
       }

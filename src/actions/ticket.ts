@@ -323,6 +323,8 @@ export async function updateTicketStatus(ticketId: string, status: string) {
 
     revalidatePath('/owner/issues')
     revalidatePath('/staff/issues')
+    revalidatePath(`/owner/issues/${ticketId}`)
+    revalidatePath(`/staff/issues/${ticketId}`)
     return { success: true }
   } catch (error) {
     console.error('Error updating ticket:', error)
