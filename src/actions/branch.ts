@@ -73,19 +73,79 @@ export async function getBranchById(id: string) {
 
     if (!branch) return null
 
-    return {
-      ...branch,
-      seats: { 
-        total: branch.seatCount, 
-        occupied: branch.seats.filter((s) => s.subscriptions.length > 0).length 
-      },
-      staffCount: branch.staff.length,
-      staffList: branch.staff,
-      revenue: 0,
-      amenities: branch.amenities ? JSON.parse(branch.amenities) : [],
-      operatingHours: branch.operatingHours ? JSON.parse(branch.operatingHours) : null,
-      status: branch.isActive ? 'active' : 'maintenance'
-    }
+    // Calculate revenue metrics
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+    const ninetyDaysAgo = new Date()
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+
+    const [totalRevenueAgg, thisMonthRevenueAgg, lastMonthRevenueAgg, recentPayments] = await Promise.all([
+      // Total Revenue
+      prisma.payment.aggregate({
+        where: { branchId: id, status: 'completed' },
+        _sum: { amount: true }
+      }),
+      // This Month Revenue
+      prisma.payment.aggregate({
+        where: { 
+          branchId: id, 
+          status: 'completed',
+          date: { gte: startOfMonth }
+        },
+        _sum: { amount: true }
+      }),
+      // Last Month Revenue
+      prisma.payment.aggregate({
+        where: { 
+          branchId: id, 
+          status: 'completed',
+          date: { gte: startOfLastMonth, lte: endOfLastMonth }
+        },
+        _sum: { amount: true }
+      }),
+      // Recent Payments for Chart
+      prisma.payment.findMany({
+        where: {
+          branchId: id,
+          status: 'completed',
+          date: { gte: ninetyDaysAgo }
+        },
+        select: { amount: true, date: true },
+        orderBy: { date: 'asc' }
+      })
+    ])
+ 
+     // Process payments into daily totals
+     const dailyRevenue = new Map<string, number>()
+     recentPayments.forEach(payment => {
+       const dateKey = payment.date.toISOString().split('T')[0]
+       dailyRevenue.set(dateKey, (dailyRevenue.get(dateKey) || 0) + payment.amount)
+     })
+ 
+     // Convert to array format for Recharts
+     const revenueData = Array.from(dailyRevenue.entries()).map(([date, amount]) => ({
+       date,
+       amount
+     })).sort((a, b) => a.date.localeCompare(b.date))
+ 
+     return {
+       ...branch,
+       seats: { 
+         total: branch.seatCount, 
+         occupied: branch.seats.filter((s) => s.subscriptions.length > 0).length 
+       },
+       staffCount: branch.staff.length,
+       staffList: branch.staff,
+       revenue: totalRevenueAgg._sum.amount || 0,
+       monthlyRevenue: thisMonthRevenueAgg._sum.amount || 0,
+       lastMonthRevenue: lastMonthRevenueAgg._sum.amount || 0,
+       revenueData,
+       amenities: branch.amenities ? JSON.parse(branch.amenities) : [],
+       operatingHours: branch.operatingHours ? JSON.parse(branch.operatingHours) : null,
+       status: branch.isActive ? 'active' : 'maintenance'
+     }
   } catch (error) {
     if ((error as any)?.digest === 'DYNAMIC_SERVER_USAGE') {
       throw error

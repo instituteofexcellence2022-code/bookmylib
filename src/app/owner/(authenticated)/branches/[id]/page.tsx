@@ -40,7 +40,7 @@ import { getBranchLogs, type ActivityLog } from '@/actions/logs'
 import Link from 'next/link'
 import QRCode from 'qrcode'
 import { toast } from 'sonner'
-import { formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow, format } from 'date-fns'
 
 interface RecentActivity {
   id: number
@@ -60,72 +60,67 @@ interface BranchDetail {
   staff: number
   staffList?: any[]
   revenue: number
+  monthlyRevenue?: number
+  lastMonthRevenue?: number
+  revenueData?: { date: string; amount: number }[]
   amenities: string[]
   images: string[]
   recentActivity: RecentActivity[]
   qrCode?: string
 }
 
-
-
-const revenueData = [
-  { name: 'Mon', amount: 1200 },
-  { name: 'Tue', amount: 1500 },
-  { name: 'Wed', amount: 1800 },
-  { name: 'Thu', amount: 1400 },
-  { name: 'Fri', amount: 2000 },
-  { name: 'Sat', amount: 2400 },
-  { name: 'Sun', amount: 2100 },
-]
-
 type TimeRange = 'today' | '7d' | '30d' | '90d' | 'custom'
 
-function generateRangeData(base: typeof revenueData, length: number) {
-  if (length <= 0) return []
-  const maxLength = Math.min(length, 180)
-  const repeated: { name: string; amount: number }[] = []
-  for (let i = 0; i < maxLength; i += 1) {
-    const entry = base[i % base.length]
-    repeated.push({
-      name: `Day ${i + 1}`,
-      amount: entry.amount,
-    })
-  }
-  return repeated
-}
-
 function getRevenueDataForRange(
-  base: typeof revenueData,
+  rawData: { date: string; amount: number }[] | undefined,
   timeRange: TimeRange,
   customStart: string,
   customEnd: string
 ) {
+  if (!rawData || rawData.length === 0) return []
+
+  const now = new Date()
+  let startDate = new Date()
+  startDate.setHours(0, 0, 0, 0)
+  
   if (timeRange === 'today') {
-    return base.slice(0, 1)
-  }
+    // For today, we just show the single day if it exists
+    const todayStr = now.toISOString().split('T')[0]
+    const todayData = rawData.find(d => d.date.startsWith(todayStr))
+    return [{
+      name: format(now, 'MMM dd'),
+      amount: todayData ? todayData.amount : 0
+    }]
+  } 
+  
   if (timeRange === '7d') {
-    return base
-  }
-  if (timeRange === '30d') {
-    return generateRangeData(base, 30)
-  }
-  if (timeRange === '90d') {
-    return generateRangeData(base, 90)
-  }
-
-  if (!customStart || !customEnd) {
-    return base
+    startDate.setDate(now.getDate() - 7)
+  } else if (timeRange === '30d') {
+    startDate.setDate(now.getDate() - 30)
+  } else if (timeRange === '90d') {
+    startDate.setDate(now.getDate() - 90)
+  } else if (timeRange === 'custom' && customStart) {
+    startDate = new Date(customStart)
   }
 
-  const start = new Date(customStart)
-  const end = new Date(customEnd)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
-    return base
+  // Create a map of existing data
+  const dataMap = new Map(rawData.map(d => [d.date.split('T')[0], d.amount]))
+  
+  // Generate all days in range to ensure continuous chart
+  const result = []
+  const current = new Date(startDate)
+  const end = customEnd ? new Date(customEnd) : new Date()
+
+  while (current <= end) {
+    const dateStr = current.toISOString().split('T')[0]
+    result.push({
+      name: format(current, 'MMM dd'),
+      amount: dataMap.get(dateStr) || 0
+    })
+    current.setDate(current.getDate() + 1)
   }
 
-  const diffMs = end.getTime() - start.getTime()
-  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1
-  return generateRangeData(base, days)
+  return result
 }
 
 const tabs = [
@@ -431,13 +426,25 @@ const tabs = [
                     <div>
                       <p className="text-xs text-gray-500 dark:text-gray-400">Monthly Revenue</p>
                       <p className="text-lg font-bold text-gray-900 dark:text-white">
-                        ₹{(branch.revenue / 1000).toFixed(1)}k
+                        ₹{((branch.monthlyRevenue || 0) / 1000).toFixed(1)}k
                       </p>
                     </div>
                   </div>
-                  <div className="mt-3 flex items-center gap-1 text-green-500 text-xs font-medium">
-                    <TrendingUp className="w-3 h-3" />
-                    <span>+12.5% vs last month</span>
+                  <div className={`mt-3 flex items-center gap-1 text-xs font-medium ${
+                    ((branch.monthlyRevenue || 0) >= (branch.lastMonthRevenue || 0)) 
+                      ? 'text-green-500' 
+                      : 'text-red-500'
+                  }`}>
+                    <TrendingUp className={`w-3 h-3 ${((branch.monthlyRevenue || 0) < (branch.lastMonthRevenue || 0)) ? 'rotate-180' : ''}`} />
+                    <span>
+                      {(() => {
+                        const current = branch.monthlyRevenue || 0
+                        const last = branch.lastMonthRevenue || 0
+                        if (last === 0) return current > 0 ? '+100%' : '0%'
+                        const percent = ((current - last) / last) * 100
+                        return `${percent > 0 ? '+' : ''}${percent.toFixed(1)}% vs last month`
+                      })()}
+                    </span>
                   </div>
                 </CompactCard>
               </div>
@@ -479,7 +486,7 @@ const tabs = [
                 </div>
                 <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={getRevenueDataForRange(revenueData, timeRange, customStart, customEnd)}>
+                    <BarChart data={getRevenueDataForRange(branch.revenueData, timeRange, customStart, customEnd)}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                       <XAxis 
                         dataKey="name" 
