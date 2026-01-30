@@ -67,7 +67,7 @@ export const ReceiptEmail = ({
                 Payment Confirmation
               </Text>
               <Heading className="text-black text-[32px] font-normal p-0 my-0 mx-0">
-                ₹{amount}
+                ₹{amount.toFixed(2)}
               </Heading>
               <Text className="text-gray-400 text-[14px] mt-1">
                 Paid on {date}
@@ -97,7 +97,7 @@ export const ReceiptEmail = ({
                         <Text className="text-gray-400 text-[12px] m-0">Duration: {duration}</Text>
                     </Column>
                     <Column align="right">
-                        <Text className="text-black text-[14px] font-semibold m-0">₹{amount}</Text>
+                        <Text className="text-black text-[14px] font-semibold m-0">₹{amount.toFixed(2)}</Text>
                     </Column>
                 </Row>
                 <Hr className="border-gray-100 my-3" />
@@ -106,7 +106,7 @@ export const ReceiptEmail = ({
                         <Text className="text-gray-500 text-[14px] m-0 font-medium">Total</Text>
                     </Column>
                     <Column align="right">
-                        <Text className="text-black text-[16px] font-bold m-0">₹{amount}</Text>
+                        <Text className="text-black text-[16px] font-bold m-0">₹{amount.toFixed(2)}</Text>
                     </Column>
                 </Row>
               </div>
