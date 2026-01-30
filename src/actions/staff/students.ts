@@ -143,8 +143,6 @@ export async function getStaffStudents(filters: StudentFilter = {}) {
         prisma.student.count({ where })
     ])
 
-    console.log(`[DEBUG] getStaffStudents: Found ${total} students (returning ${students.length}) for where clause:`, JSON.stringify(where, null, 2))
-
     // Process students for UI
     const enhancedStudents = students.map(s => {
         const activeSub = s.subscriptions.find((sub: any) => sub.status === 'active')

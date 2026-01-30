@@ -513,7 +513,10 @@ export function StaffAcceptPaymentForm() {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                             <FormInput
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value)
+                                    if (selectedStudent) setSelectedStudent(null)
+                                }}
                                 placeholder="Search by name, email or phone..."
                                 className="pl-10"
                                 autoFocus
