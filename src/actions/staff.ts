@@ -242,7 +242,7 @@ export async function updateStaffProfile(formData: FormData) {
 
   } catch (error) {
       console.error('Update staff profile error:', error)
-      return { success: false, error: 'Failed to update profile' }
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to update profile' }
   }
 }
 
