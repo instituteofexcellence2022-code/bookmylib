@@ -10,7 +10,7 @@ import { getStaffStudents, getStudentDetails } from '@/actions/staff/students'
 import { getStaffBranchDetails, createStaffPayment } from '@/actions/staff/finance'
 import { toast } from 'react-hot-toast'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { cn } from '@/lib/utils'
+import { cn, formatSeatNumber } from '@/lib/utils'
 import { motion } from 'framer-motion'
 import { validateCoupon } from '@/actions/payment'
 import { generateReceiptPDF } from '@/lib/pdf-generator'
@@ -40,7 +40,8 @@ interface Fee {
     id: string
     name: string
     amount: number
-    type: string
+    type?: string
+    description?: string | null
 }
 
 interface Seat {
@@ -316,10 +317,11 @@ export function StaffAcceptPaymentForm() {
                 toast.error('Please select a plan')
                 return
             }
-            if (isSeatSelectionEnabled && !selectedSeat) {
-                toast.error('Please select a seat')
-                return
-            }
+            // Seat selection is now optional
+            // if (isSeatSelectionEnabled && !selectedSeat) {
+            //     toast.error('Please select a seat')
+            //     return
+            // }
             setStep('payment')
         } else if (step === 'payment') {
             if (!amount || parseFloat(amount) < 0) {
@@ -410,7 +412,7 @@ export function StaffAcceptPaymentForm() {
             planDuration: `${selectedPlan.duration} ${selectedPlan.durationUnit}`,
             planHours: selectedPlan.hoursPerDay ? `${selectedPlan.hoursPerDay} Hrs/Day` : 
                       (selectedPlan.shiftStart && selectedPlan.shiftEnd) ? `${formatTime(selectedPlan.shiftStart)} - ${formatTime(selectedPlan.shiftEnd)}` : undefined,
-            seatNumber: selectedSeat ? `${selectedSeat.number} (${selectedSeat.section || 'General'})` : undefined,
+            seatNumber: selectedSeat ? `${formatSeatNumber(selectedSeat.number)} (${selectedSeat.section || 'General'})` : undefined,
             startDate: new Date(startDate),
             endDate: end,
             amount: parseFloat(amount),
@@ -716,7 +718,7 @@ export function StaffAcceptPaymentForm() {
                                                 </div>
                                                 <div>
                                                     <p className="font-medium text-sm text-gray-900 dark:text-white">{fee.name}</p>
-                                                    <p className="text-xs text-gray-500 capitalize">{fee.type.replace(/_/g, ' ')}</p>
+                                                    <p className="text-xs text-gray-500 capitalize">{fee.description || (fee.type || '').replace(/_/g, ' ')}</p>
                                                 </div>
                                             </div>
                                             <span className="font-semibold text-sm text-gray-900 dark:text-white">₹{fee.amount}</span>
@@ -820,7 +822,7 @@ export function StaffAcceptPaymentForm() {
                                                                 key={seat.id}
                                                                 whileHover={{ scale: 1.05 }}
                                                                 whileTap={{ scale: 0.95 }}
-                                                                onClick={() => !seat.isOccupied && setSelectedSeat(seat)}
+                                                                onClick={() => !seat.isOccupied && setSelectedSeat(prev => prev?.id === seat.id ? null : seat)}
                                                                 disabled={seat.isOccupied}
                                                                 className={cn(
                                                                     "aspect-square rounded-lg flex flex-col items-center justify-center transition-all",
@@ -833,7 +835,7 @@ export function StaffAcceptPaymentForm() {
                                                             >
                                                                 <Armchair className="w-4 h-4 mb-0.5" />
                                                                 <span className="text-[10px] font-bold">
-                                                                    {String(seat.number).padStart(2, '0')}
+                                                                    {formatSeatNumber(seat.number)}
                                                                 </span>
                                                             </motion.button>
                                                         ))}
@@ -912,7 +914,7 @@ export function StaffAcceptPaymentForm() {
                             {selectedSeat && (
                                 <div className="flex justify-between text-sm">
                                     <span className="text-gray-500">Seat</span>
-                                    <span className="font-medium text-emerald-600">S-{String(selectedSeat.number).padStart(2, '0')}</span>
+                                    <span className="font-medium text-emerald-600">{formatSeatNumber(selectedSeat.number)}</span>
                                 </div>
                             )}
                             
@@ -1069,7 +1071,7 @@ export function StaffAcceptPaymentForm() {
                                     {selectedSeat && (
                                         <div className="flex justify-between">
                                             <span className="text-gray-500">Seat</span>
-                                            <span className="font-medium text-emerald-600">S-{String(selectedSeat.number).padStart(2, '0')}</span>
+                                            <span className="font-medium text-emerald-600">{formatSeatNumber(selectedSeat.number)}</span>
                                         </div>
                                     )}
                                     <div className="flex justify-between">

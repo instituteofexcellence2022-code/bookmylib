@@ -50,6 +50,13 @@ export function formatRelativeTime(date: Date) {
   return formatDate(date)
 }
 
+export function formatSeatNumber(number: number | string | null | undefined): string {
+  if (number === null || number === undefined) return 'N/A'
+  const numStr = String(number)
+  if (numStr.startsWith('S-')) return numStr
+  return `S-${numStr.padStart(2, '0')}`
+}
+
 export function generateId(length = 12) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
   let result = ''

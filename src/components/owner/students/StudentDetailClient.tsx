@@ -37,6 +37,7 @@ import { useRouter } from 'next/navigation'
 import { sendReceiptEmail } from '@/actions/email'
 import { generateReceiptPDF, ReceiptData } from '@/lib/pdf-generator'
 import { verifyPayment } from '@/actions/payment'
+import { formatSeatNumber } from '@/lib/utils'
 
 interface Subscription {
   id: string
@@ -209,7 +210,7 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                 planName: payment.subscription?.plan?.name || payment.additionalFee?.name || 'Payment',
                 planDuration: payment.subscription?.plan?.duration ? `${payment.subscription.plan.duration} ${payment.subscription.plan.durationUnit}` : undefined,
                 planHours: payment.subscription?.plan?.hoursPerDay ? `${payment.subscription.plan.hoursPerDay} Hrs/Day` : undefined,
-                seatNumber: payment.subscription?.seat?.number,
+                seatNumber: payment.subscription?.seat?.number ? formatSeatNumber(payment.subscription.seat.number) : undefined,
                 startDate: payment.subscription?.startDate ? new Date(payment.subscription.startDate) : undefined,
                 endDate: payment.subscription?.endDate ? new Date(payment.subscription.endDate) : undefined,
                 amount: payment.amount,
@@ -488,7 +489,7 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                                                 <div className="text-indigo-100 text-xs font-medium uppercase tracking-wider mb-2">Active Plan</div>
                                                 <div className="text-2xl font-bold mb-1">{activeSub.plan.name}</div>
                                                 <div className="text-indigo-100 text-sm mb-4">
-                                                    {activeSub.branch.name} • {activeSub.seat ? `Seat ${activeSub.seat.number}` : 'No Seat'}
+                                                    {activeSub.branch.name} • {activeSub.seat ? formatSeatNumber(activeSub.seat.number) : 'No Seat'}
                                                 </div>
                                                 <div className="flex justify-between items-end border-t border-white/20 pt-4">
                                                     <div>

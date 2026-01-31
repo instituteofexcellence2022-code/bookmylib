@@ -6,6 +6,7 @@ import { cookies } from 'next/headers'
 import { startOfMonth, endOfMonth, subMonths, format, startOfDay, endOfDay } from 'date-fns'
 import { COOKIE_KEYS } from '@/lib/auth/session'
 import { sendReceiptEmail } from '@/actions/email'
+import { formatSeatNumber } from '@/lib/utils'
 
 async function getOwner() {
   const cookieStore = await cookies()
@@ -829,7 +830,7 @@ export async function verifyPayment(paymentId: string, action: 'approve' | 'reje
                     planType: enrichedPayment.subscription?.plan?.category || undefined,
                     planDuration: duration,
                     planHours: enrichedPayment.subscription?.plan?.hoursPerDay ? `${enrichedPayment.subscription.plan.hoursPerDay} Hrs/Day` : undefined,
-                    seatNumber: enrichedPayment.subscription?.seat?.number ? `${enrichedPayment.subscription.seat.number}` : undefined,
+                    seatNumber: enrichedPayment.subscription?.seat?.number ? `${formatSeatNumber(enrichedPayment.subscription.seat.number)}` : undefined,
                     startDate: enrichedPayment.subscription?.startDate || undefined,
                     endDate: enrichedPayment.subscription?.endDate || undefined,
                     amount: enrichedPayment.amount,

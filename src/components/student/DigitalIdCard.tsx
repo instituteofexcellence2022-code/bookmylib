@@ -6,8 +6,9 @@ import { motion } from 'framer-motion'
 import { Shield, User, Download, Share2, CheckCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { jsPDF } from 'jspdf'
-import { toast } from 'react-hot-toast'
+import { cn, formatSeatNumber } from '@/lib/utils'
 import Image from 'next/image'
+import { toast } from 'react-hot-toast'
 
 interface DigitalIdCardProps {
     student: {
@@ -95,7 +96,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
             doc.text(`Plan: ${activeSubscription.plan.name}`, 28, 28)
             doc.text(`Branch: ${activeSubscription.branch.name}`, 28, 32)
             if (activeSubscription.seat) {
-                doc.text(`Seat: S-${String(activeSubscription.seat.number).padStart(2, '0')}`, 28, 36)
+                doc.text(`Seat: ${formatSeatNumber(activeSubscription.seat.number)}`, 28, 36)
             }
             doc.text(`Valid: ${format(new Date(activeSubscription.endDate), 'MMM dd, yyyy')}`, 28, 40)
         } else {
@@ -235,7 +236,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                                             <div>
                                                 <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Seat Number</p>
                                                 <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                                                    {activeSubscription.seat ? `S-${String(activeSubscription.seat.number).padStart(2, '0')}` : 'General'}
+                                                    {activeSubscription.seat ? formatSeatNumber(activeSubscription.seat.number) : 'General'}
                                                 </p>
                                             </div>
                                         </div>

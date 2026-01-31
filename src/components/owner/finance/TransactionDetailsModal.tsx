@@ -7,6 +7,7 @@ import { generateReceiptPDF } from '@/lib/pdf-generator'
 import { updatePaymentStatus } from '@/actions/owner/finance'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { formatSeatNumber } from '@/lib/utils'
 
 interface Transaction {
   id: string
@@ -138,7 +139,7 @@ export function TransactionDetailsModal({ isOpen, onClose, transaction }: Transa
         }
 
         if (transaction.subscription.seat) {
-            seatNumber = transaction.subscription.seat.number
+            seatNumber = formatSeatNumber(transaction.subscription.seat.number)
             if (transaction.subscription.seat.section) {
                 seatNumber += ` (${transaction.subscription.seat.section})`
             }
@@ -236,7 +237,7 @@ export function TransactionDetailsModal({ isOpen, onClose, transaction }: Transa
                 <p className="text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider">Type</p>
                 <p className="text-sm font-medium text-gray-900 dark:text-white capitalize">
                     {transaction.type === 'subscription' && transaction.subscription?.plan?.name 
-                      ? `${transaction.subscription.plan.name} Subscription` 
+                      ? `${transaction.subscription.plan.name} Subscription${transaction.subscription.seat ? ` - ${formatSeatNumber(transaction.subscription.seat.number)}` : ''}` 
                       : transaction.type}
                 </p>
                 {transaction.invoiceNo && (

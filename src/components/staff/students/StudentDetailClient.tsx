@@ -18,6 +18,7 @@ import {
     ArrowLeft
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { formatSeatNumber } from '@/lib/utils'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { AttendanceHeatmap } from '@/components/ui/attendance-heatmap'
 import GovtIdVerification from '@/components/staff/students/GovtIdVerification'
@@ -459,7 +460,7 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                                             {sub.seat && (
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-500">Seat</span>
-                                                    <span className="font-medium">#{sub.seat.number}</span>
+                                                    <span className="font-medium">{formatSeatNumber(sub.seat.number)}</span>
                                                 </div>
                                             )}
                                         </div>

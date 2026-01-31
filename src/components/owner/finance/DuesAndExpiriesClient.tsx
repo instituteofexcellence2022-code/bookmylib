@@ -8,6 +8,7 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormSelect } from '@/components/ui/FormSelect'
 import { MessageCircle, RefreshCw, AlertCircle, Clock, Filter, Search, User, CreditCard } from 'lucide-react'
 import { format, differenceInDays } from 'date-fns'
+import { formatSeatNumber } from '@/lib/utils'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -372,9 +373,9 @@ function SubscriptionCard({ item, type, onRemind }: { item: SubscriptionItem, ty
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className="w-3.5 h-3.5 flex items-center justify-center rounded-sm bg-gray-200 dark:bg-gray-700 text-[10px] font-bold">
-                                    {item.seat?.number || 'NA'}
+                                    {item.seat ? formatSeatNumber(item.seat.number).replace('S-', '') : 'NA'}
                                 </div>
-                                <span>Seat {item.seat?.number || 'N/A'}</span>
+                                <span>{item.seat ? formatSeatNumber(item.seat.number) : 'No Seat'}</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <Clock className="w-3.5 h-3.5" />

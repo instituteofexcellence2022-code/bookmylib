@@ -12,7 +12,7 @@ import {
 import { motion } from 'framer-motion'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { createBooking } from '@/actions/booking'
-import { cn } from '@/lib/utils'
+import { cn, formatSeatNumber } from '@/lib/utils'
 
 import { Branch, Seat, Plan, AdditionalFee, Library } from '@prisma/client'
 import BookingPayment from '@/components/student/BookingPayment'
@@ -518,7 +518,7 @@ export default function BookingClient({ branch, studentId, currentSubscription }
                                                             seat.isOccupied ? "opacity-50" : ""
                                                         )} />
                                                         <span className="text-sm md:text-base font-semibold truncate w-full text-center px-1">
-                                                            {`S-${String(seat.number).padStart(2, '0')}`}
+                                                            {formatSeatNumber(seat.number)}
                                                         </span>
                                                         {selectedSeat?.id === seat.id && (
                                                             <motion.div
@@ -568,7 +568,7 @@ export default function BookingClient({ branch, studentId, currentSubscription }
                                                         seat.isOccupied ? "opacity-50" : ""
                                                     )} />
                                                     <span className="text-sm md:text-base font-semibold truncate w-full text-center px-1">
-                                                        {`S-${String(seat.number).padStart(2, '0')}`}
+                                                        {formatSeatNumber(seat.number)}
                                                     </span>
                                                     {selectedSeat?.id === seat.id && (
                                                         <div className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-white text-emerald-600 rounded-full flex items-center justify-center shadow-sm">

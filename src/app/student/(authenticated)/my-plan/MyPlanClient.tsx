@@ -12,6 +12,7 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { motion } from 'framer-motion'
 import { generateReceiptPDF } from '@/lib/pdf-generator'
+import { formatSeatNumber } from '@/lib/utils'
 
 export default function MyPlanClient() {
   const router = useRouter()
@@ -105,7 +106,7 @@ export default function MyPlanClient() {
         planName: subscription.plan.name,
         planType: subscription.plan.durationUnit,
         planDuration: subscription.plan.duration?.toString(),
-        seatNumber: subscription.seat?.number?.toString(),
+        seatNumber: subscription.seat?.number ? formatSeatNumber(subscription.seat.number) : undefined,
         startDate: subscription.startDate ? new Date(subscription.startDate) : undefined,
         endDate: subscription.endDate ? new Date(subscription.endDate) : undefined,
         amount: payment.amount,
@@ -252,7 +253,7 @@ export default function MyPlanClient() {
                       <span className="text-purple-200/60 uppercase tracking-wider text-[10px]">Seat</span>
                       <span className="font-medium truncate flex items-center gap-1.5">
                         <MapPin className="w-3.5 h-3.5" />
-                        {sub?.seat?.number ? `S-${String(sub.seat.number).padStart(2, '0')} ${sub.seat.section ? `(${sub.seat.section})` : ''}` : 'No Seat'}
+                        {sub?.seat?.number ? `${formatSeatNumber(sub.seat.number)} ${sub.seat.section ? `(${sub.seat.section})` : ''}` : 'No Seat'}
                       </span>
                     </div>
                   </div>

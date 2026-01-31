@@ -13,6 +13,7 @@ import {
 } from '@/actions/payment'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
+import { formatSeatNumber } from '@/lib/utils'
 
 interface BookingPaymentProps {
   plan: {
@@ -109,7 +110,7 @@ export default function BookingPayment({
     
     // Construct description
     let description = `Booking: ${plan.name}`
-    if (seat) description += ` (Seat S-${String(seat.number).padStart(2, '0')})`
+    if (seat) description += ` (Seat ${formatSeatNumber(seat.number)})`
     if (fees.length > 0) description += ` + ${fees.length} Fees`
 
     try {
@@ -258,7 +259,7 @@ export default function BookingPayment({
         {seat && (
           <div className="flex justify-between text-sm">
             <span className="text-gray-600 dark:text-gray-300">Seat Selection</span>
-            <span className="font-medium text-emerald-600">Selected: {`S-${String(seat.number).padStart(2, '0')}`}</span>
+            <span className="font-medium text-emerald-600">Selected: {formatSeatNumber(seat.number)}</span>
           </div>
         )}
 

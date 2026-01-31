@@ -15,6 +15,7 @@ import {
   getStudentBookingStatus 
 } from '@/actions/payment'
 import { generateReceiptPDF } from '@/lib/pdf-generator'
+import { formatSeatNumber } from '@/lib/utils'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
@@ -107,7 +108,7 @@ export default function PaymentClient() {
             : (payment.subscription?.plan?.shiftStart && payment.subscription?.plan?.shiftEnd)
                 ? `${formatTime(payment.subscription.plan.shiftStart)} - ${formatTime(payment.subscription.plan.shiftEnd)}`
                 : undefined,
-        seatNumber: payment.subscription?.seat?.number ? `${payment.subscription.seat.number} (${payment.subscription.seat.section || 'General'})` : undefined,
+        seatNumber: payment.subscription?.seat?.number ? `${formatSeatNumber(payment.subscription.seat.number)} (${payment.subscription.seat.section || 'General'})` : undefined,
         startDate: payment.subscription?.startDate ? new Date(payment.subscription.startDate) : undefined,
         endDate: payment.subscription?.endDate ? new Date(payment.subscription.endDate) : undefined,
         amount: payment.amount,

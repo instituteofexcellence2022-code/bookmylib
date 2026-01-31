@@ -6,6 +6,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { uploadFile } from '@/actions/upload'
 import { sendWelcomeEmail } from '@/actions/email'
+import { formatSeatNumber } from '@/lib/utils'
 import { COOKIE_KEYS } from '@/lib/auth/session'
 
 import bcrypt from 'bcryptjs'
@@ -353,7 +354,7 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
                 status,
                 currentPlan: displaySub?.plan?.name,
                 currentBranch: displaySub?.branch?.name,
-                seatNumber: displaySub?.seat?.number
+                seatNumber: displaySub?.seat?.number ? formatSeatNumber(displaySub.seat.number) : undefined
             }
         })
 

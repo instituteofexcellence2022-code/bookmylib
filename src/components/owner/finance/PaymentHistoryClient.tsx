@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { generateReceiptPDF } from '@/lib/pdf-generator'
+import { formatSeatNumber } from '@/lib/utils'
 
 interface Transaction {
   id: string
@@ -249,7 +250,10 @@ function StudentTransactionHistory({
                                     </td>
                                     <td className="px-6 py-3 text-gray-600 dark:text-gray-300">
                                         <div className="font-medium text-gray-900 dark:text-white">{tx.branch?.name || '-'}</div>
-                                        <div className="text-xs text-gray-500">{tx.subscription?.plan?.name || (tx.additionalFee?.name || '-')}</div>
+                                        <div className="text-xs text-gray-500">
+                            {tx.subscription?.plan?.name || (tx.additionalFee?.name || '-')}
+                            {tx.subscription?.seat && ` (${formatSeatNumber(tx.subscription.seat.number)})`}
+                        </div>
                                         {tx.subscription?.startDate && tx.subscription?.endDate && (
                                             <div className="text-[10px] text-gray-400 mt-0.5">
                                                 {format(new Date(tx.subscription.startDate), 'MMM dd, yyyy')} - {format(new Date(tx.subscription.endDate), 'MMM dd, yyyy')}
@@ -466,7 +470,7 @@ export function PaymentHistoryClient() {
             planType: plan?.category,
             planDuration: plan ? `${plan.duration} ${plan.durationUnit}` : undefined,
             planHours: plan?.hoursPerDay ? `${plan.hoursPerDay} Hrs/Day` : undefined,
-            seatNumber: seat ? `${seat.number} (${seat.section || 'General'})` : undefined,
+            seatNumber: seat ? formatSeatNumber(seat.number) : undefined,
             
             // Dates
             startDate: tx.subscription?.startDate ? new Date(tx.subscription.startDate) : undefined,

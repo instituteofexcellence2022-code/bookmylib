@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { sendReceiptEmail } from '@/actions/email'
+import { formatSeatNumber } from '@/lib/utils'
 
 // Helper to get current student
 import { COOKIE_KEYS } from '@/lib/auth/session'
@@ -541,7 +542,7 @@ export async function verifyPaymentSignature(
                 student: true,
                 branch: true,
                 subscription: {
-                    include: { plan: true }
+                    include: { plan: true, seat: true }
                 },
                 additionalFee: true
             }
@@ -568,6 +569,7 @@ export async function verifyPaymentSignature(
                 planDuration: duration,
                 branchName: enrichedPayment.branch?.name || 'N/A',
                 paymentMethod: enrichedPayment.method,
+                seatNumber: enrichedPayment.subscription?.seat ? formatSeatNumber(enrichedPayment.subscription.seat.number) : undefined,
                 subTotal: enrichedPayment.amount,
                 discount: 0,
                 items: [{

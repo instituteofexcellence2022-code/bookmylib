@@ -24,6 +24,8 @@ interface HomeClientProps {
   likedQuoteIds: number[]
 }
 
+import { formatSeatNumber } from '@/lib/utils'
+
 export default function HomeClient({ student, stats, todayAttendance, quotes, likedQuoteIds }: HomeClientProps) {
   const router = useRouter()
   const activeSubscription = student.subscriptions[0]
@@ -69,7 +71,7 @@ export default function HomeClient({ student, stats, todayAttendance, quotes, li
           </div>
           
           <h2 className="text-2xl font-bold mb-1">
-            {activeSubscription?.seat ? `Seat S-${String(activeSubscription.seat.number).padStart(2, '0')}` : 'General Seating'}
+            {activeSubscription?.seat ? `Seat ${formatSeatNumber(activeSubscription.seat.number)}` : 'General Seating'}
           </h2>
           <p className="text-white/80 text-sm mb-6">
             {activeSubscription?.seat?.section || activeSubscription?.plan?.name || 'No Plan Active'}

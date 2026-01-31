@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { sendReceiptEmail } from '@/actions/email'
 import { startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns'
 import { COOKIE_KEYS } from '@/lib/auth/session'
+import { formatSeatNumber } from '@/lib/utils'
 
 // Helper to get authenticated staff
 async function getAuthenticatedStaff() {
@@ -395,7 +396,7 @@ export async function createStaffPayment(data: {
                         ? `${formatTime(enrichedPayment.subscription.plan.shiftStart)} - ${formatTime(enrichedPayment.subscription.plan.shiftEnd)}`
                         : undefined,
                 seatNumber: enrichedPayment.subscription?.seat?.number 
-                    ? `${enrichedPayment.subscription.seat.number}${enrichedPayment.subscription.seat.section ? ` (${enrichedPayment.subscription.seat.section})` : ''}` 
+                    ? `${formatSeatNumber(enrichedPayment.subscription.seat.number)}${enrichedPayment.subscription.seat.section ? ` (${enrichedPayment.subscription.seat.section})` : ''}` 
                     : undefined,
                 time: (enrichedPayment.subscription?.plan?.shiftStart && enrichedPayment.subscription?.plan?.shiftEnd)
                     ? `${formatTime(enrichedPayment.subscription.plan.shiftStart)} - ${formatTime(enrichedPayment.subscription.plan.shiftEnd)}`

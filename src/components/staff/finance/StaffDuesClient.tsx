@@ -10,6 +10,7 @@ import { format, differenceInDays } from 'date-fns'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { useRouter } from 'next/navigation'
+import { formatSeatNumber } from '@/lib/utils'
 
 interface SubscriptionItem {
     id: string
@@ -241,7 +242,7 @@ export function StaffDuesClient() {
                                                 <div className="text-gray-900 dark:text-white font-medium">{item.plan.name}</div>
                                                 {item.seat ? (
                                                     <Badge variant="secondary" className="mt-1 text-xs font-normal">
-                                                        Seat {item.seat.number}
+                                                        {formatSeatNumber(item.seat.number)}
                                                     </Badge>
                                                 ) : (
                                                     <span className="text-xs text-gray-400 mt-1 block">No Seat</span>

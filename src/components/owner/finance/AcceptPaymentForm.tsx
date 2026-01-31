@@ -15,7 +15,7 @@ import { CheckCircle2 } from 'lucide-react'
 
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
-import { cn } from '@/lib/utils'
+import { cn, formatSeatNumber } from '@/lib/utils'
 import { motion } from 'framer-motion'
 import { sendReceiptEmail } from '@/actions/email'
 import { ReceiptData } from '@/lib/pdf-generator'
@@ -378,7 +378,7 @@ export function AcceptPaymentForm() {
             planDuration: `${selectedPlan.duration} ${selectedPlan.durationUnit}`,
             planHours: selectedPlan.hoursPerDay ? `${selectedPlan.hoursPerDay} Hrs/Day` : 
                       (selectedPlan.shiftStart && selectedPlan.shiftEnd) ? `${formatTime(selectedPlan.shiftStart)} - ${formatTime(selectedPlan.shiftEnd)}` : undefined,
-            seatNumber: selectedSeat ? `${selectedSeat.number} (${selectedSeat.section || 'General'})` : undefined,
+            seatNumber: selectedSeat ? `${formatSeatNumber(selectedSeat.number)} (${selectedSeat.section || 'General'})` : undefined,
             startDate: new Date(startDate),
             endDate: end,
             amount: parseFloat(amount),
@@ -836,7 +836,7 @@ Thank you!`
                                                                 >
                                                                     <Armchair className="w-4 h-4 mb-0.5" />
                                                                     <span className="text-[10px] font-bold">
-                                                                        S-{String(seat.number).padStart(2, '0')}
+                                                                        {formatSeatNumber(seat.number)}
                                                                     </span>
                                                                 </motion.button>
                                                             ))}
@@ -915,7 +915,7 @@ Thank you!`
                             {selectedSeat && (
                                 <div className="flex justify-between text-sm">
                                     <span className="text-gray-500">Seat</span>
-                                    <span className="font-medium text-emerald-600">S-{String(selectedSeat.number).padStart(2, '0')}</span>
+                                    <span className="font-medium text-emerald-600">{formatSeatNumber(selectedSeat.number)}</span>
                                 </div>
                             )}
                             
@@ -1072,7 +1072,7 @@ Thank you!`
                                     {selectedSeat && (
                                         <div className="flex justify-between">
                                             <span className="text-gray-500">Seat</span>
-                                            <span className="font-medium text-emerald-600">S-{String(selectedSeat.number).padStart(2, '0')}</span>
+                                            <span className="font-medium text-emerald-600">{formatSeatNumber(selectedSeat.number)}</span>
                                         </div>
                                     )}
                                     <div className="flex justify-between">

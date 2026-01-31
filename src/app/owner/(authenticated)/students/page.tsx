@@ -17,6 +17,7 @@ import {
     Sparkles
 } from 'lucide-react'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { formatSeatNumber } from '@/lib/utils'
 import { FormInput } from '@/components/ui/FormInput'
 import { FormSelect } from '@/components/ui/FormSelect'
 import { getOwnerStudents, type StudentFilter } from '@/actions/owner/students'
@@ -204,7 +205,7 @@ export default function StudentsPage() {
                                                 <div>
                                                     <div className="text-sm font-medium text-gray-900 dark:text-white">
                                                         {student.currentPlan}
-                                                        {student.seatNumber && <span className="ml-2 text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">S-{student.seatNumber}</span>}
+                                                        {student.seatNumber && <span className="ml-2 text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">{formatSeatNumber(student.seatNumber)}</span>}
                                                     </div>
                                                     <div className="text-xs text-gray-500">{student.currentBranch}</div>
                                                 </div>

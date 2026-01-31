@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { formatDate } from './utils'
+import { formatDate, formatSeatNumber } from './utils'
 
 // Helper for PDF currency formatting (avoiding unicode symbols that might break in standard fonts)
 const formatCurrencyForPDF = (amount: number) => {
@@ -184,7 +184,7 @@ export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob
     doc.setFont('helvetica', 'bold')
     let seatY = valueY
     if (data.seatNumber) {
-        doc.text(data.seatNumber, 150, seatY)
+        doc.text(formatSeatNumber(data.seatNumber), 150, seatY)
         seatY += 5
     } else {
         doc.text('-', 150, seatY)
