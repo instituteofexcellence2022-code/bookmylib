@@ -322,28 +322,28 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                     <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold pl-2">
                         Library Access Card
                     </p>
-                    <div className="flex items-center gap-3 pr-2">
-                        <div className="flex items-center gap-1 opacity-60">
-                            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 tracking-wider">BookMyLib</span>
-                        </div>
-                        <div className="exclude-from-pdf flex gap-2">
-                            <button 
-                                onClick={handleShare}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-md border border-gray-200 dark:border-gray-600 transition-colors shadow-sm"
-                            >
-                                <Share2 size={14} />
-                                Share
-                            </button>
-                            <button 
-                                onClick={handleDownload}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-md border border-gray-200 dark:border-gray-600 transition-colors shadow-sm"
-                            >
-                                <Download size={14} />
-                                Save PDF
-                            </button>
-                        </div>
+                    <div className="flex items-center gap-1 opacity-60 pr-2">
+                        <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 tracking-wider">BookMyLib</span>
                     </div>
                 </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="mt-4 flex justify-center gap-3">
+                <button 
+                    onClick={handleShare}
+                    className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 transition-all shadow-sm hover:shadow"
+                >
+                    <Share2 size={16} />
+                    Share Card
+                </button>
+                <button 
+                    onClick={handleDownload}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all shadow-sm hover:shadow hover:scale-105"
+                >
+                    <Download size={16} />
+                    Download PDF
+                </button>
             </div>
         </motion.div>
     )
