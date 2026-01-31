@@ -93,9 +93,41 @@ interface TransactionFilters {
     endDate?: Date
     status?: string
     method?: string
+    branchId?: string
+    planId?: string
+    staffId?: string
+    source?: string
+    search?: string
+    studentId?: string
 }
 
-export async function getTransactions(filters: TransactionFilters = {}, limit = 20) {
+export async function getFilterOptions() {
+    const owner = await getOwner()
+    if (!owner) throw new Error('Unauthorized')
+
+    const [branches, plans, staff, owners] = await Promise.all([
+        prisma.branch.findMany({
+            where: { libraryId: owner.libraryId },
+            select: { id: true, name: true }
+        }),
+        prisma.plan.findMany({
+            where: { libraryId: owner.libraryId },
+            select: { id: true, name: true }
+        }),
+        prisma.staff.findMany({
+            where: { libraryId: owner.libraryId },
+            select: { id: true, name: true }
+        }),
+        prisma.owner.findMany({
+            where: { libraryId: owner.libraryId },
+            select: { id: true, name: true }
+        })
+    ])
+
+    return { branches, plans, staff, owners }
+}
+
+export async function getTransactions(filters: TransactionFilters = {}, limit = 50) {
   const owner = await getOwner()
   if (!owner) throw new Error('Unauthorized')
 
@@ -109,6 +141,72 @@ export async function getTransactions(filters: TransactionFilters = {}, limit = 
 
   if (filters.method && filters.method !== 'all') {
       whereClause.method = filters.method
+  }
+
+  if (filters.source && filters.source !== 'all') {
+      if (filters.source === 'frontdesk') {
+          whereClause.gatewayProvider = null
+      } else if (filters.source === 'upi_apps') {
+          whereClause.method = { in: ['upi', 'upi_app'] }
+      } else if (filters.source === 'qr_code') {
+          whereClause.method = { in: ['qr', 'qr_code'] }
+      } else {
+          whereClause.gatewayProvider = {
+              equals: filters.source,
+              mode: 'insensitive'
+          }
+      }
+  }
+
+  if (filters.branchId && filters.branchId !== 'all') {
+      whereClause.branchId = filters.branchId
+  }
+
+  if (filters.studentId) {
+      whereClause.studentId = filters.studentId
+  }
+
+  if (filters.planId && filters.planId !== 'all') {
+      // Payment usually has subscriptionId, which links to plan. 
+      // But payment also has optional planId if we store it? No, schema says subscription -> plan.
+      // Or feeId.
+      // Let's filter by related subscription's planId
+      whereClause.subscription = {
+          planId: filters.planId
+      }
+  }
+
+  const andConditions = []
+
+  if (filters.staffId && filters.staffId !== 'all') {
+      if (filters.staffId === 'all_staff') {
+          andConditions.push({
+              verifierRole: 'staff'
+          })
+      } else {
+          andConditions.push({
+              OR: [
+                  { collectedBy: filters.staffId },
+                  { verifiedBy: filters.staffId }
+              ]
+          })
+      }
+  }
+
+  if (filters.search) {
+      andConditions.push({
+          OR: [
+              { student: { name: { contains: filters.search, mode: 'insensitive' } } },
+              { student: { email: { contains: filters.search, mode: 'insensitive' } } },
+              { student: { phone: { contains: filters.search, mode: 'insensitive' } } },
+              { invoiceNo: { contains: filters.search, mode: 'insensitive' } },
+              { transactionId: { contains: filters.search, mode: 'insensitive' } }
+          ]
+      })
+  }
+
+  if (andConditions.length > 0) {
+      whereClause.AND = andConditions
   }
 
   if (filters.startDate) {
@@ -130,7 +228,7 @@ export async function getTransactions(filters: TransactionFilters = {}, limit = 
     orderBy: { date: 'desc' },
     take: limit,
     include: {
-      student: { select: { name: true, email: true, phone: true } },
+      student: { select: { id: true, name: true, email: true, phone: true } },
       branch: { select: { name: true, address: true, city: true, state: true } },
       subscription: { include: { plan: true, seat: true } },
       additionalFee: true,
@@ -138,7 +236,83 @@ export async function getTransactions(filters: TransactionFilters = {}, limit = 
     }
   })
 
-  return payments
+  // Enrich payments with verifier details
+  const staffIds = new Set<string>()
+  const ownerIds = new Set<string>()
+
+  payments.forEach(p => {
+    // Check verifiedBy
+    if (p.verifiedBy) {
+      if (p.verifierRole === 'staff') staffIds.add(p.verifiedBy)
+      else if (p.verifierRole === 'owner') ownerIds.add(p.verifiedBy)
+    }
+    // Check collectedBy (fallback or explicit collection)
+    if (p.collectedBy) {
+       // We assume collectedBy is always a staff member for now, based on schema comments
+       // but strictly it refers to a User ID. 
+       // Given the current architecture, usually staff collects payment.
+       staffIds.add(p.collectedBy)
+    }
+  })
+
+  const [staffMap, ownerMap] = await Promise.all([
+    staffIds.size > 0 ? prisma.staff.findMany({
+      where: { id: { in: Array.from(staffIds) } },
+      select: { id: true, name: true }
+    }).then(staff => new Map(staff.map(s => [s.id, s.name]))) : new Map(),
+    ownerIds.size > 0 ? prisma.owner.findMany({
+      where: { id: { in: Array.from(ownerIds) } },
+      select: { id: true, name: true }
+    }).then(owners => new Map(owners.map(o => [o.id, o.name]))) : new Map()
+  ])
+
+  return payments.map(p => {
+    let verifierName = undefined;
+    
+    // 1. Try verifiedBy
+    if (p.verifiedBy) {
+        if (p.verifierRole === 'staff') verifierName = staffMap.get(p.verifiedBy)
+        else if (p.verifierRole === 'owner') verifierName = ownerMap.get(p.verifiedBy)
+    }
+
+    // 2. Fallback to collectedBy if no verifier found (or if we want to show collector)
+    if (!verifierName && p.collectedBy) {
+        verifierName = staffMap.get(p.collectedBy)
+    }
+
+    return {
+        ...p,
+        verifierName: verifierName || 'Unknown' // Only return Unknown if we have an ID but couldn't find name, OR just undefined if no ID? 
+        // Actually, if ID exists but name not found -> Unknown. 
+        // If no ID -> undefined (so UI doesn't show "By: undefined")
+        // But the previous logic was: `|| 'Unknown'`. 
+        // Let's refine:
+        // If (verifiedBy OR collectedBy) exists -> return Name OR 'Unknown'
+        // If neither exists -> return undefined
+    }
+  }).map(p => {
+      // Clean up the logic
+      let name: string | undefined = undefined;
+      
+      if (p.verifiedBy) {
+          name = (p.verifierRole === 'staff' ? staffMap.get(p.verifiedBy) : ownerMap.get(p.verifiedBy));
+      }
+      
+      if (!name && p.collectedBy) {
+          name = staffMap.get(p.collectedBy);
+      }
+      
+      // If we have an ID (verifiedBy or collectedBy) but no name found, it means the user was deleted or lookup failed.
+      // But we only want to show "By: ..." if there was an attempt to record it.
+      // If p.verifiedBy or p.collectedBy is present, we should probably show something.
+      
+      const hasId = p.verifiedBy || p.collectedBy;
+      
+      return {
+          ...p,
+          verifierName: hasId ? (name || 'Unknown User') : undefined
+      }
+  })
 }
 
 // Keeping for backward compatibility if needed, but getTransactions is superior
