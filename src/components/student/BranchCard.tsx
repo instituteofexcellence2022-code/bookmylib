@@ -43,7 +43,7 @@ const getAmenities = (amenitiesString: string | null) => {
   }
 }
 
-interface BranchCardProps {
+export interface BranchCardProps {
   branch: {
     id: string
     name: string
