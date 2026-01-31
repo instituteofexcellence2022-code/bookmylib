@@ -71,7 +71,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
         })
     }, [student, activeSubscription])
 
-    const generatePDF = () => {
+    const generatePDF = (profileImageData?: string) => {
         const doc = new jsPDF({
             orientation: 'landscape',
             unit: 'mm',
@@ -82,60 +82,124 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
         doc.setFillColor(255, 255, 255)
         doc.rect(0, 0, 85.6, 54, 'F')
         
-        // Header
+        // Header (Gradient-like Blue)
         doc.setFillColor(37, 99, 235) // Blue-600
-        doc.rect(0, 0, 85.6, 12, 'F')
+        doc.rect(0, 0, 85.6, 10, 'F')
+        
+        // Header Text
         doc.setTextColor(255, 255, 255)
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'bold')
+        doc.text('OFFICIAL STUDENT ID', 4, 6.5)
+        
+        doc.setFontSize(7)
+        doc.setFont('courier', 'normal')
+        doc.text(`LIB-${student.id.slice(-6).toUpperCase()}`, 81.6, 6.5, { align: 'right' })
+
+        // --- Row 1: Profile & Contact ---
+        
+        // Profile Image (Left)
+        // Box: x=4, y=13, w=15, h=15
+        if (profileImageData) {
+            try {
+                // Circular mask is hard in jsPDF, so we use rounded rect or just square for now
+                // doc.roundedRect(4, 13, 15, 15, 2, 2, 'F') // bg for image
+                doc.addImage(profileImageData, 'JPEG', 4, 13, 15, 15)
+            } catch (e) {
+                console.error('Error adding profile image to PDF', e)
+                // Fallback placeholder
+                doc.setFillColor(229, 231, 235) // gray-200
+                doc.circle(11.5, 20.5, 7.5, 'F')
+            }
+        } else {
+            // Placeholder
+            doc.setFillColor(229, 231, 235) // gray-200
+            doc.circle(11.5, 20.5, 7.5, 'F')
+        }
+
+        // Contact Info (Right)
+        doc.setTextColor(17, 24, 39) // gray-900
         doc.setFontSize(10)
         doc.setFont('helvetica', 'bold')
-        doc.text('LIBRARY CARD', 42.8, 8, { align: 'center' })
-
-        // Content
-        doc.setTextColor(0, 0, 0)
+        doc.text(student.name, 22, 16)
         
-        // Name
-        doc.setFontSize(11)
-        doc.setFont('helvetica', 'bold')
-        doc.text(student.name, 28, 20)
-        
-        // ID
-        doc.setFontSize(6)
-        doc.setFont('helvetica', 'normal')
-        doc.setTextColor(100, 100, 100)
-        doc.text(`ID: ${student.id.slice(-8).toUpperCase()}`, 28, 23)
-
-        // Details
+        doc.setTextColor(107, 114, 128) // gray-500
         doc.setFontSize(7)
-        doc.setTextColor(0, 0, 0)
-        
-        if (activeSubscription) {
-            doc.text(`Plan: ${activeSubscription.plan.name}`, 28, 28)
-            doc.text(`Branch: ${activeSubscription.branch.name}`, 28, 32)
-            if (activeSubscription.seat) {
-                doc.text(`Seat: ${formatSeatNumber(activeSubscription.seat.number)}`, 28, 36)
-            }
-            doc.text(`Valid: ${format(new Date(activeSubscription.endDate), 'MMM dd, yyyy')}`, 28, 40)
-        } else {
-            doc.setTextColor(220, 38, 38)
-            doc.text('No Active Subscription', 28, 30)
-        }
+        doc.setFont('helvetica', 'normal')
+        doc.text(student.email, 22, 20)
+        doc.text(student.phone, 22, 24)
 
-        // QR Code
+        // --- Divider ---
+        doc.setDrawColor(229, 231, 235) // gray-200
+        doc.setLineDash([1, 1], 0)
+        doc.line(4, 31, 81.6, 31)
+        doc.setLineDash([], 0) // reset
+
+        // --- Row 2: QR & Details ---
+
+        // QR Code (Left)
+        // Box: x=4, y=34, w=15, h=15
         if (qrCodeUrl) {
-            doc.addImage(qrCodeUrl, 'PNG', 2, 14, 24, 24)
+            doc.addImage(qrCodeUrl, 'PNG', 4, 34, 15, 15)
         }
 
-        // Footer
-        doc.setFontSize(5)
-        doc.setTextColor(150, 150, 150)
-        doc.text('This is a digital identity card.', 42.8, 50, { align: 'center' })
+        // Subscription Details (Right)
+        if (activeSubscription) {
+            doc.setFontSize(5)
+            doc.setTextColor(156, 163, 175) // gray-400
+            doc.setFont('helvetica', 'bold')
+            
+            // Grid layout simulation
+            // Col 1
+            doc.text('CURRENT PLAN', 22, 36)
+            doc.text('BRANCH', 22, 43)
+            
+            // Col 2
+            doc.text('SEAT NUMBER', 52, 36)
+            doc.text('VALID UNTIL', 52, 43)
+            
+            // Values
+            doc.setFontSize(7)
+            doc.setTextColor(37, 99, 235) // blue-600 (Plan)
+            doc.text(activeSubscription.plan.name, 22, 39)
+            
+            doc.setTextColor(31, 41, 55) // gray-800 (Others)
+            doc.text(activeSubscription.branch.name, 22, 46)
+            
+            doc.text(activeSubscription.seat ? formatSeatNumber(activeSubscription.seat.number) : 'General', 52, 39)
+            doc.text(format(new Date(activeSubscription.endDate), 'MMM dd, yyyy'), 52, 46)
+        } else {
+            doc.setTextColor(220, 38, 38) // red-600
+            doc.setFontSize(8)
+            doc.text('No Active Subscription', 22, 40)
+        }
 
         return doc
     }
 
-    const handleDownload = () => {
+    const getImageData = async (url: string): Promise<string | undefined> => {
         try {
-            const doc = generatePDF()
+            const response = await fetch(url)
+            const blob = await response.blob()
+            return new Promise((resolve) => {
+                const reader = new FileReader()
+                reader.onloadend = () => resolve(reader.result as string)
+                reader.readAsDataURL(blob)
+            })
+        } catch (error) {
+            console.error('Error fetching image:', error)
+            return undefined
+        }
+    }
+
+    const handleDownload = async () => {
+        try {
+            let profileImageData
+            if (student.image) {
+                profileImageData = await getImageData(student.image)
+            }
+            
+            const doc = generatePDF(profileImageData)
             doc.save(`${student.name.replace(/\s+/g, '_')}_ID.pdf`)
             toast.success('ID Card downloaded')
         } catch (error) {
@@ -146,7 +210,12 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
 
     const handleShare = async () => {
         try {
-            const doc = generatePDF()
+            let profileImageData
+            if (student.image) {
+                profileImageData = await getImageData(student.image)
+            }
+
+            const doc = generatePDF(profileImageData)
             const pdfBlob = doc.output('blob')
             const file = new File([pdfBlob], `${student.name.replace(/\s+/g, '_')}_ID.pdf`, { type: 'application/pdf' })
 
