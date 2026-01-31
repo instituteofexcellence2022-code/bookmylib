@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { motion } from 'framer-motion'
-import { Shield, User, Download, Share2, CheckCircle, BadgeCheck, Mail, Phone } from 'lucide-react'
+import { Shield, User, Download, Share2, CheckCircle, BadgeCheck, Mail, Phone, BookOpen } from 'lucide-react'
 import { format } from 'date-fns'
 import { toPng } from 'html-to-image'
 import { useRef } from 'react'
@@ -322,8 +322,11 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                     <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold pl-2">
                         Library Access Card
                     </p>
-                    <div className="flex items-center gap-1 opacity-60 pr-2">
-                        <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 tracking-wider">BookMyLib</span>
+                    <div className="flex items-center gap-1.5 pr-2 opacity-90">
+                        <div className="bg-blue-600 dark:bg-blue-500 text-white p-0.5 rounded shadow-sm">
+                            <BookOpen size={10} strokeWidth={3} />
+                        </div>
+                        <span className="text-[10px] font-bold text-gray-700 dark:text-gray-200 tracking-wide font-sans">BookMyLib</span>
                     </div>
                 </div>
             </div>
