@@ -95,9 +95,29 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                 format: [85.6, 54] // Standard ID card size
             })
 
-            // Add the image to the PDF
-            // The image should fill the entire card size
-            pdf.addImage(imgData, 'PNG', 0, 0, 85.6, 54)
+            const pdfWidth = pdf.internal.pageSize.getWidth()
+            const pdfHeight = pdf.internal.pageSize.getHeight()
+            const imgProps = pdf.getImageProperties(imgData)
+            const ratio = imgProps.width / imgProps.height
+            const pdfRatio = pdfWidth / pdfHeight
+
+            let w = pdfWidth
+            let h = pdfHeight
+            let x = 0
+            let y = 0
+
+            // Maintain aspect ratio to avoid stretching
+            if (ratio > pdfRatio) {
+                // Image is wider than PDF (relative to height)
+                h = pdfWidth / ratio
+                y = (pdfHeight - h) / 2
+            } else {
+                // Image is taller than PDF (relative to width)
+                w = pdfHeight * ratio
+                x = (pdfWidth - w) / 2
+            }
+
+            pdf.addImage(imgData, 'PNG', x, y, w, h)
             pdf.save(`${student.name.replace(/\s+/g, '_')}_ID.pdf`)
             toast.success('ID Card downloaded')
         } catch (error) {
@@ -127,7 +147,26 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                 format: [85.6, 54]
             })
 
-            pdf.addImage(imgData, 'PNG', 0, 0, 85.6, 54)
+            const pdfWidth = pdf.internal.pageSize.getWidth()
+            const pdfHeight = pdf.internal.pageSize.getHeight()
+            const imgProps = pdf.getImageProperties(imgData)
+            const ratio = imgProps.width / imgProps.height
+            const pdfRatio = pdfWidth / pdfHeight
+
+            let w = pdfWidth
+            let h = pdfHeight
+            let x = 0
+            let y = 0
+
+            if (ratio > pdfRatio) {
+                h = pdfWidth / ratio
+                y = (pdfHeight - h) / 2
+            } else {
+                w = pdfHeight * ratio
+                x = (pdfWidth - w) / 2
+            }
+
+            pdf.addImage(imgData, 'PNG', x, y, w, h)
             const pdfBlob = pdf.output('blob')
             const file = new File([pdfBlob], `${student.name.replace(/\s+/g, '_')}_ID.pdf`, { type: 'application/pdf' })
 
