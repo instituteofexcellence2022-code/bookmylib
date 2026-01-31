@@ -195,9 +195,9 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
             animate={{ opacity: 1, y: 0 }}
             className="w-full max-w-md mx-auto"
         >
-            <div ref={cardRef} className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700 relative group">
-                {/* ID Card Header */}
-                <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 p-4 text-white flex justify-between items-center relative overflow-hidden">
+            <div id="digital-id-card" className="w-full max-w-[400px] bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700 relative flex flex-col">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 p-3 text-white flex justify-between items-center relative overflow-hidden">
                     <div className="absolute inset-0 bg-white/10 opacity-20 transform -skew-x-12 translate-x-1/2" />
                     
                     <div className="flex items-center gap-2 relative z-10">
