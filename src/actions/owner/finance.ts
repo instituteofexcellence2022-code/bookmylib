@@ -587,6 +587,7 @@ export async function createManualPayment(data: {
             libraryId: owner.libraryId,
             branchId: student.branchId,
             notes: data.remarks,
+            remarks: data.remarks,
             // Link to Plan or Fee if provided
             subscriptionId: data.type === 'subscription' && data.planId ? undefined : undefined, // Logic for subscription creation is complex, usually we just record payment here.
             // But if it's a subscription payment, we might want to create/renew subscription.
@@ -897,4 +898,23 @@ export async function verifyHandover(handoverId: string, status: 'verified' | 'r
 
     revalidatePath('/owner/finance')
     return handover
+}
+
+export async function updatePaymentRemarks(paymentId: string, remarks: string) {
+    const owner = await getOwner()
+    if (!owner) throw new Error('Unauthorized')
+
+    const payment = await prisma.payment.findUnique({
+        where: { id: paymentId, libraryId: owner.libraryId },
+    })
+
+    if (!payment) throw new Error('Payment not found')
+
+    await prisma.payment.update({
+        where: { id: paymentId },
+        data: { remarks, notes: remarks }
+    })
+
+    revalidatePath('/owner/finance')
+    return { success: true }
 }

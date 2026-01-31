@@ -149,7 +149,8 @@ export async function verifyOwnerTwoFactor(ownerId: string, code: string) {
 // --- Staff Auth ---
 
 export async function loginStaff(formData: FormData) {
-    const identifier = (formData.get('identifier') || formData.get('email')) as string
+    const identifierRaw = (formData.get('identifier') || formData.get('email')) as string
+    const identifier = identifierRaw?.trim()
     const password = formData.get('password') as string
 
     if (!identifier || !password) {

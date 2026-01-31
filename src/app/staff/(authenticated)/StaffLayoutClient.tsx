@@ -17,6 +17,9 @@ import {
 import { Sidebar } from '@/components/layout/Sidebar'
 import { TopBar } from '@/components/layout/TopBar'
 import { BottomNav } from '@/components/layout/BottomNav'
+import { logout } from '@/actions/auth'
+import { useRouter } from 'next/navigation'
+import { toast } from 'react-hot-toast'
 
 const navItems = [
   // Main
@@ -49,6 +52,16 @@ export default function StaffLayoutClient({ children, user, announcements }: {
   announcements?: any[]
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+      router.push('/staff/login')
+    } catch (error) {
+      toast.error('Failed to logout')
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
@@ -58,7 +71,7 @@ export default function StaffLayoutClient({ children, user, announcements }: {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         themeColor="green"
-        onLogout={() => {}}
+        onLogout={handleLogout}
       />
 
       <div className="flex-1 flex flex-col min-w-0 mb-20 md:mb-0 pb-safe">
@@ -67,6 +80,7 @@ export default function StaffLayoutClient({ children, user, announcements }: {
           title="Staff Portal"
           onMenuClick={() => setIsSidebarOpen(true)}
           announcements={announcements}
+          onLogout={handleLogout}
         />
         
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">

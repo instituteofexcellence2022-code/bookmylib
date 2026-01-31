@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
-import { getTransactions, getFilterOptions } from '@/actions/owner/finance'
+import { getTransactions, getFilterOptions, updatePaymentRemarks } from '@/actions/owner/finance'
 import { format } from 'date-fns'
 import { Download, RefreshCw, FileText, Eye, Search, Filter, X, ChevronDown, ChevronUp, History } from 'lucide-react'
 import { TransactionDetailsModal } from './TransactionDetailsModal'
@@ -96,6 +96,80 @@ const getStatusColor = (status: string) => {
   }
 }
 
+function TransactionRemarks({ transaction }: { transaction: Transaction }) {
+    const [remarks, setRemarks] = useState(transaction.remarks || '')
+    const [isEditing, setIsEditing] = useState(false)
+    const [isSaving, setIsSaving] = useState(false)
+
+    const handleSave = async () => {
+        setIsSaving(true)
+        try {
+            await updatePaymentRemarks(transaction.id, remarks)
+            setIsEditing(false)
+            toast.success('Remarks updated')
+        } catch (error) {
+            toast.error('Failed to update remarks')
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
+    return (
+        <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg shadow-inner border border-gray-100 dark:border-gray-700 mb-4 mx-6 mt-4">
+            <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                     <div className="p-1.5 bg-yellow-100 dark:bg-yellow-900/30 rounded-md">
+                        <FileText className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Remarks</h4>
+                </div>
+                {!isEditing && (
+                    <button 
+                        onClick={() => setIsEditing(true)}
+                        className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 font-medium"
+                    >
+                        Edit
+                    </button>
+                )}
+            </div>
+            {isEditing ? (
+                <div className="space-y-2">
+                    <textarea
+                        value={remarks}
+                        onChange={(e) => setRemarks(e.target.value)}
+                        className="w-full text-sm p-3 border rounded-lg dark:bg-gray-900 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none"
+                        rows={3}
+                        placeholder="Add remarks about this payment..."
+                    />
+                    <div className="flex justify-end gap-2">
+                        <button 
+                            onClick={() => {
+                                setIsEditing(false)
+                                setRemarks(transaction.remarks || '')
+                            }}
+                            className="text-xs px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                            disabled={isSaving}
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={handleSave}
+                            className="text-xs px-3 py-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded-md disabled:opacity-50 transition-colors"
+                            disabled={isSaving}
+                        >
+                            {isSaving ? 'Saving...' : 'Save'}
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap pl-1">
+                    {transaction.remarks || <span className="text-gray-400 italic">No remarks added</span>}
+                </p>
+            )}
+        </div>
+    )
+}
+
 function StudentTransactionHistory({ 
     studentId, 
     currentTxId,
@@ -176,6 +250,11 @@ function StudentTransactionHistory({
                                     <td className="px-6 py-3 text-gray-600 dark:text-gray-300">
                                         <div className="font-medium text-gray-900 dark:text-white">{tx.branch?.name || '-'}</div>
                                         <div className="text-xs text-gray-500">{tx.subscription?.plan?.name || (tx.additionalFee?.name || '-')}</div>
+                                        {tx.subscription?.startDate && tx.subscription?.endDate && (
+                                            <div className="text-[10px] text-gray-400 mt-0.5">
+                                                {format(new Date(tx.subscription.startDate), 'MMM dd, yyyy')} - {format(new Date(tx.subscription.endDate), 'MMM dd, yyyy')}
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="px-6 py-3 font-semibold text-gray-900 dark:text-white">
                                         ₹{tx.amount.toLocaleString()}
@@ -718,6 +797,7 @@ export function PaymentHistoryClient() {
                     {expandedTxId === tx.id && (
                         <tr>
                             <td colSpan={7} className="px-0 py-0 border-b border-gray-100 dark:border-gray-700">
+                                <TransactionRemarks transaction={tx} />
                                 <StudentTransactionHistory 
                                     studentId={tx.student?.id || ''} 
                                     currentTxId={tx.id} 

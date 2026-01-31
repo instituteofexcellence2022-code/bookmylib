@@ -439,6 +439,7 @@ model Payment {
   // Context
   relatedId String?  // ID of related entity (Subscription ID, etc.)
   notes     String?
+  remarks   String?
   
   // Tracking
   collectedBy String? // Staff ID

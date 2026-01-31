@@ -308,6 +308,9 @@ export async function createBooking(data: {
             }
             
             return { success: true as const, subscriptionId: subscription.id, paymentId: paymentIdToUse }
+        }, {
+            maxWait: 5000,
+            timeout: 20000
         })
 
         revalidatePath('/student/book')

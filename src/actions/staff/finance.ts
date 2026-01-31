@@ -287,6 +287,7 @@ export async function createStaffPayment(data: {
                 libraryId: staff.libraryId,
                 branchId: staff.branchId,
                 notes: data.remarks,
+                remarks: data.remarks,
                 collectedBy: staff.id,
                 verifiedBy: staff.id,
                 verifierRole: 'staff',
@@ -554,5 +555,24 @@ export async function getStaffBranchDetails() {
             phone: branch.contactPhone
         }
     }
+}
+
+export async function updatePaymentRemarks(paymentId: string, remarks: string) {
+    const staff = await getAuthenticatedStaff()
+    if (!staff) throw new Error('Unauthorized')
+
+    const payment = await prisma.payment.findUnique({
+        where: { id: paymentId, libraryId: staff.libraryId },
+    })
+
+    if (!payment) throw new Error('Payment not found')
+
+    await prisma.payment.update({
+        where: { id: paymentId },
+        data: { remarks, notes: remarks }
+    })
+
+    revalidatePath('/staff/finance')
+    return { success: true }
 }
 

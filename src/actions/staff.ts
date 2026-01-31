@@ -45,10 +45,10 @@ export async function createStaff(formData: FormData) {
       return { success: false, error: 'Unauthorized: You must be logged in to create staff' }
     }
 
-    const firstName = formData.get('firstName') as string
-    const lastName = formData.get('lastName') as string
-    const email = formData.get('email') as string
-    const phone = formData.get('phone') as string
+    const firstName = (formData.get('firstName') as string)?.trim()
+    const lastName = (formData.get('lastName') as string)?.trim()
+    const email = (formData.get('email') as string)?.trim()
+    const phone = (formData.get('phone') as string)?.trim()
 
     if (phone && (phone.length !== 10 || !/^\d{10}$/.test(phone))) {
       return { success: false, error: 'Please enter a valid 10-digit phone number' }
@@ -56,14 +56,15 @@ export async function createStaff(formData: FormData) {
 
     const dob = formData.get('dob') as string
     const gender = formData.get('gender') as string
-    const address = formData.get('address') as string
+    const address = (formData.get('address') as string)?.trim()
     const role = formData.get('role') as string
     const branchId = formData.get('branchId') as string
     const salary = formData.get('salary') as string
     const employmentType = formData.get('employmentType') as string
     const joiningDate = formData.get('joiningDate') as string
     const password = formData.get('password') as string
-    const username = formData.get('username') as string
+    const usernameInput = (formData.get('username') as string)?.trim()
+    const username = usernameInput || null
     
     // File uploads
     const idProof = formData.get('idProof') as File
@@ -335,6 +336,8 @@ export async function updateStaff(id: string, formData: FormData) {
     const employmentType = formData.get('employmentType') as string
     const joiningDate = formData.get('joiningDate') as string
     const password = formData.get('password') as string
+    const usernameInput = (formData.get('username') as string)?.trim()
+    const username = usernameInput || null
     const status = formData.get('status') as string
     
     // File uploads
@@ -426,6 +429,7 @@ export async function updateStaff(id: string, formData: FormData) {
         salary: salary ? parseFloat(salary) : null,
         employmentType,
         joiningDate: joiningDate ? new Date(joiningDate) : null,
+        username,
         ...(hashedPassword && { password: hashedPassword }),
         documents: documents.length > 0 ? JSON.stringify(documents) : undefined,
         isActive: status === 'active',
