@@ -323,7 +323,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                         Library Access Card
                     </p>
                     <div className="flex items-center gap-1.5 pr-2 opacity-90">
-                        <span className="text-[8px] text-gray-400 font-medium uppercase tracking-wider">Powered by</span>
+                        <span className="text-[8px] text-gray-400 font-medium uppercase tracking-wider italic">Powered by</span>
                         <div className="flex items-center gap-1">
                             <div className="bg-blue-600 dark:bg-blue-500 text-white p-0.5 rounded shadow-sm">
                                 <BookOpen size={10} strokeWidth={3} />
