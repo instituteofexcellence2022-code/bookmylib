@@ -79,7 +79,8 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
             if (!cardRef.current) return
 
             const imgData = await toPng(cardRef.current, {
-                pixelRatio: 4, // Higher scale for better quality
+                pixelRatio: 8, // Ultra-high scale for print quality (approx 600-800 DPI)
+                backgroundColor: '#ffffff', // Ensure white background to prevent transparency issues
                 cacheBust: true,
                 filter: (node) => {
                     // Exclude elements with the class 'exclude-from-pdf'
@@ -103,7 +104,8 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
             const pdfRatio = pdfWidth / pdfHeight
 
             // Force image to fill the PDF (85.6mm x 54mm) to avoid margins
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+            // Use 'NONE' compression for maximum quality
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'NONE')
             pdf.save(`${student.name.replace(/\s+/g, '_')}_ID.pdf`)
             toast.success('ID Card downloaded')
         } catch (error) {
@@ -117,7 +119,8 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
             if (!cardRef.current) return
 
             const imgData = await toPng(cardRef.current, {
-                pixelRatio: 4,
+                pixelRatio: 8,
+                backgroundColor: '#ffffff',
                 cacheBust: true,
                 filter: (node) => {
                     if (node instanceof HTMLElement && node.classList.contains('exclude-from-pdf')) {
@@ -140,7 +143,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
             const pdfRatio = pdfWidth / pdfHeight
 
             // Force image to fill the PDF
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'NONE')
             const pdfBlob = pdf.output('blob')
             const file = new File([pdfBlob], `${student.name.replace(/\s+/g, '_')}_ID.pdf`, { type: 'application/pdf' })
 
