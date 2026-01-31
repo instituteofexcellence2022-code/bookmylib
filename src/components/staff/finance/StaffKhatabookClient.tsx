@@ -338,6 +338,17 @@ export function StaffKhatabookClient() {
                                                 <div className="flex items-center gap-2 min-w-0 flex-wrap">
                                                     <p className={`font-semibold text-lg ${selected ? 'text-red-900 dark:text-red-100' : 'text-gray-900 dark:text-white'}`}>
                                                         {tx.description}
+                                                        {tx.type === 'OUT' && (
+                                                            <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap align-middle ${
+                                                                tx.status === 'verified' 
+                                                                    ? 'bg-green-100 text-green-700'
+                                                                    : tx.status === 'rejected'
+                                                                    ? 'bg-red-100 text-red-700'
+                                                                    : 'bg-yellow-50 text-yellow-600 border border-yellow-100'
+                                                            }`}>
+                                                                {tx.status === 'pending' ? 'Pending' : tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
+                                                            </span>
+                                                        )}
                                                     </p>
                                                     {tx.type === 'IN' && tx.details?.planName && (
                                                         <span className="text-base text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap shrink-0">
@@ -358,17 +369,6 @@ export function StaffKhatabookClient() {
                                                                     : 'bg-blue-50 text-blue-600 border border-blue-100'
                                                         }`}>
                                                             {tx.details.handoverStatus}
-                                                        </span>
-                                                    )}
-                                                    {tx.type === 'OUT' && (
-                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap shrink-0 ${
-                                                            tx.status === 'verified' 
-                                                                ? 'bg-green-100 text-green-700'
-                                                                : tx.status === 'rejected'
-                                                                ? 'bg-red-100 text-red-700'
-                                                                : 'bg-yellow-50 text-yellow-600 border border-yellow-100'
-                                                        }`}>
-                                                            {tx.status === 'pending' ? 'Pending' : tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
                                                         </span>
                                                     )}
                                                 </div>
