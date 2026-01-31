@@ -71,14 +71,29 @@ export function BranchCard({ branch }: BranchCardProps) {
   const [showAmenities, setShowAmenities] = useState(false)
   const amenities = getAmenities(branch.amenities)
   
-  // Calculate starting price
-  const minPrice = branch.plans?.length 
+  // Calculate starting price (Lowest absolute plan price)
+  const lowestPlan = branch.plans?.length 
     ? (() => {
-        const monthlyPlans = branch.plans.filter(p => 
-          p.durationUnit.toUpperCase() === 'MONTH' && p.duration > 0
-        )
-        if (monthlyPlans.length > 0) {
-          return Math.round(Math.min(...monthlyPlans.map(p => p.price / p.duration)))
+        // Find the plan with absolute lowest price
+        const sortedPlans = [...branch.plans].sort((a, b) => a.price - b.price)
+        const cheapest = sortedPlans[0]
+        
+        if (cheapest) {
+          // Format duration unit for display
+          let unit = cheapest.durationUnit.toLowerCase()
+          if (unit === 'month') unit = 'mo'
+          else if (unit === 'year') unit = 'yr'
+          else if (unit === 'day') unit = 'day'
+          
+          // If duration > 1, show number (e.g. "3 mo")
+          const durationDisplay = cheapest.duration > 1 
+            ? `/${cheapest.duration} ${unit}s` // simple pluralization
+            : `/${unit}`
+
+          return {
+            price: cheapest.price,
+            display: durationDisplay
+          }
         }
         return null
       })()
@@ -129,11 +144,11 @@ export function BranchCard({ branch }: BranchCardProps) {
           <p className="text-emerald-300 text-xs font-bold uppercase tracking-wider mb-1">{branch.library.name}</p>
           <h3 className="text-2xl font-bold mb-2 leading-tight">{branch.name}</h3>
           
-          {minPrice ? (
+          {lowestPlan ? (
             <div className="flex items-baseline gap-1.5">
                 <span className="text-sm text-gray-300 font-medium">Starts</span>
-                <span className="text-xl font-bold text-white">₹{minPrice}</span>
-                <span className="text-xs text-gray-300">/mo</span>
+                <span className="text-xl font-bold text-white">₹{lowestPlan.price}</span>
+                <span className="text-xs text-gray-300">{lowestPlan.display}</span>
             </div>
           ) : (
             <div className="flex items-baseline gap-1.5">

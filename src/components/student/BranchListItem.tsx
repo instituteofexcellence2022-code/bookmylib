@@ -43,14 +43,29 @@ const getAmenities = (amenitiesString: string | null) => {
 export function BranchListItem({ branch }: BranchCardProps) {
   const amenities = getAmenities(branch.amenities)
   
-  // Calculate starting price
-  const minPrice = branch.plans?.length 
+  // Calculate starting price (Lowest absolute plan price)
+  const lowestPlan = branch.plans?.length 
     ? (() => {
-        const monthlyPlans = branch.plans.filter(p => 
-          p.durationUnit.toUpperCase() === 'MONTH' && p.duration > 0
-        )
-        if (monthlyPlans.length > 0) {
-          return Math.round(Math.min(...monthlyPlans.map(p => p.price / p.duration)))
+        // Find the plan with absolute lowest price
+        const sortedPlans = [...branch.plans].sort((a, b) => a.price - b.price)
+        const cheapest = sortedPlans[0]
+        
+        if (cheapest) {
+          // Format duration unit for display
+          let unit = cheapest.durationUnit.toLowerCase()
+          if (unit === 'month') unit = 'mo'
+          else if (unit === 'year') unit = 'yr'
+          else if (unit === 'day') unit = 'day'
+          
+          // If duration > 1, show number (e.g. "3 mo")
+          const durationDisplay = cheapest.duration > 1 
+            ? `/${cheapest.duration} ${unit}s` // simple pluralization
+            : `/${unit}`
+
+          return {
+            price: cheapest.price,
+            display: durationDisplay
+          }
         }
         return null
       })()
@@ -148,9 +163,9 @@ export function BranchListItem({ branch }: BranchCardProps) {
         <div className="flex flex-row sm:flex-col items-center sm:justify-center sm:border-l sm:border-gray-100 sm:dark:border-gray-700 sm:pl-6 gap-4 sm:min-w-[140px]">
           <div className="flex-1 sm:flex-none text-left sm:text-center">
             <p className="text-xs text-gray-400 font-medium mb-0.5">Starts from</p>
-            {minPrice ? (
+            {lowestPlan ? (
               <p className="text-lg font-bold text-gray-900 dark:text-white">
-                ₹{minPrice}<span className="text-xs text-gray-400 font-normal">/mo</span>
+                ₹{lowestPlan.price}<span className="text-xs text-gray-400 font-normal">{lowestPlan.display}</span>
               </p>
             ) : (
               <p className="text-sm font-bold text-gray-900 dark:text-white">Best Rates</p>
