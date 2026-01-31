@@ -322,21 +322,26 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                     <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold pl-2">
                         Library Access Card
                     </p>
-                    <div className="exclude-from-pdf flex gap-2">
-                        <button 
-                            onClick={handleShare}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-md border border-gray-200 dark:border-gray-600 transition-colors shadow-sm"
-                        >
-                            <Share2 size={14} />
-                            Share
-                        </button>
-                        <button 
-                            onClick={handleDownload}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-md border border-gray-200 dark:border-gray-600 transition-colors shadow-sm"
-                        >
-                            <Download size={14} />
-                            Save PDF
-                        </button>
+                    <div className="flex items-center gap-3 pr-2">
+                        <div className="flex items-center gap-1 opacity-60">
+                            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 tracking-wider">BookMyLib</span>
+                        </div>
+                        <div className="exclude-from-pdf flex gap-2">
+                            <button 
+                                onClick={handleShare}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-md border border-gray-200 dark:border-gray-600 transition-colors shadow-sm"
+                            >
+                                <Share2 size={14} />
+                                Share
+                            </button>
+                            <button 
+                                onClick={handleDownload}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-md border border-gray-200 dark:border-gray-600 transition-colors shadow-sm"
+                            >
+                                <Download size={14} />
+                                Save PDF
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
