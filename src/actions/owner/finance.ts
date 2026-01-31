@@ -286,6 +286,53 @@ export async function getUpcomingExpiries(days = 7, branchId?: string) {
     return expiries
 }
 
+export async function updatePaymentStatus(paymentId: string, status: 'completed' | 'failed') {
+    const owner = await getOwner()
+    if (!owner) throw new Error('Unauthorized')
+
+    const payment = await prisma.payment.findUnique({
+        where: { id: paymentId, libraryId: owner.libraryId },
+        include: { subscription: true }
+    })
+
+    if (!payment) throw new Error('Payment not found')
+
+    // If status is not changing, return
+    if (payment.status === status) return { success: true }
+
+    await prisma.$transaction(async (tx) => {
+        // Update Payment
+        const updateData: any = {
+            status,
+            verifiedBy: owner.id,
+            verifierRole: 'owner',
+            verifiedAt: new Date()
+        }
+
+        // Generate Invoice No if completing and missing
+        if (status === 'completed' && !payment.invoiceNo) {
+            updateData.invoiceNo = `INV-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000)}`
+        }
+
+        await tx.payment.update({
+            where: { id: paymentId },
+            data: updateData
+        })
+
+        // Update Subscription if applicable
+        if (payment.subscriptionId) {
+            const subStatus = status === 'completed' ? 'active' : 'inactive'
+            await tx.studentSubscription.update({
+                where: { id: payment.subscriptionId },
+                data: { status: subStatus }
+            })
+        }
+    })
+
+    revalidatePath('/owner/finance')
+    return { success: true }
+}
+
 export async function getOverdueSubscriptions(days = 30, branchId?: string) {
     const owner = await getOwner()
     if (!owner) throw new Error('Unauthorized')

@@ -367,13 +367,15 @@ export function PaymentHistoryClient() {
                             >
                                 <Eye size={18} />
                             </button>
-                            <button 
-                                onClick={(e) => handleDownloadReceipt(e, tx)}
-                                className="p-2 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
-                                title="Download Receipt"
-                            >
-                                <FileText size={18} />
-                            </button>
+                            {tx.status === 'completed' && (
+                                <button 
+                                    onClick={(e) => handleDownloadReceipt(e, tx)}
+                                    className="p-2 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                                    title="Download Receipt"
+                                >
+                                    <FileText size={18} />
+                                </button>
+                            )}
                         </div>
                     </td>
                     </tr>

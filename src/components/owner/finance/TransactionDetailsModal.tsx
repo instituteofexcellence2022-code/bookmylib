@@ -1,9 +1,12 @@
 'use client'
 
-import React from 'react'
-import { X, CheckCircle, Clock, AlertTriangle, FileText, User, Calendar, CreditCard, Download } from 'lucide-react'
+import React, { useState } from 'react'
+import { X, CheckCircle, Clock, AlertTriangle, FileText, User, Calendar, CreditCard, Download, Check, Ban } from 'lucide-react'
 import { format } from 'date-fns'
 import { generateReceiptPDF } from '@/lib/pdf-generator'
+import { updatePaymentStatus } from '@/actions/owner/finance'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 interface Transaction {
   id: string
@@ -56,6 +59,9 @@ interface TransactionDetailsModalProps {
 }
 
 export function TransactionDetailsModal({ isOpen, onClose, transaction }: TransactionDetailsModalProps) {
+  const [loading, setLoading] = useState(false)
+  const router = useRouter()
+
   if (!isOpen || !transaction) return null
 
   const getStatusColor = (status: string) => {
@@ -74,6 +80,22 @@ export function TransactionDetailsModal({ isOpen, onClose, transaction }: Transa
       case 'failed': return <AlertTriangle size={20} />
       default: return <FileText size={20} />
     }
+  }
+
+  const handleStatusUpdate = async (status: 'completed' | 'failed') => {
+      if (!transaction) return
+      setLoading(true)
+      try {
+          await updatePaymentStatus(transaction.id, status)
+          toast.success(`Transaction ${status === 'completed' ? 'accepted' : 'rejected'} successfully`)
+          router.refresh()
+          onClose()
+      } catch (error) {
+          console.error(error)
+          toast.error('Failed to update transaction status')
+      } finally {
+          setLoading(false)
+      }
   }
 
   const handleDownloadReceipt = () => {
@@ -255,16 +277,39 @@ export function TransactionDetailsModal({ isOpen, onClose, transaction }: Transa
         </div>
 
         {/* Footer */}
-        <div className="p-6 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800 flex justify-end">
-            <button 
-                onClick={handleDownloadReceipt}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors mr-2"
-            >
-                <Download size={16} />
-                Download Receipt
-            </button>
+        <div className="p-6 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800 flex justify-end gap-2">
+            {transaction.status === 'pending' ? (
+                <>
+                    <button 
+                        onClick={() => handleStatusUpdate('failed')}
+                        disabled={loading}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                    >
+                        <Ban size={16} />
+                        Reject
+                    </button>
+                    <button 
+                        onClick={() => handleStatusUpdate('completed')}
+                        disabled={loading}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                    >
+                        <Check size={16} />
+                        Accept
+                    </button>
+                </>
+            ) : transaction.status === 'completed' ? (
+                <button 
+                    onClick={handleDownloadReceipt}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                    <Download size={16} />
+                    Download Receipt
+                </button>
+            ) : null}
+            
             <button 
                 onClick={onClose}
+                disabled={loading}
                 className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
             >
                 Close
