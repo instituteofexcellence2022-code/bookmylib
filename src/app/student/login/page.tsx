@@ -102,7 +102,7 @@ export default function StudentLoginPage() {
                             required
                             value={formData.identifier}
                             onChange={(e) => setFormData(prev => ({ ...prev, identifier: e.target.value }))}
-                            placeholder="you@example.com or 9876543210"
+                            placeholder="Enter your email/phone"
                         />
 
                         <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-lg">
