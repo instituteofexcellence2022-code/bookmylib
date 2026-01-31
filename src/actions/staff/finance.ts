@@ -96,6 +96,8 @@ interface TransactionFilters {
     status?: string
     method?: string
     scope?: 'me' | 'branch' // 'me' = collected by staff, 'branch' = all branch payments
+    search?: string
+    studentId?: string
 }
 
 export async function getStaffTransactions(filters: TransactionFilters = {}, limit = 20) {
@@ -120,6 +122,20 @@ export async function getStaffTransactions(filters: TransactionFilters = {}, lim
       whereClause.method = filters.method
   }
 
+  if (filters.studentId) {
+      whereClause.studentId = filters.studentId
+  }
+
+  if (filters.search) {
+      whereClause.OR = [
+          { student: { name: { contains: filters.search, mode: 'insensitive' } } },
+          { student: { email: { contains: filters.search, mode: 'insensitive' } } },
+          { student: { phone: { contains: filters.search, mode: 'insensitive' } } },
+          { invoiceNo: { contains: filters.search, mode: 'insensitive' } },
+          { transactionId: { contains: filters.search, mode: 'insensitive' } }
+      ]
+  }
+
   if (filters.startDate) {
       whereClause.date = {
           ...whereClause.date,
@@ -139,7 +155,7 @@ export async function getStaffTransactions(filters: TransactionFilters = {}, lim
     orderBy: { date: 'desc' },
     take: limit,
     include: {
-      student: { select: { name: true, email: true, phone: true } },
+      student: { select: { id: true, name: true, email: true, phone: true } },
       branch: { select: { name: true } },
       subscription: { include: { plan: true, seat: true } },
       additionalFee: true,
