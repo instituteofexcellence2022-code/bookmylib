@@ -40,8 +40,24 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
     // const cardRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
-        // Generate QR Code with Student ID
-        QRCode.toDataURL(student.id, {
+        // Construct QR Data Payload
+        const qrData = {
+            id: student.id,
+            name: student.name,
+            email: student.email,
+            phone: student.phone,
+            ...(activeSubscription ? {
+                plan: activeSubscription.plan.name,
+                branch: activeSubscription.branch.name,
+                seat: activeSubscription.seat ? formatSeatNumber(activeSubscription.seat.number) : 'General',
+                validUntil: format(new Date(activeSubscription.endDate), 'yyyy-MM-dd')
+            } : {
+                status: 'No Active Subscription'
+            })
+        }
+
+        // Generate QR Code with Full Details
+        QRCode.toDataURL(JSON.stringify(qrData), {
             width: 200,
             margin: 1,
             color: {
@@ -53,7 +69,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
         }).catch(err => {
             console.error('Error generating QR code', err)
         })
-    }, [student.id])
+    }, [student, activeSubscription])
 
     const generatePDF = () => {
         const doc = new jsPDF({
