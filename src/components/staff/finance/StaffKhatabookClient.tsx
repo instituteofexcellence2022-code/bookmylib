@@ -333,7 +333,7 @@ export function StaffKhatabookClient() {
                                                 )}
                                             </div>
                                             
-                                            <div className="space-y-0.5">
+                                            <div className="space-y-0.5 min-w-0 flex-1">
                                                 {/* Main Description (Name), Plan & Tag */}
                                                 <div className="flex items-center gap-2 min-w-0">
                                                     <p className={`font-semibold text-lg truncate ${selected ? 'text-red-900 dark:text-red-100' : 'text-gray-900 dark:text-white'}`}>
