@@ -38,6 +38,7 @@ const navItems = [
   // Others
   { href: '/staff/seats', label: 'Seats', icon: Armchair, group: 'Others' },
   { href: '/staff/shift', label: 'My Shift', icon: Clock, group: 'Others' },
+  { href: '/staff/settings', label: 'Settings', icon: Settings, group: 'Others' },
   { href: '/staff/profile', label: 'Profile', icon: UserCircle, group: 'Others' },
 ]
 

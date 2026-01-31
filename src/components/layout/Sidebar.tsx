@@ -32,35 +32,35 @@ const colorVariants = {
     activeText: 'text-purple-600 dark:text-purple-400',
     indicator: 'bg-purple-600 dark:bg-purple-400',
     logoBg: 'bg-purple-600',
-    hoverBg: 'hover:bg-purple-50 dark:hover:bg-purple-900/10'
+    hoverBg: 'bg-purple-100/40 dark:bg-purple-900/10',
   },
   green: {
     activeBg: 'bg-green-50 dark:bg-green-900/20',
     activeText: 'text-green-600 dark:text-green-400',
     indicator: 'bg-green-600 dark:bg-green-400',
     logoBg: 'bg-green-600',
-    hoverBg: 'hover:bg-green-50 dark:hover:bg-green-900/10'
+    hoverBg: 'bg-green-100/40 dark:bg-green-900/10',
   },
   blue: {
     activeBg: 'bg-blue-50 dark:bg-blue-900/20',
     activeText: 'text-blue-600 dark:text-blue-400',
     indicator: 'bg-blue-600 dark:bg-blue-400',
     logoBg: 'bg-blue-600',
-    hoverBg: 'hover:bg-blue-50 dark:hover:bg-blue-900/10'
+    hoverBg: 'bg-blue-100/40 dark:bg-blue-900/10',
   },
   amber: {
     activeBg: 'bg-amber-50 dark:bg-amber-900/20',
     activeText: 'text-amber-600 dark:text-amber-400',
     indicator: 'bg-amber-600 dark:bg-amber-400',
     logoBg: 'bg-amber-600',
-    hoverBg: 'hover:bg-amber-50 dark:hover:bg-amber-900/10'
+    hoverBg: 'bg-amber-100/40 dark:bg-amber-900/10',
   },
   emerald: {
     activeBg: 'bg-emerald-50 dark:bg-emerald-900/20',
     activeText: 'text-emerald-600 dark:text-emerald-400',
     indicator: 'bg-emerald-600 dark:bg-emerald-400',
     logoBg: 'bg-emerald-600',
-    hoverBg: 'hover:bg-emerald-50 dark:hover:bg-emerald-900/10'
+    hoverBg: 'bg-emerald-100/40 dark:bg-emerald-900/10',
   }
 }
 
@@ -75,6 +75,7 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname()
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [hoveredPath, setHoveredPath] = useState<string | null>(null)
   const colors = colorVariants[themeColor] || colorVariants.purple
 
   const toggleCollapse = () => {
@@ -146,24 +147,62 @@ export function Sidebar({
                       )}
                     </div>
                  )}
-                 <Link key={item.href} href={item.href} onClick={onClose} className="block group relative">
+                 <Link 
+                   key={item.href} 
+                   href={item.href} 
+                   onClick={onClose} 
+                   className="block group relative"
+                   onMouseEnter={() => setHoveredPath(item.href)}
+                   onMouseLeave={() => setHoveredPath(null)}
+                 >
+                   {hoveredPath === item.href && !isActive && (
+                     <motion.div
+                       layoutId="sidebar-hover-bg"
+                       className={cn("absolute inset-0 rounded-lg backdrop-blur-[1px]", colors.hoverBg)}
+                       initial={{ opacity: 0 }}
+                       animate={{ opacity: 1 }}
+                       exit={{ opacity: 0 }}
+                       transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                     />
+                   )}
+                   {isActive && (
+                     <motion.div
+                       layoutId="sidebar-active-bg"
+                       className={cn("absolute inset-0 rounded-lg", colors.activeBg)}
+                       initial={{ opacity: 0 }}
+                       animate={{ opacity: 1 }}
+                       exit={{ opacity: 0 }}
+                       transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                     />
+                   )}
                    <div className={cn(
-                     "flex items-center rounded-lg transition-all duration-200 relative",
+                     "flex items-center rounded-lg transition-all duration-200 relative z-10",
                      isCollapsed ? "justify-center px-2 py-2.5" : "px-3 py-2 gap-3",
                      isActive 
-                       ? cn(colors.activeBg, colors.activeText, "font-medium shadow-sm ring-1 ring-inset ring-black/5 dark:ring-white/5")
-                       : cn("text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50")
+                       ? cn(colors.activeText, "font-medium shadow-sm ring-1 ring-inset ring-black/5 dark:ring-white/5")
+                       : "text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200"
                    )}>
-                     <div className={cn("relative z-10 flex items-center justify-center transition-transform duration-200", isActive && "scale-105")}>
+                     <motion.div 
+                        className={cn("relative z-10 flex items-center justify-center")}
+                        animate={{ 
+                          scale: (isActive || hoveredPath === item.href) ? 1.05 : 1,
+                          x: (!isCollapsed && hoveredPath === item.href && !isActive) ? 4 : 0
+                        }}
+                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                     >
                        <item.icon size={isCollapsed ? 20 : 18} strokeWidth={isActive ? 2.5 : 2} />
-                     </div>
+                     </motion.div>
                      
                      {!isCollapsed && (
                       <motion.span 
                         initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
+                        animate={{ 
+                          opacity: 1,
+                          x: (hoveredPath === item.href && !isActive) ? 4 : 0 
+                        }}
                         exit={{ opacity: 0 }}
                         className="truncate text-sm"
+                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
                       >
                         {item.label}
                       </motion.span>
