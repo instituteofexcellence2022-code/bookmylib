@@ -432,7 +432,7 @@ export async function updateStaff(id: string, formData: FormData) {
         username,
         ...(hashedPassword && { password: hashedPassword }),
         documents: documents.length > 0 ? JSON.stringify(documents) : undefined,
-        isActive: status === 'active',
+        isActive: status !== 'inactive',
         status,
       }
     })

@@ -175,7 +175,7 @@ export async function loginStaff(formData: FormData) {
             return { success: false, error: 'Invalid credentials' }
         }
 
-        if (!staff.isActive || staff.status === 'inactive') {
+        if (staff.status === 'inactive' || (!staff.isActive && staff.status !== 'on_leave')) {
             return { success: false, error: 'Account is inactive. Please contact admin.' }
         }
 

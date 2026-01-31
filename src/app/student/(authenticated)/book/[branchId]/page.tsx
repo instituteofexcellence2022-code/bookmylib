@@ -2,6 +2,7 @@ import { getStudentBookingStatus } from '@/actions/payment'
 import { getBranchDetails } from '@/actions/booking'
 import BookingClient from './BookingClient'
 import BranchHeader from './BranchHeader'
+import { BackButton } from '@/components/ui/BackButton'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { COOKIE_KEYS } from '@/lib/auth/session'
@@ -41,7 +42,10 @@ export default async function BranchBookingPage({ params }: { params: { branchId
 
     return (
         <div className="space-y-6 max-w-[1600px] mx-auto">
-            <BranchHeader branch={branch} images={images} />
+            <div className="space-y-1">
+                <BackButton href="/student/book" />
+                <BranchHeader branch={branch} images={images} />
+            </div>
 
             <BookingClient 
                 branch={branch} 

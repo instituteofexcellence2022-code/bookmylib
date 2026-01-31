@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { MapPin, Building2, Clock, Star, Wifi, Zap, Wind, Droplets, Car, ChevronLeft, ChevronRight } from 'lucide-react'
+import { MapPin, Building2, Clock, Star, Wifi, Zap, Wind, Droplets, Car, ChevronLeft, ChevronRight, Info } from 'lucide-react'
 
 interface BranchHeaderProps {
     branch: {
@@ -15,6 +15,7 @@ interface BranchHeaderProps {
 
 export default function BranchHeader({ branch, images }: BranchHeaderProps) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0)
+    const [showInfo, setShowInfo] = useState(false)
 
     const nextImage = () => {
         if (images.length > 0) {
@@ -65,14 +66,14 @@ export default function BranchHeader({ branch, images }: BranchHeaderProps) {
                 <>
                     <button
                         onClick={(e) => { e.preventDefault(); prevImage(); }}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 z-20 p-1.5 rounded-full bg-black/20 backdrop-blur-md text-white/70 hover:bg-black/40 hover:text-white transition-all opacity-0 group-hover:opacity-100 hover:scale-110"
+                        className="absolute left-2 top-[40%] -translate-y-1/2 z-20 p-1.5 rounded-full bg-black/20 backdrop-blur-md text-white/70 hover:bg-black/40 hover:text-white transition-all opacity-0 group-hover:opacity-100 hover:scale-110"
                         aria-label="Previous image"
                     >
                         <ChevronLeft className="w-5 h-5" />
                     </button>
                     <button
                         onClick={(e) => { e.preventDefault(); nextImage(); }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 z-20 p-1.5 rounded-full bg-black/20 backdrop-blur-md text-white/70 hover:bg-black/40 hover:text-white transition-all opacity-0 group-hover:opacity-100 hover:scale-110"
+                        className="absolute right-2 top-[40%] -translate-y-1/2 z-20 p-1.5 rounded-full bg-black/20 backdrop-blur-md text-white/70 hover:bg-black/40 hover:text-white transition-all opacity-0 group-hover:opacity-100 hover:scale-110"
                         aria-label="Next image"
                     >
                         <ChevronRight className="w-5 h-5" />
@@ -109,9 +110,9 @@ export default function BranchHeader({ branch, images }: BranchHeaderProps) {
             </div>
             
             {/* Content Section */}
-            <div className="relative z-10 p-6 md:p-8">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                    <div className="flex-1 space-y-4">
+            <div className="relative z-10 p-4 md:p-6">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
+                    <div className="flex-1">
                         <div>
                             <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight leading-tight mb-2 text-shadow-sm">
                                 {branch.name}
@@ -124,6 +125,25 @@ export default function BranchHeader({ branch, images }: BranchHeaderProps) {
                                 <div className="flex items-center gap-2">
                                     <Clock className="w-4 h-4 text-emerald-400 shrink-0" />
                                     <span>Open 24/7</span>
+                                    <div className="relative">
+                                        <Info 
+                                            onClick={() => setShowInfo(!showInfo)}
+                                            className="w-4 h-4 text-emerald-400 shrink-0 cursor-pointer hover:text-emerald-300 transition-colors" 
+                                        />
+                                        {showInfo && (
+                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 p-3 bg-gray-900/95 backdrop-blur-md border border-gray-700/50 rounded-xl shadow-xl text-xs text-gray-300 z-50 animate-in fade-in zoom-in-95 duration-200">
+                                                <div className="font-semibold text-white mb-1 flex items-center gap-1.5">
+                                                    <Clock className="w-3 h-3 text-emerald-400" />
+                                                    Operating Hours
+                                                </div>
+                                                <p className="leading-relaxed">
+                                                    The library is open 24/7 for members. 
+                                                    <span className="block mt-1 text-emerald-400/80">Staff available 9 AM - 9 PM.</span>
+                                                </p>
+                                                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900/95 border-r border-b border-gray-700/50 rotate-45"></div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
