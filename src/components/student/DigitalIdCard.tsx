@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { motion } from 'framer-motion'
-import { Shield, User, Download, Share2, CheckCircle, BadgeCheck, Mail, Phone, BookOpen } from 'lucide-react'
+import { Shield, User, Download, Share2, CheckCircle, BadgeCheck, Mail, Phone, BookOpen, Eye, EyeOff } from 'lucide-react'
 import { format } from 'date-fns'
 import { toPng } from 'html-to-image'
 import { useRef } from 'react'
@@ -39,6 +39,7 @@ interface DigitalIdCardProps {
 
 export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProps) {
     const [qrCodeUrl, setQrCodeUrl] = useState<string>('')
+    const [isPhoneMasked, setIsPhoneMasked] = useState(false)
     const cardRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
@@ -253,9 +254,25 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                                     <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                                     <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{student.email}</p>
                                 </div>
-                                <div className="flex items-center gap-1.5 mt-1">
+                                <div className="flex items-center gap-1.5 mt-1 relative group/phone">
                                     <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                                    <p className="text-xs text-gray-400">{student.phone}</p>
+                                    <p className="text-xs text-gray-400">
+                                        {isPhoneMasked 
+                                            ? `${'*'.repeat(student.phone.length - 4)}${student.phone.slice(-4)}`
+                                            : student.phone
+                                        }
+                                    </p>
+                                    <button 
+                                        onClick={() => setIsPhoneMasked(!isPhoneMasked)}
+                                        className="opacity-0 group-hover/phone:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded exclude-from-pdf"
+                                        title={isPhoneMasked ? "Show number" : "Mask number"}
+                                    >
+                                        {isPhoneMasked ? (
+                                            <Eye className="w-3 h-3 text-gray-400" />
+                                        ) : (
+                                            <EyeOff className="w-3 h-3 text-gray-400" />
+                                        )}
+                                    </button>
                                 </div>
                             </div>
                         </div>
