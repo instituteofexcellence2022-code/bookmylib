@@ -198,7 +198,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
 
                     <div className="flex flex-col gap-2 relative z-10">
                         {/* 1st Half: Profile & Contact */}
-                        <div className="flex flex-row items-center gap-4 sm:gap-6">
+                        <div className="flex flex-row items-start gap-4 sm:gap-6">
                             {/* Left: Photo */}
                             <div className="relative shrink-0">
                                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white dark:border-gray-700 shadow-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
@@ -222,7 +222,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                             </div>
 
                             {/* Right: Name, Email, Phone */}
-                            <div className="flex-1 min-w-0 text-left">
+                            <div className="flex-1 min-w-0 text-left pt-1">
                                 <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white leading-tight flex items-center gap-1.5">
                                     {student.name}
                                     {student.govtIdStatus === 'verified' && (
@@ -247,8 +247,8 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                             {/* Left: QR Code */}
                             <div className="shrink-0 flex items-start">
                                 {qrCodeUrl && (
-                                    <div className="p-1.5 bg-white rounded-lg shadow-sm border border-gray-100">
-                                        <Image src={qrCodeUrl} alt="Student QR" width={80} height={80} className="w-20 h-20 sm:w-24 sm:h-24 mix-blend-multiply" />
+                                    <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-lg shadow-sm border border-gray-100 flex items-center justify-center p-1">
+                                        <Image src={qrCodeUrl} alt="Student QR" width={96} height={96} className="w-full h-full mix-blend-multiply" />
                                     </div>
                                 )}
                             </div>
