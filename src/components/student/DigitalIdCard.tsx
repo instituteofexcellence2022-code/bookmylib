@@ -61,7 +61,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
 
         // Generate QR Code with Full Details
         QRCode.toDataURL(JSON.stringify(qrData), {
-            width: 200,
+            width: 1000, // High resolution for print quality
             margin: 1,
             color: {
                 dark: '#1e293b', // Slate-800
@@ -79,7 +79,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
             if (!cardRef.current) return
 
             const imgData = await toPng(cardRef.current, {
-                pixelRatio: 8, // Ultra-high scale for print quality (approx 600-800 DPI)
+                pixelRatio: 12, // Ultra-HD (approx 1200 DPI)
                 backgroundColor: '#ffffff', // Ensure white background to prevent transparency issues
                 cacheBust: true,
                 filter: (node) => {
@@ -119,7 +119,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
             if (!cardRef.current) return
 
             const imgData = await toPng(cardRef.current, {
-                pixelRatio: 8,
+                pixelRatio: 12,
                 backgroundColor: '#ffffff',
                 cacheBust: true,
                 filter: (node) => {
@@ -206,6 +206,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                                             width={96}
                                             height={96}
                                             className="w-full h-full object-cover"
+                                            unoptimized // Ensure full resolution image is used
                                         />
                                     ) : (
                                         <User className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" />
@@ -264,7 +265,14 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                             <div className="shrink-0 flex items-start">
                                 {qrCodeUrl && (
                                     <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-lg shadow-sm border border-gray-100 flex items-center justify-center p-1">
-                                        <Image src={qrCodeUrl} alt="Student QR" width={96} height={96} className="w-full h-full mix-blend-multiply" />
+                                        <Image 
+                                            src={qrCodeUrl} 
+                                            alt="Student QR" 
+                                            width={96} 
+                                            height={96} 
+                                            className="w-full h-full mix-blend-multiply" 
+                                            unoptimized // Keep QR crisp
+                                        />
                                     </div>
                                 )}
                             </div>
