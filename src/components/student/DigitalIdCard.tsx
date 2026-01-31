@@ -356,6 +356,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
             {/* Action Buttons */}
             <div className="mt-4 flex justify-center gap-3">
                 <button 
+                    type="button"
                     onClick={handleShare}
                     className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 transition-all shadow-sm hover:shadow"
                 >
@@ -363,6 +364,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                     Share Card
                 </button>
                 <button 
+                    type="button"
                     onClick={handleDownload}
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all shadow-sm hover:shadow hover:scale-105"
                 >
