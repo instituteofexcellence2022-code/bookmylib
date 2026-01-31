@@ -196,7 +196,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                         <Shield size={200} />
                     </div>
 
-                    <div className="flex flex-col gap-5 relative z-10">
+                    <div className="flex flex-col gap-2 relative z-10">
                         {/* 1st Half: Profile & Contact */}
                         <div className="flex flex-row items-center gap-4 sm:gap-6">
                             {/* Left: Photo */}
