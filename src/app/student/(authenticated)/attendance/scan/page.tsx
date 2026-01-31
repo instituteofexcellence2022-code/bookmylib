@@ -158,21 +158,21 @@ export default function ScanPage() {
 
         {/* Success Result */}
         {result && (
-          <div className="flex flex-col items-center p-8 bg-white rounded-2xl mx-4 animate-in zoom-in duration-300 max-w-sm w-full shadow-2xl">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
-              <CheckCircle className="w-10 h-10 text-green-600" />
+          <div className="flex flex-col items-center p-8 bg-white dark:bg-gray-900 rounded-2xl mx-4 animate-in zoom-in duration-300 max-w-sm w-full shadow-2xl">
+            <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-6">
+              <CheckCircle className="w-10 h-10 text-green-600 dark:text-green-400" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">{result.type} Successful!</h3>
-            <p className="text-gray-500 text-center mb-6">
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{result.type} Successful!</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-center mb-6">
                 {result.message ? (
-                   <span className="block text-amber-600 mb-1 font-medium">{result.message}</span>
+                   <span className="block text-amber-600 dark:text-amber-500 mb-1 font-medium">{result.message}</span>
                 ) : null}
-                You have successfully {result.type.toLowerCase()} at <span className="font-semibold text-gray-900">{result.branchName}</span>
+                You have successfully {result.type.toLowerCase()} at <span className="font-semibold text-gray-900 dark:text-white">{result.branchName}</span>
                 {result.duration ? ` (Duration: ${Math.floor(result.duration / 60)}h ${result.duration % 60}m)` : ''}
             </p>
-            <div className="w-full text-center mb-6 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Time</p>
-                <p className="text-lg font-mono font-medium text-gray-900">
+            <div className="w-full text-center mb-6 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
+                <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Time</p>
+                <p className="text-lg font-mono font-medium text-gray-900 dark:text-white">
                     {result.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
             </div>
@@ -201,8 +201,8 @@ export default function ScanPage() {
              <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-6">
                 <AlertCircle className="w-10 h-10 text-red-600" />
              </div>
-             <h3 className="text-xl font-bold text-gray-900 mb-2">Scan Failed</h3>
-             <p className="text-gray-500 text-center mb-6">{error}</p>
+             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Scan Failed</h3>
+             <p className="text-gray-500 dark:text-gray-400 text-center mb-6">{error}</p>
              <AnimatedButton onClick={handleReset} variant="primary" className="w-full">
                 Try Again
              </AnimatedButton>

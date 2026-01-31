@@ -106,11 +106,11 @@ export function BranchCard({ branch }: BranchCardProps) {
         
         {/* Top Badges */}
         <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10">
-            <div className="bg-white/95 dark:bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-full flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 shadow-sm">
+            <div className="bg-white/95 dark:bg-black/80 dark:backdrop-blur-md px-2.5 py-1 rounded-full flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 shadow-sm">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Open Now
             </div>
-            <div className="bg-white/95 dark:bg-black/80 backdrop-blur-md px-2 py-1 rounded-lg flex items-center gap-1 text-xs font-bold text-amber-500 shadow-sm">
+            <div className="bg-white/95 dark:bg-black/80 dark:backdrop-blur-md px-2 py-1 rounded-lg flex items-center gap-1 text-xs font-bold text-amber-500 shadow-sm">
                 <Star className="w-3.5 h-3.5 fill-amber-500" />
                 4.8
             </div>

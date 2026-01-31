@@ -88,7 +88,7 @@ export default function HomeClient({ student, stats, todayAttendance, quotes, li
             <AnimatedButton 
               variant="ghost" 
               size="sm" 
-              className="bg-white/20 hover:bg-white/30 text-white backdrop-blur-md border-transparent px-4"
+              className="bg-white/20 hover:bg-white/30 text-white dark:backdrop-blur-md border-transparent px-4"
               onClick={() => router.push('/student/attendance/scan')}
               disabled={!activeSubscription}
             >

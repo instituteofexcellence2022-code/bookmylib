@@ -8,7 +8,7 @@ import { FormInput } from '@/components/ui/FormInput'
 import { FormSelect } from '@/components/ui/FormSelect'
 import { getStaffStudents, getStudentDetails } from '@/actions/staff/students'
 import { getStaffBranchDetails, createStaffPayment } from '@/actions/staff/finance'
-import { toast } from 'sonner'
+import { toast } from 'react-hot-toast'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
@@ -221,7 +221,9 @@ export function StaffAcceptPaymentForm() {
     // Sort seats naturally
     const sortedSeats = React.useMemo(() => {
         return [...(seats || [])].sort((a, b) => {
-            return a.number.localeCompare(b.number, undefined, { numeric: true, sensitivity: 'base' })
+            const numA = String(a.number || '')
+            const numB = String(b.number || '')
+            return numA.localeCompare(numB, undefined, { numeric: true, sensitivity: 'base' })
         })
     }, [seats])
 
@@ -471,11 +473,17 @@ export function StaffAcceptPaymentForm() {
 
     const formatTime = (timeStr?: string | null) => {
         if (!timeStr) return '-'
-        const [hours, minutes] = timeStr.split(':')
-        const h = parseInt(hours)
-        const ampm = h >= 12 ? 'PM' : 'AM'
-        const h12 = h % 12 || 12
-        return `${h12}:${minutes} ${ampm}`
+        try {
+            const [hours, minutes] = timeStr.split(':')
+            if (!hours || !minutes) return timeStr
+            const h = parseInt(hours)
+            if (isNaN(h)) return timeStr
+            const ampm = h >= 12 ? 'PM' : 'AM'
+            const h12 = h % 12 || 12
+            return `${h12}:${minutes} ${ampm}`
+        } catch (e) {
+            return timeStr || '-'
+        }
     }
 
     return (
@@ -588,7 +596,7 @@ export function StaffAcceptPaymentForm() {
                             </h2>
                             <button 
                                 onClick={() => setStep('student')}
-                                className="text-sm text-gray-500 hover:text-gray-900 flex items-center"
+                                className="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 flex items-center"
                             >
                                 <ChevronLeft size={14} className="mr-1" /> Back
                             </button>
@@ -637,10 +645,10 @@ export function StaffAcceptPaymentForm() {
                                                     </div>
                                                 )}
                                             </div>
-                                            <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">₹{plan.price.toFixed(2)}</span>
-                                                </div>
-                                                
-                                                <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{plan.description}</p>
+                                            <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">₹{Number(plan.price || 0).toFixed(2)}</span>
+                                        </div>
+                                        
+                                        <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{plan.description}</p>
                                         
                                         <div className="flex items-center gap-2 mb-2 text-[11px] text-gray-600 dark:text-gray-300">
                                             <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
@@ -653,7 +661,7 @@ export function StaffAcceptPaymentForm() {
                                                 <span className="font-medium">
                                                     {plan.category === 'fixed' 
                                                         ? `${formatTime(plan.shiftStart)} - ${formatTime(plan.shiftEnd)}`
-                                                        : `${plan.hoursPerDay} Hrs/Day`
+                                                        : `${plan.hoursPerDay || 0} Hrs/Day`
                                                     }
                                                 </span>
                                             </div>
@@ -666,10 +674,10 @@ export function StaffAcceptPaymentForm() {
                                                     ? "bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/30"
                                                     : "bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-900/30"
                                             )}>
-                                                {plan.category}
+                                                {plan.category || 'Standard'}
                                             </span>
                                             <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-600 border border-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700 capitalize">
-                                                {plan.billingCycle.replace(/_/g, ' ')}
+                                                {(plan.billingCycle || '').replace(/_/g, ' ')}
                                             </span>
                                         </div>
                                     </div>
@@ -878,7 +886,7 @@ export function StaffAcceptPaymentForm() {
                                 <Banknote className="w-5 h-5 text-blue-500" />
                                 Confirm Payment
                             </h2>
-                            <button onClick={() => setStep('booking')} className="text-sm text-gray-500 hover:text-gray-900">Change Details</button>
+                            <button onClick={() => setStep('booking')} className="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-gray-100">Change Details</button>
                         </div>
 
                         {/* Summary Card */}
@@ -1017,7 +1025,7 @@ export function StaffAcceptPaymentForm() {
                                 <ShieldCheck className="w-5 h-5 text-blue-500" />
                                 Review & Confirm
                             </h2>
-                            <button onClick={() => setStep('payment')} className="text-sm text-gray-500 hover:text-gray-900">Back to Payment</button>
+                            <button onClick={() => setStep('payment')} className="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-gray-100">Back to Payment</button>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

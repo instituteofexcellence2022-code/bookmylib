@@ -67,7 +67,7 @@ export const AnimatedCard = ({
           // Variants
           {
             'shadow-sm': variant === 'default',
-            'bg-background/80 backdrop-blur-md border-border/50 shadow-sm': variant === 'glass',
+            'bg-card dark:bg-background/80 dark:backdrop-blur-md border-border shadow-sm dark:border-border/50': variant === 'glass',
             'bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20': variant === 'gradient',
             'p-4 border-muted shadow-sm': variant === 'compact',
             'shadow-lg border-muted': variant === 'elevated',
