@@ -45,7 +45,15 @@ export function BranchListItem({ branch }: BranchCardProps) {
   
   // Calculate starting price
   const minPrice = branch.plans?.length 
-    ? Math.min(...branch.plans.map(p => p.price)) 
+    ? (() => {
+        const monthlyPlans = branch.plans.filter(p => 
+          p.durationUnit.toUpperCase() === 'MONTH' && p.duration > 0
+        )
+        if (monthlyPlans.length > 0) {
+          return Math.round(Math.min(...monthlyPlans.map(p => p.price / p.duration)))
+        }
+        return null
+      })()
     : null
 
   let branchImage: string | null = null
