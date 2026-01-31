@@ -16,6 +16,7 @@ import { FormInput } from '@/components/ui/FormInput'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { QuoteCard } from '@/components/student/QuoteCard'
+import { DigitalIdCard } from '@/components/student/DigitalIdCard'
 import { Quote } from '@/lib/quotes'
 import { updateStudentProfile, changeStudentPassword, uploadGovtId, updateStudentProfileImage } from '@/actions/student'
 import { logout } from '@/actions/auth'
@@ -290,6 +291,10 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
         await logout()
         router.push('/student/login')
     }
+
+    const activeSubscription = student.subscriptions && student.subscriptions.length > 0 
+        ? student.subscriptions[0] 
+        : undefined
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto pb-10">
@@ -644,6 +649,14 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
 
                 {/* Right Column - Stats, Password & Subscriptions */}
                 <div className="space-y-6">
+                    {/* Digital ID Card */}
+                    <div className="flex justify-center">
+                        <DigitalIdCard 
+                            student={student}
+                            activeSubscription={activeSubscription}
+                        />
+                    </div>
+
                     {/* Subscription Status */}
                     <AnimatedCard variant="gradient" className="bg-gradient-to-br from-indigo-500 to-blue-600 text-white border-none">
                         <h3 className="text-indigo-100 text-sm font-medium mb-1">Current Plan</h3>
