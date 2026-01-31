@@ -25,6 +25,7 @@ interface OperatingHours {
 interface BranchDetailsModalProps {
   isOpen: boolean
   onClose: () => void
+  isActiveMember?: boolean
   branch: {
     name: string
     address: string
@@ -44,9 +45,22 @@ interface BranchDetailsModalProps {
   }
 }
 
-export function BranchDetailsModal({ isOpen, onClose, branch }: BranchDetailsModalProps) {
+export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: BranchDetailsModalProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<number, boolean>>({})
+
+  const togglePassword = (idx: number) => {
+    if (visiblePasswords[idx]) {
+      setVisiblePasswords(prev => ({ ...prev, [idx]: false }))
+    } else {
+      if (isActiveMember) {
+        setVisiblePasswords(prev => ({ ...prev, [idx]: true }))
+      } else {
+        toast.error("Active subscription required to view WiFi password")
+      }
+    }
+  }
 
   useEffect(() => {
     setMounted(true)
@@ -75,8 +89,8 @@ export function BranchDetailsModal({ isOpen, onClose, branch }: BranchDetailsMod
     }
   }
 
-  const wifiDetails = parseJson<WifiDetail[]>(branch.wifiDetails, [])
-  const rawOperatingHours = parseJson<any>(branch.operatingHours)
+  const wifiDetails = parseJson<WifiDetail[]>(branch.wifiDetails ?? null, [])
+  const rawOperatingHours = parseJson<any>(branch.operatingHours ?? null)
   
   // Validate operating hours structure
   let operatingHours: OperatingHours | string | null = null
@@ -137,7 +151,7 @@ export function BranchDetailsModal({ isOpen, onClose, branch }: BranchDetailsMod
      }
    }
 
-  const amenities = getAmenities(branch.amenities)
+  const amenities = getAmenities(branch.amenities ?? null)
 
   // Helper to handle copy to clipboard
   const handleCopy = (text: string, field: string) => {
@@ -298,13 +312,25 @@ export function BranchDetailsModal({ isOpen, onClose, branch }: BranchDetailsMod
                         <div>
                           <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mb-1">Password</p>
                           <div className="flex items-center gap-2">
-                            <p className="text-base font-mono font-bold text-gray-900 dark:text-white bg-white/50 dark:bg-black/20 px-2 py-1 rounded">{wifi.password}</p>
-                            <button 
-                              onClick={() => handleCopy(wifi.password!, `pass-${idx}`)}
-                              className="p-1 text-emerald-600/50 hover:text-emerald-600 transition-colors"
+                            <p className="text-base font-bold text-gray-900 dark:text-white font-mono">
+                                {visiblePasswords[idx] ? wifi.password : '••••••••'}
+                            </p>
+                            
+                            <button
+                                onClick={() => togglePassword(idx)}
+                                className="px-2 py-0.5 text-xs font-medium bg-white/50 dark:bg-black/20 text-emerald-700 dark:text-emerald-300 rounded border border-emerald-200 dark:border-emerald-800 hover:bg-white dark:hover:bg-black/40 transition-colors"
                             >
-                              {copiedField === `pass-${idx}` ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                {visiblePasswords[idx] ? 'Hide' : 'Show'}
                             </button>
+
+                            {visiblePasswords[idx] && (
+                                <button 
+                                onClick={() => handleCopy(wifi.password!, `pwd-${idx}`)}
+                                className="p-1 text-emerald-600/50 hover:text-emerald-600 transition-colors"
+                                >
+                                {copiedField === `pwd-${idx}` ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                </button>
+                            )}
                           </div>
                         </div>
                       )}

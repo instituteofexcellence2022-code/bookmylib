@@ -7,9 +7,10 @@ import { BranchListItem } from '@/components/student/BranchListItem'
 
 interface BookingPageClientProps {
   branches: BranchCardProps['branch'][] | null
+  activeBranchIds: string[]
 }
 
-export function BookingPageClient({ branches }: BookingPageClientProps) {
+export function BookingPageClient({ branches, activeBranchIds }: BookingPageClientProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
   if (!branches || branches.length === 0) {
@@ -55,13 +56,21 @@ export function BookingPageClient({ branches }: BookingPageClientProps) {
       {viewMode === 'grid' ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {branches.map((branch) => (
-            <BranchCard key={branch.id} branch={branch} />
+            <BranchCard 
+              key={branch.id} 
+              branch={branch} 
+              isActiveMember={activeBranchIds.includes(branch.id)}
+            />
           ))}
         </div>
       ) : (
         <div className="space-y-4">
           {branches.map((branch) => (
-            <BranchListItem key={branch.id} branch={branch} />
+            <BranchListItem 
+              key={branch.id} 
+              branch={branch} 
+              isActiveMember={activeBranchIds.includes(branch.id)}
+            />
           ))}
         </div>
       )}

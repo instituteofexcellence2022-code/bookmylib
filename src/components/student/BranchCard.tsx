@@ -54,6 +54,7 @@ const getAmenities = (amenitiesString: string | null) => {
 }
 
 export interface BranchCardProps {
+  isActiveMember?: boolean
   branch: {
     id: string
     name: string
@@ -85,7 +86,7 @@ export interface BranchCardProps {
   }
 }
 
-export function BranchCard({ branch }: BranchCardProps) {
+export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
   const [showAmenities, setShowAmenities] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -311,6 +312,7 @@ export function BranchCard({ branch }: BranchCardProps) {
       <BranchDetailsModal 
         isOpen={showDetails} 
         onClose={() => setShowDetails(false)} 
+        isActiveMember={isActiveMember}
         branch={{
           ...branch,
           seatCount: branch._count.seats

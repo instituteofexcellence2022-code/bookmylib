@@ -134,7 +134,7 @@ export default function EditBranchPage() {
           }
 
           const amenities = Array.isArray(data.amenities) ? data.amenities : []
-          const operatingHours = data.operatingHours || {}
+          const operatingHours = (data.operatingHours as any) || {}
           
           setFormData(prev => {
             // Determine City and State: Use DB data if available, else fallback to Pincode data
