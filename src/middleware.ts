@@ -14,8 +14,8 @@ const ROUTES = {
         login: '/staff/login'
     },
     student: {
-        dashboard: '/student',
-        login: '/auth/login' // Assuming student login is generic /auth/login or /login
+        dashboard: '/student/home',
+        login: '/student/login'
     }
 }
 
@@ -75,6 +75,11 @@ export function middleware(request: NextRequest) {
     // Assuming student routes start with /student or /portal
     // Adjust based on actual route structure
     if (pathname.startsWith('/student')) {
+        // Redirect /student to /student/home
+        if (pathname === '/student') {
+             return NextResponse.redirect(new URL('/student/home', request.url))
+        }
+
         // Skip public routes
         if (
             pathname === '/student/login' ||
@@ -88,7 +93,7 @@ export function middleware(request: NextRequest) {
                 request.cookies.has(COOKIE_KEYS.STUDENT)
             ) {
                  // Determine redirect based on device/preference? For now dashboard.
-                 return NextResponse.redirect(new URL('/student', request.url))
+                 return NextResponse.redirect(new URL('/student/home', request.url))
             }
             return NextResponse.next()
         }
@@ -102,11 +107,6 @@ export function middleware(request: NextRequest) {
     // If user is already logged in, redirect them away from login pages?
     // This is tricky if we have multiple user types. 
     // Usually, /auth/login is for students/public.
-    if (pathname === '/student/login') {
-         if (request.cookies.has(COOKIE_KEYS.STUDENT)) {
-             return NextResponse.redirect(new URL('/student/home', request.url))
-         }
-    }
 
     return NextResponse.next()
 }
