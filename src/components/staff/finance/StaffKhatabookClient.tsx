@@ -335,8 +335,8 @@ export function StaffKhatabookClient() {
                                             
                                             <div className="space-y-0.5 min-w-0 flex-1">
                                                 {/* Main Description (Name), Plan & Tag */}
-                                                <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                                                    <p className={`font-semibold text-lg ${selected ? 'text-red-900 dark:text-red-100' : 'text-gray-900 dark:text-white'} ${tx.type === 'OUT' ? 'whitespace-nowrap' : ''}`}>
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <p className={`font-semibold text-lg truncate ${selected ? 'text-red-900 dark:text-red-100' : 'text-gray-900 dark:text-white'} ${tx.type === 'OUT' ? 'whitespace-nowrap' : ''}`}>
                                                         {tx.description}
                                                         {tx.type === 'OUT' && (
                                                             <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap align-middle ${
