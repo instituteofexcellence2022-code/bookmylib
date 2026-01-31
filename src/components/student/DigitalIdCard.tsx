@@ -262,17 +262,19 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                                             : student.phone
                                         }
                                     </p>
-                                    <button 
-                                        onClick={() => setIsPhoneMasked(!isPhoneMasked)}
-                                        className="opacity-0 group-hover/phone:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded exclude-from-pdf"
-                                        title={isPhoneMasked ? "Show number" : "Mask number"}
-                                    >
-                                        {isPhoneMasked ? (
-                                            <Eye className="w-3 h-3 text-gray-400" />
-                                        ) : (
-                                            <EyeOff className="w-3 h-3 text-gray-400" />
-                                        )}
-                                    </button>
+                                    {student.email && (
+                                        <button 
+                                            onClick={() => setIsPhoneMasked(!isPhoneMasked)}
+                                            className="opacity-0 group-hover/phone:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded exclude-from-pdf"
+                                            title={isPhoneMasked ? "Show number" : "Mask number"}
+                                        >
+                                            {isPhoneMasked ? (
+                                                <Eye className="w-3 h-3 text-gray-400" />
+                                            ) : (
+                                                <EyeOff className="w-3 h-3 text-gray-400" />
+                                            )}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>
