@@ -199,6 +199,122 @@ export function BranchDetailsModal({ isOpen, onClose, branch }: BranchDetailsMod
             </div>
           )}
 
+          {/* Operating Hours */}
+          {operatingHours && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <Clock className="w-4 h-4 text-emerald-500" />
+                Operating Hours
+              </h3>
+              <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
+                {typeof operatingHours === 'string' ? (
+                   <p className="text-sm text-gray-600 dark:text-gray-400">{operatingHours}</p>
+                ) : (
+                   <div className="space-y-4">
+                     <div className="flex items-center justify-between">
+                       <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</span>
+                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                         operatingHours.is247 
+                           ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                           : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                       }`}>
+                         {operatingHours.is247 ? 'Open 24/7' : 'Standard Hours'}
+                       </span>
+                     </div>
+
+                     {!operatingHours.is247 && (
+                       <div className="flex items-center justify-between">
+                         <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Daily Timing</span>
+                         <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                           {operatingHours.openingTime} - {operatingHours.closingTime}
+                         </span>
+                       </div>
+                     )}
+
+                     <div className="space-y-2">
+                       <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Working Days</span>
+                       <div className="flex flex-wrap gap-2">
+                         {operatingHours.workingDays?.map((day) => (
+                           <span 
+                             key={day}
+                             className="px-2 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md text-xs font-medium text-gray-600 dark:text-gray-300"
+                           >
+                             {day}
+                           </span>
+                         ))}
+                       </div>
+                     </div>
+                   </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Amenities */}
+          {amenities.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                Amenities
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                {amenities.map((amenity, idx) => (
+                  <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+                    <amenity.icon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{amenity.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* WiFi Details */}
+          {wifiDetails && Array.isArray(wifiDetails) && wifiDetails.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <Wifi className="w-4 h-4 text-emerald-500" />
+                WiFi Access
+              </h3>
+              <div className="grid gap-3">
+                {wifiDetails.map((wifi, idx) => (
+                  <div key={idx} className="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-800/30 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-2 opacity-10">
+                      <Wifi className="w-16 h-16 text-emerald-600" />
+                    </div>
+                    <div className="relative z-10 space-y-3">
+                      <div>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mb-1">Network Name (SSID)</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-base font-bold text-gray-900 dark:text-white">{wifi.ssid}</p>
+                          <button 
+                            onClick={() => handleCopy(wifi.ssid, `ssid-${idx}`)}
+                            className="p-1 text-emerald-600/50 hover:text-emerald-600 transition-colors"
+                          >
+                            {copiedField === `ssid-${idx}` ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                          </button>
+                        </div>
+                      </div>
+                      {wifi.password && (
+                        <div>
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mb-1">Password</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-base font-mono font-bold text-gray-900 dark:text-white bg-white/50 dark:bg-black/20 px-2 py-1 rounded">{wifi.password}</p>
+                            <button 
+                              onClick={() => handleCopy(wifi.password!, `pass-${idx}`)}
+                              className="p-1 text-emerald-600/50 hover:text-emerald-600 transition-colors"
+                            >
+                              {copiedField === `pass-${idx}` ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Contact & Location */}
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
@@ -283,122 +399,6 @@ export function BranchDetailsModal({ isOpen, onClose, branch }: BranchDetailsMod
               </div>
             </div>
           </div>
-
-          {/* Amenities */}
-          {amenities.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                Amenities
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                {amenities.map((amenity, idx) => (
-                  <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
-                    <amenity.icon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{amenity.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* WiFi Details */}
-          {wifiDetails && Array.isArray(wifiDetails) && wifiDetails.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <Wifi className="w-4 h-4 text-emerald-500" />
-                WiFi Access
-              </h3>
-              <div className="grid gap-3">
-                {wifiDetails.map((wifi, idx) => (
-                  <div key={idx} className="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-800/30 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-2 opacity-10">
-                      <Wifi className="w-16 h-16 text-emerald-600" />
-                    </div>
-                    <div className="relative z-10 space-y-3">
-                      <div>
-                        <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mb-1">Network Name (SSID)</p>
-                        <div className="flex items-center gap-2">
-                          <p className="text-base font-bold text-gray-900 dark:text-white">{wifi.ssid}</p>
-                          <button 
-                            onClick={() => handleCopy(wifi.ssid, `ssid-${idx}`)}
-                            className="p-1 text-emerald-600/50 hover:text-emerald-600 transition-colors"
-                          >
-                            {copiedField === `ssid-${idx}` ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                          </button>
-                        </div>
-                      </div>
-                      {wifi.password && (
-                        <div>
-                          <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mb-1">Password</p>
-                          <div className="flex items-center gap-2">
-                            <p className="text-base font-mono font-bold text-gray-900 dark:text-white bg-white/50 dark:bg-black/20 px-2 py-1 rounded">{wifi.password}</p>
-                            <button 
-                              onClick={() => handleCopy(wifi.password!, `pass-${idx}`)}
-                              className="p-1 text-emerald-600/50 hover:text-emerald-600 transition-colors"
-                            >
-                              {copiedField === `pass-${idx}` ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Operating Hours */}
-          {operatingHours && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <Clock className="w-4 h-4 text-emerald-500" />
-                Operating Hours
-              </h3>
-              <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
-                {typeof operatingHours === 'string' ? (
-                   <p className="text-sm text-gray-600 dark:text-gray-400">{operatingHours}</p>
-                ) : (
-                   <div className="space-y-4">
-                     <div className="flex items-center justify-between">
-                       <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</span>
-                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                         operatingHours.is247 
-                           ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                           : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                       }`}>
-                         {operatingHours.is247 ? 'Open 24/7' : 'Standard Hours'}
-                       </span>
-                     </div>
-
-                     {!operatingHours.is247 && (
-                       <div className="flex items-center justify-between">
-                         <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Daily Timing</span>
-                         <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                           {operatingHours.openingTime} - {operatingHours.closingTime}
-                         </span>
-                       </div>
-                     )}
-
-                     <div className="space-y-2">
-                       <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Working Days</span>
-                       <div className="flex flex-wrap gap-2">
-                         {operatingHours.workingDays?.map((day) => (
-                           <span 
-                             key={day}
-                             className="px-2 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md text-xs font-medium text-gray-600 dark:text-gray-300"
-                           >
-                             {day}
-                           </span>
-                         ))}
-                       </div>
-                     </div>
-                   </div>
-                )}
-              </div>
-            </div>
-          )}
 
         </div>
       </div>
