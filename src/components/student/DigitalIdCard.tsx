@@ -5,6 +5,9 @@ import QRCode from 'qrcode'
 import { motion } from 'framer-motion'
 import { Shield, User, Download, Share2, CheckCircle, BadgeCheck, Mail, Phone } from 'lucide-react'
 import { format } from 'date-fns'
+import html2canvas from 'html2canvas'
+import { useRef } from 'react'
+
 import { jsPDF } from 'jspdf'
 import { cn, formatSeatNumber } from '@/lib/utils'
 import Image from 'next/image'
@@ -37,7 +40,7 @@ interface DigitalIdCardProps {
 
 export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProps) {
     const [qrCodeUrl, setQrCodeUrl] = useState<string>('')
-    // const cardRef = useRef<HTMLDivElement>(null)
+    const cardRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         // Construct QR Data Payload
@@ -71,136 +74,28 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
         })
     }, [student, activeSubscription])
 
-    const generatePDF = (profileImageData?: string) => {
-        const doc = new jsPDF({
-            orientation: 'landscape',
-            unit: 'mm',
-            format: [85.6, 54] // Standard ID card size (CR80)
-        })
-
-        // Background
-        doc.setFillColor(255, 255, 255)
-        doc.rect(0, 0, 85.6, 54, 'F')
-        
-        // Header (Gradient-like Blue)
-        doc.setFillColor(37, 99, 235) // Blue-600
-        doc.rect(0, 0, 85.6, 10, 'F')
-        
-        // Header Text
-        doc.setTextColor(255, 255, 255)
-        doc.setFontSize(8)
-        doc.setFont('helvetica', 'bold')
-        doc.text('OFFICIAL STUDENT ID', 4, 6.5)
-        
-        doc.setFontSize(7)
-        doc.setFont('courier', 'normal')
-        doc.text(`LIB-${student.id.slice(-6).toUpperCase()}`, 81.6, 6.5, { align: 'right' })
-
-        // --- Row 1: Profile & Contact ---
-        
-        // Profile Image (Left)
-        // Box: x=4, y=13, w=15, h=15
-        if (profileImageData) {
-            try {
-                // Circular mask is hard in jsPDF, so we use rounded rect or just square for now
-                // doc.roundedRect(4, 13, 15, 15, 2, 2, 'F') // bg for image
-                doc.addImage(profileImageData, 'JPEG', 4, 13, 15, 15)
-            } catch (e) {
-                console.error('Error adding profile image to PDF', e)
-                // Fallback placeholder
-                doc.setFillColor(229, 231, 235) // gray-200
-                doc.circle(11.5, 20.5, 7.5, 'F')
-            }
-        } else {
-            // Placeholder
-            doc.setFillColor(229, 231, 235) // gray-200
-            doc.circle(11.5, 20.5, 7.5, 'F')
-        }
-
-        // Contact Info (Right)
-        doc.setTextColor(17, 24, 39) // gray-900
-        doc.setFontSize(10)
-        doc.setFont('helvetica', 'bold')
-        doc.text(student.name, 22, 16)
-        
-        doc.setTextColor(107, 114, 128) // gray-500
-        doc.setFontSize(7)
-        doc.setFont('helvetica', 'normal')
-        doc.text(student.email, 22, 20)
-        doc.text(student.phone, 22, 24)
-
-        // --- Divider ---
-        doc.setDrawColor(229, 231, 235) // gray-200
-        doc.setLineDash([1, 1], 0)
-        doc.line(4, 31, 81.6, 31)
-        doc.setLineDash([], 0) // reset
-
-        // --- Row 2: QR & Details ---
-
-        // QR Code (Left)
-        // Box: x=4, y=34, w=15, h=15
-        if (qrCodeUrl) {
-            doc.addImage(qrCodeUrl, 'PNG', 4, 34, 15, 15)
-        }
-
-        // Subscription Details (Right)
-        if (activeSubscription) {
-            doc.setFontSize(5)
-            doc.setTextColor(156, 163, 175) // gray-400
-            doc.setFont('helvetica', 'bold')
-            
-            // Grid layout simulation
-            // Col 1
-            doc.text('CURRENT PLAN', 22, 36)
-            doc.text('BRANCH', 22, 43)
-            
-            // Col 2
-            doc.text('SEAT NUMBER', 52, 36)
-            doc.text('VALID UNTIL', 52, 43)
-            
-            // Values
-            doc.setFontSize(7)
-            doc.setTextColor(37, 99, 235) // blue-600 (Plan)
-            doc.text(activeSubscription.plan.name, 22, 39)
-            
-            doc.setTextColor(31, 41, 55) // gray-800 (Others)
-            doc.text(activeSubscription.branch.name, 22, 46)
-            
-            doc.text(activeSubscription.seat ? formatSeatNumber(activeSubscription.seat.number) : 'General', 52, 39)
-            doc.text(format(new Date(activeSubscription.endDate), 'MMM dd, yyyy'), 52, 46)
-        } else {
-            doc.setTextColor(220, 38, 38) // red-600
-            doc.setFontSize(8)
-            doc.text('No Active Subscription', 22, 40)
-        }
-
-        return doc
-    }
-
-    const getImageData = async (url: string): Promise<string | undefined> => {
-        try {
-            const response = await fetch(url)
-            const blob = await response.blob()
-            return new Promise((resolve) => {
-                const reader = new FileReader()
-                reader.onloadend = () => resolve(reader.result as string)
-                reader.readAsDataURL(blob)
-            })
-        } catch (error) {
-            console.error('Error fetching image:', error)
-            return undefined
-        }
-    }
-
     const handleDownload = async () => {
         try {
-            let profileImageData
-            if (student.image) {
-                profileImageData = await getImageData(student.image)
-            }
-            
-            const doc = generatePDF(profileImageData)
-            doc.save(`${student.name.replace(/\s+/g, '_')}_ID.pdf`)
+            if (!cardRef.current) return
+
+            const canvas = await html2canvas(cardRef.current, {
+                scale: 4, // Higher scale for better quality
+                useCORS: true, // Enable CORS for external images
+                backgroundColor: null, // Transparent background if needed
+                logging: false
+            })
+
+            const imgData = canvas.toDataURL('image/png')
+            const pdf = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: [85.6, 54] // Standard ID card size
+            })
+
+            // Add the image to the PDF
+            // The image should fill the entire card size
+            pdf.addImage(imgData, 'PNG', 0, 0, 85.6, 54)
+            pdf.save(`${student.name.replace(/\s+/g, '_')}_ID.pdf`)
             toast.success('ID Card downloaded')
         } catch (error) {
             console.error('Download error:', error)
@@ -210,13 +105,24 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
 
     const handleShare = async () => {
         try {
-            let profileImageData
-            if (student.image) {
-                profileImageData = await getImageData(student.image)
-            }
+            if (!cardRef.current) return
 
-            const doc = generatePDF(profileImageData)
-            const pdfBlob = doc.output('blob')
+            const canvas = await html2canvas(cardRef.current, {
+                scale: 4,
+                useCORS: true,
+                backgroundColor: null,
+                logging: false
+            })
+
+            const imgData = canvas.toDataURL('image/png')
+            const pdf = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: [85.6, 54]
+            })
+
+            pdf.addImage(imgData, 'PNG', 0, 0, 85.6, 54)
+            const pdfBlob = pdf.output('blob')
             const file = new File([pdfBlob], `${student.name.replace(/\s+/g, '_')}_ID.pdf`, { type: 'application/pdf' })
 
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -244,7 +150,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
             animate={{ opacity: 1, y: 0 }}
             className="w-full max-w-md mx-auto"
         >
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700 relative group">
+            <div ref={cardRef} className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700 relative group">
                 {/* ID Card Header */}
                 <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 p-4 text-white flex justify-between items-center relative overflow-hidden">
                     <div className="absolute inset-0 bg-white/10 opacity-20 transform -skew-x-12 translate-x-1/2" />
@@ -367,7 +273,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                 </div>
 
                 {/* Footer Actions */}
-                <div className="bg-gray-50 dark:bg-gray-900/50 p-3 flex justify-between items-center border-t border-gray-100 dark:border-gray-800">
+                <div data-html2canvas-ignore className="bg-gray-50 dark:bg-gray-900/50 p-3 flex justify-between items-center border-t border-gray-100 dark:border-gray-800">
                     <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold pl-2">
                         Library Access Card
                     </p>
