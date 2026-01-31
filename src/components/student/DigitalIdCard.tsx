@@ -318,11 +318,11 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                 </div>
 
                 {/* Footer Actions */}
-                <div className="exclude-from-pdf bg-gray-50 dark:bg-gray-700/50 p-3 flex justify-between items-center border-t border-gray-100 dark:border-gray-700">
+                <div className="bg-gray-50 dark:bg-gray-700/50 p-1.5 flex justify-between items-center border-t border-gray-100 dark:border-gray-700">
                     <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold pl-2">
                         Library Access Card
                     </p>
-                    <div className="flex gap-2">
+                    <div className="exclude-from-pdf flex gap-2">
                         <button 
                             onClick={handleShare}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs font-medium rounded-md border border-gray-200 dark:border-gray-600 transition-colors shadow-sm"
