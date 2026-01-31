@@ -37,10 +37,10 @@ export const AnnouncementEmail = ({
           <Container className="bg-white border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[465px] w-full shadow-sm">
             <Section className="text-center mt-[20px] mb-[20px]">
               <Heading className="text-black text-[24px] font-bold p-0 my-0 mx-0 tracking-tight">
-                {libraryName}
+                BookMyLib
               </Heading>
-              <Text className="text-gray-500 text-[14px] uppercase tracking-wide font-semibold mt-2">
-                New Announcement
+              <Text className="text-gray-500 text-[14px] italic p-0 my-0 mx-0">
+                Your Premium Library Experience
               </Text>
             </Section>
 

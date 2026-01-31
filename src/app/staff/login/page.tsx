@@ -141,7 +141,7 @@ export default function StaffLoginPage() {
 
                             <div className="text-sm">
                                 <Link
-                                    href="/staff/forgot-password"
+                                    href="/staff/reset-password"
                                     className="font-medium text-emerald-600 hover:text-emerald-500"
                                 >
                                     Forgot password?

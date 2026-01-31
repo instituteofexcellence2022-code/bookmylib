@@ -196,7 +196,7 @@ model Student {
   id        String   @id @default(uuid())
   name      String
   email     String   @unique
-  phone     String?
+  phone     String?  @unique
   password  String?
   
   // Profile Extensions

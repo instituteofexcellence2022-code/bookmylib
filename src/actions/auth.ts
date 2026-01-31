@@ -216,12 +216,22 @@ export async function registerStudent(formData: FormData) {
     }
 
     try {
-        const existingStudent = await prisma.student.findUnique({
-            where: { email }
+        const existingStudent = await prisma.student.findFirst({
+            where: {
+                OR: [
+                    { email },
+                    { phone: phone || undefined }
+                ]
+            }
         })
 
         if (existingStudent) {
-            return { success: false, error: 'Email already registered' }
+            if (existingStudent.email === email) {
+                return { success: false, error: 'Email already registered' }
+            }
+            if (phone && existingStudent.phone === phone) {
+                return { success: false, error: 'Phone number already registered' }
+            }
         }
 
         let hashedPassword = null
@@ -277,12 +287,13 @@ export async function registerStudent(formData: FormData) {
 }
 
 export async function loginStudent(formData: FormData) {
-    const email = formData.get('email') as string
+    const identifierRaw = formData.get('identifier') as string
+    const identifier = identifierRaw?.trim()
     const password = formData.get('password') as string
     const dob = formData.get('dob') as string
 
-    if (!email) {
-        return { success: false, error: 'Email is required' }
+    if (!identifier) {
+        return { success: false, error: 'Email or Phone Number is required' }
     }
 
     if (!password && !dob) {
@@ -290,8 +301,13 @@ export async function loginStudent(formData: FormData) {
     }
 
     try {
-        const student = await prisma.student.findUnique({
-            where: { email }
+        const student = await prisma.student.findFirst({
+            where: {
+                OR: [
+                    { email: { equals: identifier, mode: 'insensitive' } },
+                    { phone: identifier }
+                ]
+            }
         })
 
         if (!student) {
@@ -373,39 +389,43 @@ export async function forgotPassword(formData: FormData) {
             return { success: true }
         }
 
-        // Generate reset token
-        const token = randomBytes(32).toString('hex')
-        const expires = new Date(Date.now() + 3600000) // 1 hour
+        // Generate OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString()
+        const expires = new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
 
-        // Save token to DB based on user type
+        // Save OTP to DB based on user type
         if (userType === 'student') {
             await prisma.student.update({
                 where: { id: user.id },
-                data: { resetToken: token, resetTokenExpiry: expires }
+                data: { resetToken: otp, resetTokenExpiry: expires }
             })
         } else if (userType === 'staff') {
             await prisma.staff.update({
                 where: { id: user.id },
-                data: { resetToken: token, resetTokenExpiry: expires }
+                data: { resetToken: otp, resetTokenExpiry: expires }
             })
         } else if (userType === 'owner') {
             await prisma.owner.update({
                 where: { id: user.id },
-                data: { resetToken: token, resetTokenExpiry: expires }
+                data: { resetToken: otp, resetTokenExpiry: expires }
             })
         }
 
-        const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/${userType}/reset-password?token=${token}`
-
-        await sendPasswordResetEmail({
+        console.log(`Attempting to send OTP to ${email} for user ${user.name}`)
+        const emailResult = await sendPasswordResetEmail({
             email,
             name: user.name,
-            token,
-            resetUrl,
+            otp,
             libraryName: user.library?.name || 'Library'
         })
 
-        return { success: true }
+        if (!emailResult.success) {
+            console.error('Failed to send OTP email:', emailResult.error)
+            return { success: false, error: emailResult.error || 'Failed to send email' }
+        }
+
+        console.log('OTP email sent successfully')
+        return { success: true, userType }
 
     } catch (error) {
         console.error('Forgot password error:', error)
@@ -413,13 +433,65 @@ export async function forgotPassword(formData: FormData) {
     }
 }
 
+export async function verifyOtp(formData: FormData) {
+    const email = formData.get('email') as string
+    const otp = formData.get('otp') as string
+    const userType = formData.get('userType') as string
+
+    if (!email || !otp || !userType) {
+        return { success: false, error: 'Missing required fields' }
+    }
+
+    try {
+        const now = new Date()
+        let user: any = null
+
+        if (userType === 'student') {
+            user = await prisma.student.findFirst({
+                where: { 
+                    email,
+                    resetToken: otp,
+                    resetTokenExpiry: { gt: now }
+                }
+            })
+        } else if (userType === 'staff') {
+            user = await prisma.staff.findFirst({
+                where: { 
+                    email,
+                    resetToken: otp,
+                    resetTokenExpiry: { gt: now }
+                }
+            })
+        } else if (userType === 'owner') {
+            user = await prisma.owner.findFirst({
+                where: { 
+                    email,
+                    resetToken: otp,
+                    resetTokenExpiry: { gt: now }
+                }
+            })
+        }
+
+        if (!user) {
+            return { success: false, error: 'Invalid or expired OTP' }
+        }
+
+        return { success: true }
+
+    } catch (error) {
+        console.error('Verify OTP error:', error)
+        return { success: false, error: 'Failed to verify OTP' }
+    }
+}
+
 export async function resetPassword(formData: FormData) {
-    const token = formData.get('token') as string
+    const email = formData.get('email') as string
+    const otp = formData.get('otp') as string
     const password = formData.get('password') as string
     const confirmPassword = formData.get('confirmPassword') as string
     const userType = formData.get('userType') as string // 'owner', 'staff', 'student'
 
-    if (!token || !password || !confirmPassword || !userType) {
+    if (!email || !otp || !password || !confirmPassword || !userType) {
         return { success: false, error: 'All fields are required' }
     }
 
@@ -438,13 +510,14 @@ export async function resetPassword(formData: FormData) {
         if (userType === 'owner') {
             const owner = await prisma.owner.findFirst({
                 where: { 
-                    resetToken: token,
+                    email,
+                    resetToken: otp,
                     resetTokenExpiry: { gt: now }
                 }
             })
 
             if (!owner) {
-                return { success: false, error: 'Invalid or expired token' }
+                return { success: false, error: 'Invalid or expired OTP' }
             }
 
             await prisma.owner.update({
@@ -458,13 +531,14 @@ export async function resetPassword(formData: FormData) {
         } else if (userType === 'staff') {
             const staff = await prisma.staff.findFirst({
                 where: { 
-                    resetToken: token,
+                    email,
+                    resetToken: otp,
                     resetTokenExpiry: { gt: now }
                 }
             })
 
             if (!staff) {
-                return { success: false, error: 'Invalid or expired token' }
+                return { success: false, error: 'Invalid or expired OTP' }
             }
 
             await prisma.staff.update({
@@ -478,13 +552,14 @@ export async function resetPassword(formData: FormData) {
         } else if (userType === 'student') {
             const student = await prisma.student.findFirst({
                 where: { 
-                    resetToken: token,
+                    email,
+                    resetToken: otp,
                     resetTokenExpiry: { gt: now }
                 }
             })
 
             if (!student) {
-                return { success: false, error: 'Invalid or expired token' }
+                return { success: false, error: 'Invalid or expired OTP' }
             }
 
             await prisma.student.update({

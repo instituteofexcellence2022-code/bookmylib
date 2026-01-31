@@ -16,13 +16,13 @@ import * as React from "react";
 
 interface ResetPasswordEmailProps {
   userName: string;
-  resetUrl: string;
+  otp: string;
   libraryName?: string;
 }
 
 export const ResetPasswordEmail = ({
   userName,
-  resetUrl,
+  otp,
   libraryName,
 }: ResetPasswordEmailProps) => {
   const previewText = `Reset your password for ${libraryName || 'BookMyLib'}`;
@@ -39,11 +39,9 @@ export const ResetPasswordEmail = ({
               <Heading className="text-black text-[24px] font-bold p-0 my-0 mx-0 tracking-tight">
                 BookMyLib
               </Heading>
-              {libraryName && (
-                <Text className="text-gray-500 text-[14px] italic p-0 my-0 mx-0">
-                  {libraryName}
-                </Text>
-              )}
+              <Text className="text-gray-500 text-[14px] italic p-0 my-0 mx-0">
+                Your Premium Library Experience
+              </Text>
             </Section>
             
             <Hr className="border-t border-gray-200 my-4" />
@@ -61,28 +59,17 @@ export const ResetPasswordEmail = ({
             {/* Main Content */}
             <Section className="mb-[32px] px-4 text-center">
               <Text className="text-gray-700 text-[15px] leading-[24px]">
-                We received a request to reset your password. If you didn&apos;t make this request, you can safely ignore this email.
+                We received a request to reset your password. Use the following OTP code to complete the process.
               </Text>
               
               <Section className="mt-[24px] mb-[24px]">
-                <Button
-                  className="bg-black text-white rounded px-6 py-3 font-semibold text-[14px] no-underline hover:bg-gray-800 transition-colors"
-                  href={resetUrl}
-                >
-                  Reset Password
-                </Button>
+                <Text className="bg-gray-100 text-black text-[32px] font-bold tracking-[8px] py-4 px-8 rounded-lg border border-gray-200 inline-block">
+                  {otp}
+                </Text>
               </Section>
 
-              <Text className="text-gray-500 text-[13px] leading-[20px]">
-                Or copy and paste this link into your browser:
-                <br />
-                <Link href={resetUrl} className="text-blue-600 no-underline break-all">
-                  {resetUrl}
-                </Link>
-              </Text>
-
               <Text className="text-gray-500 text-[13px] mt-4">
-                This link will expire in 1 hour.
+                This code will expire in 15 minutes.
               </Text>
             </Section>
 

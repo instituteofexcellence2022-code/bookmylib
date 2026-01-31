@@ -37,18 +37,23 @@ async function sendEmail({
     const html = await render(react)
     
     // Send via Nodemailer
-    const info = await transporter.sendMail({
-      from: EMAIL_SENDER,
-      to,
-      subject,
-      html,
-      attachments: attachments?.map(att => ({
-        filename: att.filename,
-        content: att.content
-      }))
-    })
-
-    return { data: info, error: null }
+    try {
+      const info = await transporter.sendMail({
+        from: EMAIL_SENDER,
+        to,
+        subject,
+        html,
+        attachments: attachments?.map(att => ({
+          filename: att.filename,
+          content: att.content
+        }))
+      })
+      console.log('Email sent successfully:', info.messageId)
+      return { data: info, error: null }
+    } catch (error: any) {
+      console.error('Nodemailer error:', error)
+      return { data: null, error: error }
+    }
   }
 }
 
@@ -233,26 +238,23 @@ export async function sendTicketUpdateEmail(data: {
 }
 
 export async function sendPasswordResetEmail(data: {
-  name: string
-  email: string
-  token: string
-  libraryName?: string
-  resetUrl?: string
+  email: string;
+  name: string;
+  otp: string;
+  libraryName: string;
 }) {
   try {
     if (!process.env.RESEND_API_KEY && !process.env.SMTP_USER) {
-      console.warn('Email service not configured.')
+      // console.warn('Email service not configured.')
       return { success: false, error: 'Email service not configured' }
     }
-
-    const resetUrl = data.resetUrl || `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${data.token}`
 
     const { data: emailData, error } = await sendEmail({
       to: data.email,
       subject: 'Reset Your Password - BookMyLib',
       react: ResetPasswordEmail({
         userName: data.name,
-        resetUrl,
+        otp: data.otp,
         libraryName: data.libraryName
       }) as ReactElement
     })

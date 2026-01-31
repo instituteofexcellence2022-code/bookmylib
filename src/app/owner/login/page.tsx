@@ -181,7 +181,7 @@ export default function OwnerLoginPage() {
 
                                     <div className="text-sm">
                                         <Link
-                                            href="/owner/forgot-password"
+                                            href="/owner/reset-password"
                                             className="font-medium text-amber-600 hover:text-amber-500"
                                         >
                                             Forgot password?

@@ -17,7 +17,7 @@ export default function StudentLoginPage() {
     const [rememberMe, setRememberMe] = useState(false)
 
     const [formData, setFormData] = useState({
-        email: '',
+        identifier: '',
         password: '',
         dob: ''
     })
@@ -28,7 +28,7 @@ export default function StudentLoginPage() {
 
         try {
             const data = new FormData()
-            data.append('email', formData.email)
+            data.append('identifier', formData.identifier)
             
             if (loginMethod === 'password') {
                 data.append('password', formData.password)
@@ -123,13 +123,13 @@ export default function StudentLoginPage() {
 
                     <form className="space-y-6" onSubmit={handleLogin}>
                         <FormInput
-                            label="Email address"
-                            type="email"
+                            label="Email or Phone Number"
+                            type="text"
                             icon={Mail}
                             required
-                            value={formData.email}
-                            onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                            placeholder="you@example.com"
+                            value={formData.identifier}
+                            onChange={(e) => setFormData(prev => ({ ...prev, identifier: e.target.value }))}
+                            placeholder="you@example.com or 9876543210"
                         />
 
                         {loginMethod === 'password' ? (
