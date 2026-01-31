@@ -94,33 +94,6 @@ export default function StudentLoginPage() {
                 className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10"
             >
                 <div className="bg-white dark:bg-gray-900 py-8 px-4 shadow-xl sm:rounded-2xl sm:px-10 border border-gray-100 dark:border-gray-800">
-                    <div className="flex p-1 mb-6 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                        <button
-                            type="button"
-                            onClick={() => setLoginMethod('password')}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
-                                loginMethod === 'password'
-                                    ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                            }`}
-                        >
-                            <Lock className="w-4 h-4" />
-                            Password
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setLoginMethod('dob')}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
-                                loginMethod === 'dob'
-                                    ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                            }`}
-                        >
-                            <Calendar className="w-4 h-4" />
-                            Date of Birth
-                        </button>
-                    </div>
-
                     <form className="space-y-6" onSubmit={handleLogin}>
                         <FormInput
                             label="Email or Phone Number"
@@ -131,6 +104,33 @@ export default function StudentLoginPage() {
                             onChange={(e) => setFormData(prev => ({ ...prev, identifier: e.target.value }))}
                             placeholder="you@example.com or 9876543210"
                         />
+
+                        <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                            <button
+                                type="button"
+                                onClick={() => setLoginMethod('password')}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
+                                    loginMethod === 'password'
+                                        ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                                }`}
+                            >
+                                <Lock className="w-4 h-4" />
+                                Password
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setLoginMethod('dob')}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
+                                    loginMethod === 'dob'
+                                        ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                                }`}
+                            >
+                                <Calendar className="w-4 h-4" />
+                                Date of Birth
+                            </button>
+                        </div>
 
                         {loginMethod === 'password' ? (
                             <div>
