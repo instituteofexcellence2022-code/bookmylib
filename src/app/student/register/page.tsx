@@ -7,7 +7,7 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { registerStudent } from '@/actions/auth'
 import { toast } from 'react-hot-toast'
 import { 
-    UserPlus, User, Lock, Mail, Eye, EyeOff, Phone, ArrowLeft, Gift
+    UserPlus, User, Lock, Mail, Eye, EyeOff, Phone, ArrowLeft, Gift, Calendar
 } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
@@ -19,11 +19,13 @@ function RegisterForm() {
     
     const [loading, setLoading] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
+    const [authMethod, setAuthMethod] = useState<'password' | 'dob'>('password')
     
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         phone: '',
+        dob: '',
         password: '',
         confirmPassword: '',
         agreedToTerms: false
@@ -50,22 +52,36 @@ function RegisterForm() {
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        if (!formData.name || !formData.email || !formData.phone || !formData.password || !formData.confirmPassword) {
+        if (!formData.name || !formData.email) {
             toast.error('Please fill in all fields')
             return
         }
-        if (formData.password !== formData.confirmPassword) {
-            toast.error('Passwords do not match')
-            return
+
+        if (authMethod === 'password') {
+            if (!formData.password || !formData.confirmPassword) {
+                toast.error('Please fill in password fields')
+                return
+            }
+            if (formData.password !== formData.confirmPassword) {
+                toast.error('Passwords do not match')
+                return
+            }
+            if (strength < 3) {
+                toast.error('Password is too weak')
+                return
+            }
+        } else {
+            if (!formData.dob) {
+                toast.error('Please enter your Date of Birth')
+                return
+            }
         }
-        if (formData.phone.length !== 10) {
+
+        if (formData.phone && formData.phone.length !== 10) {
             toast.error('Please enter a valid 10-digit phone number')
             return
         }
-        if (strength < 3) {
-            toast.error('Password is too weak')
-            return
-        }
+
         if (!formData.agreedToTerms) {
             toast.error('You must agree to the Terms of Service')
             return
@@ -116,9 +132,6 @@ function RegisterForm() {
                 <h2 className="mt-1 text-center text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
                     Create student account
                 </h2>
-                <p className="mt-1 text-center text-sm text-gray-600 dark:text-gray-400">
-                    Join to manage your subscriptions and attendance
-                </p>
                 <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
                     Already have an account?{' '}
                     <Link href="/student/login" className="font-medium text-blue-600 hover:text-blue-500 transition-colors">
@@ -159,10 +172,9 @@ function RegisterForm() {
                             />
 
                             <FormInput
-                                label="Phone Number"
+                                label="Phone Number (Optional)"
                                 type="tel"
                                 icon={Phone}
-                                required
                                 value={formData.phone}
                                 onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
                                 placeholder="9876543210"
@@ -179,53 +191,91 @@ function RegisterForm() {
                             placeholder="you@example.com"
                         />
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <div className="relative">
-                                    <FormInput
-                                        label="Password"
-                                        type={showPassword ? "text" : "password"}
-                                        required
-                                        value={formData.password}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                                        placeholder="••••••••"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-[34px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                                    >
-                                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                    </button>
-                                </div>
-                                
-                                {/* Password Strength Meter */}
-                                {formData.password && (
-                                    <div className="mt-1">
-                                        <div className="flex gap-1 h-1">
-                                            {[1, 2, 3, 4].map((level) => (
-                                                <div 
-                                                    key={level}
-                                                    className={`flex-1 rounded-full transition-colors duration-300 ${
-                                                        strength >= level ? strengthColor[strength] : 'bg-gray-100 dark:bg-gray-800'
-                                                    }`}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <FormInput
-                                label="Confirm Password"
-                                type="password"
-                                icon={Lock}
-                                required
-                                value={formData.confirmPassword}
-                                onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                                placeholder="••••••••"
-                            />
+                        <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                            <button
+                                type="button"
+                                onClick={() => setAuthMethod('password')}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
+                                    authMethod === 'password'
+                                        ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                                }`}
+                            >
+                                <Lock className="w-4 h-4" />
+                                Create Password
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setAuthMethod('dob')}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
+                                    authMethod === 'dob'
+                                        ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                                }`}
+                            >
+                                <Calendar className="w-4 h-4" />
+                                Use Date of Birth
+                            </button>
                         </div>
+
+                        {authMethod === 'password' ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <div className="relative">
+                                        <FormInput
+                                            label="Password"
+                                            type={showPassword ? "text" : "password"}
+                                            required
+                                            value={formData.password}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                                            placeholder="••••••••"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-3 top-[34px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                        >
+                                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        </button>
+                                    </div>
+                                    
+                                    {/* Password Strength Meter */}
+                                    {formData.password && (
+                                        <div className="mt-1">
+                                            <div className="flex gap-1 h-1">
+                                                {[1, 2, 3, 4].map((level) => (
+                                                    <div 
+                                                        key={level}
+                                                        className={`flex-1 rounded-full transition-colors duration-300 ${
+                                                            strength >= level ? strengthColor[strength] : 'bg-gray-100 dark:bg-gray-800'
+                                                        }`}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <FormInput
+                                    label="Confirm Password"
+                                    type="password"
+                                    icon={Lock}
+                                    required
+                                    value={formData.confirmPassword}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                                    placeholder="••••••••"
+                                />
+                            </div>
+                        ) : (
+                            <FormInput
+                                label="Date of Birth"
+                                type="date"
+                                icon={Calendar}
+                                required
+                                value={formData.dob}
+                                onChange={(e) => setFormData(prev => ({ ...prev, dob: e.target.value }))}
+                            />
+                        )}
 
                         <div className="flex items-center">
                             <input

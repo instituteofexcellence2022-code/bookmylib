@@ -203,7 +203,7 @@ export function StaffKhatabookClient() {
                         <div className="p-4 flex flex-col justify-between bg-green-50/50 dark:bg-green-900/10">
                             <div className="flex items-center justify-between w-full">
                                 <div>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">Total You Have</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">Total You Collected</p>
                                     <p className="text-xl font-bold text-green-600 dark:text-green-400">
                                         {formatCurrency(safeSummary.currentMonthCollected + safeSummary.carriedForward)}
                                     </p>

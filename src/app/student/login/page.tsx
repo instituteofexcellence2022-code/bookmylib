@@ -6,19 +6,20 @@ import { FormInput } from '@/components/ui/FormInput'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { loginStudent } from '@/actions/auth'
 import { toast } from 'react-hot-toast'
-import { Mail, ArrowLeft, BookOpen, Eye, EyeOff } from 'lucide-react'
+import { Mail, ArrowLeft, BookOpen, Calendar, Lock } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 
 export default function StudentLoginPage() {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
-    const [showPassword, setShowPassword] = useState(false)
+    const [loginMethod, setLoginMethod] = useState<'password' | 'dob'>('password')
     const [rememberMe, setRememberMe] = useState(false)
 
     const [formData, setFormData] = useState({
         email: '',
-        password: ''
+        password: '',
+        dob: ''
     })
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -28,7 +29,13 @@ export default function StudentLoginPage() {
         try {
             const data = new FormData()
             data.append('email', formData.email)
-            data.append('password', formData.password)
+            
+            if (loginMethod === 'password') {
+                data.append('password', formData.password)
+            } else {
+                data.append('dob', formData.dob)
+            }
+            
             if (rememberMe) data.append('rememberMe', 'true')
 
             const result = await loginStudent(data)
@@ -87,6 +94,33 @@ export default function StudentLoginPage() {
                 className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10"
             >
                 <div className="bg-white dark:bg-gray-900 py-8 px-4 shadow-xl sm:rounded-2xl sm:px-10 border border-gray-100 dark:border-gray-800">
+                    <div className="flex p-1 mb-6 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                        <button
+                            type="button"
+                            onClick={() => setLoginMethod('password')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
+                                loginMethod === 'password'
+                                    ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                            }`}
+                        >
+                            <Lock className="w-4 h-4" />
+                            Password
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setLoginMethod('dob')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-md transition-all ${
+                                loginMethod === 'dob'
+                                    ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                            }`}
+                        >
+                            <Calendar className="w-4 h-4" />
+                            Date of Birth
+                        </button>
+                    </div>
+
                     <form className="space-y-6" onSubmit={handleLogin}>
                         <FormInput
                             label="Email address"
@@ -98,25 +132,35 @@ export default function StudentLoginPage() {
                             placeholder="you@example.com"
                         />
 
-                        <div>
-                            <div className="relative">
+                        {loginMethod === 'password' ? (
+                            <div>
                                 <FormInput
                                     label="Password"
-                                    type={showPassword ? "text" : "password"}
+                                    type="password"
+                                    icon={Lock}
                                     required
                                     value={formData.password}
                                     onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                                     placeholder="••••••••"
                                 />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-[34px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                                >
-                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                </button>
+                                <div className="mt-2 flex items-center justify-end">
+                                    <div className="text-sm">
+                                        <Link href="/student/reset-password" className="font-medium text-blue-600 hover:text-blue-500">
+                                            Forgot your password?
+                                        </Link>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        ) : (
+                            <FormInput
+                                label="Date of Birth"
+                                type="date"
+                                icon={Calendar}
+                                required
+                                value={formData.dob}
+                                onChange={(e) => setFormData(prev => ({ ...prev, dob: e.target.value }))}
+                            />
+                        )}
 
                         <div className="flex items-center justify-between">
                             <div className="flex items-center">
@@ -131,15 +175,6 @@ export default function StudentLoginPage() {
                                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
                                     Remember me
                                 </label>
-                            </div>
-
-                            <div className="text-sm">
-                                <Link 
-                                    href="/student/forgot-password" 
-                                    className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
-                                >
-                                    Forgot password?
-                                </Link>
                             </div>
                         </div>
 

@@ -202,12 +202,17 @@ export async function loginStaff(formData: FormData) {
 export async function registerStudent(formData: FormData) {
     const name = formData.get('name') as string
     const email = formData.get('email') as string
-    const phone = formData.get('phone') as string
+    const phone = (formData.get('phone') as string) || null
     const password = formData.get('password') as string
     const referralCode = formData.get('referralCode') as string
+    const dob = formData.get('dob') as string
 
-    if (!name || !email || !password) {
+    if (!name || !email) {
         return { success: false, error: 'Missing required fields' }
+    }
+
+    if (!password && !dob) {
+        return { success: false, error: 'Password or Date of Birth is required' }
     }
 
     try {
@@ -219,7 +224,10 @@ export async function registerStudent(formData: FormData) {
             return { success: false, error: 'Email already registered' }
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10)
+        let hashedPassword = null
+        if (password) {
+            hashedPassword = await bcrypt.hash(password, 10)
+        }
 
         // Generate own referral code
         const baseCode = name.substring(0, 4).toUpperCase().replace(/[^A-Z]/g, 'X')
@@ -233,6 +241,7 @@ export async function registerStudent(formData: FormData) {
                 phone,
                 password: hashedPassword,
                 referralCode: ownReferralCode,
+                dob: dob ? new Date(dob) : null,
             }
         })
         
@@ -270,9 +279,14 @@ export async function registerStudent(formData: FormData) {
 export async function loginStudent(formData: FormData) {
     const email = formData.get('email') as string
     const password = formData.get('password') as string
+    const dob = formData.get('dob') as string
 
-    if (!email || !password) {
-        return { success: false, error: 'Email and password are required' }
+    if (!email) {
+        return { success: false, error: 'Email is required' }
+    }
+
+    if (!password && !dob) {
+        return { success: false, error: 'Password or Date of Birth is required' }
     }
 
     try {
@@ -280,7 +294,7 @@ export async function loginStudent(formData: FormData) {
             where: { email }
         })
 
-        if (!student || !student.password) {
+        if (!student) {
             return { success: false, error: 'Invalid credentials' }
         }
 
@@ -288,7 +302,22 @@ export async function loginStudent(formData: FormData) {
             return { success: false, error: 'Account has been blocked. Please contact support.' }
         }
 
-        const isValid = await bcrypt.compare(password, student.password)
+        let isValid = false
+
+        if (password) {
+            if (!student.password) {
+                return { success: false, error: 'Invalid credentials' }
+            }
+            isValid = await bcrypt.compare(password, student.password)
+        } else if (dob) {
+            if (!student.dob) {
+                return { success: false, error: 'Date of Birth not set for this account' }
+            }
+            const storedDob = student.dob.toISOString().split('T')[0]
+            if (storedDob === dob) {
+                isValid = true
+            }
+        }
 
         if (!isValid) {
             return { success: false, error: 'Invalid credentials' }
