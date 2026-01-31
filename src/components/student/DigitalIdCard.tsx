@@ -180,11 +180,11 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                         <Shield size={200} />
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-5 relative z-10">
+                    <div className="flex flex-row gap-3 sm:gap-5 relative z-10">
                         {/* Left Column: Photo & QR */}
-                        <div className="flex flex-col items-center gap-3">
+                        <div className="flex flex-col items-center gap-2 sm:gap-3">
                             <div className="relative">
-                                <div className="w-24 h-24 rounded-full border-4 border-white dark:border-gray-700 shadow-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
+                                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white dark:border-gray-700 shadow-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
                                     {student.image ? (
                                         <Image 
                                             src={student.image} 
@@ -194,7 +194,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                                             className="w-full h-full object-cover"
                                         />
                                     ) : (
-                                        <User className="w-10 h-10 text-gray-400" />
+                                        <User className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" />
                                     )}
                                 </div>
                                 {student.govtIdStatus === 'verified' && (
@@ -206,18 +206,18 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                             
                             {qrCodeUrl && (
                                 <div className="p-1.5 bg-white rounded-lg shadow-sm border border-gray-100">
-                                    <Image src={qrCodeUrl} alt="Student QR" width={80} height={80} className="w-20 h-20 mix-blend-multiply" />
+                                    <Image src={qrCodeUrl} alt="Student QR" width={80} height={80} className="w-16 h-16 sm:w-20 sm:h-20 mix-blend-multiply" />
                                 </div>
                             )}
                         </div>
 
                         {/* Right Column: Details */}
-                        <div className="flex-1 space-y-4 text-center sm:text-left">
+                        <div className="flex-1 space-y-3 sm:space-y-4 text-left">
                             <div>
-                                <h3 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight">
+                                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white leading-tight">
                                     {student.name}
                                 </h3>
-                                <div className="flex items-center justify-center sm:justify-start gap-2 mt-1">
+                                <div className="flex items-center gap-2 mt-1">
                                     <p className="text-sm text-gray-500 dark:text-gray-400">{student.email}</p>
                                 </div>
                                 <p className="text-xs text-gray-400 mt-0.5">{student.phone}</p>
