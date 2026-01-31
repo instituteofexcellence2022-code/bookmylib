@@ -4,42 +4,52 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { 
-  MapPin, Building2, Users, ChevronDown,
+  MapPin, Building2, Users, ChevronDown, ChevronLeft, ChevronRight,
   Wifi, Coffee, Wind, Zap, Car, Lock, Camera, BookOpen, ShieldCheck,
-  Star, Clock
+  Star, Clock, Info
 } from 'lucide-react'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { BranchDetailsModal } from './BranchDetailsModal'
 
-// Mock function to parse amenities
+// Helper to parse amenities safely
 const getAmenities = (amenitiesString: string | null) => {
-  if (!amenitiesString) {
-    return [
-      { icon: Wifi, label: 'Free Wi-Fi' },
-      { icon: Wind, label: 'AC' },
-      { icon: Zap, label: 'Power Backup' },
-      { icon: Coffee, label: 'RO Water' },
-      { icon: Car, label: 'Parking' },
-      { icon: Lock, label: 'Locker' },
-      { icon: Camera, label: 'CCTV' },
-      { icon: BookOpen, label: 'Newspaper' },
-      { icon: ShieldCheck, label: 'Security' }
-    ]
-  }
+  const allAmenities = [
+    { id: 'wifi', icon: Wifi, label: 'High-speed WiFi' },
+    { id: 'ac', icon: Wind, label: 'Air Conditioning' },
+    { id: 'power', icon: Zap, label: 'Power Backup' },
+    { id: 'coffee', icon: Coffee, label: 'Coffee Station' },
+    { id: 'water_purifier', icon: Coffee, label: 'RO Water' },
+    { id: 'parking', icon: Car, label: 'Parking Space' },
+    { id: 'printer', icon: Info, label: 'Printing Stn' },
+    { id: 'cctv', icon: Camera, label: '24/7 CCTV' },
+    { id: 'lounge', icon: Info, label: 'Discussion Area' },
+    { id: 'air_purifier', icon: Wind, label: 'Air Purifier' },
+    { id: 'lunch', icon: Info, label: 'Lunch Area' },
+    { id: 'charging', icon: Zap, label: 'Charging Points' },
+    { id: 'desk_lights', icon: Info, label: 'Desk Lights' },
+    { id: 'washrooms', icon: Info, label: 'Washrooms' },
+    { id: 'locker', icon: Lock, label: 'Locker' },
+    { id: 'newspaper', icon: BookOpen, label: 'Newspaper' },
+    { id: 'security', icon: ShieldCheck, label: 'Security' }
+  ]
+
+  if (!amenitiesString) return allAmenities.slice(0, 8)
   
   try {
-    return [
-      { icon: Wifi, label: 'Free Wi-Fi' },
-      { icon: Wind, label: 'AC' },
-      { icon: Zap, label: 'Power Backup' },
-      { icon: Coffee, label: 'RO Water' },
-      { icon: Car, label: 'Parking' },
-      { icon: Lock, label: 'Locker' },
-      { icon: Camera, label: 'CCTV' },
-      { icon: BookOpen, label: 'Newspaper' },
-      { icon: ShieldCheck, label: 'Security' }
-    ]
+    const parsed = JSON.parse(amenitiesString)
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      if (typeof parsed[0] === 'string') {
+          return allAmenities.filter(a => 
+            parsed.includes(a.id) || 
+            parsed.includes(a.label) || 
+            parsed.some((p: string) => p.toLowerCase() === a.label.toLowerCase())
+          )
+      }
+      return allAmenities.slice(0, 8)
+    }
+    return allAmenities.slice(0, 8)
   } catch {
-    return []
+    return allAmenities.slice(0, 8)
   }
 }
 
@@ -56,6 +66,14 @@ export interface BranchCardProps {
     pincode: string
     amenities: string | null
     images: string | null
+    // Extended details for modal
+    contactPhone?: string | null
+    contactEmail?: string | null
+    managerName?: string | null
+    description?: string | null
+    mapsLink?: string | null
+    wifiDetails?: string | null
+    operatingHours?: string | null
     _count: {
       seats: number
     }
@@ -69,6 +87,8 @@ export interface BranchCardProps {
 
 export function BranchCard({ branch }: BranchCardProps) {
   const [showAmenities, setShowAmenities] = useState(false)
+  const [showDetails, setShowDetails] = useState(false)
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const amenities = getAmenities(branch.amenities)
   
   // Calculate starting price (Lowest absolute plan price)
@@ -99,27 +119,42 @@ export function BranchCard({ branch }: BranchCardProps) {
       })()
     : null
 
-  let branchImage: string | null = null
+  let images: string[] = []
   try {
     if (branch.images) {
       const parsed = JSON.parse(branch.images)
       if (Array.isArray(parsed) && parsed.length > 0) {
-        branchImage = parsed[0]
+        images = parsed
       }
     }
   } catch {}
 
+  const currentImage = images.length > 0 ? images[currentImageIndex] : null
+
+  const nextImage = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setCurrentImageIndex((prev) => (prev + 1) % images.length)
+  }
+
+  const prevImage = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length)
+  }
+
   return (
     <div className="group bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col h-full">
       {/* Branch Image with Overlay Badges */}
-      <div className="h-56 bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center relative overflow-hidden">
+      <div className="h-56 bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center relative overflow-hidden group/image">
         {/* Background Pattern/Image Placeholder */}
-        {branchImage ? (
+        {currentImage ? (
           <Image 
-            src={branchImage} 
+            key={currentImage} // Force re-render on image change for animation
+            src={currentImage} 
             alt={branch.name}
             fill
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            className="object-cover transition-transform duration-500"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
         ) : (
@@ -127,8 +162,38 @@ export function BranchCard({ branch }: BranchCardProps) {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-90" />
         
+        {/* Image Navigation Arrows */}
+        {images.length > 1 && (
+          <>
+            <button 
+              onClick={prevImage}
+              className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-sm opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 z-20"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button 
+              onClick={nextImage}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-sm opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 z-20"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+            
+            {/* Image Dots Indicator */}
+            <div className="absolute bottom-20 left-0 right-0 flex justify-center gap-1.5 z-20">
+              {images.map((_, idx) => (
+                <div 
+                  key={idx}
+                  className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                    idx === currentImageIndex ? 'bg-white w-3' : 'bg-white/50'
+                  }`}
+                />
+              ))}
+            </div>
+          </>
+        )}
+
         {/* Top Badges */}
-        <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10">
+        <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10 pointer-events-none">
             <div className="bg-white/95 dark:bg-black/80 dark:backdrop-blur-md px-2.5 py-1 rounded-full flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 shadow-sm">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Open Now
@@ -140,7 +205,7 @@ export function BranchCard({ branch }: BranchCardProps) {
         </div>
 
         {/* Bottom Info */}
-        <div className="absolute bottom-0 left-0 right-0 p-5 text-white z-10">
+        <div className="absolute bottom-0 left-0 right-0 p-5 text-white z-10 pointer-events-none">
           <p className="text-emerald-300 text-xs font-bold uppercase tracking-wider mb-1">{branch.library.name}</p>
           <h3 className="text-2xl font-bold mb-2 leading-tight">{branch.name}</h3>
           
@@ -170,38 +235,47 @@ export function BranchCard({ branch }: BranchCardProps) {
                 </span>
              </div>
              
-             <div className="flex items-center gap-3">
-                 <div className="flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 px-3 py-1.5 rounded-full border border-gray-100 dark:border-gray-800">
+             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                 <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 px-2.5 py-1.5 rounded-full border border-gray-100 dark:border-gray-800 shrink-0">
                     <Users className="w-3.5 h-3.5 text-emerald-500" />
                     <span>{branch._count.seats} Seats</span>
                  </div>
-                 <div className="flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 px-3 py-1.5 rounded-full border border-gray-100 dark:border-gray-800">
+                 <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 px-2.5 py-1.5 rounded-full border border-gray-100 dark:border-gray-800 shrink-0">
                     <Clock className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>24/7 Access</span>
+                    <span>24/7</span>
                  </div>
+                 <button 
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setShowAmenities(!showAmenities)
+                    }}
+                    className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-all duration-200 shrink-0 ${
+                      showAmenities 
+                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800' 
+                        : 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 border-gray-100 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                 >
+                    <span>Amenities</span>
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${showAmenities ? 'rotate-180' : ''}`} />
+                 </button>
+                 <button 
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setShowDetails(true)
+                    }}
+                    className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border border-gray-100 dark:border-gray-800 text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 shrink-0"
+                 >
+                    <Info className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Details</span>
+                 </button>
              </div>
-          </div>
 
-          {/* Amenities Section with Toggle */}
-          <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-            <button 
-              onClick={() => setShowAmenities(!showAmenities)}
-              className="flex items-center justify-between w-full text-left group/btn"
-            >
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider group-hover/btn:text-emerald-600 transition-colors">
-                Amenities & Facilities
-              </p>
-              <div className={`
-                p-1 rounded-full transition-all duration-300
-                ${showAmenities ? 'bg-emerald-50 text-emerald-600' : 'hover:bg-gray-100 text-gray-400'}
-              `}>
-                <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${showAmenities ? 'rotate-180' : ''}`} />
-              </div>
-            </button>
-            
+            {/* Amenities List */}
             <div className={`
-              overflow-hidden transition-all duration-300 ease-in-out
-              ${showAmenities ? 'max-h-[500px] opacity-100 mt-3' : 'max-h-0 opacity-0 mt-0'}
+              overflow-hidden transition-all duration-300 ease-in-out w-full
+              ${showAmenities ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}
             `}>
               <div className="flex flex-wrap gap-2">
                 {amenities.map((amenity, index) => (
@@ -233,6 +307,15 @@ export function BranchCard({ branch }: BranchCardProps) {
           </Link>
         </div>
       </div>
+      
+      <BranchDetailsModal 
+        isOpen={showDetails} 
+        onClose={() => setShowDetails(false)} 
+        branch={{
+          ...branch,
+          seatCount: branch._count.seats
+        }} 
+      />
     </div>
   )
 }

@@ -1,12 +1,12 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { 
-  MapPin, Building2, Users, Star, Clock,
+  MapPin, Building2, Users, Star, Clock, ChevronLeft, ChevronRight,
   Wifi, Coffee, Wind, Zap, Car, Lock, Camera, BookOpen, ShieldCheck,
-  ChevronRight
+  ChevronRight as ChevronRightIcon
 } from 'lucide-react'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { BranchCardProps } from './BranchCard'
@@ -41,6 +41,7 @@ const getAmenities = (amenitiesString: string | null) => {
 }
 
 export function BranchListItem({ branch }: BranchCardProps) {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const amenities = getAmenities(branch.amenities)
   
   // Calculate starting price (Lowest absolute plan price)
@@ -71,26 +72,41 @@ export function BranchListItem({ branch }: BranchCardProps) {
       })()
     : null
 
-  let branchImage: string | null = null
+  let images: string[] = []
   try {
     if (branch.images) {
       const parsed = JSON.parse(branch.images)
       if (Array.isArray(parsed) && parsed.length > 0) {
-        branchImage = parsed[0]
+        images = parsed
       }
     }
   } catch {}
 
+  const currentImage = images.length > 0 ? images[currentImageIndex] : null
+
+  const nextImage = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setCurrentImageIndex((prev) => (prev + 1) % images.length)
+  }
+
+  const prevImage = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length)
+  }
+
   return (
     <div className="group bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col sm:flex-row">
       {/* Image Section - Left (Desktop) / Top (Mobile) */}
-      <div className="sm:w-48 md:w-64 h-48 sm:h-auto bg-emerald-100 dark:bg-emerald-900/20 relative shrink-0 overflow-hidden">
-        {branchImage ? (
+      <div className="sm:w-48 md:w-64 h-48 sm:h-auto bg-emerald-100 dark:bg-emerald-900/20 relative shrink-0 overflow-hidden group/image">
+        {currentImage ? (
           <Image 
-            src={branchImage} 
+            key={currentImage}
+            src={currentImage} 
             alt={branch.name}
             fill
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            className="object-cover transition-transform duration-500"
             sizes="(max-width: 640px) 100vw, 300px"
           />
         ) : (
@@ -100,7 +116,25 @@ export function BranchListItem({ branch }: BranchCardProps) {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent sm:hidden" />
         
-        <div className="absolute top-2 left-2 sm:hidden">
+        {/* Image Navigation Arrows */}
+        {images.length > 1 && (
+          <>
+            <button 
+              onClick={prevImage}
+              className="absolute left-2 top-1/2 -translate-y-1/2 p-1 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-sm opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 z-20"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={nextImage}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-sm opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 z-20"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </>
+        )}
+
+        <div className="absolute top-2 left-2 sm:hidden pointer-events-none">
             <div className="bg-white/95 dark:bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-full flex items-center gap-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Open

@@ -6,6 +6,16 @@ import { uploadFile } from '@/actions/upload'
 import { prisma } from '@/lib/prisma'
 import { getOwnerProfile } from './owner'
 
+// Helper for safe JSON parsing
+const safeParse = <T>(jsonString: string | null, fallback: T): T => {
+  if (!jsonString) return fallback
+  try {
+    return JSON.parse(jsonString)
+  } catch {
+    return fallback
+  }
+}
+
 export async function getOwnerBranches() {
   const owner = await getOwnerProfile()
   if (!owner || !owner.libraryId) return []
@@ -41,8 +51,8 @@ export async function getOwnerBranches() {
       },
       staff: branch.staff.length,
       revenue: 0, 
-      amenities: branch.amenities ? JSON.parse(branch.amenities) : [],
-      operatingHours: branch.operatingHours ? JSON.parse(branch.operatingHours) : null,
+      amenities: safeParse(branch.amenities, []),
+      operatingHours: safeParse(branch.operatingHours, null),
       status: branch.isActive ? 'active' : 'maintenance' // Map boolean to string status
     }))
 
@@ -141,11 +151,11 @@ export async function getBranchById(id: string) {
        revenue: totalRevenueAgg._sum.amount || 0,
        monthlyRevenue: thisMonthRevenueAgg._sum.amount || 0,
        lastMonthRevenue: lastMonthRevenueAgg._sum.amount || 0,
-       revenueData,
-       amenities: branch.amenities ? JSON.parse(branch.amenities) : [],
-       operatingHours: branch.operatingHours ? JSON.parse(branch.operatingHours) : null,
-       status: branch.isActive ? 'active' : 'maintenance'
-     }
+      revenueData,
+      amenities: safeParse(branch.amenities, []),
+      operatingHours: safeParse(branch.operatingHours, null),
+      status: branch.isActive ? 'active' : 'maintenance'
+    }
   } catch (error) {
     if ((error as any)?.digest === 'DYNAMIC_SERVER_USAGE') {
       throw error

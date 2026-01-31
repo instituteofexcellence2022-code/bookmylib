@@ -399,6 +399,33 @@ export default function EditBranchPage() {
     })
   }
 
+  const updateWifiCredential = (index: number, field: 'ssid' | 'password', value: string) => {
+    setFormData(prev => {
+      const newCredentials = [...prev.wifiCredentials]
+      newCredentials[index] = { ...newCredentials[index], [field]: value }
+      return { ...prev, wifiCredentials: newCredentials }
+    })
+  }
+
+  const addWifiCredential = () => {
+    setFormData(prev => ({
+      ...prev,
+      wifiCredentials: [...prev.wifiCredentials, { ssid: '', password: '' }]
+    }))
+  }
+
+  const removeWifiCredential = (index: number) => {
+    if (formData.wifiCredentials.length === 1) {
+      updateWifiCredential(0, 'ssid', '')
+      updateWifiCredential(0, 'password', '')
+      return
+    }
+    setFormData(prev => ({
+      ...prev,
+      wifiCredentials: prev.wifiCredentials.filter((_, i) => i !== index)
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSaving(true)
@@ -704,6 +731,52 @@ export default function EditBranchPage() {
                   placeholder="0"
                 />
               </div>
+            </div>
+          </div>
+        </CompactCard>
+
+        <CompactCard>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <Wifi className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                WiFi Credentials
+              </h2>
+              <button
+                type="button"
+                onClick={addWifiCredential}
+                className="text-sm font-medium text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 flex items-center gap-1"
+              >
+                + Add Network
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {formData.wifiCredentials.map((wifi, index) => (
+                <div key={index} className="flex gap-4 items-start">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
+                    <FormInput
+                      label="Network Name (SSID)"
+                      value={wifi.ssid}
+                      onChange={e => updateWifiCredential(index, 'ssid', e.target.value)}
+                      placeholder="WiFi Name"
+                    />
+                    <FormInput
+                      label="Password"
+                      value={wifi.password}
+                      onChange={e => updateWifiCredential(index, 'password', e.target.value)}
+                      placeholder="WiFi Password"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeWifiCredential(index)}
+                    className="mt-8 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </CompactCard>
