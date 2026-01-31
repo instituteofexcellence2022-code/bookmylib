@@ -365,9 +365,9 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
                 </AnimatedCard>
             )}
 
-            <form onSubmit={handleUpdateProfile} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Column - Forms */}
-                <div className="lg:col-span-2 space-y-6">
+                <form onSubmit={handleUpdateProfile} className="lg:col-span-2 space-y-6">
                     
                     {/* Personal Info Card */}
                     <AnimatedCard className="overflow-hidden">
@@ -645,7 +645,7 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
                         </AnimatedButton>
                     </div>
 
-                </div>
+                </form>
 
                 {/* Right Column - Stats, Password & Subscriptions */}
                 <div className="space-y-6">
@@ -771,7 +771,7 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
                         </div>
                     </AnimatedCard>
                 </div>
-            </form>
+            </div>
         </div>
     )
 }
