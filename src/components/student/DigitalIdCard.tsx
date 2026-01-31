@@ -190,7 +190,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                 </div>
 
                 {/* Card Body */}
-                <div className="p-5 relative">
+                <div className="px-5 pb-5 pt-3 relative">
                     {/* Watermark */}
                     <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
                         <Shield size={200} />
