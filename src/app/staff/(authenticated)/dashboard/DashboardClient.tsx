@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { 
@@ -17,6 +17,7 @@ import {
 import { AnimatedCard, CompactCard } from '@/components/ui/AnimatedCard'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { format } from 'date-fns'
+import { getGreeting } from '@/lib/utils'
 
 interface DashboardStats {
   occupancyRate: number
@@ -58,6 +59,12 @@ export default function DashboardClient({
   const router = useRouter()
   const isCheckedIn = attendance?.checkIn && !attendance.checkOut
 
+  const [greeting, setGreeting] = useState('Good Morning')
+
+  useEffect(() => {
+    setGreeting(getGreeting())
+  }, [])
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -71,7 +78,7 @@ export default function DashboardClient({
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Good Morning, {staffName}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white" suppressHydrationWarning>{greeting}, {staffName}</h1>
           <p className="text-gray-500 dark:text-gray-400">Here's your daily overview.</p>
         </div>
         <div className="hidden md:block">

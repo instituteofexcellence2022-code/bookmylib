@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { 
   Flame, 
@@ -24,7 +24,7 @@ interface HomeClientProps {
   likedQuoteIds: number[]
 }
 
-import { formatSeatNumber } from '@/lib/utils'
+import { formatSeatNumber, getGreeting } from '@/lib/utils'
 
 export default function HomeClient({ student, stats, todayAttendance, quotes, likedQuoteIds }: HomeClientProps) {
   const router = useRouter()
@@ -34,12 +34,18 @@ export default function HomeClient({ student, stats, todayAttendance, quotes, li
   // Use pre-calculated daysLeft from server to avoid hydration mismatch
   const daysLeft = stats.daysLeft || 0
 
+  const [greeting, setGreeting] = useState('Good Morning')
+
+  useEffect(() => {
+    setGreeting(getGreeting())
+  }, [])
+
   return (
     <div className="flex flex-col gap-6 pb-safe">
       {/* Greeting Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Good Morning, {student.name.split(' ')[0]}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white" suppressHydrationWarning>{greeting}, {student.name.split(' ')[0]}</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Ready to achieve your goals today?</p>
         </div>
         <div className="flex items-center gap-1 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-3 py-1.5 rounded-full">

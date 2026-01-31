@@ -10,7 +10,7 @@ const ROUTES = {
         login: '/owner/login'
     },
     staff: {
-        dashboard: '/staff',
+        dashboard: '/staff/dashboard',
         login: '/staff/login'
     },
     student: {

@@ -50,6 +50,13 @@ export function formatRelativeTime(date: Date) {
   return formatDate(date)
 }
 
+export function getGreeting() {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good Morning'
+  if (hour < 18) return 'Good Afternoon'
+  return 'Good Evening'
+}
+
 export function formatSeatNumber(number: number | string | null | undefined): string {
   if (number === null || number === undefined) return 'N/A'
   const numStr = String(number)
