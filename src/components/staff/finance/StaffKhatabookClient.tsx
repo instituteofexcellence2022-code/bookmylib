@@ -375,7 +375,7 @@ export function StaffKhatabookClient() {
                                                 
                                                 {/* Email - New Line */}
                                                 {tx.type === 'IN' && tx.details?.studentEmail && (
-                                                    <p className="text-base text-gray-500 dark:text-gray-400">
+                                                    <p className="text-base text-gray-500 dark:text-gray-400 truncate">
                                                         {tx.details.studentEmail}
                                                     </p>
                                                 )}
