@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { motion } from 'framer-motion'
-import { Shield, User, Download, Share2, CheckCircle, BadgeCheck } from 'lucide-react'
+import { Shield, User, Download, Share2, CheckCircle, BadgeCheck, Mail, Phone } from 'lucide-react'
 import { format } from 'date-fns'
 import { jsPDF } from 'jspdf'
 import { cn, formatSeatNumber } from '@/lib/utils'
@@ -220,10 +220,14 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                                         <BadgeCheck className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" fill="currentColor" stroke="white" />
                                     )}
                                 </h3>
-                                <div className="flex items-center gap-2 mt-1">
+                                <div className="flex items-center gap-1.5 mt-1">
+                                    <Mail className="w-3.5 h-3.5 text-gray-400" />
                                     <p className="text-sm text-gray-500 dark:text-gray-400">{student.email}</p>
                                 </div>
-                                <p className="text-xs text-gray-400 mt-0.5">{student.phone}</p>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                    <Phone className="w-3.5 h-3.5 text-gray-400" />
+                                    <p className="text-xs text-gray-400">{student.phone}</p>
+                                </div>
                             </div>
 
                             <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-gray-700">
