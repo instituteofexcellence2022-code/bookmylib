@@ -5,9 +5,8 @@ import QRCode from 'qrcode'
 import { motion } from 'framer-motion'
 import { Shield, User, Download, Share2, CheckCircle, BadgeCheck, Mail, Phone } from 'lucide-react'
 import { format } from 'date-fns'
-import html2canvas from 'html2canvas'
+import { toPng } from 'html-to-image'
 import { useRef } from 'react'
-
 import { jsPDF } from 'jspdf'
 import { cn, formatSeatNumber } from '@/lib/utils'
 import Image from 'next/image'
@@ -78,14 +77,18 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
         try {
             if (!cardRef.current) return
 
-            const canvas = await html2canvas(cardRef.current, {
-                scale: 4, // Higher scale for better quality
-                useCORS: true, // Enable CORS for external images
-                backgroundColor: null, // Transparent background if needed
-                logging: false
+            const imgData = await toPng(cardRef.current, {
+                pixelRatio: 4, // Higher scale for better quality
+                cacheBust: true,
+                filter: (node) => {
+                    // Exclude elements with the class 'exclude-from-pdf'
+                    if (node instanceof HTMLElement && node.classList.contains('exclude-from-pdf')) {
+                        return false
+                    }
+                    return true
+                }
             })
 
-            const imgData = canvas.toDataURL('image/png')
             const pdf = new jsPDF({
                 orientation: 'landscape',
                 unit: 'mm',
@@ -107,14 +110,17 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
         try {
             if (!cardRef.current) return
 
-            const canvas = await html2canvas(cardRef.current, {
-                scale: 4,
-                useCORS: true,
-                backgroundColor: null,
-                logging: false
+            const imgData = await toPng(cardRef.current, {
+                pixelRatio: 4,
+                cacheBust: true,
+                filter: (node) => {
+                    if (node instanceof HTMLElement && node.classList.contains('exclude-from-pdf')) {
+                        return false
+                    }
+                    return true
+                }
             })
 
-            const imgData = canvas.toDataURL('image/png')
             const pdf = new jsPDF({
                 orientation: 'landscape',
                 unit: 'mm',
@@ -273,7 +279,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                 </div>
 
                 {/* Footer Actions */}
-                <div data-html2canvas-ignore className="bg-gray-50 dark:bg-gray-900/50 p-3 flex justify-between items-center border-t border-gray-100 dark:border-gray-800">
+                <div className="exclude-from-pdf bg-gray-50 dark:bg-gray-700/50 p-3 flex justify-between items-center border-t border-gray-100 dark:border-gray-700">
                     <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold pl-2">
                         Library Access Card
                     </p>
