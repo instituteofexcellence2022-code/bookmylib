@@ -335,8 +335,8 @@ export function StaffKhatabookClient() {
                                             
                                             <div className="space-y-0.5 min-w-0 flex-1">
                                                 {/* Main Description (Name), Plan & Tag */}
-                                                <div className="min-w-0">
-                                                    <p className={`font-semibold text-lg ${selected ? 'text-red-900 dark:text-red-100' : 'text-gray-900 dark:text-white'} ${tx.type === 'OUT' ? 'whitespace-nowrap' : ''}`}>
+                                                <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                                                    <p className={`font-semibold text-lg ${selected ? 'text-red-900 dark:text-red-100' : 'text-gray-900 dark:text-white'} ${tx.type === 'OUT' ? 'whitespace-nowrap' : ''} ${tx.details?.handoverStatus === 'Handed Over' ? 'line-through decoration-red-500' : ''}`}>
                                                         {tx.description}
                                                         {tx.type === 'OUT' && (
                                                             <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap align-middle ${
@@ -349,28 +349,26 @@ export function StaffKhatabookClient() {
                                                                 {tx.status === 'pending' ? 'Pending' : tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
                                                             </span>
                                                         )}
-                                                        {tx.type === 'IN' && tx.details?.planName && (
-                                                            <span className="ml-2 text-base text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap">
-                                                                • {tx.details.planName}
-                                                            </span>
-                                                        )}
-                                                        {tx.type === 'IN' && tx.details?.method && (
-                                                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap align-middle bg-blue-50 text-blue-600 border border-blue-100 uppercase">
-                                                                {tx.details.method}
-                                                            </span>
-                                                        )}
-                                                        {tx.type === 'IN' && tx.details?.handoverStatus && (
-                                                            <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap align-middle ${
-                                                                tx.details.handoverStatus === 'Handed Over'
-                                                                    ? 'bg-gray-100 text-gray-600'
-                                                                    : tx.details.handoverStatus === 'Pending'
-                                                                        ? 'bg-yellow-50 text-yellow-600 border border-yellow-100'
-                                                                        : 'bg-blue-50 text-blue-600 border border-blue-100'
-                                                            }`}>
-                                                                {tx.details.handoverStatus}
-                                                            </span>
-                                                        )}
                                                     </p>
+                                                    {tx.type === 'IN' && tx.details?.planName && (
+                                                        <span className={`text-base text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap shrink-0 ${tx.details?.handoverStatus === 'Handed Over' ? 'line-through decoration-red-500' : ''}`}>
+                                                            • {tx.details.planName}
+                                                        </span>
+                                                    )}
+                                                    {tx.type === 'IN' && tx.details?.method && (
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap shrink-0 bg-blue-50 text-blue-600 border border-blue-100 uppercase ${tx.details?.handoverStatus === 'Handed Over' ? 'opacity-50 line-through decoration-red-500' : ''}`}>
+                                                            {tx.details.method}
+                                                        </span>
+                                                    )}
+                                                    {tx.type === 'IN' && tx.details?.handoverStatus && tx.details.handoverStatus !== 'Handed Over' && (
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap shrink-0 ${
+                                                            tx.details.handoverStatus === 'Pending'
+                                                                ? 'bg-yellow-50 text-yellow-600 border border-yellow-100'
+                                                                : 'bg-blue-50 text-blue-600 border border-blue-100'
+                                                        }`}>
+                                                            {tx.details.handoverStatus}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 
                                                 {/* Email - New Line */}
