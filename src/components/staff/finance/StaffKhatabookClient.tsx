@@ -336,7 +336,7 @@ export function StaffKhatabookClient() {
                                             <div className="space-y-0.5 min-w-0 flex-1">
                                                 {/* Main Description (Name), Plan & Tag */}
                                                 <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                                                    <p className={`font-semibold text-lg ${selected ? 'text-red-900 dark:text-red-100' : 'text-gray-900 dark:text-white'} ${tx.type === 'OUT' ? 'whitespace-nowrap' : ''} ${tx.details?.handoverStatus === 'Handed Over' ? 'line-through decoration-red-500' : ''}`}>
+                                                    <p className={`font-semibold text-lg ${selected ? 'text-red-900 dark:text-red-100' : 'text-gray-900 dark:text-white'} ${tx.type === 'OUT' ? 'whitespace-nowrap' : ''}`}>
                                                         {tx.description}
                                                         {tx.type === 'OUT' && (
                                                             <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap align-middle ${
@@ -351,12 +351,12 @@ export function StaffKhatabookClient() {
                                                         )}
                                                     </p>
                                                     {tx.type === 'IN' && tx.details?.planName && (
-                                                        <span className={`text-base text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap shrink-0 ${tx.details?.handoverStatus === 'Handed Over' ? 'line-through decoration-red-500' : ''}`}>
+                                                        <span className="text-base text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap shrink-0">
                                                             • {tx.details.planName}
                                                         </span>
                                                     )}
                                                     {tx.type === 'IN' && tx.details?.method && (
-                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap shrink-0 bg-blue-50 text-blue-600 border border-blue-100 uppercase ${tx.details?.handoverStatus === 'Handed Over' ? 'opacity-50 line-through decoration-red-500' : ''}`}>
+                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap shrink-0 bg-blue-50 text-blue-600 border border-blue-100 uppercase">
                                                             {tx.details.method}
                                                         </span>
                                                     )}
