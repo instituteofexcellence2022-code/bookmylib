@@ -94,8 +94,8 @@ export function Sidebar({
       />
 
       <aside className={cn(
-      "fixed md:sticky top-0 left-0 z-40 h-[100dvh] w-64 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-all duration-300 ease-in-out flex flex-col",
-      isCollapsed ? "md:w-[72px]" : "md:w-64",
+      "fixed md:sticky top-0 left-0 z-40 h-[100dvh] w-56 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-all duration-300 ease-in-out flex flex-col",
+      isCollapsed ? "md:w-[72px]" : "md:w-56",
       isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
     )}>
         {/* Header */}
