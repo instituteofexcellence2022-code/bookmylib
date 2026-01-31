@@ -296,7 +296,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                             {/* Right: Subscription Details */}
                             <div className="flex-1 min-w-0 space-y-3 pt-1">
                                 {activeSubscription ? (
-                                    <div className="grid grid-cols-[1fr_auto] gap-3">
+                                    <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5">
                                         <div className="min-w-0">
                                             <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Current Plan</p>
                                             <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 truncate">
