@@ -296,35 +296,31 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                             {/* Right: Subscription Details */}
                             <div className="flex-1 min-w-0 space-y-3 pt-1">
                                 {activeSubscription ? (
-                                    <div className="space-y-3">
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Current Plan</p>
-                                                <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 truncate">
-                                                    {activeSubscription.plan.name}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Seat Number</p>
-                                                <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                                                    {activeSubscription.seat ? formatSeatNumber(activeSubscription.seat.number) : 'General'}
-                                                </p>
-                                            </div>
+                                    <div className="grid grid-cols-[1fr_auto] gap-3">
+                                        <div className="min-w-0">
+                                            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Current Plan</p>
+                                            <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 truncate">
+                                                {activeSubscription.plan.name}
+                                            </p>
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Seat Number</p>
+                                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                                                {activeSubscription.seat ? formatSeatNumber(activeSubscription.seat.number) : 'General'}
+                                            </p>
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Branch</p>
-                                                <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
-                                                    {activeSubscription.branch.name}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Valid Until</p>
-                                                <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                                                    {format(new Date(activeSubscription.endDate), 'MMM dd, yyyy')}
-                                                </p>
-                                            </div>
+                                        <div className="min-w-0">
+                                            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Branch</p>
+                                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                                                {activeSubscription.branch.name}
+                                            </p>
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Valid Until</p>
+                                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                                                {format(new Date(activeSubscription.endDate), 'MMM dd, yyyy')}
+                                            </p>
                                         </div>
                                     </div>
                                 ) : (
@@ -342,7 +338,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                     <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold pl-2">
                         Library Access Card
                     </p>
-                    <div className="flex items-center gap-2 pr-6 opacity-90">
+                    <div className="flex items-center gap-2 pr-2 opacity-90">
                         <span className="text-[8px] text-gray-400 font-medium uppercase tracking-wider leading-none pt-px">Powered by</span>
                         <div className="flex items-center gap-1.5">
                             <div className="flex items-center justify-center bg-blue-600 dark:bg-blue-500 text-white p-0.5 rounded shadow-sm">
