@@ -414,7 +414,7 @@ export function StaffKhatabookClient() {
                                             tx.type === 'IN' 
                                                 ? 'text-green-600 dark:text-green-400' 
                                                 : 'text-red-600 dark:text-red-400'
-                                        }`}>
+                                        } ${tx.details?.handoverStatus === 'Handed Over' ? 'line-through decoration-red-500' : ''}`}>
                                             {tx.type === 'IN' ? '+' : '-'}{formatCurrency(tx.amount)}
                                         </div>
                                     </div>
