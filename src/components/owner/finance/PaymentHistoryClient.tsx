@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { getTransactions } from '@/actions/owner/finance'
 import { format } from 'date-fns'
-import { Download, RefreshCw, FileText } from 'lucide-react'
+import { Download, RefreshCw, FileText, Eye } from 'lucide-react'
 import { TransactionDetailsModal } from './TransactionDetailsModal'
 import { toast } from 'sonner'
 import jsPDF from 'jspdf'
@@ -17,6 +17,7 @@ interface Transaction {
   type: string
   method: string
   status: string
+  gatewayProvider?: string | null
   transactionId?: string | null
   invoiceNo?: string | null
   discountAmount?: number
@@ -101,6 +102,37 @@ export function PaymentHistoryClient() {
     setIsModalOpen(true)
   }
 
+  const handleViewClick = (e: React.MouseEvent, tx: Transaction) => {
+    e.stopPropagation()
+    handleRowClick(tx)
+  }
+
+  const getSource = (tx: Transaction) => {
+    if (tx.gatewayProvider) {
+      if (tx.gatewayProvider.toLowerCase() === 'razorpay') return 'Razorpay'
+      if (tx.gatewayProvider.toLowerCase() === 'cashfree') return 'Cashfree'
+      return tx.gatewayProvider
+    }
+    
+    // Map methods to sources if no gateway provider
+    const method = tx.method?.toLowerCase()
+    if (method === 'upi_app' || method === 'upi') return 'UPI Apps'
+    if (method === 'qr_code' || method === 'qr') return 'QR'
+    
+    return 'Frontdesk'
+  }
+
+  const getPaymentType = (tx: Transaction) => {
+    const method = tx.method?.toLowerCase()
+    if (method === 'cash') return 'Cash'
+    if (method === 'upi' || method === 'upi_app' || method === 'qr_code') return 'UPI'
+    if (method === 'card' || method === 'debit_card') return 'Debit Card'
+    if (method === 'credit_card') return 'Credit Card'
+    if (method === 'bank_transfer' || method === 'net_banking') return 'Bank Transfer'
+    
+    return method ? method.replace('_', ' ') : 'Unknown'
+  }
+
   const exportPDF = () => {
     const doc = new jsPDF()
     doc.text('Transaction History', 14, 15)
@@ -108,14 +140,16 @@ export function PaymentHistoryClient() {
     const tableData = transactions.map(tx => [
         format(new Date(tx.date), 'MMM dd, yyyy'),
         tx.student?.name || 'Unknown',
+        tx.branch?.name || '-',
+        tx.subscription?.plan?.name || (tx.additionalFee?.name || '-'),
         `Rs. ${tx.amount}`,
-        tx.type,
-        tx.method,
+        getSource(tx),
+        getPaymentType(tx),
         tx.status
     ])
 
     autoTable(doc, {
-        head: [['Date', 'Student', 'Amount', 'Type', 'Method', 'Status']],
+        head: [['Date', 'Student', 'Branch', 'Plan', 'Amount', 'Source', 'Type', 'Status']],
         body: tableData,
         startY: 20
     })
@@ -264,10 +298,11 @@ export function PaymentHistoryClient() {
             <thead className="text-xs text-gray-500 uppercase bg-gray-50 dark:bg-gray-700/50">
                 <tr>
                 <th className="px-6 py-3">Student</th>
+                <th className="px-6 py-3">Branch</th>
+                <th className="px-6 py-3">Plan</th>
                 <th className="px-6 py-3">Amount</th>
+                <th className="px-6 py-3">Source</th>
                 <th className="px-6 py-3">Type</th>
-                <th className="px-6 py-3">Date</th>
-                <th className="px-6 py-3">Method</th>
                 <th className="px-6 py-3">Status</th>
                 <th className="px-6 py-3 text-right">Actions</th>
                 </tr>
@@ -277,17 +312,18 @@ export function PaymentHistoryClient() {
                 [...Array(5)].map((_, i) => (
                     <tr key={i} className="animate-pulse">
                     <td className="px-6 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div></td>
-                    <td className="px-6 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16"></div></td>
                     <td className="px-6 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20"></div></td>
-                    <td className="px-6 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div></td>
+                    <td className="px-6 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20"></div></td>
                     <td className="px-6 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16"></div></td>
                     <td className="px-6 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16"></div></td>
-                    <td className="px-6 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-8"></div></td>
+                    <td className="px-6 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16"></div></td>
+                    <td className="px-6 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16"></div></td>
+                    <td className="px-6 py-4"><div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16"></div></td>
                     </tr>
                 ))
                 ) : transactions.length === 0 ? (
                 <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                     No transactions found matching your filters
                     </td>
                 </tr>
@@ -300,22 +336,22 @@ export function PaymentHistoryClient() {
                     >
                     <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
                         <div className="group-hover:text-blue-600 transition-colors">{tx.student?.name || 'Unknown'}</div>
-                        <div className="text-xs text-gray-500 font-normal">{tx.student?.email}</div>
+                        <div className="text-xs text-gray-500 font-normal">{format(new Date(tx.date), 'MMM dd, hh:mm a')}</div>
+                    </td>
+                    <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
+                        {tx.branch?.name || '-'}
+                    </td>
+                    <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
+                        {tx.subscription?.plan?.name || (tx.additionalFee?.name || '-')}
                     </td>
                     <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">
                         ₹{tx.amount.toLocaleString()}
                     </td>
+                    <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
+                        {getSource(tx)}
+                    </td>
                     <td className="px-6 py-4 text-gray-600 dark:text-gray-300 capitalize">
-                        {tx.type === 'subscription' && tx.subscription?.plan?.name 
-                        ? `${tx.subscription.plan.name} Plan` 
-                        : tx.type}
-                    </td>
-                    <td className="px-6 py-4 text-gray-500">
-                        {format(new Date(tx.date), 'MMM dd, yyyy')}
-                        <div className="text-xs">{format(new Date(tx.date), 'hh:mm a')}</div>
-                    </td>
-                    <td className="px-6 py-4 capitalize text-gray-600 dark:text-gray-300">
-                        {tx.method.replace('_', ' ')}
+                        {getPaymentType(tx)}
                     </td>
                     <td className="px-6 py-4">
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(tx.status)} capitalize`}>
@@ -323,13 +359,22 @@ export function PaymentHistoryClient() {
                         </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                        <button 
-                            onClick={(e) => handleDownloadReceipt(e, tx)}
-                            className="p-2 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
-                            title="Download Receipt"
-                        >
-                            <FileText size={18} />
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                            <button 
+                                onClick={(e) => handleViewClick(e, tx)}
+                                className="p-2 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                                title="View Details"
+                            >
+                                <Eye size={18} />
+                            </button>
+                            <button 
+                                onClick={(e) => handleDownloadReceipt(e, tx)}
+                                className="p-2 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                                title="Download Receipt"
+                            >
+                                <FileText size={18} />
+                            </button>
+                        </div>
                     </td>
                     </tr>
                 ))
