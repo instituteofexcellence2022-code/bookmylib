@@ -32,6 +32,7 @@ const colorVariants = {
     activeText: 'text-purple-600 dark:text-purple-400',
     indicator: 'bg-purple-600 dark:bg-purple-400',
     logoBg: 'bg-purple-600',
+    logoGradient: 'bg-gradient-to-br from-purple-500 to-purple-700',
     hoverBg: 'bg-purple-100/40 dark:bg-purple-900/10',
   },
   green: {
@@ -39,6 +40,7 @@ const colorVariants = {
     activeText: 'text-green-600 dark:text-green-400',
     indicator: 'bg-green-600 dark:bg-green-400',
     logoBg: 'bg-green-600',
+    logoGradient: 'bg-gradient-to-br from-green-500 to-green-700',
     hoverBg: 'bg-green-100/40 dark:bg-green-900/10',
   },
   blue: {
@@ -46,6 +48,7 @@ const colorVariants = {
     activeText: 'text-blue-600 dark:text-blue-400',
     indicator: 'bg-blue-600 dark:bg-blue-400',
     logoBg: 'bg-blue-600',
+    logoGradient: 'bg-gradient-to-br from-blue-500 to-blue-700',
     hoverBg: 'bg-blue-100/40 dark:bg-blue-900/10',
   },
   amber: {
@@ -53,6 +56,7 @@ const colorVariants = {
     activeText: 'text-amber-600 dark:text-amber-400',
     indicator: 'bg-amber-600 dark:bg-amber-400',
     logoBg: 'bg-amber-600',
+    logoGradient: 'bg-gradient-to-br from-amber-500 to-amber-700',
     hoverBg: 'bg-amber-100/40 dark:bg-amber-900/10',
   },
   emerald: {
@@ -60,6 +64,7 @@ const colorVariants = {
     activeText: 'text-emerald-600 dark:text-emerald-400',
     indicator: 'bg-emerald-600 dark:bg-emerald-400',
     logoBg: 'bg-emerald-600',
+    logoGradient: 'bg-gradient-to-br from-emerald-500 to-emerald-700',
     hoverBg: 'bg-emerald-100/40 dark:bg-emerald-900/10',
   }
 }
@@ -100,19 +105,22 @@ export function Sidebar({
     )}>
         {/* Header */}
         <div className={cn(
-          "h-14 flex items-center px-4 md:px-5 border-b border-slate-100 dark:border-slate-800",
+          "h-14 flex items-center px-4 md:px-5 border-b border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm",
           isCollapsed ? "md:justify-center" : "justify-between"
         )}>
-            <div className={cn("flex items-center gap-3 overflow-hidden whitespace-nowrap", isCollapsed && "md:justify-center w-full")}>
+            <div className={cn("flex items-center gap-3 overflow-hidden whitespace-nowrap group/header", isCollapsed && "md:justify-center w-full")}>
                 {logo || (
-                  <div className={cn("min-w-[2rem] w-8 h-8 rounded-lg flex items-center justify-center shadow-sm", colors.logoBg)}>
-                    <span className="text-white font-bold text-lg">{title.charAt(0)}</span>
+                  <div className={cn(
+                    "min-w-[2rem] w-8 h-8 rounded-lg flex items-center justify-center shadow-md transition-transform duration-300 group-hover/header:scale-105",
+                    colors.logoGradient || colors.logoBg
+                  )}>
+                    <span className="text-white font-bold text-lg drop-shadow-sm">{title.charAt(0)}</span>
                   </div>
                 )}
                 <motion.span 
                   initial={false}
                   animate={{ opacity: isCollapsed ? 0 : 1, width: isCollapsed ? 0 : 'auto' }}
-                  className={cn("text-base font-bold text-slate-900 dark:text-white truncate md:block", isCollapsed ? "hidden" : "block")}
+                  className={cn("text-base font-bold text-slate-900 dark:text-white truncate md:block tracking-tight", isCollapsed ? "hidden" : "block")}
                 >
                   {title}
                 </motion.span>
