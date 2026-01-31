@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { motion } from 'framer-motion'
-import { Shield, User, Download, Share2, CheckCircle } from 'lucide-react'
+import { Shield, User, Download, Share2, CheckCircle, BadgeCheck } from 'lucide-react'
 import { format } from 'date-fns'
 import { jsPDF } from 'jspdf'
 import { cn, formatSeatNumber } from '@/lib/utils'
@@ -198,7 +198,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                                     )}
                                 </div>
                                 {student.govtIdStatus === 'verified' && (
-                                    <div className="absolute bottom-0 right-0 bg-green-500 text-white p-1 rounded-full border-2 border-white dark:border-gray-800 shadow-sm" title="Verified Identity">
+                                    <div className="absolute bottom-0 right-0 bg-blue-500 text-white p-1 rounded-full border-2 border-white dark:border-gray-800 shadow-sm" title="Verified Identity">
                                         <CheckCircle size={14} />
                                     </div>
                                 )}
@@ -214,8 +214,11 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                         {/* Right Column: Details */}
                         <div className="flex-1 space-y-3 sm:space-y-4 text-left">
                             <div>
-                                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white leading-tight">
+                                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white leading-tight flex items-center gap-1.5">
                                     {student.name}
+                                    {student.govtIdStatus === 'verified' && (
+                                        <BadgeCheck className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" fill="currentColor" stroke="white" />
+                                    )}
                                 </h3>
                                 <div className="flex items-center gap-2 mt-1">
                                     <p className="text-sm text-gray-500 dark:text-gray-400">{student.email}</p>
