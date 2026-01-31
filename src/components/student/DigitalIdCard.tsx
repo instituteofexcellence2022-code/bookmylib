@@ -212,12 +212,12 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                         </div>
 
                         {/* Right Column: Details */}
-                        <div className="flex-1 space-y-4">
+                        <div className="flex-1 space-y-4 text-center sm:text-left">
                             <div>
                                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight">
                                     {student.name}
                                 </h3>
-                                <div className="flex items-center gap-2 mt-1">
+                                <div className="flex items-center justify-center sm:justify-start gap-2 mt-1">
                                     <p className="text-sm text-gray-500 dark:text-gray-400">{student.email}</p>
                                 </div>
                                 <p className="text-xs text-gray-400 mt-0.5">{student.phone}</p>
