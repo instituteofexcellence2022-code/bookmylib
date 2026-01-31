@@ -94,7 +94,7 @@ export default function StudentLoginPage() {
                 className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10"
             >
                 <div className="bg-white dark:bg-gray-900 py-8 px-4 shadow-xl sm:rounded-2xl sm:px-10 border border-gray-100 dark:border-gray-800">
-                    <form className="space-y-6" onSubmit={handleLogin}>
+                    <form className="space-y-4" onSubmit={handleLogin}>
                         <FormInput
                             label="Email or Phone Number"
                             type="text"
@@ -189,7 +189,7 @@ export default function StudentLoginPage() {
                         </AnimatedButton>
                     </form>
 
-                    <div className="mt-6">
+                    <div className="mt-4">
                         <div className="relative">
                             <div className="absolute inset-0 flex items-center">
                                 <div className="w-full border-t border-gray-300 dark:border-gray-700" />
