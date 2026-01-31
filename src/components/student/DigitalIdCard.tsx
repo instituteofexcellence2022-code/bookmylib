@@ -196,10 +196,11 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                         <Shield size={200} />
                     </div>
 
-                    <div className="flex flex-row gap-3 sm:gap-5 relative z-10">
-                        {/* Left Column: Photo & QR */}
-                        <div className="flex flex-col items-center gap-2 sm:gap-3">
-                            <div className="relative">
+                    <div className="flex flex-col gap-5 relative z-10">
+                        {/* 1st Half: Profile & Contact */}
+                        <div className="flex flex-row items-center gap-4 sm:gap-6">
+                            {/* Left: Photo */}
+                            <div className="relative shrink-0">
                                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white dark:border-gray-700 shadow-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
                                     {student.image ? (
                                         <Image 
@@ -219,40 +220,47 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                                     </div>
                                 )}
                             </div>
-                            
-                            {qrCodeUrl && (
-                                <div className="p-1.5 bg-white rounded-lg shadow-sm border border-gray-100">
-                                    <Image src={qrCodeUrl} alt="Student QR" width={80} height={80} className="w-16 h-16 sm:w-20 sm:h-20 mix-blend-multiply" />
-                                </div>
-                            )}
-                        </div>
 
-                        {/* Right Column: Details */}
-                        <div className="flex-1 space-y-3 sm:space-y-4 text-left">
-                            <div>
+                            {/* Right: Name, Email, Phone */}
+                            <div className="flex-1 min-w-0 text-left">
                                 <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white leading-tight flex items-center gap-1.5">
                                     {student.name}
                                     {student.govtIdStatus === 'verified' && (
                                         <BadgeCheck className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" fill="currentColor" stroke="white" />
                                     )}
                                 </h3>
-                                <div className="flex items-center gap-1.5 mt-1">
-                                    <Mail className="w-3.5 h-3.5 text-gray-400" />
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">{student.email}</p>
+                                <div className="flex items-center gap-1.5 mt-1.5">
+                                    <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{student.email}</p>
                                 </div>
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                    <Phone className="w-3.5 h-3.5 text-gray-400" />
+                                <div className="flex items-center gap-1.5 mt-1">
+                                    <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                                     <p className="text-xs text-gray-400">{student.phone}</p>
                                 </div>
                             </div>
+                        </div>
 
-                            <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+                        <div className="border-t border-dashed border-gray-200 dark:border-gray-700" />
+
+                        {/* 2nd Half: QR & Other Details */}
+                        <div className="flex flex-row gap-4 sm:gap-6">
+                            {/* Left: QR Code */}
+                            <div className="shrink-0 flex items-start">
+                                {qrCodeUrl && (
+                                    <div className="p-1.5 bg-white rounded-lg shadow-sm border border-gray-100">
+                                        <Image src={qrCodeUrl} alt="Student QR" width={80} height={80} className="w-20 h-20 sm:w-24 sm:h-24 mix-blend-multiply" />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Right: Subscription Details */}
+                            <div className="flex-1 min-w-0 space-y-3 pt-1">
                                 {activeSubscription ? (
-                                    <>
+                                    <div className="space-y-3">
                                         <div className="grid grid-cols-2 gap-3">
                                             <div>
                                                 <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Current Plan</p>
-                                                <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                                                <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 truncate">
                                                     {activeSubscription.plan.name}
                                                 </p>
                                             </div>
@@ -278,7 +286,7 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                                                 </p>
                                             </div>
                                         </div>
-                                    </>
+                                    </div>
                                 ) : (
                                     <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm text-center font-medium border border-red-100 dark:border-red-900/30">
                                         No Active Subscription
