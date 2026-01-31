@@ -223,6 +223,9 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
         }
     }
 
+    // Check if student has a password set (using the hash existence)
+    const hasPassword = !!student.password
+
     const handleChangePassword = async (e: React.FormEvent) => {
         e.preventDefault()
         
@@ -231,19 +234,27 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
             return
         }
 
+        if (hasPassword && !passwordData.currentPassword) {
+            toast.error('Current password is required')
+            return
+        }
+
         setLoading(true)
 
         try {
             const formData = new FormData()
-            formData.append('currentPassword', passwordData.currentPassword)
+            if (passwordData.currentPassword) {
+                formData.append('currentPassword', passwordData.currentPassword)
+            }
             formData.append('newPassword', passwordData.newPassword)
             formData.append('confirmPassword', passwordData.confirmPassword)
 
             const result = await changeStudentPassword(formData)
 
             if (result.success) {
-                toast.success('Password changed successfully')
+                toast.success(hasPassword ? 'Password changed successfully' : 'Password created successfully')
                 setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+                router.refresh()
             } else {
                 toast.error(result.error || 'Failed to change password')
             }
@@ -686,20 +697,22 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
                         <div className="border-b border-gray-100 dark:border-gray-800 pb-4 mb-4">
                             <h2 className="text-lg font-semibold flex items-center gap-2">
                                 <Lock className="w-5 h-5 text-purple-500" />
-                                Change Password
+                                {hasPassword ? 'Change Password' : 'Create Password'}
                             </h2>
                         </div>
                         
                         {/* We use a separate form here to avoid submitting the main form */}
                         <div className="space-y-4">
-                            <FormInput
-                                type="password"
-                                icon={Lock}
-                                value={passwordData.currentPassword}
-                                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                                className="focus:ring-purple-500"
-                                placeholder="Current Password"
-                            />
+                            {hasPassword && (
+                                <FormInput
+                                    type="password"
+                                    icon={Lock}
+                                    value={passwordData.currentPassword}
+                                    onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                                    className="focus:ring-purple-500"
+                                    placeholder="Current Password"
+                                />
+                            )}
                             <div className="space-y-4">
                                 <FormInput
                                     type="password"
@@ -726,7 +739,7 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
                                     variant="outline"
                                     className="border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 w-full"
                                 >
-                                    Update Password
+                                    {hasPassword ? 'Update Password' : 'Set Password'}
                                 </AnimatedButton>
                             </div>
                         </div>

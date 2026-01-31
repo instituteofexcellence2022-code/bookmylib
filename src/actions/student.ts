@@ -156,8 +156,8 @@ export async function changeStudentPassword(formData: FormData) {
     const currentPassword = formData.get('currentPassword') as string
     const newPassword = formData.get('newPassword') as string
     
-    if (!currentPassword || !newPassword) {
-        return { success: false, error: 'Missing required fields' }
+    if (!newPassword) {
+        return { success: false, error: 'New password is required' }
     }
 
     try {
@@ -165,13 +165,18 @@ export async function changeStudentPassword(formData: FormData) {
             where: { id: studentId }
         })
 
-        if (!student || !student.password) {
+        if (!student) {
              return { success: false, error: 'Student not found' }
         }
 
-        const isMatch = await bcrypt.compare(currentPassword, student.password)
-        if (!isMatch) {
-            return { success: false, error: 'Incorrect current password' }
+        if (student.password) {
+            if (!currentPassword) {
+                return { success: false, error: 'Current password is required' }
+            }
+            const isMatch = await bcrypt.compare(currentPassword, student.password)
+            if (!isMatch) {
+                return { success: false, error: 'Incorrect current password' }
+            }
         }
 
         const hashedPassword = await bcrypt.hash(newPassword, 10)
