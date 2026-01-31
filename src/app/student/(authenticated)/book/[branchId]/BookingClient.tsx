@@ -164,26 +164,30 @@ export default function BookingClient({ branch, studentId, currentSubscription }
         setStep('payment')
     }
 
-    const handlePaymentSuccess = async (paymentId?: string) => {
-    if (!selectedPlan) {
-        toast.error('No plan selected')
-        return
-    }
-    setIsLoading(true)
-    try {
-      const result = await createBooking({
-        studentId,
-        branchId: branch.id,
-        planId: selectedPlan.id,
-        seatId: selectedSeat?.id,
-        startDate: bookingDate,
-        additionalFeeIds: selectedFees,
-        paymentId
-      })
+    const handlePaymentSuccess = async (paymentId?: string, status?: 'completed' | 'pending_verification') => {
+        if (!selectedPlan) {
+            toast.error('No plan selected')
+            return
+        }
+        setIsLoading(true)
+        try {
+            const result = await createBooking({
+                studentId,
+                branchId: branch.id,
+                planId: selectedPlan.id,
+                seatId: selectedSeat?.id,
+                startDate: bookingDate,
+                additionalFeeIds: selectedFees,
+                paymentId
+            })
 
-      if (result.success) {
-                toast.success('Booking successful!')
-                router.push('/student/home')
+            if (result.success) {
+                if (status === 'pending_verification') {
+                    toast.success('Your transaction has been sent for verification')
+                } else {
+                    toast.success('Booking successful!')
+                }
+                router.push('/student/payments?tab=history')
             } else {
                 toast.error(result.error || 'Booking failed')
             }

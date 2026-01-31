@@ -44,11 +44,16 @@ export function BranchListItem({ branch }: BranchCardProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const amenities = getAmenities(branch.amenities)
   
+  // Prioritize branch-specific plans. Only use global plans if no branch plans exist.
+  const relevantPlans = (branch.plans && branch.plans.length > 0)
+    ? branch.plans
+    : (branch.library?.plans || [])
+  
   // Calculate starting price (Lowest absolute plan price)
-  const lowestPlan = branch.plans?.length 
+  const lowestPlan = relevantPlans.length 
     ? (() => {
         // Find the plan with absolute lowest price
-        const sortedPlans = [...branch.plans].sort((a, b) => a.price - b.price)
+        const sortedPlans = [...relevantPlans].sort((a, b) => a.price - b.price)
         const cheapest = sortedPlans[0]
         
         if (cheapest) {

@@ -60,6 +60,11 @@ export interface BranchCardProps {
     name: string
     library: {
       name: string
+      plans?: {
+        price: number
+        duration: number
+        durationUnit: string
+      }[]
     }
     address: string
     city: string
@@ -92,11 +97,16 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const amenities = getAmenities(branch.amenities)
   
+  // Prioritize branch-specific plans. Only use global plans if no branch plans exist.
+  const relevantPlans = (branch.plans && branch.plans.length > 0)
+    ? branch.plans
+    : (branch.library?.plans || [])
+  
   // Calculate starting price (Lowest absolute plan price)
-  const lowestPlan = branch.plans?.length 
+  const lowestPlan = relevantPlans.length 
     ? (() => {
         // Find the plan with absolute lowest price
-        const sortedPlans = [...branch.plans].sort((a, b) => a.price - b.price)
+        const sortedPlans = [...relevantPlans].sort((a, b) => a.price - b.price)
         const cheapest = sortedPlans[0]
         
         if (cheapest) {
@@ -266,10 +276,10 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
                       e.stopPropagation()
                       setShowDetails(true)
                     }}
-                    className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border border-gray-100 dark:border-gray-800 text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 shrink-0"
+                    className="flex items-center justify-center w-8 h-8 rounded-full border border-gray-100 dark:border-gray-800 text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 shrink-0"
+                    title="Details"
                  >
                     <Info className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>Details</span>
                  </button>
              </div>
 

@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { 
   CreditCard, Banknote, QrCode, Building, 
-  AlertCircle 
+  AlertCircle, Check 
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { 
@@ -38,7 +38,7 @@ interface BookingPaymentProps {
   branchId: string
   adjustmentAmount?: number
   adjustmentLabel?: string
-  onSuccess: (paymentId?: string) => void
+  onSuccess: (paymentId?: string, status?: 'completed' | 'pending_verification') => void
   onBack: () => void
 }
 
@@ -138,7 +138,7 @@ export default function BookingPayment({
             // Actually initiatePayment creates a Payment record?
             // Let's check initiatePayment implementation.
             // It returns { success: true, orderId: payment.id, ... }
-            onSuccess(result.paymentId) 
+            onSuccess(result.paymentId, 'completed') 
           }, 2000)
         } else {
           toast.error(result.error || 'Payment initiation failed')
@@ -160,7 +160,7 @@ export default function BookingPayment({
         
         if (result.success) {
           toast.success('Payment submitted for verification')
-          onSuccess(result.paymentId) 
+          onSuccess(result.paymentId, 'pending_verification') 
         } else {
           toast.error(result.error || 'Submission failed')
           setProcessing(false)
@@ -173,69 +173,141 @@ export default function BookingPayment({
     }
   }
 
-  const renderPaymentMethods = () => (
-    <div className="grid grid-cols-2 gap-3 mb-6">
-      <button
-        onClick={() => setPaymentMethod('razorpay')}
-        className={`p-3 rounded-lg border flex flex-col items-center justify-center gap-2 transition-all ${
-          paymentMethod === 'razorpay' 
-            ? 'border-purple-500 bg-purple-50 text-purple-700' 
-            : 'border-gray-200 hover:border-purple-200'
-        }`}
-      >
-        <CreditCard className="w-5 h-5" />
-        <span className="text-sm font-medium">Razorpay</span>
-      </button>
-      
-      <button
-        onClick={() => setPaymentMethod('cashfree')}
-        className={`p-3 rounded-lg border flex flex-col items-center justify-center gap-2 transition-all ${
-          paymentMethod === 'cashfree' 
-            ? 'border-purple-500 bg-purple-50 text-purple-700' 
-            : 'border-gray-200 hover:border-purple-200'
-        }`}
-      >
-        <Banknote className="w-5 h-5" />
-        <span className="text-sm font-medium">Cashfree</span>
-      </button>
+  const renderPaymentMethods = () => {
+    const isOnline = paymentMethod !== 'front_desk'
 
-      <button
-        onClick={() => setPaymentMethod('upi_app')}
-        className={`p-3 rounded-lg border flex flex-col items-center justify-center gap-2 transition-all ${
-          paymentMethod === 'upi_app' 
-            ? 'border-purple-500 bg-purple-50 text-purple-700' 
-            : 'border-gray-200 hover:border-purple-200'
-        }`}
-      >
-        <QrCode className="w-5 h-5" />
-        <span className="text-sm font-medium">UPI App</span>
-      </button>
+    return (
+      <div className="space-y-4 mb-6">
+        <div className="grid grid-cols-2 gap-3">
+           {/* Cash / Front Desk Card */}
+           <button
+            onClick={() => setPaymentMethod('front_desk')}
+            className={`relative p-3 rounded-xl border transition-all group text-left overflow-hidden h-full flex flex-col justify-between gap-2 ${
+              !isOnline
+                ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20 ring-1 ring-emerald-500/20' 
+                : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 hover:border-emerald-200 dark:hover:border-emerald-700 hover:shadow-lg'
+            }`}
+          >
+            {/* Background Decorator */}
+            <div className={`absolute top-0 right-0 w-12 h-12 rounded-bl-full -mr-3 -mt-3 transition-transform group-hover:scale-110 ${
+                !isOnline ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-gray-50 dark:bg-gray-700/30'
+            }`}></div>
 
-      <button
-        onClick={() => setPaymentMethod('qr_code')}
-        className={`p-3 rounded-lg border flex flex-col items-center justify-center gap-2 transition-all ${
-          paymentMethod === 'qr_code' 
-            ? 'border-purple-500 bg-purple-50 text-purple-700' 
-            : 'border-gray-200 hover:border-purple-200'
-        }`}
-      >
-        <QrCode className="w-5 h-5" />
-        <span className="text-sm font-medium">Library QR</span>
-      </button>
+            {/* Selection Indicator */}
+            {!isOnline && (
+              <div className="absolute top-2 right-2 text-emerald-600 dark:text-emerald-400 z-10">
+                <div className="w-4 h-4 bg-emerald-600 rounded-full flex items-center justify-center shadow-sm">
+                   <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                </div>
+              </div>
+            )}
+            
+            <div className={`relative p-2 rounded-lg w-fit group-hover:scale-110 transition-transform shadow-sm ${
+                !isOnline ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+            }`}>
+               <Building className="w-4 h-4" />
+            </div>
 
-      <button
-        onClick={() => setPaymentMethod('front_desk')}
-        className={`p-3 rounded-lg border flex flex-col items-center justify-center gap-2 transition-all col-span-2 ${
-          paymentMethod === 'front_desk' 
-            ? 'border-purple-500 bg-purple-50 text-purple-700' 
-            : 'border-gray-200 hover:border-purple-200'
-        }`}
-      >
-        <Building className="w-5 h-5" />
-        <span className="text-sm font-medium">Pay at Front Desk</span>
-      </button>
-    </div>
-  )
+            <div className="relative">
+               <h3 className={`font-bold text-xs ${!isOnline ? 'text-emerald-900 dark:text-emerald-100' : 'text-gray-900 dark:text-white'}`}>Pay at Desk</h3>
+               <p className={`text-[9px] leading-tight ${!isOnline ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-500'}`}>
+                 Pay cash at desk
+               </p>
+            </div>
+          </button>
+
+          {/* Online Payment Card */}
+          <button
+            onClick={() => {
+                if (!isOnline) setPaymentMethod('razorpay')
+            }}
+            className={`relative p-3 rounded-xl border transition-all group text-left overflow-hidden h-full flex flex-col justify-between gap-2 ${
+              isOnline
+                ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-900/20 ring-1 ring-purple-500/20' 
+                : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 hover:border-purple-200 dark:hover:border-purple-700 hover:shadow-lg'
+            }`}
+          >
+            {/* Background Decorator */}
+            <div className={`absolute top-0 right-0 w-12 h-12 rounded-bl-full -mr-3 -mt-3 transition-transform group-hover:scale-110 ${
+                isOnline ? 'bg-purple-100 dark:bg-purple-900/30' : 'bg-gray-50 dark:bg-gray-700/30'
+            }`}></div>
+
+            {/* Selection Indicator */}
+            {isOnline && (
+              <div className="absolute top-2 right-2 text-purple-600 dark:text-purple-400 z-10">
+                <div className="w-4 h-4 bg-purple-600 rounded-full flex items-center justify-center shadow-sm">
+                   <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                </div>
+              </div>
+            )}
+
+            <div className={`relative p-2 rounded-lg w-fit group-hover:scale-110 transition-transform shadow-sm ${
+                isOnline ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+            }`}>
+               <CreditCard className="w-4 h-4" />
+            </div>
+
+            <div className="relative">
+               <h3 className={`font-bold text-xs ${isOnline ? 'text-purple-900 dark:text-purple-100' : 'text-gray-900 dark:text-white'}`}>Online Pay</h3>
+               <p className={`text-[9px] leading-tight ${isOnline ? 'text-purple-700 dark:text-purple-300' : 'text-gray-500'}`}>
+                 UPI, Cards & more
+               </p>
+            </div>
+          </button>
+        </div>
+
+        {isOnline && (
+          <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 px-1 pt-2">
+               <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+               <span className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Select Gateway</span>
+               <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+               {[
+                   { id: 'razorpay', label: 'Razorpay', icon: CreditCard, desc: 'Cards, UPI' },
+                   { id: 'cashfree', label: 'Cashfree', icon: Banknote, desc: 'Secure Gateway' },
+                   { id: 'upi_app', label: 'UPI App', icon: QrCode, desc: 'PhonePe/GPay' },
+                   { id: 'qr_code', label: 'Library QR', icon: QrCode, desc: 'Scan & Pay' },
+               ].map((method) => (
+                   <button
+                   key={method.id}
+                   onClick={() => setPaymentMethod(method.id)}
+                   className={`relative p-2 rounded-xl border text-left transition-all group overflow-hidden ${
+                       paymentMethod === method.id
+                       ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-900/20 ring-1 ring-purple-500/20' 
+                       : 'border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 hover:border-purple-200 dark:hover:border-purple-700 hover:shadow-md'
+                   }`}
+                   >
+                     {/* Mini Decorator */}
+                     <div className={`absolute top-0 right-0 w-10 h-10 rounded-bl-full -mr-2 -mt-2 transition-transform group-hover:scale-110 ${
+                        paymentMethod === method.id ? 'bg-purple-100 dark:bg-purple-900/30' : 'bg-gray-50 dark:bg-gray-700/30'
+                     }`}></div>
+
+                     <div className="relative flex items-start gap-2">
+                       <div className={`p-1.5 rounded-lg shrink-0 ${
+                           paymentMethod === method.id 
+                           ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' 
+                           : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                       }`}>
+                          <method.icon className="w-3 h-3" />
+                       </div>
+                       <div>
+                          <h4 className={`text-[10px] font-bold ${paymentMethod === method.id ? 'text-purple-900 dark:text-purple-100' : 'text-gray-900 dark:text-white'}`}>
+                            {method.label}
+                          </h4>
+                          <p className="text-[8px] text-gray-500 mt-0.5 leading-tight">{method.desc}</p>
+                       </div>
+                     </div>
+                   </button>
+               ))}
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm max-w-2xl mx-auto">

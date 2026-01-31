@@ -12,7 +12,13 @@ export async function getPublishedBranches() {
             where: { isActive: true },
             include: {
                 library: {
-                    select: { name: true }
+                    select: { 
+                        name: true,
+                        plans: {
+                            where: { isActive: true, branchId: null },
+                            select: { price: true, duration: true, durationUnit: true }
+                        }
+                    }
                 },
                 _count: {
                     select: { seats: true }
