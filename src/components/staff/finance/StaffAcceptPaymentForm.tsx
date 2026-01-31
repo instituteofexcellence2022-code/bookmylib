@@ -548,7 +548,9 @@ export function StaffAcceptPaymentForm() {
                                             className="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b last:border-0"
                                         >
                                             <div className="font-medium">{student.name}</div>
-                                            <div className="text-xs text-gray-500">{student.phone || student.email}</div>
+                                            <div className="text-xs text-gray-500">
+                                                {[student.phone, student.email].filter(Boolean).join(' • ')}
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -562,7 +564,9 @@ export function StaffAcceptPaymentForm() {
                                 </div>
                                 <div>
                                     <div className="font-medium text-blue-900 dark:text-blue-100">{selectedStudent.name}</div>
-                                    <div className="text-sm text-blue-700 dark:text-blue-300">{selectedStudent.phone || selectedStudent.email}</div>
+                                    <div className="text-sm text-blue-700 dark:text-blue-300">
+                                        {[selectedStudent.phone, selectedStudent.email].filter(Boolean).join(' • ')}
+                                    </div>
                                     <button 
                                         onClick={() => {
                                             setSelectedStudent(null)

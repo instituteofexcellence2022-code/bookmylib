@@ -49,8 +49,12 @@ export async function createStudent(formData: FormData) {
     const imageFile = formData.get('image') as File | null
     const govtIdFile = formData.get('govtId') as File | null
 
-    if (!name || !email || !phone || !password || !branchId) {
+    if (!name || !email || !phone || !branchId) {
         return { success: false, error: 'Required fields missing' }
+    }
+
+    if (!password && !dob) {
+        return { success: false, error: 'Password or Date of Birth is required' }
     }
 
     if (!/^\d{10}$/.test(phone)) {

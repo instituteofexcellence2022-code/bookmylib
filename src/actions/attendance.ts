@@ -16,10 +16,18 @@ export async function markAttendance(qrCode: string, location?: { lat: number, l
     const studentId = await getStudentSession()
     if (!studentId) return { success: false, error: 'Unauthorized' }
 
+    let qrCodeValue = qrCode
+    try {
+        const data = JSON.parse(qrCode)
+        if (data.code) qrCodeValue = data.code
+    } catch {
+        // ignore
+    }
+
     try {
         // 1. Find branch by QR
         const branch = await prisma.branch.findUnique({
-            where: { qrCode }
+            where: { qrCode: qrCodeValue }
         })
         
         if (!branch) return { success: false, error: 'Invalid QR Code' }
@@ -125,6 +133,7 @@ export async function markAttendance(qrCode: string, location?: { lat: number, l
         revalidatePath('/student/home')
         revalidatePath('/student/attendance')
         revalidatePath('/student/attendance/history')
+        revalidatePath('/staff/attendance')
         return { 
             success: true, 
             type: 'check-in', 

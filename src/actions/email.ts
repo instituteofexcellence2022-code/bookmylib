@@ -25,6 +25,7 @@ async function sendEmail({
   attachments?: { filename: string; content: Buffer }[]
 }) {
   if (useResend) {
+    console.log('Sending email via Resend to:', to)
     return resend.emails.send({
       from: EMAIL_SENDER,
       to,
@@ -33,6 +34,7 @@ async function sendEmail({
       attachments
     })
   } else {
+    console.log('Sending email via Nodemailer (SMTP) to:', to)
     // Render React component to HTML
     const html = await render(react)
     
@@ -68,10 +70,18 @@ export async function sendReceiptEmail(data: ReceiptData) {
       return { success: false, error: 'Student email is missing' }
     }
 
+    // Ensure dates are Date objects (fix for serialization issues from client to server)
+    const sanitizedData: ReceiptData = {
+      ...data,
+      date: new Date(data.date),
+      startDate: data.startDate ? new Date(data.startDate) : undefined,
+      endDate: data.endDate ? new Date(data.endDate) : undefined
+    }
+
     // Generate PDF
     let pdfBuffer: Buffer | undefined
     try {
-      const arrayBuffer = generateReceiptPDF(data, 'arraybuffer') as ArrayBuffer
+      const arrayBuffer = generateReceiptPDF(sanitizedData, 'arraybuffer') as ArrayBuffer
       if (arrayBuffer) {
         pdfBuffer = Buffer.from(arrayBuffer)
       }
@@ -81,27 +91,24 @@ export async function sendReceiptEmail(data: ReceiptData) {
     }
 
     const emailProps = {
-      studentName: data.studentName,
-      amount: data.amount,
-      date: format(data.date, 'dd MMM yyyy'),
-      invoiceNo: data.invoiceNo,
-      planName: data.planName,
-      duration: data.planDuration || 'N/A',
-      branchName: data.branchName,
-      paymentMethod: data.paymentMethod,
-      seatNumber: data.seatNumber || undefined,
-      time: data.planHours || undefined,
+      studentName: sanitizedData.studentName,
+      amount: sanitizedData.amount,
+      date: format(sanitizedData.date, 'dd MMM yyyy'),
+      invoiceNo: sanitizedData.invoiceNo,
+      planName: sanitizedData.planName,
+      duration: sanitizedData.planDuration || 'N/A',
+      branchName: sanitizedData.branchName,
+      paymentMethod: sanitizedData.paymentMethod,
+      seatNumber: sanitizedData.seatNumber || undefined,
+      time: sanitizedData.planHours || undefined,
     }
 
     const { data: emailData, error } = await sendEmail({
-      to: data.studentEmail,
-      subject: `Payment Receipt - ${data.invoiceNo}`,
+      to: sanitizedData.studentEmail as string,
+      subject: `Payment Receipt - ${sanitizedData.invoiceNo}`,
       react: ReceiptEmail(emailProps) as ReactElement,
       attachments: pdfBuffer ? [
-        {
-          filename: `Receipt-${data.invoiceNo}.pdf`,
-          content: pdfBuffer
-        }
+        { filename: `Receipt-${sanitizedData.invoiceNo}.pdf`, content: pdfBuffer }
       ] : undefined
     })
 

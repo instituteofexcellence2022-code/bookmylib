@@ -2,6 +2,9 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { sendReceiptEmail } from '@/actions/email'
+import { formatSeatNumber } from '@/lib/utils'
+import { ReceiptData } from '@/lib/pdf-generator'
 
 export async function getPublishedBranches() {
     try {
@@ -125,7 +128,7 @@ export async function createBooking(data: {
         type?: string
         discount?: number
     }
-}): Promise<{ success: true; subscriptionId: string; paymentId?: string } | { success: false; error: string }> {
+}): Promise<{ success: true; subscriptionId: string; paymentId?: string; invoiceNo?: string | null; seatNumber?: string; amount?: number; discount?: number; method?: string } | { success: false; error: string }> {
     try {
         const { studentId, branchId, planId, seatId, startDate, additionalFeeIds = [], paymentId, paymentDetails } = data
 
@@ -137,7 +140,11 @@ export async function createBooking(data: {
         const plan = await prisma.plan.findUnique({ where: { id: planId } })
         if (!plan) return { success: false as const, error: 'Plan not found' }
 
-        // 3. Calculate Dates (Chain if active subscription exists)
+        // 3. Validate Branch
+        const branch = await prisma.branch.findUnique({ where: { id: branchId } })
+        if (!branch) return { success: false as const, error: 'Branch not found' }
+
+        // 4. Calculate Dates (Chain if active subscription exists)
         // Find latest active or pending subscription for this student & branch
         const lastSubscription = await prisma.studentSubscription.findFirst({
             where: {
@@ -166,14 +173,13 @@ export async function createBooking(data: {
             end.setMonth(end.getMonth() + plan.duration)
         }
 
-        // 4. Validate Seat (if provided)
-        // Moved inside transaction for consistency
-        
         const result = await prisma.$transaction(async (tx) => {
             // Validate Seat (if provided) - Check inside transaction for safety
+            let seatNumber: string | undefined
             if (seatId) {
                 const seat = await tx.seat.findUnique({ where: { id: seatId } })
                 if (!seat) throw new Error('Seat not found')
+                seatNumber = seat.number
 
                 // Check for overlapping subscriptions on this seat
                 const conflictingSub = await tx.studentSubscription.findFirst({
@@ -191,6 +197,7 @@ export async function createBooking(data: {
             }
 
             let paymentIdToUse = paymentId
+            let invoiceNoToUse: string | null = null
             let subscriptionStatus = 'active' // Default for legacy/admin calls
             let amountPaid = 0
             let paymentStatus = 'pending'
@@ -202,6 +209,7 @@ export async function createBooking(data: {
                 const payment = await tx.payment.findUnique({ where: { id: paymentId } })
                 if (!payment) throw new Error('Payment record not found')
                 
+                invoiceNoToUse = payment.invoiceNo
                 amountPaid = payment.amount
                 discount = payment.discountAmount || 0
                 finalAmount = amountPaid
@@ -251,6 +259,7 @@ export async function createBooking(data: {
                 finalAmount = totalAmount
 
                 // 6. Create Payment Record (Simulated/Manual)
+                const generatedInvoiceNo = `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`
                 const payment = await tx.payment.create({
                     data: {
                         libraryId: plan.libraryId,
@@ -261,17 +270,16 @@ export async function createBooking(data: {
                         method: paymentDetails?.method || 'unknown',
                         status: paymentStatus,
                         notes: paymentDetails?.remarks ? `${feeDescription}. ${paymentDetails.remarks}` : feeDescription,
-                        invoiceNo: `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                        invoiceNo: generatedInvoiceNo,
                         relatedId: planId,
                         discountAmount: discount
                     }
                 })
                 paymentIdToUse = payment.id
+                invoiceNoToUse = generatedInvoiceNo
             }
 
             // 7. Create Subscription
-            // Note: We removed the check for existing active subscription to allow chaining
-
             const subscription = await tx.studentSubscription.create({
                 data: {
                     libraryId: plan.libraryId,
@@ -295,8 +303,6 @@ export async function createBooking(data: {
             }
             
             // 9. Update Student Profile Context
-            // Update the student's current library/branch context when they book a new plan
-            // This ensures they are linked to the correct library/branch for issues, etc.
             if (subscriptionStatus === 'active' || subscriptionStatus === 'pending') {
                 await tx.student.update({
                     where: { id: studentId },
@@ -307,11 +313,69 @@ export async function createBooking(data: {
                 })
             }
             
-            return { success: true as const, subscriptionId: subscription.id, paymentId: paymentIdToUse }
+            return { 
+                success: true as const, 
+                subscriptionId: subscription.id, 
+                paymentId: paymentIdToUse,
+                invoiceNo: invoiceNoToUse,
+                seatNumber,
+                amount: finalAmount,
+                discount,
+                method: paymentDetails?.method
+            }
         }, {
             maxWait: 5000,
             timeout: 20000
         })
+
+        // Send Receipt Email Automatically
+        if (result.success && result.paymentId) {
+            try {
+                // Construct fee items
+                const feeItems: { description: string, amount: number }[] = []
+                if (additionalFeeIds.length > 0) {
+                     const fees = await prisma.additionalFee.findMany({
+                        where: { id: { in: additionalFeeIds } }
+                     })
+                     fees.forEach(f => feeItems.push({ description: f.name, amount: f.amount }))
+                }
+
+                const receiptData: ReceiptData = {
+                    invoiceNo: result.invoiceNo || `INV-${Date.now()}`,
+                    date: new Date(),
+                    studentName: student.name,
+                    studentEmail: student.email,
+                    studentPhone: student.phone,
+                    branchName: branch.name,
+                    branchAddress: `${branch.address}, ${branch.city}`,
+                    planName: plan.name,
+                    planType: plan.category,
+                    planDuration: `${plan.duration} ${plan.durationUnit}`,
+                    planHours: plan.hoursPerDay ? `${plan.hoursPerDay} Hrs/Day` : undefined,
+                    seatNumber: result.seatNumber ? formatSeatNumber(result.seatNumber) : undefined,
+                    startDate: start,
+                    endDate: end,
+                    amount: result.amount || 0,
+                    paymentMethod: result.method || 'unknown',
+                    subTotal: (result.amount || 0) + (result.discount || 0),
+                    discount: result.discount || 0,
+                    items: [
+                        {
+                            description: `Plan: ${plan.name}`,
+                            amount: plan.price
+                        },
+                        ...feeItems
+                    ]
+                }
+                
+                // Fire and forget (or await but don't block failure)
+                await sendReceiptEmail(receiptData).catch(err => {
+                    console.error('Failed to send automatic receipt email:', err)
+                })
+            } catch (emailError) {
+                console.error('Error preparing receipt email:', emailError)
+            }
+        }
 
         revalidatePath('/student/book')
         revalidatePath('/owner/finance')

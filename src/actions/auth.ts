@@ -329,6 +329,8 @@ export async function loginStudent(formData: FormData) {
             if (!student.dob) {
                 return { success: false, error: 'Date of Birth not set for this account' }
             }
+            // Strict UTC Date comparison
+            // Both input 'dob' (YYYY-MM-DD) and stored 'dob' (UTC Date) should align on the date part
             const storedDob = student.dob.toISOString().split('T')[0]
             if (storedDob === dob) {
                 isValid = true

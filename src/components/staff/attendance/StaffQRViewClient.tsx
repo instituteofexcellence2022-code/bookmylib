@@ -114,6 +114,14 @@ export function StaffQRViewClient() {
                         <h3 className="text-lg font-medium mb-4">Actions</h3>
                         <div className="space-y-3">
                             <AnimatedButton 
+                                onClick={fetchBranch}
+                                variant="outline"
+                                className="w-full justify-center"
+                                icon="refresh"
+                            >
+                                Refresh QR
+                            </AnimatedButton>
+                            <AnimatedButton 
                                 onClick={handlePrint}
                                 variant="outline"
                                 className="w-full justify-center"

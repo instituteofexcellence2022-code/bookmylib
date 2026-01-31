@@ -16,7 +16,7 @@ const studentSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters'),
     email: z.string().email('Invalid email address'),
     phone: z.string().regex(/^\d{10}$/, 'Phone number must be exactly 10 digits'),
-    password: z.string().min(8, 'Password must be at least 8 characters'),
+    password: z.string().min(8, 'Password must be at least 8 characters').or(z.literal('')),
     branchId: z.string().min(1, 'Please select a branch'),
     dob: z.string().optional(),
     gender: z.string().min(1, 'Please select a gender'),
@@ -183,6 +183,13 @@ export default function AddStudentPage() {
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
         
+        // Manual Validation
+        if (!formData.password && !formData.dob) {
+            toast.error('Either Password or Date of Birth is required')
+            setErrors(prev => ({ ...prev, password: 'Required if DOB is missing' }))
+            return
+        }
+
         // Validate form
         const result = studentSchema.safeParse(formData)
         if (!result.success) {

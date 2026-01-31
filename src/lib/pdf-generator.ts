@@ -7,7 +7,7 @@ const formatCurrencyForPDF = (amount: number) => {
     return `Rs. ${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-interface ReceiptData {
+export interface ReceiptData {
     invoiceNo: string
     date: Date
     studentName: string
@@ -32,8 +32,6 @@ interface ReceiptData {
         amount: number
     }>
 }
-
-export type { ReceiptData }
 
 export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob' | 'arraybuffer' = 'download'): Blob | ArrayBuffer | void => {
     const doc = new jsPDF()
