@@ -17,7 +17,7 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { QuoteCard } from '@/components/student/QuoteCard'
 import { Quote } from '@/lib/quotes'
-import { updateStudentProfile, changeStudentPassword, uploadGovtId } from '@/actions/student'
+import { updateStudentProfile, changeStudentPassword, uploadGovtId, updateStudentProfileImage } from '@/actions/student'
 import { logout } from '@/actions/auth'
 
 interface ProfileClientProps {
@@ -59,7 +59,6 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
     })
 
     const [availableAreas, setAvailableAreas] = useState<string[]>([])
-    const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null)
 
     // Password Form State
     const [passwordData, setPasswordData] = useState({
@@ -89,7 +88,7 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
 
     const fileInputRef = useRef<HTMLInputElement>(null)
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (file) {
             if (file.size > 5 * 1024 * 1024) { // 5MB limit
@@ -97,13 +96,37 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
                 return
             }
 
-            setSelectedImageFile(file)
-
+            // Preview immediately
             const reader = new FileReader()
             reader.onloadend = () => {
                 setProfileData(prev => ({ ...prev, image: reader.result as string }))
             }
             reader.readAsDataURL(file)
+
+            // Auto upload
+            const formData = new FormData()
+            formData.append('imageFile', file)
+
+            const toastId = toast.loading('Updating profile photo...')
+
+            try {
+                const result = await updateStudentProfileImage(formData)
+                
+                if (result.success && result.imageUrl) {
+                    toast.success('Profile photo updated', { id: toastId })
+                    setProfileData(prev => ({ ...prev, image: result.imageUrl! }))
+                    router.refresh()
+                } else {
+                    toast.error(result.error || 'Failed to update photo', { id: toastId })
+                }
+            } catch (error) {
+                toast.error('Error updating photo', { id: toastId })
+            }
+            
+            // Clear input
+            if (fileInputRef.current) {
+                fileInputRef.current.value = ''
+            }
         }
     }
 
@@ -201,9 +224,7 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
                 }
             })
 
-            if (selectedImageFile) {
-                formData.append('imageFile', selectedImageFile)
-            } else if (profileData.image) {
+            if (profileData.image) {
                 formData.append('image', profileData.image)
             }
 
@@ -211,7 +232,6 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
 
             if (result.success) {
                 toast.success('Profile updated successfully')
-                setSelectedImageFile(null)
                 router.refresh()
             } else {
                 toast.error(result.error || 'Failed to update profile')
@@ -282,13 +302,6 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
                                 <img src={profileData.image} alt={student.name} className="w-full h-full object-cover" />
                             ) : (
                                 student.name.charAt(0).toUpperCase()
-                            )}
-                            {selectedImageFile && (
-                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                    <span className="text-[10px] font-medium bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded-full">
-                                        Pending
-                                    </span>
-                                </div>
                             )}
                         </div>
                         <button 

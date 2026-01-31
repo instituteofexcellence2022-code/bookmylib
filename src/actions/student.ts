@@ -145,6 +145,42 @@ export async function updateStudentProfile(formData: FormData) {
     }
 }
 
+export async function updateStudentProfileImage(formData: FormData) {
+    const cookieStore = await cookies()
+    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+
+    if (!studentId) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    const imageFile = formData.get('imageFile') as File | null
+
+    if (!imageFile || imageFile.size === 0) {
+        return { success: false, error: 'No image file provided' }
+    }
+
+    try {
+        const uploadedUrl = await uploadFile(imageFile)
+        
+        if (!uploadedUrl) {
+            return { success: false, error: 'Failed to upload image' }
+        }
+
+        await prisma.student.update({
+            where: { id: studentId },
+            data: {
+                image: uploadedUrl
+            }
+        })
+
+        revalidatePath('/student/profile')
+        return { success: true, imageUrl: uploadedUrl }
+    } catch (error) {
+        console.error('Error updating profile image:', error)
+        return { success: false, error: 'Failed to update profile image' }
+    }
+}
+
 export async function changeStudentPassword(formData: FormData) {
     const cookieStore = await cookies()
     const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
