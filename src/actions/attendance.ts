@@ -12,6 +12,44 @@ async function getStudentSession() {
     return studentId
 }
 
+export async function getStudentAttendanceStatus() {
+    const studentId = await getStudentSession()
+    if (!studentId) return { success: false, error: 'Unauthorized' }
+
+    try {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+
+        // Check for any open attendance (Check-in today without checkout)
+        const openAttendance = await prisma.attendance.findFirst({
+            where: {
+                studentId: studentId,
+                checkOut: null,
+                checkIn: { gte: today }
+            },
+            include: { branch: true },
+            orderBy: { checkIn: 'desc' }
+        })
+
+        if (openAttendance) {
+            return {
+                success: true,
+                status: 'checked-in',
+                branchName: openAttendance.branch.name,
+                checkInTime: openAttendance.checkIn
+            }
+        } else {
+            return {
+                success: true,
+                status: 'checked-out'
+            }
+        }
+    } catch (error) {
+        console.error('Error getting student status:', error)
+        return { success: false, error: 'Failed to get status' }
+    }
+}
+
 export async function markAttendance(qrCode: string, location?: { lat: number, lng: number }) {
     const studentId = await getStudentSession()
     if (!studentId) return { success: false, error: 'Unauthorized' }

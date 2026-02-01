@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Camera, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { Camera, CheckCircle, AlertCircle, Loader2, RefreshCw, Volume2, VolumeX, LogOut } from 'lucide-react'
 import { Html5Qrcode } from 'html5-qrcode'
 import { verifyStudentQR } from '@/actions/owner/attendance'
 import { getOwnerBranches } from '@/actions/branch'
@@ -22,8 +22,41 @@ export function QRScanClient() {
   const [result, setResult] = useState<{ type: string; studentName: string; timestamp: Date; duration?: number; message?: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [processing, setProcessing] = useState(false)
+  const [cameras, setCameras] = useState<Array<{ id: string; label: string }>>([])
+  const [currentCameraId, setCurrentCameraId] = useState<string | null>(null)
+  const [soundEnabled, setSoundEnabled] = useState(true)
+
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const mountedRef = useRef(false)
+
+  // Sound feedback
+  const playBeep = useCallback(() => {
+    if (!soundEnabled) return
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const oscillator = audioContext.createOscillator()
+      const gainNode = audioContext.createGain()
+
+      oscillator.connect(gainNode)
+      gainNode.connect(audioContext.destination)
+
+      oscillator.type = 'sine'
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime)
+      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime)
+
+      oscillator.start()
+      oscillator.stop(audioContext.currentTime + 0.1)
+    } catch (e) {
+      console.error("Audio play failed", e)
+    }
+  }, [soundEnabled])
+
+  // Vibration feedback
+  const vibrate = useCallback(() => {
+    if (navigator.vibrate) {
+      navigator.vibrate(200)
+    }
+  }, [])
 
   const fetchBranches = useCallback(async () => {
     try {
@@ -40,6 +73,19 @@ export function QRScanClient() {
   useEffect(() => {
     fetchBranches()
     mountedRef.current = true
+
+    // Get available cameras
+    Html5Qrcode.getCameras().then(devices => {
+      if (devices && devices.length) {
+        setCameras(devices)
+        // Prefer back camera
+        const backCamera = devices.find(d => d.label.toLowerCase().includes('back')) || devices[0]
+        setCurrentCameraId(backCamera.id)
+      }
+    }).catch(err => {
+      console.error("Error getting cameras", err)
+    })
+
     return () => {
         mountedRef.current = false
         if (scannerRef.current && scannerRef.current.isScanning) {
@@ -48,7 +94,7 @@ export function QRScanClient() {
     }
   }, [fetchBranches])
 
-  const startScanner = async () => {
+  const startScannerWithId = async (cameraId: string) => {
     if (!selectedBranchId) {
         toast.error('Please select a branch first')
         return
@@ -68,28 +114,21 @@ export function QRScanClient() {
                 scannerRef.current = new Html5Qrcode("reader-owner")
             }
 
-            const devices = await Html5Qrcode.getCameras()
-            if (devices && devices.length) {
-                const backCamera = devices.find(d => d.label.toLowerCase().includes('back')) || devices[0]
-                
-                if (!scannerRef.current.isScanning) {
-                     await scannerRef.current.start(
-                        backCamera.id, 
-                        {
-                            fps: 10,
-                            qrbox: { width: 250, height: 250 },
-                            aspectRatio: 1.0
-                        },
-                        (decodedText) => {
-                            handleScan(decodedText)
-                        },
-                        () => {
-                            // ignore
-                        }
-                    )
-                }
-            } else {
-                setError("No camera found")
+            if (!scannerRef.current.isScanning) {
+                 await scannerRef.current.start(
+                    cameraId, 
+                    {
+                        fps: 10,
+                        qrbox: { width: 250, height: 250 },
+                        aspectRatio: 1.0
+                    },
+                    (decodedText) => {
+                        handleScan(decodedText)
+                    },
+                    () => {
+                        // ignore
+                    }
+                )
             }
         } catch (err) {
             console.error("Scanner init error", err)
@@ -99,6 +138,14 @@ export function QRScanClient() {
     }, 100)
   }
 
+  const startScanner = () => {
+    if (currentCameraId) {
+      startScannerWithId(currentCameraId)
+    } else {
+      setError("No camera available")
+    }
+  }
+
   const stopScanner = async () => {
       if (scannerRef.current && scannerRef.current.isScanning) {
           await scannerRef.current.stop().catch(() => {})
@@ -106,8 +153,30 @@ export function QRScanClient() {
       setScanning(false)
   }
 
+  const switchCamera = async () => {
+    if (cameras.length <= 1) return
+    
+    const currentIndex = cameras.findIndex(c => c.id === currentCameraId)
+    const nextIndex = (currentIndex + 1) % cameras.length
+    const nextCameraId = cameras[nextIndex].id
+    
+    setCurrentCameraId(nextCameraId)
+    
+    if (scanning && scannerRef.current) {
+      await stopScanner()
+      setTimeout(() => {
+        startScannerWithId(nextCameraId)
+      }, 200)
+    }
+  }
+
   const handleScan = async (studentId: string) => {
       if (processing || !mountedRef.current) return
+      
+      // Play sound and vibrate immediately
+      playBeep()
+      vibrate()
+
       setProcessing(true)
       
       // Stop scanning temporarily
@@ -165,14 +234,35 @@ export function QRScanClient() {
                     <Camera size={20} className="text-blue-500" />
                     Scan Student ID
                 </h3>
-                {scanning && (
-                    <button 
-                        onClick={stopScanner}
-                        className="text-red-500 hover:text-red-600 text-sm font-medium"
+                
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setSoundEnabled(!soundEnabled)}
+                        className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+                        title={soundEnabled ? "Mute" : "Unmute"}
                     >
-                        Stop Camera
+                        {soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
                     </button>
-                )}
+                    
+                    {cameras.length > 1 && (
+                        <button
+                            onClick={switchCamera}
+                            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+                            title="Switch Camera"
+                        >
+                            <RefreshCw size={20} />
+                        </button>
+                    )}
+
+                    {scanning && (
+                        <button 
+                            onClick={stopScanner}
+                            className="text-red-500 hover:text-red-600 text-sm font-medium ml-2"
+                        >
+                            Stop Camera
+                        </button>
+                    )}
+                </div>
             </div>
 
             {!scanning && !result && !error && (
@@ -198,9 +288,20 @@ export function QRScanClient() {
             {/* Success Result */}
             {result && (
                 <AnimatedCard>
-                    <div className="flex flex-col items-center text-center p-6 bg-green-50 dark:bg-green-900/10 rounded-xl border border-green-100 dark:border-green-900/20">
-                        <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
-                            <CheckCircle size={32} className="text-green-600 dark:text-green-400" />
+                    <div className={`flex flex-col items-center text-center p-6 rounded-xl border ${
+                        result.type === 'Check-in'
+                        ? 'bg-green-50 dark:bg-green-900/10 border-green-100 dark:border-green-900/20'
+                        : 'bg-amber-50 dark:bg-amber-900/10 border-amber-100 dark:border-amber-900/20'
+                    }`}>
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+                            result.type === 'Check-in'
+                            ? 'bg-green-100 dark:bg-green-900/30'
+                            : 'bg-amber-100 dark:bg-amber-900/30'
+                        }`}>
+                            {result.type === 'Check-in' 
+                                ? <CheckCircle size={32} className="text-green-600 dark:text-green-400" />
+                                : <LogOut size={32} className="text-amber-600 dark:text-amber-400" />
+                            }
                         </div>
                         <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
                             {result.type} Successful

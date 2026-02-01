@@ -187,11 +187,11 @@ export function StaffKhatabookClient() {
 
                 {/* Top Summary Card - Khatabook Style */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <div className="p-6 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
+                    <div className="p-4 sm:p-6 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
                         <div className="flex justify-between items-start">
                             <div>
                                 <p className="text-blue-100 font-medium mb-1">Net Balance (Cash in Hand)</p>
-                                <h2 className="text-4xl font-bold">{formatCurrency(safeSummary.cashInHand)}</h2>
+                                <h2 className="text-3xl sm:text-4xl font-bold">{formatCurrency(safeSummary.cashInHand)}</h2>
                             </div>
                             <div className="p-3 bg-white/10 rounded-lg backdrop-blur-sm">
                                 <Wallet className="w-8 h-8 text-white" />
@@ -200,15 +200,15 @@ export function StaffKhatabookClient() {
                     </div>
                     
                     <div className="grid grid-cols-2 divide-x divide-gray-100 dark:divide-gray-700">
-                        <div className="p-4 flex flex-col justify-between bg-green-50/50 dark:bg-green-900/10">
+                        <div className="p-3 sm:p-4 flex flex-col justify-between bg-green-50/50 dark:bg-green-900/10">
                             <div className="flex items-center justify-between w-full">
                                 <div>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">Total You Collected</p>
-                                    <p className="text-xl font-bold text-green-600 dark:text-green-400">
+                                    <p className="text-lg sm:text-xl font-bold text-green-600 dark:text-green-400">
                                         {formatCurrency(safeSummary.currentMonthCollected + safeSummary.carriedForward)}
                                     </p>
                                 </div>
-                                <ArrowDownLeft className="w-6 h-6 text-green-500" />
+                                <ArrowDownLeft className="w-5 h-5 sm:w-6 sm:h-6 text-green-500" />
                             </div>
                             {safeSummary.carriedForward !== 0 && (
                                 <p className="text-xs text-gray-400 mt-1">
@@ -216,15 +216,15 @@ export function StaffKhatabookClient() {
                                 </p>
                             )}
                         </div>
-                        <div className="px-4 pt-4 pb-2 flex flex-col justify-between bg-red-50/50 dark:bg-red-900/10">
+                        <div className="px-3 pt-3 pb-2 sm:px-4 sm:pt-4 flex flex-col justify-between bg-red-50/50 dark:bg-red-900/10">
                             <div className="flex items-center justify-between w-full">
                                 <div>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">Total You Gave</p>
-                                    <p className="text-xl font-bold text-red-600 dark:text-red-400">
+                                    <p className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">
                                         {formatCurrency(safeSummary.currentMonthHandedOver)}
                                     </p>
                                 </div>
-                                <ArrowUpRight className="w-6 h-6 text-red-500" />
+                                <ArrowUpRight className="w-5 h-5 sm:w-6 sm:h-6 text-red-500" />
                             </div>
                             {/* Pending Amount Indicator */}
                             {safeSummary.pendingHandoverAmount > 0 ? (
@@ -304,7 +304,7 @@ export function StaffKhatabookClient() {
                                     <div 
                                         key={`${tx.type}-${tx.id}`} 
                                         onClick={() => selectable && toggleTransaction(tx.id)}
-                                        className={`p-3 transition-colors flex items-center justify-between gap-3 group relative ${
+                                        className={`p-2 sm:p-3 transition-colors flex items-center justify-between gap-2 sm:gap-3 group relative ${
                                             selectable ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30' : ''
                                         } ${selected ? 'bg-red-50/50 dark:bg-red-900/10' : ''}`}
                                     >
@@ -313,7 +313,7 @@ export function StaffKhatabookClient() {
                                             <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-600 rounded-l" />
                                         )}
 
-                                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                                        <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
                                             {/* Icon & Checkbox Column */}
                                             <div className="flex flex-col items-center gap-2 shrink-0">
                                                 {/* Transaction Type Icon (Always visible) */}
@@ -336,7 +336,7 @@ export function StaffKhatabookClient() {
                                             <div className="space-y-0.5 min-w-0 flex-1">
                                                 {/* Main Description (Name), Plan & Tag */}
                                                 <div className="flex items-center gap-2 min-w-0 overflow-x-auto scrollbar-hide">
-                                                    <p className={`font-semibold text-lg whitespace-nowrap ${selected ? 'text-red-900 dark:text-red-100' : 'text-gray-900 dark:text-white'}`}>
+                                                    <p className={`font-semibold text-base sm:text-lg whitespace-nowrap ${selected ? 'text-red-900 dark:text-red-100' : 'text-gray-900 dark:text-white'}`}>
                                                         {tx.description}
                                                         {tx.type === 'OUT' && (
                                                             <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap align-middle ${
@@ -373,14 +373,14 @@ export function StaffKhatabookClient() {
                                                 
                                                 {/* Email - New Line */}
                                                 {tx.type === 'IN' && tx.details?.studentEmail && (
-                                                    <p className="text-base text-gray-500 dark:text-gray-400 truncate">
+                                                    <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 truncate">
                                                         {tx.details.studentEmail}
                                                     </p>
                                                 )}
 
                                                 {/* Date - New Line */}
                                                 {tx.type === 'IN' && (
-                                                    <div className="flex items-center flex-wrap gap-2 text-sm text-gray-400 mt-1">
+                                                    <div className="flex items-center flex-wrap gap-2 text-xs sm:text-sm text-gray-400 mt-1">
                                                         <span>{format(new Date(tx.date), 'MMM d, yyyy h:mm a')}</span>
                                                         
                                                         {tx.attachmentUrl && (
@@ -410,7 +410,7 @@ export function StaffKhatabookClient() {
                                             </div>
                                         </div>
 
-                                        <div className={`text-right font-bold text-xl whitespace-nowrap shrink-0 mt-1 ${
+                                        <div className={`text-right font-bold text-lg sm:text-xl whitespace-nowrap shrink-0 mt-1 ${
                                             tx.type === 'IN' 
                                                 ? 'text-green-600 dark:text-green-400' 
                                                 : 'text-red-600 dark:text-red-400'

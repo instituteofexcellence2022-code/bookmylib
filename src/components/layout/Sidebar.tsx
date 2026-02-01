@@ -120,7 +120,7 @@ export function Sidebar({
                 <motion.span 
                   initial={false}
                   animate={{ opacity: isCollapsed ? 0 : 1, width: isCollapsed ? 0 : 'auto' }}
-                  className={cn("text-base font-bold text-slate-900 dark:text-white truncate md:block tracking-tight", isCollapsed ? "hidden" : "block")}
+                  className={cn("text-base font-bold text-slate-900 dark:text-white md:block tracking-tight", isCollapsed ? "hidden" : "block")}
                 >
                   {title}
                 </motion.span>
@@ -132,7 +132,7 @@ export function Sidebar({
         
         {/* Navigation */}
         <nav className={cn(
-          "flex-1 py-3 px-2 space-y-0.5",
+          "flex-1 py-3 px-2 space-y-0.5 min-h-0",
           isCollapsed ? "overflow-visible" : "overflow-y-auto overflow-x-hidden"
         )}>
            {items.map((item, index) => {
@@ -251,7 +251,7 @@ export function Sidebar({
         </nav>
 
         {/* Footer Actions */}
-        <div className="p-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 space-y-1">
+        <div className="p-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 space-y-1 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
           {/* Collapse Toggle (Desktop only) */}
           <button 
             onClick={toggleCollapse}

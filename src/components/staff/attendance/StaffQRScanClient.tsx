@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Camera, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { Camera, CheckCircle, AlertCircle, Loader2, RefreshCcw, Volume2, VolumeX, LogOut } from 'lucide-react'
 import { Html5Qrcode } from 'html5-qrcode'
 import { verifyStaffStudentQR } from '@/actions/staff/attendance'
 import { toast } from 'sonner'
@@ -13,11 +13,28 @@ export function StaffQRScanClient() {
   const [result, setResult] = useState<{ type: string; studentName: string; timestamp: Date; duration?: number; message?: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [processing, setProcessing] = useState(false)
+  const [cameras, setCameras] = useState<Array<{ id: string; label: string }>>([])
+  const [currentCameraId, setCurrentCameraId] = useState<string | null>(null)
+  const [soundEnabled, setSoundEnabled] = useState(true)
+  
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const mountedRef = useRef(false)
 
   useEffect(() => {
     mountedRef.current = true
+    
+    // Initialize cameras
+    Html5Qrcode.getCameras().then(devices => {
+      if (devices && devices.length) {
+        setCameras(devices)
+        const backCamera = devices.find(d => d.label.toLowerCase().includes('back')) || devices[0]
+        setCurrentCameraId(backCamera.id)
+      }
+    }).catch(err => {
+      console.error("Error getting cameras", err)
+      setError("Camera permission denied or no camera found")
+    })
+
     return () => {
         mountedRef.current = false
         if (scannerRef.current && scannerRef.current.isScanning) {
@@ -26,7 +43,33 @@ export function StaffQRScanClient() {
     }
   }, [])
 
+  const playBeep = () => {
+    if (!soundEnabled) return
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const oscillator = audioContext.createOscillator()
+      const gainNode = audioContext.createGain()
+
+      oscillator.connect(gainNode)
+      gainNode.connect(audioContext.destination)
+
+      oscillator.type = 'sine'
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime)
+      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime)
+
+      oscillator.start()
+      oscillator.stop(audioContext.currentTime + 0.1)
+    } catch (e) {
+      console.error("Audio play failed", e)
+    }
+  }
+
   const startScanner = async () => {
+    if (!currentCameraId) {
+        setError("No camera selected")
+        return
+    }
+
     setScanning(true)
     setResult(null)
     setError(null)
@@ -41,28 +84,21 @@ export function StaffQRScanClient() {
                 scannerRef.current = new Html5Qrcode("reader-staff")
             }
 
-            const devices = await Html5Qrcode.getCameras()
-            if (devices && devices.length) {
-                const backCamera = devices.find(d => d.label.toLowerCase().includes('back')) || devices[0]
-                
-                if (!scannerRef.current.isScanning) {
-                     await scannerRef.current.start(
-                        backCamera.id, 
-                        {
-                            fps: 10,
-                            qrbox: { width: 250, height: 250 },
-                            aspectRatio: 1.0
-                        },
-                        (decodedText) => {
-                            handleScan(decodedText)
-                        },
-                        () => {
-                            // ignore
-                        }
-                    )
-                }
-            } else {
-                setError("No camera found")
+            if (!scannerRef.current.isScanning) {
+                 await scannerRef.current.start(
+                    currentCameraId, 
+                    {
+                        fps: 10,
+                        qrbox: { width: 250, height: 250 },
+                        aspectRatio: 1.0
+                    },
+                    (decodedText) => {
+                        handleScan(decodedText)
+                    },
+                    () => {
+                        // ignore
+                    }
+                )
             }
         } catch (err) {
             console.error("Scanner init error", err)
@@ -79,9 +115,63 @@ export function StaffQRScanClient() {
       setScanning(false)
   }
 
+  const switchCamera = async () => {
+      if (cameras.length <= 1) return
+      
+      const currentIndex = cameras.findIndex(c => c.id === currentCameraId)
+      const nextIndex = (currentIndex + 1) % cameras.length
+      const nextCameraId = cameras[nextIndex].id
+      
+      setCurrentCameraId(nextCameraId)
+      
+      if (scanning && scannerRef.current) {
+          await stopScanner()
+          // Update ref for next start
+          setTimeout(() => {
+             // We need to restart with new camera
+             // But startScanner uses currentCameraId state, which might not be updated in closure if we call immediately
+             // So we rely on state update + re-trigger or pass ID explicitly.
+             // Easier: Just update state, and let user click start or auto-restart?
+             // Auto-restart:
+             startScannerWithId(nextCameraId)
+          }, 200)
+      }
+  }
+
+  const startScannerWithId = async (cameraId: string) => {
+    setScanning(true)
+    setResult(null)
+    setError(null)
+    
+    setTimeout(async () => {
+        try {
+            if (!scannerRef.current) {
+                scannerRef.current = new Html5Qrcode("reader-staff")
+            }
+            if (scannerRef.current.isScanning) {
+                await scannerRef.current.stop()
+            }
+            await scannerRef.current.start(
+                cameraId,
+                { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+                (decodedText) => handleScan(decodedText),
+                () => {}
+            )
+        } catch (err) {
+            console.error(err)
+            setScanning(false)
+        }
+    }, 100)
+  }
+
   const handleScan = async (studentId: string) => {
       if (processing || !mountedRef.current) return
       setProcessing(true)
+      playBeep()
+      
+      if (navigator.vibrate) {
+          navigator.vibrate(200)
+      }
       
       // Stop scanning temporarily
       await stopScanner()
@@ -124,14 +214,32 @@ export function StaffQRScanClient() {
                     <Camera size={20} className="text-blue-500" />
                     Scan Student ID
                 </h3>
-                {scanning && (
-                    <button 
-                        onClick={stopScanner}
-                        className="text-red-500 hover:text-red-600 text-sm font-medium"
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setSoundEnabled(!soundEnabled)}
+                        className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        title={soundEnabled ? "Mute" : "Unmute"}
                     >
-                        Stop Camera
+                        {soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
                     </button>
-                )}
+                    {cameras.length > 1 && scanning && (
+                        <button
+                            onClick={switchCamera}
+                            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                            title="Switch Camera"
+                        >
+                            <RefreshCcw size={20} />
+                        </button>
+                    )}
+                    {scanning && (
+                        <button 
+                            onClick={stopScanner}
+                            className="text-red-500 hover:text-red-600 text-sm font-medium ml-2"
+                        >
+                            Stop Camera
+                        </button>
+                    )}
+                </div>
             </div>
 
             {!scanning && !result && !error && (
@@ -157,9 +265,20 @@ export function StaffQRScanClient() {
             {/* Success Result */}
             {result && (
                 <AnimatedCard>
-                    <div className="flex flex-col items-center text-center p-6 bg-green-50 dark:bg-green-900/10 rounded-xl border border-green-100 dark:border-green-900/20">
-                        <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
-                            <CheckCircle size={32} className="text-green-600 dark:text-green-400" />
+                    <div className={`flex flex-col items-center text-center p-6 rounded-xl border ${
+                        result.type === 'Check-in'
+                        ? 'bg-green-50 dark:bg-green-900/10 border-green-100 dark:border-green-900/20'
+                        : 'bg-amber-50 dark:bg-amber-900/10 border-amber-100 dark:border-amber-900/20'
+                    }`}>
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+                            result.type === 'Check-in'
+                            ? 'bg-green-100 dark:bg-green-900/30'
+                            : 'bg-amber-100 dark:bg-amber-900/30'
+                        }`}>
+                            {result.type === 'Check-in' 
+                                ? <CheckCircle size={32} className="text-green-600 dark:text-green-400" />
+                                : <LogOut size={32} className="text-amber-600 dark:text-amber-400" />
+                            }
                         </div>
                         <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
                             {result.type} Successful
