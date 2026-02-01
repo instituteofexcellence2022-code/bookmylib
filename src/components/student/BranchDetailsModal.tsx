@@ -10,6 +10,8 @@ import {
 import { toast } from 'sonner'
 import { verifyBranchSubscription } from '@/actions/booking'
 import { getThemeClasses, ThemeColor } from '@/lib/utils'
+import Link from 'next/link'
+import { AnimatedButton } from '@/components/ui/AnimatedButton'
 
 interface WifiDetail {
   ssid: string
@@ -29,6 +31,7 @@ interface BranchDetailsModalProps {
   onClose: () => void
   isActiveMember?: boolean
   theme?: ThemeColor
+  publicMode?: boolean
   branch: {
     id?: string
     name: string
@@ -49,7 +52,7 @@ interface BranchDetailsModalProps {
   }
 }
 
-export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember, theme = 'emerald' }: BranchDetailsModalProps) {
+export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember, theme = 'emerald', publicMode = false }: BranchDetailsModalProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const [visiblePasswords, setVisiblePasswords] = useState<Record<number, boolean>>({})
@@ -454,6 +457,18 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember, th
             </div>
           </div>
 
+        </div>
+        {/* Footer Action */}
+        <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 sticky bottom-0 z-10">
+          <Link href={publicMode ? `/discover/${branch.id}` : `/student/book/${branch.id}`} className="block w-full">
+            <AnimatedButton 
+              fullWidth 
+              variant="primary"
+              className={`${themeClasses.button} shadow-lg`}
+            >
+              Book Now
+            </AnimatedButton>
+          </Link>
         </div>
       </div>
     </div>

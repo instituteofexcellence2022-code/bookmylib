@@ -475,6 +475,7 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
         onClose={() => setShowDetails(false)} 
         isActiveMember={isActiveMember}
         theme={theme}
+        publicMode={publicMode}
         branch={{
           ...branch,
           seatCount: branch._count.seats

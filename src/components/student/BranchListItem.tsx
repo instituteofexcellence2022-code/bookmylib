@@ -356,6 +356,7 @@ export function BranchListItem({ branch, isActiveMember, theme = 'emerald', publ
         onClose={() => setShowDetails(false)} 
         isActiveMember={isActiveMember}
         theme={theme}
+        publicMode={publicMode}
         branch={{
           ...branch,
           seatCount: branch._count.seats

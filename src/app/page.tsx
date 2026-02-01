@@ -351,7 +351,7 @@ export default function Home() {
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
                 </div>
               ) : (
-                <BookingPageClient branches={branches} activeBranchIds={[]} theme="teal" />
+                <BookingPageClient branches={branches} activeBranchIds={[]} theme="teal" publicMode={true} />
               )}
              </motion.div>
            </AnimatePresence>
