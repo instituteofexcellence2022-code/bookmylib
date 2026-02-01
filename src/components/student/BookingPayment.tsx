@@ -10,8 +10,10 @@ import { toast } from 'react-hot-toast'
 import { 
   initiatePayment, 
   validateCoupon,
-  createManualPayment
+  createManualPayment,
+  verifyPaymentSignature
 } from '@/actions/payment'
+import Script from 'next/script'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
 import { formatSeatNumber } from '@/lib/utils'
@@ -153,19 +155,103 @@ export default function BookingPayment({
         )
         
         if (result.success) {
-          toast.success(`Redirecting to ${paymentMethod}...`)
-          // Simulate Payment Success for now
-          setTimeout(() => {
-            // In real integration, we'd wait for callback
-            // But here we simulate success and proceed
-            // Pass the paymentId (orderId) to onSuccess
-            // But initiatePayment returns { success, orderId, ... }
-            // We'll assume the paymentId is the orderId or we need to look it up.
-            // Actually initiatePayment creates a Payment record?
-            // Let's check initiatePayment implementation.
-            // It returns { success: true, orderId: payment.id, ... }
-            onSuccess(result.paymentId, 'completed') 
-          }, 2000)
+          if (paymentMethod === 'razorpay') {
+              if (!window.Razorpay) {
+                  toast.error('Razorpay SDK failed to load')
+                  setProcessing(false)
+                  return
+              }
+
+              const options = {
+                  key: result.key || '',
+                  amount: (result.amount || 0) * 100, // Amount is in currency subunits. Default currency is INR. Hence, 50000 refers to 50000 paise
+                  currency: result.currency || 'INR',
+                  name: "Library Subscription",
+                  description: description,
+                  image: "/logo.png", // Ensure you have a logo or remove this
+                  order_id: result.gatewayOrderId || '', 
+                  handler: async function (response: any) {
+                      const verifyResult = await verifyPaymentSignature(
+                          result.paymentId!,
+                          response.razorpay_payment_id,
+                          response.razorpay_signature
+                      )
+                      if (verifyResult.success) {
+                          toast.success('Payment Successful!')
+                          onSuccess(result.paymentId, 'completed')
+                      } else {
+                          toast.error('Payment Verification Failed')
+                          setProcessing(false)
+                      }
+                  },
+                  prefill: {
+                      name: "Student", // ideally should come from student profile
+                      email: "student@example.com",
+                      contact: "9999999999"
+                  },
+                  theme: {
+                      color: "#9333ea"
+                  }
+              }
+              const rzp1 = new window.Razorpay(options)
+              rzp1.on('payment.failed', function (response: any){
+                  toast.error(response.error.description || 'Payment Failed')
+                  setProcessing(false)
+              })
+              rzp1.open()
+
+          } else if (paymentMethod === 'cashfree') {
+              if (!window.Cashfree) {
+                  toast.error('Cashfree SDK failed to load')
+                  setProcessing(false)
+                  return
+              }
+
+              const cashfree = new window.Cashfree({
+                  mode: "sandbox" // Change to "production" in prod env
+              })
+
+              const checkoutOptions = {
+                  paymentSessionId: result.paymentSessionId || '',
+                  redirectTarget: "_modal" as const, // "_self", "_blank", or "_modal"
+              }
+
+              cashfree.checkout(checkoutOptions).then(async (checkoutResult: any) => {
+                  if(checkoutResult.error){
+                      // This will be true whenever user clicks on close icon inside the modal or any error happens during the payment
+                      console.log("User has closed the popup or there is some payment error", checkoutResult.error);
+                      setProcessing(false)
+                  }
+                  if(checkoutResult.redirect){
+                      // This will be true when the payment redirection page couldnt be opened in the same window
+                      console.log("Payment will be redirected");
+                  }
+                  if(checkoutResult.paymentDetails){
+                      // This will be called whenever the payment is completed irrespective of transaction status
+                      console.log("Payment has been completed, verifying...");
+                      
+                      // Verify Payment on Backend
+                      // We pass the paymentId (internal) and let backend check status via API
+                      const verifyResult = await verifyPaymentSignature(
+                          result.paymentId!,
+                          'PENDING_FETCH', 
+                          'PENDING_FETCH'
+                      )
+
+                      if (verifyResult.success) {
+                          toast.success('Payment Successful!')
+                          onSuccess(result.paymentId, 'completed')
+                      } else {
+                          toast.error('Payment Verification Failed')
+                          setProcessing(false)
+                      }
+                  }
+              });
+              
+              // NOTE: Cashfree JS SDK logic needs careful variable handling to access paymentId
+              // I will fix this in the code replacement below by renaming the inner variable
+          }
+
         } else {
           toast.error(result.error || 'Payment initiation failed')
           setProcessing(false)
@@ -498,6 +584,15 @@ export default function BookingPayment({
           Pay & Book
         </AnimatedButton>
       </div>
+      {/* Load Payment Gateways */}
+      <Script 
+        src="https://checkout.razorpay.com/v1/checkout.js" 
+        strategy="lazyOnload"
+      />
+      <Script 
+        src="https://sdk.cashfree.com/js/v3/cashfree.js" 
+        strategy="lazyOnload"
+      />
     </div>
   )
 }

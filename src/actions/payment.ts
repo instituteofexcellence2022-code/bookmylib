@@ -5,6 +5,9 @@ import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { sendReceiptEmail } from '@/actions/email'
 import { formatSeatNumber } from '@/lib/utils'
+import { razorpay } from '@/lib/payment/razorpay'
+import { cashfree } from '@/lib/payment/cashfree'
+import crypto from 'crypto'
 
 // Helper to get current student
 import { COOKIE_KEYS } from '@/lib/auth/session'
@@ -221,6 +224,17 @@ export async function initiatePayment(
   const student = await getStudent()
   if (!student) return { success: false, error: 'Unauthorized' }
 
+  // Check for Gateway Configuration
+  if (gatewayProvider === 'razorpay') {
+      if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+          return { success: false, error: 'Gateway not connected yet', code: 'GATEWAY_NOT_CONFIGURED' }
+      }
+  } else if (gatewayProvider === 'cashfree') {
+      if (!process.env.CASHFREE_APP_ID || !process.env.CASHFREE_SECRET_KEY) {
+          return { success: false, error: 'Gateway not connected yet', code: 'GATEWAY_NOT_CONFIGURED' }
+      }
+  }
+
   // Resolve libraryId from related entity
   let libraryId = ''
   if (type === 'subscription' && relatedId) {
@@ -317,21 +331,70 @@ export async function initiatePayment(
         relatedId,
         description: updatedDescription,
         gatewayProvider,
-        // In a real app, you would call the gateway API here to get an order ID
-        gatewayOrderId: `order_${Math.random().toString(36).substring(7)}`,
+        // We will update this with real Order ID shortly
+        gatewayOrderId: `temp_${Math.random().toString(36).substring(7)}`,
         promotionId,
         discountAmount
       }
     })
 
+    // 2. Initiate Gateway Order
+    let gatewayOrderId = ''
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let gatewayResponse: any = null
+
+    if (gatewayProvider === 'razorpay') {
+       const order = await razorpay.orders.create({
+           amount: Math.round(finalAmount * 100), // Razorpay uses paise
+           currency: 'INR',
+           receipt: payment.id,
+           notes: {
+               paymentId: payment.id,
+               studentId: student.id,
+               branchId: branchId || ''
+           }
+       })
+       gatewayOrderId = order.id
+       gatewayResponse = order
+    } else if (gatewayProvider === 'cashfree') {
+       const request = {
+           order_amount: finalAmount,
+           order_currency: 'INR',
+           order_id: payment.id,
+           customer_details: {
+               customer_id: student.id,
+               customer_phone: student.phone || '9999999999',
+               customer_name: student.name || 'Student',
+               customer_email: student.email || 'student@example.com'
+           },
+           order_meta: {
+               return_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment/callback?order_id={order_id}`
+           }
+       }
+       // Use Cashfree SDK
+       const response = await cashfree.PGCreateOrder(request)
+       gatewayOrderId = response.data.order_id || '' 
+       gatewayResponse = response.data
+    }
+
+    // 3. Update Payment with Real Gateway Order ID
+    await prisma.payment.update({
+        where: { id: payment.id },
+        data: { 
+            gatewayOrderId,
+        }
+    })
+
     return { 
       success: true, 
       paymentId: payment.id, 
-      orderId: payment.gatewayOrderId,
+      gatewayOrderId, // e.g. order_DaZl... or payment.id
       currency: 'INR',
-      amount: payment.amount,
-      key: 'rzp_test_placeholder' // Replace with env var
+      amount: finalAmount,
+      key: gatewayProvider === 'razorpay' ? process.env.RAZORPAY_KEY_ID : undefined,
+      paymentSessionId: gatewayProvider === 'cashfree' ? gatewayResponse?.payment_session_id : undefined
     }
+
   } catch (error) {
     console.error('Payment initiation error:', error)
     // Return the actual error message for debugging (in dev)
@@ -515,15 +578,68 @@ export async function verifyPaymentSignature(
   gatewaySignature: string
 ) {
   try {
-    // In a real app, verify the signature using crypto/HMAC
-    // For now, assume it's valid if present
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId }
+    })
+
+    if (!payment) {
+      return { success: false, error: 'Payment record not found' }
+    }
+
+    if (payment.status === 'completed') {
+      return { success: true, message: 'Payment already verified' }
+    }
+
+    let isValid = false
+
+    if (payment.gatewayProvider === 'razorpay') {
+      // Verify Razorpay Signature
+      // signature = hmac_sha256(order_id + "|" + payment_id, secret)
+      const body = payment.gatewayOrderId + "|" + gatewayPaymentId
+      const expectedSignature = crypto
+        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
+        .update(body.toString())
+        .digest('hex')
+
+      if (expectedSignature === gatewaySignature) {
+        isValid = true
+      } else {
+        console.error('Razorpay signature verification failed')
+      }
+    } else if (payment.gatewayProvider === 'cashfree') {
+      // Verify Cashfree Status by fetching from API
+       // We ignore the client-passed signature/ids for security, and fetch fresh status
+       try {
+         const response = await cashfree.PGOrderFetchPayments(payment.gatewayOrderId!)
+         // Check if any payment transaction for this order is success
+         const payments = response.data
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const successfulPayment = payments.find((p: any) => p.payment_status === 'SUCCESS')
+        
+        if (successfulPayment) {
+          isValid = true
+          // Update gatewayPaymentId with the actual one from Cashfree
+          gatewayPaymentId = successfulPayment.cf_payment_id || gatewayPaymentId
+        } else {
+           console.error('Cashfree payment status check failed: No successful transaction found')
+        }
+      } catch (err) {
+        console.error('Error fetching Cashfree payment status:', err)
+      }
+    }
+
+    if (!isValid) {
+      // Mark as failed? Or just return error?
+      // Let's return error so frontend knows.
+      return { success: false, error: 'Payment verification failed' }
+    }
     
     await prisma.payment.update({
       where: { id: paymentId },
       data: {
         status: 'completed',
         gatewayPaymentId,
-        gatewaySignature,
+        gatewaySignature: payment.gatewayProvider === 'razorpay' ? gatewaySignature : 'verified_by_api',
         updatedAt: new Date()
       }
     })
