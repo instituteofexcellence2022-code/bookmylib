@@ -279,6 +279,10 @@ export async function registerStudent(formData: FormData) {
              }
         }
 
+        // Auto-login after registration
+        const cookieStore = await cookies()
+        cookieStore.set(COOKIE_KEYS.STUDENT, student.id, COOKIE_OPTIONS)
+
         return { success: true }
     } catch (error) {
         console.error('Student registration error:', error)

@@ -104,8 +104,8 @@ function RegisterForm() {
             const result = await registerStudent(data)
 
             if (result.success) {
-                toast.success('Registration successful! Please login.')
-                router.push('/student/login')
+                toast.success('Registration successful! Welcome.')
+                router.push('/student/home')
             } else {
                 toast.error(result.error || 'Registration failed')
             }
