@@ -219,9 +219,19 @@ export async function initiatePayment(
   description?: string,
   gatewayProvider: 'razorpay' | 'cashfree' = 'razorpay',
   branchId?: string,
-  couponCode?: string
+  couponCode?: string,
+  studentId?: string
 ) {
-  const student = await getStudent()
+  let student
+  if (studentId) {
+    student = await prisma.student.findUnique({ 
+        where: { id: studentId },
+        include: { subscriptions: true }
+    })
+  } else {
+    student = await getStudent()
+  }
+
   if (!student) return { success: false, error: 'Unauthorized' }
 
   // Check for Gateway Configuration

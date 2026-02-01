@@ -56,7 +56,7 @@ const getAmenities = (amenitiesString: string | null) => {
   }
 }
 
-export function BranchListItem({ branch, isActiveMember, theme = 'emerald' }: BranchCardProps) {
+export function BranchListItem({ branch, isActiveMember, theme = 'emerald', publicMode = false }: BranchCardProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [showHours, setShowHours] = useState(false)
   const [showAmenities, setShowAmenities] = useState(false)
@@ -340,7 +340,7 @@ export function BranchListItem({ branch, isActiveMember, theme = 'emerald' }: Br
             )}
           </div>
 
-          <Link href={`/student/book/${branch.id}`} className="flex-none">
+          <Link href={publicMode ? `/discover/${branch.id}` : `/student/book/${branch.id}`} className="flex-none">
             <AnimatedButton 
               variant="primary"
               className={`${themeClasses.button} text-xs py-1.5 px-3 h-auto whitespace-nowrap`}

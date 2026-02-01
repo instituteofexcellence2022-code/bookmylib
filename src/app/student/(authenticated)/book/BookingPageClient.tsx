@@ -10,9 +10,10 @@ interface BookingPageClientProps {
   branches: BranchCardProps['branch'][] | null
   activeBranchIds: string[]
   theme?: ThemeColor
+  publicMode?: boolean
 }
 
-export function BookingPageClient({ branches, activeBranchIds, theme = 'emerald' }: BookingPageClientProps) {
+export function BookingPageClient({ branches, activeBranchIds, theme = 'emerald', publicMode = false }: BookingPageClientProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
   const themeClasses = getThemeClasses(theme)
@@ -110,6 +111,7 @@ export function BookingPageClient({ branches, activeBranchIds, theme = 'emerald'
               branch={branch} 
               isActiveMember={activeBranchIds.includes(branch.id)}
               theme={theme}
+              publicMode={publicMode}
             />
           ))}
         </div>
@@ -121,6 +123,7 @@ export function BookingPageClient({ branches, activeBranchIds, theme = 'emerald'
               branch={branch} 
               isActiveMember={activeBranchIds.includes(branch.id)}
               theme={theme}
+              publicMode={publicMode}
             />
           ))}
         </div>

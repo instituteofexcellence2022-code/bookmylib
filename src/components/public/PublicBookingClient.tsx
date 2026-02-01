@@ -1,0 +1,373 @@
+'use client'
+
+import React, { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { 
+    Check, Calendar, CreditCard, Info, 
+    User, Mail, Phone, Cake, MapPin,
+    Armchair, ArrowRight, ArrowLeft
+} from 'lucide-react'
+import { toast } from 'react-hot-toast'
+import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { FormInput } from '@/components/ui/FormInput'
+import { cn, formatSeatNumber } from '@/lib/utils'
+import { Branch, Seat, Plan, AdditionalFee } from '@prisma/client'
+import PublicBranchHeader from './PublicBranchHeader'
+import PublicBookingPayment from './PublicBookingPayment'
+
+type BranchWithDetails = Branch & {
+    library: { name: string }
+    seats: (Seat & { isOccupied: boolean })[]
+    plans: Plan[]
+    fees: AdditionalFee[]
+}
+
+interface PublicBookingClientProps {
+    branch: BranchWithDetails
+    images?: string[]
+    amenities?: string[]
+}
+
+type BookingStep = 'selection' | 'details' | 'payment'
+
+export function PublicBookingClient({ branch, images = [], amenities = [] }: PublicBookingClientProps) {
+    const router = useRouter()
+    const [step, setStep] = useState<BookingStep>('selection')
+    
+    // Selection State
+    const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
+    const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null)
+    const [selectedFees, setSelectedFees] = useState<string[]>([])
+    const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0])
+    
+    // Student Details State
+    const [studentDetails, setStudentDetails] = useState({
+        name: '',
+        email: '',
+        phone: '',
+        dob: ''
+    })
+
+    const handlePlanSelect = (plan: Plan) => {
+        setSelectedPlan(plan)
+    }
+
+    const toggleFee = (feeId: string) => {
+        setSelectedFees(prev => 
+            prev.includes(feeId) 
+                ? prev.filter(id => id !== feeId)
+                : [...prev, feeId]
+        )
+    }
+
+    const handleDetailsSubmit = (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!studentDetails.name || !studentDetails.email || !studentDetails.phone || !studentDetails.dob) {
+            toast.error('Please fill in all details')
+            return
+        }
+        setStep('payment')
+    }
+
+    const handlePaymentSuccess = (paymentId?: string, status?: 'completed' | 'pending_verification', studentId?: string) => {
+        toast.success('Booking Successful!')
+        // Redirect to a success page or show success state
+        // For now, redirect to discover page with success query
+        router.push(`/discover?booking=success&branch=${branch.name}`)
+    }
+
+    // Calculate Total for display
+    const feesTotal = branch.fees
+        .filter(f => selectedFees.includes(f.id))
+        .reduce((sum, f) => sum + f.amount, 0)
+    const totalAmount = (selectedPlan?.price || 0) + feesTotal
+
+    return (
+        <div className="max-w-4xl mx-auto pb-12">
+            <div className="mb-8">
+                <PublicBranchHeader 
+                    branch={branch} 
+                    images={images} 
+                    amenities={amenities} 
+                    backLink="/discover"
+                />
+            </div>
+
+            {/* Progress Steps */}
+            <div className="flex items-center justify-center mb-8">
+                <div className="flex items-center gap-2">
+                    {[
+                        { id: 'selection', label: '1. Select Plan' },
+                        { id: 'details', label: '2. Your Details' },
+                        { id: 'payment', label: '3. Payment' }
+                    ].map((s, idx) => (
+                        <React.Fragment key={s.id}>
+                            <div className={cn(
+                                "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                                step === s.id 
+                                    ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 ring-1 ring-purple-500/20" 
+                                    : idx < ['selection', 'details', 'payment'].indexOf(step)
+                                        ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/10"
+                                        : "text-gray-400 dark:text-gray-600"
+                            )}>
+                                {idx < ['selection', 'details', 'payment'].indexOf(step) ? (
+                                    <Check className="w-4 h-4" />
+                                ) : (
+                                    <span>{s.label}</span>
+                                )}
+                            </div>
+                            {idx < 2 && (
+                                <div className="w-8 h-px bg-gray-200 dark:bg-gray-700" />
+                            )}
+                        </React.Fragment>
+                    ))}
+                </div>
+            </div>
+
+            <AnimatePresence mode="wait">
+                {step === 'selection' && (
+                    <motion.div
+                        key="selection"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        className="space-y-8"
+                    >
+                        {/* 1. Choose Plan */}
+                        <section>
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                <CreditCard className="w-5 h-5 text-purple-500" />
+                                Choose a Plan
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {branch.plans.map(plan => (
+                                    <button
+                                        key={plan.id}
+                                        onClick={() => handlePlanSelect(plan)}
+                                        className={cn(
+                                            "relative p-4 rounded-xl border-2 text-left transition-all hover:shadow-md",
+                                            selectedPlan?.id === plan.id
+                                                ? "border-purple-500 bg-purple-50/50 dark:bg-purple-900/10"
+                                                : "border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-purple-200 dark:hover:border-purple-800"
+                                        )}
+                                    >
+                                        <div className="flex justify-between items-start mb-2">
+                                            <h3 className="font-bold text-gray-900 dark:text-white">{plan.name}</h3>
+                                            {selectedPlan?.id === plan.id && (
+                                                <div className="bg-purple-500 text-white p-1 rounded-full">
+                                                    <Check className="w-3 h-3" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-2">
+                                            ₹{plan.price}
+                                            <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-1">/ {plan.duration} days</span>
+                                        </div>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
+                                            {plan.description}
+                                        </p>
+                                    </button>
+                                ))}
+                            </div>
+                        </section>
+
+                        {/* 2. Select Seat (Optional) */}
+                        <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                <Armchair className="w-5 h-5 text-emerald-500" />
+                                Select Seat (Optional)
+                            </h2>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 max-h-60 overflow-y-auto p-1">
+                                {branch.seats.filter(s => !s.isOccupied).map(seat => (
+                                    <button
+                                        key={seat.id}
+                                        onClick={() => setSelectedSeat(selectedSeat?.id === seat.id ? null : seat)}
+                                        className={cn(
+                                            "p-2 text-sm rounded-lg border transition-all text-center font-medium",
+                                            selectedSeat?.id === seat.id
+                                                ? "bg-emerald-500 text-white border-emerald-600"
+                                                : "bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-emerald-300"
+                                        )}
+                                    >
+                                        {formatSeatNumber(seat.number)}
+                                    </button>
+                                ))}
+                                {branch.seats.filter(s => !s.isOccupied).length === 0 && (
+                                    <div className="col-span-full text-center text-gray-500 py-4">
+                                        No specific seats available currently.
+                                    </div>
+                                )}
+                            </div>
+                            {selectedSeat && (
+                                <div className="mt-4 flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-2 rounded-lg inline-block">
+                                    <Check className="w-4 h-4" />
+                                    Selected Seat: <strong>{formatSeatNumber(selectedSeat.number)}</strong>
+                                </div>
+                            )}
+                        </section>
+
+                        {/* 3. Additional Fees & Date */}
+                        <div className="grid md:grid-cols-2 gap-6">
+                            {/* Fees */}
+                            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+                                <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                    <Info className="w-5 h-5 text-blue-500" />
+                                    Add-ons
+                                </h3>
+                                <div className="space-y-3">
+                                    {branch.fees.map(fee => (
+                                        <label key={fee.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className={cn(
+                                                    "w-5 h-5 rounded border flex items-center justify-center transition-colors",
+                                                    selectedFees.includes(fee.id)
+                                                        ? "bg-blue-500 border-blue-500 text-white"
+                                                        : "border-gray-300 dark:border-gray-600"
+                                                )}>
+                                                    {selectedFees.includes(fee.id) && <Check className="w-3 h-3" />}
+                                                </div>
+                                                <input 
+                                                    type="checkbox" 
+                                                    className="hidden"
+                                                    checked={selectedFees.includes(fee.id)}
+                                                    onChange={() => toggleFee(fee.id)}
+                                                />
+                                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fee.name}</span>
+                                            </div>
+                                            <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
+                                        </label>
+                                    ))}
+                                    {branch.fees.length === 0 && (
+                                        <p className="text-sm text-gray-500">No additional fees.</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Start Date */}
+                            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+                                <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                    <Calendar className="w-5 h-5 text-orange-500" />
+                                    Start Date
+                                </h3>
+                                <input
+                                    type="date"
+                                    value={bookingDate}
+                                    min={new Date().toISOString().split('T')[0]}
+                                    onChange={(e) => setBookingDate(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Action Bar */}
+                        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-t border-gray-200 dark:border-gray-800 z-40">
+                            <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+                                <div>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">Total Payable</p>
+                                    <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">₹{totalAmount}</p>
+                                </div>
+                                <AnimatedButton
+                                    onClick={() => setStep('details')}
+                                    disabled={!selectedPlan}
+                                    className="bg-purple-600 hover:bg-purple-700 text-white min-w-[150px]"
+                                    icon="arrowRight"
+                                >
+                                    Continue
+                                </AnimatedButton>
+                            </div>
+                        </div>
+                        {/* Spacer for fixed bottom bar */}
+                        <div className="h-20" />
+                    </motion.div>
+                )}
+
+                {step === 'details' && (
+                    <motion.div
+                        key="details"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        className="max-w-xl mx-auto"
+                    >
+                        <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 border border-gray-100 dark:border-gray-700 shadow-sm">
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Enter Your Details</h2>
+                            <form onSubmit={handleDetailsSubmit} className="space-y-5">
+                                <FormInput
+                                    label="Full Name"
+                                    icon={User}
+                                    placeholder="John Doe"
+                                    value={studentDetails.name}
+                                    onChange={(e) => setStudentDetails(prev => ({ ...prev, name: e.target.value }))}
+                                    required
+                                />
+                                <FormInput
+                                    label="Email Address"
+                                    icon={Mail}
+                                    type="email"
+                                    placeholder="john@example.com"
+                                    value={studentDetails.email}
+                                    onChange={(e) => setStudentDetails(prev => ({ ...prev, email: e.target.value }))}
+                                    required
+                                />
+                                <FormInput
+                                    label="Phone Number"
+                                    icon={Phone}
+                                    type="tel"
+                                    placeholder="9876543210"
+                                    value={studentDetails.phone}
+                                    onChange={(e) => setStudentDetails(prev => ({ ...prev, phone: e.target.value }))}
+                                    required
+                                />
+                                <FormInput
+                                    label="Date of Birth"
+                                    icon={Cake}
+                                    type="date"
+                                    value={studentDetails.dob}
+                                    onChange={(e) => setStudentDetails(prev => ({ ...prev, dob: e.target.value }))}
+                                    required
+                                />
+
+                                <div className="pt-4 flex gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setStep('selection')}
+                                        className="flex-1 px-6 py-3 border border-gray-200 dark:border-gray-700 rounded-xl font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                                    >
+                                        Back
+                                    </button>
+                                    <AnimatedButton
+                                        type="submit"
+                                        className="flex-[2] bg-purple-600 hover:bg-purple-700 text-white"
+                                        icon="arrowRight"
+                                    >
+                                        Proceed to Pay
+                                    </AnimatedButton>
+                                </div>
+                            </form>
+                        </div>
+                    </motion.div>
+                )}
+
+                {step === 'payment' && selectedPlan && (
+                    <motion.div
+                        key="payment"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                    >
+                        <PublicBookingPayment
+                            plan={selectedPlan}
+                            seat={selectedSeat}
+                            fees={branch.fees.filter(f => selectedFees.includes(f.id))}
+                            branchId={branch.id}
+                            studentDetails={studentDetails}
+                            onSuccess={handlePaymentSuccess}
+                            onBack={() => setStep('details')}
+                        />
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    )
+}

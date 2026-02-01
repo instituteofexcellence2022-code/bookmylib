@@ -59,6 +59,7 @@ const getAmenities = (amenitiesString: string | null) => {
 export interface BranchCardProps {
   isActiveMember?: boolean
   theme?: ThemeColor
+  publicMode?: boolean
   branch: {
     id: string
     name: string
@@ -95,7 +96,7 @@ export interface BranchCardProps {
   }
 }
 
-export function BranchCard({ branch, isActiveMember, theme = 'emerald' }: BranchCardProps) {
+export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMode = false }: BranchCardProps) {
   const [showAmenities, setShowAmenities] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
   const [showHours, setShowHours] = useState(false)
@@ -455,7 +456,7 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald' }: Branch
         </div>
 
         <div className="mt-6">
-          <Link href={`/student/book/${branch.id}`} className="block">
+          <Link href={publicMode ? `/discover/${branch.id}` : `/student/book/${branch.id}`} className="block">
             <AnimatedButton 
               fullWidth 
               variant="primary"

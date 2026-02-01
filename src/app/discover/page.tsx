@@ -56,7 +56,7 @@ export default async function DiscoverPage() {
           </p>
         </div>
 
-        <BookingPageClient branches={branches ?? null} activeBranchIds={activeBranchIds} theme="indigo" />
+        <BookingPageClient branches={branches ?? null} activeBranchIds={activeBranchIds} theme="indigo" publicMode={true} />
       </div>
     </div>
   )
