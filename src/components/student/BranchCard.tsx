@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { BranchDetailsModal } from './BranchDetailsModal'
+import { getThemeClasses, ThemeColor } from '@/lib/utils'
 
 // Helper to parse amenities safely
 const getAmenities = (amenitiesString: string | null) => {
@@ -57,6 +58,7 @@ const getAmenities = (amenitiesString: string | null) => {
 
 export interface BranchCardProps {
   isActiveMember?: boolean
+  theme?: ThemeColor
   branch: {
     id: string
     name: string
@@ -93,12 +95,13 @@ export interface BranchCardProps {
   }
 }
 
-export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
+export function BranchCard({ branch, isActiveMember, theme = 'emerald' }: BranchCardProps) {
   const [showAmenities, setShowAmenities] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
   const [showHours, setShowHours] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const amenities = getAmenities(branch.amenities)
+  const themeClasses = getThemeClasses(theme)
   
   const hoursRef = useRef<HTMLDivElement>(null)
   const amenitiesRef = useRef<HTMLDivElement>(null)
@@ -274,7 +277,7 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
   return (
     <div className={`group bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col h-full ${(showHours || showAmenities) ? 'relative z-20' : ''}`}>
       {/* Branch Image with Overlay Badges */}
-      <div className="h-56 bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center relative overflow-hidden group/image rounded-t-2xl">
+      <div className={`h-56 ${themeClasses.bg} flex items-center justify-center relative overflow-hidden group/image rounded-t-2xl`}>
         {/* Background Pattern/Image Placeholder */}
         {currentImage ? (
           <Image 
@@ -286,7 +289,7 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
         ) : (
-          <Building2 className="w-20 h-20 text-emerald-300 dark:text-emerald-700/50 group-hover:scale-110 transition-transform duration-500" />
+          <Building2 className={`w-20 h-20 ${themeClasses.iconLight} group-hover:scale-110 transition-transform duration-500`} />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-90" />
         
@@ -323,10 +326,10 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
         {/* Top Badges */}
         <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10 pointer-events-none">
             <div className={`bg-white/95 dark:bg-black/80 dark:backdrop-blur-md px-2.5 py-1 rounded-full flex items-center gap-1.5 text-xs font-semibold shadow-sm ${
-                isOpen ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'
+                isOpen ? themeClasses.text : 'text-red-700 dark:text-red-400'
             }`}>
                 <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${
-                    isOpen ? 'bg-emerald-500' : 'bg-red-500'
+                    isOpen ? themeClasses.bgSolid : 'bg-red-500'
                 }`} />
                 {text}
             </div>
@@ -360,7 +363,7 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
           {/* Address & Quick Stats */}
           <div className="flex flex-col gap-4">
              <div className="flex items-start gap-3 text-gray-600 dark:text-gray-300">
-                <MapPin className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                <MapPin className={`w-5 h-5 ${themeClasses.icon} shrink-0 mt-0.5`} />
                 <span className="text-sm leading-relaxed font-medium">
                   {branch.address}, {branch.city}, {branch.state} - {branch.pincode}
                 </span>
@@ -368,7 +371,7 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
              
              <div className="flex items-center gap-2 flex-wrap">
                  <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 px-2.5 py-1.5 rounded-full border border-gray-100 dark:border-gray-800 shrink-0">
-                    <Users className="w-3.5 h-3.5 text-emerald-500" />
+                    <Users className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
                     <span>{branch._count.seats} Seats</span>
                  </div>
                  <div className="relative" ref={hoursRef}>
@@ -380,22 +383,22 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
                         }}
                         className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-all duration-200 shrink-0 hover:scale-105 active:scale-95 cursor-pointer hover:shadow-sm ${
                             showHours
-                            ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800 shadow-sm ring-1 ring-emerald-500/20'
-                            : 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 border-gray-100 dark:border-gray-800 hover:bg-white dark:hover:bg-gray-800 hover:border-emerald-200 dark:hover:border-emerald-800 hover:text-emerald-600 dark:hover:text-emerald-400'
+                            ? themeClasses.toggleActive
+                            : themeClasses.toggleInactive.replace('[color]', theme)
                         }`}
                     >
-                        <Clock className="w-3.5 h-3.5 text-emerald-500" />
+                        <Clock className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
                         <span>24/7</span>
                     </button>
                     {showHours && (
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-gray-900/95 backdrop-blur-md border border-gray-700/50 rounded-xl shadow-xl text-xs text-gray-300 z-50 animate-in fade-in zoom-in-95 duration-200">
                             <div className="font-semibold text-white mb-1 flex items-center gap-1.5">
-                                <Clock className="w-3 h-3 text-emerald-400" />
+                                <Clock className={`w-3 h-3 ${themeClasses.text}`} />
                                 Operating Hours
                             </div>
                             <p className="leading-relaxed">
                                 Open 24/7 for members. 
-                                <span className="block mt-1 text-emerald-400/80">Staff available: {staffAvailability}</span>
+                                <span className={`block mt-1 ${themeClasses.text} opacity-80`}>Staff available: {staffAvailability}</span>
                             </p>
                             <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900/95 border-r border-b border-gray-700/50 rotate-45"></div>
                         </div>
@@ -410,23 +413,23 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
                          }}
                          className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-all duration-200 shrink-0 hover:scale-105 active:scale-95 cursor-pointer hover:shadow-sm ${
                          showAmenities 
-                             ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800 shadow-sm ring-1 ring-emerald-500/20' 
-                             : 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 border-gray-100 dark:border-gray-800 hover:bg-white dark:hover:bg-gray-800 hover:border-emerald-200 dark:hover:border-emerald-800 hover:text-emerald-600 dark:hover:text-emerald-400'
+                             ? themeClasses.toggleActive
+                             : themeClasses.toggleInactive.replace('[color]', theme)
                          }`}
                      >
-                        <Coffee className="w-3.5 h-3.5 text-emerald-500" />
+                        <Coffee className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
                         <span>Amenities</span>
                     </button>
                     {showAmenities && (
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900/95 backdrop-blur-md border border-gray-700/50 rounded-xl shadow-xl text-xs text-gray-300 z-50 animate-in fade-in zoom-in-95 duration-200">
                             <div className="font-semibold text-white mb-2 flex items-center gap-1.5">
-                                <Coffee className="w-3 h-3 text-emerald-400" />
+                                <Coffee className={`w-3 h-3 ${themeClasses.text}`} />
                                 Amenities
                             </div>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                                 {amenities.map((amenity, index) => (
                                     <div key={index} className="flex items-center gap-1.5 text-gray-300">
-                                        <amenity.icon className="w-3 h-3 text-emerald-500 shrink-0" />
+                                        <amenity.icon className={`w-3 h-3 ${themeClasses.icon} shrink-0`} />
                                         <span className="truncate">{amenity.label}</span>
                                     </div>
                                 ))}
@@ -441,10 +444,10 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
                         e.stopPropagation()
                         setShowDetails(true)
                       }}
-                      className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-all duration-200 shrink-0 hover:scale-105 active:scale-95 cursor-pointer hover:shadow-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 border-gray-100 dark:border-gray-800 hover:bg-white dark:hover:bg-gray-800 hover:border-emerald-200 dark:hover:border-emerald-800 hover:text-emerald-600 dark:hover:text-emerald-400"
+                      className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-all duration-200 shrink-0 hover:scale-105 active:scale-95 cursor-pointer hover:shadow-sm ${themeClasses.toggleInactive.replace('[color]', theme)}`}
                       title="More"
                    >
-                      <Info className="w-3.5 h-3.5 text-emerald-500" />
+                      <Info className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
                       <span className="hidden sm:inline">More</span>
                   </button>
              </div>
@@ -458,7 +461,7 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
               variant="primary"
               icon="arrowRight"
               iconPosition="right"
-              className="bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200 dark:shadow-none shadow-lg hover:shadow-xl translate-y-0"
+              className={`${themeClasses.button} shadow-lg hover:shadow-xl translate-y-0`}
             >
               View Seats & Book
             </AnimatedButton>
@@ -470,6 +473,7 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
         isOpen={showDetails} 
         onClose={() => setShowDetails(false)} 
         isActiveMember={isActiveMember}
+        theme={theme}
         branch={{
           ...branch,
           seatCount: branch._count.seats

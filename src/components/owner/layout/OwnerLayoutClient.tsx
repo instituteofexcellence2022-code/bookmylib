@@ -69,7 +69,7 @@ export function OwnerLayoutClient({ children, user }: OwnerLayoutClientProps) {
         items={navItems}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
-        themeColor="purple"
+        themeColor="amber"
         onLogout={handleLogout}
       />
 
@@ -89,7 +89,7 @@ export function OwnerLayoutClient({ children, user }: OwnerLayoutClientProps) {
       <BottomNav
         items={navItems}
         onMenuClick={() => setIsSidebarOpen(true)}
-        themeColor="purple"
+        themeColor="amber"
       />
     </div>
   )

@@ -21,16 +21,31 @@ import {
   Scroll,
   ArrowRight,
   LogOut,
-  User
+  User,
+  Compass
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { getCurrentUser, logout } from '@/actions/auth'
+import { getPublishedBranches } from '@/actions/booking'
+import { BookingPageClient } from '@/app/student/(authenticated)/book/BookingPageClient'
 
-type Role = 'owner' | 'staff' | 'student'
+type Role = 'discover' | 'student' | 'staff' | 'owner'
 
 const roleConfig = {
+  discover: {
+    color: 'teal',
+    title: 'Discover',
+    headline: 'Find Your Perfect Study Spot',
+    subheadline: 'Explore premium libraries near you. Compare amenities, pricing, and book your seat instantly.',
+    icon: Compass,
+    features: [], // Handled by BookingPageClient
+    cta: {
+      primary: null,
+      secondary: null
+    }
+  },
   owner: {
     color: 'amber',
     title: 'Library Owner',
@@ -86,10 +101,12 @@ const roleConfig = {
 
 export default function Home() {
   const router = useRouter()
-  const [activeRole, setActiveRole] = useState<Role>('student')
+  const [activeRole, setActiveRole] = useState<Role>('discover')
   const [mounted, setMounted] = useState(false)
   const [user, setUser] = useState<{ name: string, image?: string | null, initials: string, role: string, link: string } | null>(null)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [branches, setBranches] = useState<any[] | null>(null)
+  const [isLoadingBranches, setIsLoadingBranches] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -102,6 +119,9 @@ export default function Home() {
       try {
         const userData = await getCurrentUser()
         setUser(userData)
+        // If user is logged in, default to their role unless it's their first visit
+        // But for this requirement, we stick to 'discover' or 'student' default as per logic
+        // We'll keep 'discover' as default for public appeal
       } catch (error) {
         console.error('Failed to check session:', error)
       }
@@ -120,6 +140,26 @@ export default function Home() {
       document.removeEventListener("mousedown", handleClickOutside)
     }
   }, [])
+
+  // Fetch branches when Discover mode is active
+  useEffect(() => {
+    const fetchBranches = async () => {
+      if (activeRole === 'discover' && !branches) {
+        setIsLoadingBranches(true)
+        try {
+          const { success, branches: data } = await getPublishedBranches()
+          if (success && data) {
+            setBranches(data)
+          }
+        } catch (err) {
+          console.error('Failed to fetch branches', err)
+        } finally {
+          setIsLoadingBranches(false)
+        }
+      }
+    }
+    fetchBranches()
+  }, [activeRole, branches])
 
   const handleLogout = async () => {
     await logout()
@@ -153,15 +193,15 @@ export default function Home() {
   const currentRole = roleConfig[activeRole]
 
   return (
-    <div className="min-h-screen bg-background transition-colors duration-500 overflow-hidden selection:bg-purple-100 dark:selection:bg-purple-900/30">
+    <div className="min-h-screen bg-background transition-colors duration-500 overflow-hidden selection:bg-teal-100 dark:selection:bg-teal-900/30">
       
       {/* Background Elements */}
       <div className="fixed inset-0 pointer-events-none">
         <div className={`absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full blur-[100px] opacity-20 transition-colors duration-700
-          ${activeRole === 'owner' ? 'bg-amber-500' : activeRole === 'staff' ? 'bg-emerald-500' : 'bg-blue-500'}`} 
+          ${activeRole === 'owner' ? 'bg-amber-500' : activeRole === 'staff' ? 'bg-emerald-500' : activeRole === 'student' ? 'bg-blue-500' : 'bg-teal-500'}`} 
         />
         <div className={`absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full blur-[100px] opacity-20 transition-colors duration-700
-          ${activeRole === 'owner' ? 'bg-blue-500' : activeRole === 'staff' ? 'bg-teal-500' : 'bg-cyan-500'}`} 
+          ${activeRole === 'owner' ? 'bg-blue-500' : activeRole === 'staff' ? 'bg-teal-500' : activeRole === 'student' ? 'bg-cyan-500' : 'bg-emerald-500'}`} 
         />
       </div>
 
@@ -169,7 +209,7 @@ export default function Home() {
       <nav className="relative z-50 max-w-7xl mx-auto px-6 py-6 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <div className={`p-2 rounded-xl transition-colors duration-500
-            ${activeRole === 'owner' ? 'bg-amber-600' : activeRole === 'staff' ? 'bg-emerald-600' : 'bg-blue-600'}`}>
+            ${activeRole === 'owner' ? 'bg-amber-600' : activeRole === 'staff' ? 'bg-emerald-600' : activeRole === 'student' ? 'bg-blue-600' : 'bg-teal-600'}`}>
             <BookOpen className="w-6 h-6 text-white" />
           </div>
           <span className="font-bold text-xl tracking-tight text-foreground">
@@ -185,7 +225,7 @@ export default function Home() {
                 className="group relative flex items-center gap-2 p-1 pr-3 rounded-full bg-white/10 backdrop-blur-sm border border-gray-200/20 hover:bg-white/20 dark:bg-gray-800/50 dark:hover:bg-gray-800 transition-all text-foreground focus:outline-none"
                 title="Account Menu"
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm shadow-sm ring-2 ring-white/20 dark:ring-gray-800/20 group-hover:ring-blue-500/50 transition-all">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm shadow-sm ring-2 ring-white/20 dark:ring-gray-800/20 group-hover:ring-blue-500/50 transition-all">
                   {user.image ? (
                     <img src={user.image} alt={user.name} className="w-full h-full rounded-full object-cover" />
                   ) : (
@@ -252,13 +292,13 @@ export default function Home() {
       <main className="relative z-10 max-w-7xl mx-auto px-6 pt-10 pb-20">
         
         {/* Role Toggle */}
-        <div className="flex justify-center mb-16">
-          <div className="p-1.5 bg-muted rounded-full flex gap-1 shadow-inner relative">
-            {(['student', 'staff', 'owner'] as Role[]).map((role) => (
+        <div className="flex justify-center mb-8">
+          <div className="p-1.5 bg-muted rounded-full flex gap-1 shadow-inner relative overflow-x-auto max-w-full">
+            {(['discover', 'student', 'staff', 'owner'] as Role[]).map((role) => (
               <button
                 key={role}
                 onClick={() => setActiveRole(role)}
-                className={`relative px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-300 z-10 capitalize
+                className={`relative px-4 sm:px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-300 z-10 capitalize flex items-center gap-2
                   ${activeRole === role 
                     ? 'text-white' 
                     : 'text-muted-foreground hover:text-foreground'}`}
@@ -267,17 +307,55 @@ export default function Home() {
                   <motion.div
                     layoutId="activeRole"
                     className={`absolute inset-0 rounded-full shadow-lg
-                      ${role === 'owner' ? 'bg-rose-600' : role === 'staff' ? 'bg-emerald-600' : 'bg-blue-600'}`}
+                      ${role === 'owner' ? 'bg-amber-600' : role === 'staff' ? 'bg-emerald-600' : role === 'student' ? 'bg-blue-600' : 'bg-teal-600'}`}
                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                   />
                 )}
-                <span className="relative">{role}</span>
+                <span className="relative flex items-center">
+                  {role === 'discover' ? (
+                    <>
+                      <span className="hidden sm:inline">Discover</span>
+                      <Search className="w-4 h-4 sm:hidden" />
+                    </>
+                  ) : (
+                    role
+                  )}
+                </span>
               </button>
             ))}
           </div>
         </div>
 
         {/* Dynamic Content */}
+        {activeRole === 'discover' ? (
+           <AnimatePresence mode="wait">
+             <motion.div
+               key="discover"
+               initial={{ opacity: 0, y: 20 }}
+               animate={{ opacity: 1, y: 0 }}
+               exit={{ opacity: 0, y: -20 }}
+               transition={{ duration: 0.4 }}
+               className="w-full"
+             >
+               <div className="text-center mb-12">
+                 <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-foreground mb-4">
+                   {currentRole.headline}
+                 </h1>
+                 <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                   {currentRole.subheadline}
+                 </p>
+               </div>
+               
+               {isLoadingBranches ? (
+                <div className="flex justify-center py-20">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
+                </div>
+              ) : (
+                <BookingPageClient branches={branches} activeBranchIds={[]} theme="teal" />
+              )}
+             </motion.div>
+           </AnimatePresence>
+        ) : (
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           
           {/* Text Content */}
@@ -304,15 +382,15 @@ export default function Home() {
                 {currentRole.cta.primary && (
                   <AnimatedButton
                     variant="primary"
-                    onClick={() => router.push(currentRole.cta.primary.href)}
+                    onClick={() => router.push(currentRole.cta.primary!.href)}
                     className={`h-10 px-6 shadow-xl shadow-current/20 border-transparent
                         ${activeRole === 'owner' 
-                          ? 'bg-rose-600 hover:bg-rose-700' 
+                          ? 'bg-amber-600 hover:bg-amber-700' 
                           : activeRole === 'staff'
                           ? 'bg-emerald-600 hover:bg-emerald-700'
                           : 'bg-blue-600 hover:bg-blue-700'}`}
                   >
-                    {currentRole.cta.primary.text}
+                    {currentRole.cta.primary!.text}
                     <ArrowRight className="ml-2 w-4 h-4" />
                   </AnimatedButton>
                 )}
@@ -375,6 +453,7 @@ export default function Home() {
           </div>
 
         </div>
+        )}
       </main>
 
       {/* Simple Footer */}
@@ -384,8 +463,8 @@ export default function Home() {
             © {new Date().getFullYear()} BookMyLib. All rights reserved.
           </p>
           <div className="flex gap-6 text-sm font-medium text-gray-600 dark:text-gray-400">
-            <Link href="#" className="hover:text-gray-900 dark:hover:text-white transition-colors">Privacy</Link>
-            <Link href="#" className="hover:text-gray-900 dark:hover:text-white transition-colors">Terms</Link>
+            <Link href="/privacy" className="hover:text-gray-900 dark:hover:text-white transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-gray-900 dark:hover:text-white transition-colors">Terms</Link>
             <Link href="#" className="hover:text-gray-900 dark:hover:text-white transition-colors">Contact</Link>
           </div>
         </div>

@@ -4,16 +4,19 @@ import React, { useState } from 'react'
 import { LayoutGrid, List, Building2, Search, MapPin } from 'lucide-react'
 import { BranchCard, BranchCardProps } from '@/components/student/BranchCard'
 import { BranchListItem } from '@/components/student/BranchListItem'
+import { ThemeColor, getThemeClasses } from '@/lib/utils'
 
 interface BookingPageClientProps {
   branches: BranchCardProps['branch'][] | null
   activeBranchIds: string[]
+  theme?: ThemeColor
 }
 
-export function BookingPageClient({ branches, activeBranchIds }: BookingPageClientProps) {
+export function BookingPageClient({ branches, activeBranchIds, theme = 'emerald' }: BookingPageClientProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
-
+  const themeClasses = getThemeClasses(theme)
+  
   const filteredBranches = branches?.filter(branch => {
     if (!searchQuery.trim()) return true
     
@@ -47,14 +50,14 @@ export function BookingPageClient({ branches, activeBranchIds }: BookingPageClie
           <div className="flex-1 w-full md:max-w-xl group">
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400 group-focus-within:text-emerald-500 transition-colors" />
+                <Search className={`h-5 w-5 text-gray-400 ${themeClasses.iconFocus} transition-colors`} />
               </div>
               <input 
                 type="text"
                 placeholder="Search by library name, area, city..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl leading-5 bg-gray-50 dark:bg-gray-900/50 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:bg-white dark:focus:bg-gray-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all sm:text-sm"
+                className={`block w-full pl-10 pr-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl leading-5 bg-gray-50 dark:bg-gray-900/50 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:bg-white dark:focus:bg-gray-800 focus:ring-2 ${themeClasses.ringFocus} ${themeClasses.borderFocus} transition-all sm:text-sm`}
               />
             </div>
           </div>
@@ -65,7 +68,7 @@ export function BookingPageClient({ branches, activeBranchIds }: BookingPageClie
               onClick={() => setViewMode('grid')}
               className={`p-2 rounded-lg transition-all ${
                 viewMode === 'grid'
-                  ? 'bg-white dark:bg-gray-800 text-emerald-600 shadow-sm ring-1 ring-black/5 dark:ring-white/10'
+                  ? `bg-white dark:bg-gray-800 ${themeClasses.textLight} shadow-sm ring-1 ring-black/5 dark:ring-white/10`
                   : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
               }`}
               title="Grid View"
@@ -76,7 +79,7 @@ export function BookingPageClient({ branches, activeBranchIds }: BookingPageClie
               onClick={() => setViewMode('list')}
               className={`p-2 rounded-lg transition-all ${
                 viewMode === 'list'
-                  ? 'bg-white dark:bg-gray-800 text-emerald-600 shadow-sm ring-1 ring-black/5 dark:ring-white/10'
+                  ? `bg-white dark:bg-gray-800 ${themeClasses.textLight} shadow-sm ring-1 ring-black/5 dark:ring-white/10`
                   : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
               }`}
               title="List View"
@@ -94,7 +97,7 @@ export function BookingPageClient({ branches, activeBranchIds }: BookingPageClie
           <p className="text-sm mt-1">Try adjusting your search query</p>
           <button 
             onClick={() => setSearchQuery('')}
-            className="mt-4 text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline"
+            className={`mt-4 text-sm ${themeClasses.textLight} ${themeClasses.textHover} font-medium hover:underline`}
           >
             Clear search
           </button>
@@ -106,6 +109,7 @@ export function BookingPageClient({ branches, activeBranchIds }: BookingPageClie
               key={branch.id} 
               branch={branch} 
               isActiveMember={activeBranchIds.includes(branch.id)}
+              theme={theme}
             />
           ))}
         </div>
@@ -116,6 +120,7 @@ export function BookingPageClient({ branches, activeBranchIds }: BookingPageClie
               key={branch.id} 
               branch={branch} 
               isActiveMember={activeBranchIds.includes(branch.id)}
+              theme={theme}
             />
           ))}
         </div>

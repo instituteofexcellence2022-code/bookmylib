@@ -1,18 +1,13 @@
 import React from 'react'
-import Link from 'next/link'
-import { ArrowLeft, ShieldCheck, Database, Eye, Share2, Lock, Cookie, FileText, UserCheck } from 'lucide-react'
+import { ShieldCheck, Database, Eye, Share2, Lock, Cookie, FileText, UserCheck } from 'lucide-react'
+import { NavBackButton } from '@/components/ui/NavBackButton'
 
 export default function PrivacyPage() {
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-950 py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto">
                 <div className="mb-8 flex items-center gap-4">
-                    <Link 
-                        href="/student/register" 
-                        className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
-                    >
-                        <ArrowLeft className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-                    </Link>
+                    <NavBackButton />
                     <div className="flex items-center gap-2">
                         <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg text-green-600 dark:text-green-400">
                             <ShieldCheck className="w-6 h-6" />

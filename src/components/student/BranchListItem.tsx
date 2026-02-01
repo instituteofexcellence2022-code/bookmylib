@@ -11,6 +11,7 @@ import {
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { BranchCardProps } from './BranchCard'
 import { BranchDetailsModal } from './BranchDetailsModal'
+import { getThemeClasses } from '@/lib/utils'
 
 // Helper to parse amenities safely (consistent with BranchCard)
 const getAmenities = (amenitiesString: string | null) => {
@@ -55,11 +56,12 @@ const getAmenities = (amenitiesString: string | null) => {
   }
 }
 
-export function BranchListItem({ branch, isActiveMember }: BranchCardProps) {
+export function BranchListItem({ branch, isActiveMember, theme = 'emerald' }: BranchCardProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [showHours, setShowHours] = useState(false)
   const [showAmenities, setShowAmenities] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
+  const themeClasses = getThemeClasses(theme)
   
   const hoursRef = useRef<HTMLDivElement>(null)
   const amenitiesRef = useRef<HTMLDivElement>(null)
@@ -168,13 +170,13 @@ export function BranchListItem({ branch, isActiveMember }: BranchCardProps) {
   return (
     <div className={`group bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-300 flex flex-row h-auto sm:min-h-32 ${(showHours || showAmenities) ? 'relative z-20' : ''}`}>
       {/* Image Section - Fixed width */}
-      <div className="w-28 sm:w-40 bg-emerald-100 dark:bg-emerald-900/20 relative shrink-0 overflow-hidden group/image rounded-l-lg">
+      <div className={`w-28 sm:w-40 ${themeClasses.bg} relative shrink-0 overflow-hidden group/image rounded-l-lg`}>
         <div className="absolute top-1 left-1 z-10 flex items-center gap-1 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-1.5 py-0.5 rounded-full shadow-sm">
           <span className="relative flex h-1.5 w-1.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${themeClasses.ping} opacity-75`}></span>
+            <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${themeClasses.bgSolid}`}></span>
           </span>
-          <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Open</span>
+          <span className={`text-[9px] font-bold ${themeClasses.textLight} uppercase tracking-wider`}>Open</span>
         </div>
         {currentImage ? (
           <Image 
@@ -187,7 +189,7 @@ export function BranchListItem({ branch, isActiveMember }: BranchCardProps) {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Building2 className="w-8 h-8 text-emerald-300 dark:text-emerald-700/50" />
+            <Building2 className={`w-8 h-8 ${themeClasses.iconLight}`} />
           </div>
         )}
         
@@ -214,7 +216,7 @@ export function BranchListItem({ branch, isActiveMember }: BranchCardProps) {
       <div className="flex-1 p-3 flex flex-col sm:flex-row gap-2 sm:gap-4 sm:items-center min-w-0">
         <div className="flex-1 min-w-0 flex flex-col justify-center">
           <div className="flex items-center gap-2 mb-1">
-            <h3 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white leading-tight truncate group-hover:text-emerald-600 transition-colors">
+            <h3 className={`text-sm sm:text-base font-bold text-gray-900 dark:text-white leading-tight truncate ${themeClasses.groupHoverText} transition-colors`}>
               {branch.name}
             </h3>
             <div className="flex items-center gap-0.5 text-[10px] font-bold text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-1 py-0.5 rounded shrink-0">
@@ -223,7 +225,7 @@ export function BranchListItem({ branch, isActiveMember }: BranchCardProps) {
             {branch.contactPhone && (
               <a 
                 href={`tel:${branch.contactPhone}`}
-                className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/40 transition-colors shrink-0"
+                className={`flex items-center justify-center w-5 h-5 rounded-full ${themeClasses.bgLight} ${themeClasses.textLight} hover:${themeClasses.bg} transition-colors shrink-0`}
                 onClick={(e) => e.stopPropagation()}
                 title="Call Branch"
               >
@@ -240,7 +242,7 @@ export function BranchListItem({ branch, isActiveMember }: BranchCardProps) {
           {/* Compact Stats */}
           <div className="flex items-center gap-2 flex-wrap">
              <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 px-2.5 py-1.5 rounded-full border border-gray-100 dark:border-gray-800 shrink-0">
-                <Users className="w-3.5 h-3.5 text-emerald-500" />
+                <Users className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
                 <span>{branch._count.seats} Seats</span>
              </div>
              
@@ -253,22 +255,22 @@ export function BranchListItem({ branch, isActiveMember }: BranchCardProps) {
                     }}
                     className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-all duration-200 shrink-0 hover:scale-105 active:scale-95 cursor-pointer hover:shadow-sm ${
                         showHours
-                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800 shadow-sm ring-1 ring-emerald-500/20'
-                        : 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 border-gray-100 dark:border-gray-800 hover:bg-white dark:hover:bg-gray-800 hover:border-emerald-200 dark:hover:border-emerald-800 hover:text-emerald-600 dark:hover:text-emerald-400'
+                        ? themeClasses.toggleActive
+                        : themeClasses.toggleInactive
                     }`}
                 >
-                    <Clock className="w-3.5 h-3.5 text-emerald-500" />
+                    <Clock className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
                     <span>24/7</span>
                 </button>
                 {showHours && (
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-gray-900/95 backdrop-blur-md border border-gray-700/50 rounded-xl shadow-xl text-xs text-gray-300 z-50 animate-in fade-in zoom-in-95 duration-200">
                         <div className="font-semibold text-white mb-1 flex items-center gap-1.5">
-                            <Clock className="w-3 h-3 text-emerald-400" />
+                            <Clock className={`w-3 h-3 ${themeClasses.textOnDark}`} />
                             Operating Hours
                         </div>
                         <p className="leading-relaxed">
                             Open 24/7 for members. 
-                            <span className="block mt-1 text-emerald-400/80">Staff available: {staffAvailability}</span>
+                            <span className={`block mt-1 ${themeClasses.textOnDark} opacity-80`}>Staff available: {staffAvailability}</span>
                         </p>
                         <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900/95 border-r border-b border-gray-700/50 rotate-45"></div>
                     </div>
@@ -284,23 +286,23 @@ export function BranchListItem({ branch, isActiveMember }: BranchCardProps) {
                      }}
                      className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-all duration-200 shrink-0 hover:scale-105 active:scale-95 cursor-pointer hover:shadow-sm ${
                      showAmenities 
-                         ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800 shadow-sm ring-1 ring-emerald-500/20' 
-                         : 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 border-gray-100 dark:border-gray-800 hover:bg-white dark:hover:bg-gray-800 hover:border-emerald-200 dark:hover:border-emerald-800 hover:text-emerald-600 dark:hover:text-emerald-400'
+                         ? themeClasses.toggleActive
+                         : themeClasses.toggleInactive
                      }`}
                  >
-                    <Coffee className="w-3.5 h-3.5 text-emerald-500" />
+                    <Coffee className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
                     <span>Amenities</span>
                 </button>
                 {showAmenities && (
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900/95 backdrop-blur-md border border-gray-700/50 rounded-xl shadow-xl text-xs text-gray-300 z-50 animate-in fade-in zoom-in-95 duration-200">
                         <div className="font-semibold text-white mb-2 flex items-center gap-1.5">
-                            <Coffee className="w-3 h-3 text-emerald-400" />
+                            <Coffee className={`w-3 h-3 ${themeClasses.textOnDark}`} />
                             Amenities
                         </div>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                             {amenities.map((amenity, index) => (
                                 <div key={index} className="flex items-center gap-1.5 text-gray-300">
-                                    <amenity.icon className="w-3 h-3 text-emerald-500 shrink-0" />
+                                    <amenity.icon className={`w-3 h-3 ${themeClasses.icon} shrink-0`} />
                                     <span className="truncate">{amenity.label}</span>
                                 </div>
                             ))}
@@ -316,10 +318,10 @@ export function BranchListItem({ branch, isActiveMember }: BranchCardProps) {
                     e.stopPropagation()
                     setShowDetails(true)
                   }}
-                  className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-all duration-200 shrink-0 hover:scale-105 active:scale-95 cursor-pointer hover:shadow-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 border-gray-100 dark:border-gray-800 hover:bg-white dark:hover:bg-gray-800 hover:border-emerald-200 dark:hover:border-emerald-800 hover:text-emerald-600 dark:hover:text-emerald-400"
+                  className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-all duration-200 shrink-0 hover:scale-105 active:scale-95 cursor-pointer hover:shadow-sm ${themeClasses.toggleInactive}`}
                   title="More"
                >
-                  <Info className="w-3.5 h-3.5 text-emerald-500" />
+                  <Info className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
                       <span className="hidden sm:inline">More</span>
                   </button>
           </div>
@@ -341,7 +343,7 @@ export function BranchListItem({ branch, isActiveMember }: BranchCardProps) {
           <Link href={`/student/book/${branch.id}`} className="flex-none">
             <AnimatedButton 
               variant="primary"
-              className="bg-emerald-600 hover:bg-emerald-700 text-xs py-1.5 px-3 h-auto whitespace-nowrap"
+              className={`${themeClasses.button} text-xs py-1.5 px-3 h-auto whitespace-nowrap`}
             >
               Book Now
             </AnimatedButton>
@@ -353,6 +355,7 @@ export function BranchListItem({ branch, isActiveMember }: BranchCardProps) {
         isOpen={showDetails} 
         onClose={() => setShowDetails(false)} 
         isActiveMember={isActiveMember}
+        theme={theme}
         branch={{
           ...branch,
           seatCount: branch._count.seats

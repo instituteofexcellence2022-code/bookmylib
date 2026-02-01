@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { verifyBranchSubscription } from '@/actions/booking'
+import { getThemeClasses, ThemeColor } from '@/lib/utils'
 
 interface WifiDetail {
   ssid: string
@@ -27,6 +28,7 @@ interface BranchDetailsModalProps {
   isOpen: boolean
   onClose: () => void
   isActiveMember?: boolean
+  theme?: ThemeColor
   branch: {
     id?: string
     name: string
@@ -47,11 +49,12 @@ interface BranchDetailsModalProps {
   }
 }
 
-export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: BranchDetailsModalProps) {
+export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember, theme = 'emerald' }: BranchDetailsModalProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const [visiblePasswords, setVisiblePasswords] = useState<Record<number, boolean>>({})
   const [verifying, setVerifying] = useState<Record<number, boolean>>({})
+  const themeClasses = getThemeClasses(theme)
 
   const togglePassword = async (idx: number) => {
     if (visiblePasswords[idx]) {
@@ -216,7 +219,7 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: 
           {(branch.description || branch.seatCount) && (
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <Info className="w-4 h-4 text-emerald-500" />
+                <Info className={`w-4 h-4 ${themeClasses.icon}`} />
                 About
               </h3>
               <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl space-y-3">
@@ -227,7 +230,7 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: 
                 )}
                 {branch.seatCount !== undefined && (
                   <div className="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                    <Users className="w-4 h-4 text-emerald-500" />
+                    <Users className={`w-4 h-4 ${themeClasses.icon}`} />
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Seating Capacity: <span className="text-gray-900 dark:text-white">{branch.seatCount} Seats</span>
                     </span>
@@ -241,7 +244,7 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: 
           {operatingHours && (
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <Clock className="w-4 h-4 text-emerald-500" />
+                <Clock className={`w-4 h-4 ${themeClasses.icon}`} />
                 Operating Hours
               </h3>
               <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
@@ -253,7 +256,7 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: 
                        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</span>
                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                          operatingHours.is247 
-                           ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                           ? themeClasses.badge
                            : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                        }`}>
                          {operatingHours.is247 ? 'Open 24/7' : 'Standard Hours'}
@@ -292,13 +295,13 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: 
           {amenities.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <ShieldCheck className={`w-4 h-4 ${themeClasses.icon}`} />
                 Amenities
               </h3>
               <div className="grid grid-cols-2 gap-3">
                 {amenities.map((amenity, idx) => (
                   <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
-                    <amenity.icon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <amenity.icon className={`w-4 h-4 ${themeClasses.textLight}`} />
                     <span className="text-sm text-gray-700 dark:text-gray-300">{amenity.label}</span>
                   </div>
                 ))}
@@ -315,18 +318,18 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: 
               </h3>
               <div className="grid gap-3">
                 {wifiDetails.map((wifi, idx) => (
-                  <div key={idx} className="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-800/30 relative overflow-hidden">
+                  <div key={idx} className={`p-4 ${themeClasses.bgLight} rounded-xl border ${themeClasses.border} relative overflow-hidden`}>
                     <div className="absolute top-0 right-0 p-2 opacity-10">
-                      <Wifi className="w-16 h-16 text-emerald-600" />
+                      <Wifi className={`w-16 h-16 ${themeClasses.textLight}`} />
                     </div>
                     <div className="relative z-10 space-y-3">
                       <div>
-                        <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mb-1">Network Name (SSID)</p>
+                        <p className={`text-xs ${themeClasses.textLight} font-medium mb-1`}>Network Name (SSID)</p>
                         <div className="flex items-center gap-2">
                           <p className="text-base font-bold text-gray-900 dark:text-white">{wifi.ssid}</p>
                           <button 
                             onClick={() => handleCopy(wifi.ssid, `ssid-${idx}`)}
-                            className="p-1 text-emerald-600/50 hover:text-emerald-600 transition-colors"
+                            className={`p-1 ${themeClasses.textLight} opacity-50 hover:opacity-100 transition-colors`}
                           >
                             {copiedField === `ssid-${idx}` ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                           </button>
@@ -334,7 +337,7 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: 
                       </div>
                       {wifi.password && (
                         <div>
-                          <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mb-1">Password</p>
+                          <p className={`text-xs ${themeClasses.textLight} font-medium mb-1`}>Password</p>
                           <div className="flex items-center gap-2">
                             <p className="text-base font-bold text-gray-900 dark:text-white font-mono">
                                 {visiblePasswords[idx] ? wifi.password : '••••••••'}
@@ -343,7 +346,7 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: 
                             <button
                                 onClick={() => togglePassword(idx)}
                                 disabled={verifying[idx]}
-                                className="px-2 py-0.5 text-xs font-medium bg-white/50 dark:bg-black/20 text-emerald-700 dark:text-emerald-300 rounded border border-emerald-200 dark:border-emerald-800 hover:bg-white dark:hover:bg-black/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className={`px-2 py-0.5 text-xs font-medium bg-white/50 dark:bg-black/20 ${themeClasses.text} rounded border ${themeClasses.border} hover:bg-white dark:hover:bg-black/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
                             >
                                 {verifying[idx] ? 'Checking...' : (visiblePasswords[idx] ? 'Hide' : 'Show')}
                             </button>
@@ -351,7 +354,7 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: 
                             {visiblePasswords[idx] && (
                                 <button 
                                 onClick={() => handleCopy(wifi.password!, `pwd-${idx}`)}
-                                className="p-1 text-emerald-600/50 hover:text-emerald-600 transition-colors"
+                                className={`p-1 ${themeClasses.textLight} opacity-50 hover:opacity-100 transition-colors`}
                                 >
                                 {copiedField === `pwd-${idx}` ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                                 </button>
@@ -375,7 +378,7 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: 
             <div className="grid gap-3">
               {branch.managerName && (
                 <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
-                  <div className="p-2 bg-white dark:bg-gray-900 rounded-lg text-emerald-600 dark:text-emerald-400">
+                  <div className={`p-2 bg-white dark:bg-gray-900 rounded-lg ${themeClasses.textLight}`}>
                     <Users className="w-4 h-4" />
                   </div>
                   <div>
@@ -388,7 +391,7 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: 
               {branch.contactPhone && (
                 <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-white dark:bg-gray-900 rounded-lg text-emerald-600 dark:text-emerald-400">
+                    <div className={`p-2 bg-white dark:bg-gray-900 rounded-lg ${themeClasses.textLight}`}>
                       <Phone className="w-4 h-4" />
                     </div>
                     <div>
@@ -398,7 +401,7 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: 
                   </div>
                   <button 
                     onClick={() => handleCopy(branch.contactPhone!, 'phone')}
-                    className="p-2 hover:bg-white dark:hover:bg-gray-900 rounded-lg text-gray-400 hover:text-emerald-600 transition-colors"
+                    className={`p-2 hover:bg-white dark:hover:bg-gray-900 rounded-lg text-gray-400 ${themeClasses.textHover} transition-colors`}
                   >
                     {copiedField === 'phone' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   </button>
@@ -408,7 +411,7 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: 
               {branch.contactEmail && (
                 <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-white dark:bg-gray-900 rounded-lg text-emerald-600 dark:text-emerald-400">
+                    <div className={`p-2 bg-white dark:bg-gray-900 rounded-lg ${themeClasses.textLight}`}>
                       <Mail className="w-4 h-4" />
                     </div>
                     <div>
@@ -418,7 +421,7 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: 
                   </div>
                   <button 
                     onClick={() => handleCopy(branch.contactEmail!, 'email')}
-                    className="p-2 hover:bg-white dark:hover:bg-gray-900 rounded-lg text-gray-400 hover:text-emerald-600 transition-colors"
+                    className={`p-2 hover:bg-white dark:hover:bg-gray-900 rounded-lg text-gray-400 ${themeClasses.textHover} transition-colors`}
                   >
                     {copiedField === 'email' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   </button>
@@ -427,7 +430,7 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: 
 
               <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-white dark:bg-gray-900 rounded-lg text-emerald-600 dark:text-emerald-400">
+                  <div className={`p-2 bg-white dark:bg-gray-900 rounded-lg ${themeClasses.textLight}`}>
                     <MapPin className="w-4 h-4" />
                   </div>
                   <div>
@@ -442,7 +445,7 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: 
                     href={branch.mapsLink} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="p-2 hover:bg-white dark:hover:bg-gray-900 rounded-lg text-gray-400 hover:text-emerald-600 transition-colors"
+                    className={`p-2 hover:bg-white dark:hover:bg-gray-900 rounded-lg text-gray-400 ${themeClasses.textHover} transition-colors`}
                   >
                     <ExternalLink className="w-4 h-4" />
                   </a>
