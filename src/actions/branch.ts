@@ -282,6 +282,9 @@ export async function createBranch(formData: FormData) {
     }
 
     revalidatePath('/owner/branches')
+    revalidatePath(`/owner/branches/${branch.id}`)
+    revalidatePath(`/student/book/${branch.id}`)
+    revalidatePath('/student/book')
     return { success: true }
   } catch (error: any) {
     console.error('Error creating branch:', error)
@@ -388,6 +391,7 @@ export async function updateBranch(formData: FormData) {
 
     revalidatePath('/owner/branches')
     revalidatePath(`/owner/branches/${id}`)
+    revalidatePath('/student/book')
     revalidatePath(`/student/book/${id}`)
     revalidatePath(`/student/book/${id}/details`)
     return { success: true }
