@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { 
@@ -94,8 +94,31 @@ export interface BranchCardProps {
 export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
   const [showAmenities, setShowAmenities] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
+  const [showHours, setShowHours] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const amenities = getAmenities(branch.amenities)
+  
+  const hoursRef = useRef<HTMLDivElement>(null)
+  const amenitiesRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (hoursRef.current && !hoursRef.current.contains(event.target as Node)) {
+        setShowHours(false)
+      }
+      if (amenitiesRef.current && !amenitiesRef.current.contains(event.target as Node)) {
+        setShowAmenities(false)
+      }
+    }
+
+    if (showHours || showAmenities) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showHours, showAmenities])
   
   // Prioritize branch-specific plans. Only use global plans if no branch plans exist.
   const relevantPlans = (branch.plans && branch.plans.length > 0)
@@ -142,6 +165,26 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
 
   const currentImage = images.length > 0 ? images[currentImageIndex] : null
 
+  // Parse operating hours
+  let staffAvailability = '9 AM - 9 PM'
+  try {
+      if (branch.operatingHours) {
+          const hours = JSON.parse(branch.operatingHours)
+          if (hours.staffAvailableStart && hours.staffAvailableEnd) {
+              const formatTime = (time: string) => {
+                  const [h, m] = time.split(':')
+                  const hour = parseInt(h)
+                  const ampm = hour >= 12 ? 'PM' : 'AM'
+                  const hour12 = hour % 12 || 12
+                  return `${hour12} ${ampm}`
+              }
+              staffAvailability = `${formatTime(hours.staffAvailableStart)} - ${formatTime(hours.staffAvailableEnd)}`
+          }
+      }
+  } catch (e) {
+      // Fallback to default
+  }
+
   const nextImage = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -155,9 +198,9 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
   }
 
   return (
-    <div className="group bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col h-full">
+    <div className={`group bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col h-full ${(showHours || showAmenities) ? 'relative z-20' : ''}`}>
       {/* Branch Image with Overlay Badges */}
-      <div className="h-56 bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center relative overflow-hidden group/image">
+      <div className="h-56 bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center relative overflow-hidden group/image rounded-t-2xl">
         {/* Background Pattern/Image Placeholder */}
         {currentImage ? (
           <Image 
@@ -235,7 +278,7 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
         </div>
       </div>
 
-      <div className="p-5 flex-1 flex flex-col bg-white dark:bg-gray-800">
+      <div className="p-5 flex-1 flex flex-col bg-white dark:bg-gray-800 rounded-b-2xl">
         <div className="space-y-5 flex-1">
           {/* Address & Quick Stats */}
           <div className="flex flex-col gap-4">
@@ -246,61 +289,88 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
                 </span>
              </div>
              
-             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+             <div className="flex items-center gap-2 flex-wrap">
                  <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 px-2.5 py-1.5 rounded-full border border-gray-100 dark:border-gray-800 shrink-0">
                     <Users className="w-3.5 h-3.5 text-emerald-500" />
                     <span>{branch._count.seats} Seats</span>
                  </div>
-                 <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 px-2.5 py-1.5 rounded-full border border-gray-100 dark:border-gray-800 shrink-0">
-                    <Clock className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>24/7</span>
+                 <div className="relative" ref={hoursRef}>
+                    <button 
+                        onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setShowHours(!showHours)
+                        }}
+                        className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-all duration-200 shrink-0 hover:scale-105 active:scale-95 cursor-pointer hover:shadow-sm ${
+                            showHours
+                            ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800 shadow-sm ring-1 ring-emerald-500/20'
+                            : 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 border-gray-100 dark:border-gray-800 hover:bg-white dark:hover:bg-gray-800 hover:border-emerald-200 dark:hover:border-emerald-800 hover:text-emerald-600 dark:hover:text-emerald-400'
+                        }`}
+                    >
+                        <Clock className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>24/7</span>
+                    </button>
+                    {showHours && (
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-gray-900/95 backdrop-blur-md border border-gray-700/50 rounded-xl shadow-xl text-xs text-gray-300 z-50 animate-in fade-in zoom-in-95 duration-200">
+                            <div className="font-semibold text-white mb-1 flex items-center gap-1.5">
+                                <Clock className="w-3 h-3 text-emerald-400" />
+                                Operating Hours
+                            </div>
+                            <p className="leading-relaxed">
+                                Open 24/7 for members. 
+                                <span className="block mt-1 text-emerald-400/80">Staff available: {staffAvailability}</span>
+                            </p>
+                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900/95 border-r border-b border-gray-700/50 rotate-45"></div>
+                        </div>
+                    )}
+                 </div>
+                 <div className="relative" ref={amenitiesRef}>
+                    <button 
+                         onClick={(e) => {
+                         e.preventDefault()
+                         e.stopPropagation()
+                         setShowAmenities(!showAmenities)
+                         }}
+                         className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-all duration-200 shrink-0 hover:scale-105 active:scale-95 cursor-pointer hover:shadow-sm ${
+                         showAmenities 
+                             ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800 shadow-sm ring-1 ring-emerald-500/20' 
+                             : 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 border-gray-100 dark:border-gray-800 hover:bg-white dark:hover:bg-gray-800 hover:border-emerald-200 dark:hover:border-emerald-800 hover:text-emerald-600 dark:hover:text-emerald-400'
+                         }`}
+                     >
+                        <Coffee className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Amenities</span>
+                    </button>
+                    {showAmenities && (
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900/95 backdrop-blur-md border border-gray-700/50 rounded-xl shadow-xl text-xs text-gray-300 z-50 animate-in fade-in zoom-in-95 duration-200">
+                            <div className="font-semibold text-white mb-2 flex items-center gap-1.5">
+                                <Coffee className="w-3 h-3 text-emerald-400" />
+                                Amenities
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                                {amenities.map((amenity, index) => (
+                                    <div key={index} className="flex items-center gap-1.5 text-gray-300">
+                                        <amenity.icon className="w-3 h-3 text-emerald-500 shrink-0" />
+                                        <span className="truncate">{amenity.label}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900/95 border-r border-b border-gray-700/50 rotate-45"></div>
+                        </div>
+                    )}
                  </div>
                  <button 
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      setShowAmenities(!showAmenities)
-                    }}
-                    className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-all duration-200 shrink-0 ${
-                      showAmenities 
-                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800' 
-                        : 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 border-gray-100 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800'
-                    }`}
-                 >
-                    <span>Amenities</span>
-                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${showAmenities ? 'rotate-180' : ''}`} />
-                 </button>
-                 <button 
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      setShowDetails(true)
-                    }}
-                    className="flex items-center justify-center w-8 h-8 rounded-full border border-gray-100 dark:border-gray-800 text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 shrink-0"
-                    title="Details"
-                 >
-                    <Info className="w-3.5 h-3.5 text-emerald-500" />
-                 </button>
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setShowDetails(true)
+                      }}
+                      className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-all duration-200 shrink-0 hover:scale-105 active:scale-95 cursor-pointer hover:shadow-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 border-gray-100 dark:border-gray-800 hover:bg-white dark:hover:bg-gray-800 hover:border-emerald-200 dark:hover:border-emerald-800 hover:text-emerald-600 dark:hover:text-emerald-400"
+                      title="More"
+                   >
+                      <Info className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>More</span>
+                  </button>
              </div>
-
-            {/* Amenities List */}
-            <div className={`
-              overflow-hidden transition-all duration-300 ease-in-out w-full
-              ${showAmenities ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}
-            `}>
-              <div className="flex flex-wrap gap-2">
-                {amenities.map((amenity, index) => (
-                  <div 
-                    key={index}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-900/10 rounded-md border border-emerald-100 dark:border-emerald-900/20"
-                    title={amenity.label}
-                  >
-                    <amenity.icon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">{amenity.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
 

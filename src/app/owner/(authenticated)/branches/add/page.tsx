@@ -86,6 +86,8 @@ export default function AddBranchPage() {
     openingTime: '09:00',
     closingTime: '21:00',
     is247: false,
+    staffAvailableStart: '09:00',
+    staffAvailableEnd: '21:00',
     workingDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
     images: [] as string[],
     imageFiles: [] as File[],
@@ -332,6 +334,8 @@ export default function AddBranchPage() {
         openingTime: formData.openingTime,
         closingTime: formData.closingTime,
         is247: formData.is247,
+        staffAvailableStart: formData.staffAvailableStart,
+        staffAvailableEnd: formData.staffAvailableEnd,
         workingDays: formData.workingDays
       }
       formDataToSend.append('operatingHours', JSON.stringify(operatingHours))
@@ -625,6 +629,21 @@ export default function AddBranchPage() {
                     Branch will be marked as Open 24 Hours
                   </p>
                 )}
+
+                <div className="grid grid-cols-2 gap-4 border-t border-gray-100 dark:border-gray-800 pt-4">
+                  <FormInput
+                    label="Staff Available From"
+                    type="time"
+                    value={formData.staffAvailableStart}
+                    onChange={e => setFormData({...formData, staffAvailableStart: e.target.value})}
+                  />
+                  <FormInput
+                    label="Staff Available Until"
+                    type="time"
+                    value={formData.staffAvailableEnd}
+                    onChange={e => setFormData({...formData, staffAvailableEnd: e.target.value})}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">

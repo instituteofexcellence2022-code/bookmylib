@@ -9,6 +9,7 @@ interface BranchHeaderProps {
         name: string
         address: string
         city: string
+        operatingHours?: string | null
     }
     images: string[]
 }
@@ -39,6 +40,26 @@ export default function BranchHeader({ branch, images }: BranchHeaderProps) {
         { icon: Droplets, label: 'RO Water' },
         { icon: Car, label: 'Parking' },
     ]
+
+    // Parse operating hours
+    let staffAvailability = '9 AM - 9 PM'
+    try {
+        if (branch.operatingHours) {
+            const hours = JSON.parse(branch.operatingHours)
+            if (hours.staffAvailableStart && hours.staffAvailableEnd) {
+                const formatTime = (time: string) => {
+                    const [h, m] = time.split(':')
+                    const hour = parseInt(h)
+                    const ampm = hour >= 12 ? 'PM' : 'AM'
+                    const hour12 = hour % 12 || 12
+                    return `${hour12} ${ampm}`
+                }
+                staffAvailability = `${formatTime(hours.staffAvailableStart)} - ${formatTime(hours.staffAvailableEnd)}`
+            }
+        }
+    } catch (e) {
+        // Fallback to default
+    }
 
     return (
         <div className="rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm relative overflow-hidden min-h-[250px] flex flex-col justify-end group">
@@ -138,7 +159,7 @@ export default function BranchHeader({ branch, images }: BranchHeaderProps) {
                                                 </div>
                                                 <p className="leading-relaxed">
                                                     The library is open 24/7 for members. 
-                                                    <span className="block mt-1 text-emerald-400/80">Staff available 9 AM - 9 PM.</span>
+                                                    <span className="block mt-1 text-emerald-400/80">Staff available {staffAvailability}.</span>
                                                 </p>
                                                 <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900/95 border-r border-b border-gray-700/50 rotate-45"></div>
                                             </div>
