@@ -204,11 +204,11 @@ export async function createStudent(formData: FormData) {
     // Optional fields
     const dob = formData.get('dob') as string
     const gender = formData.get('gender') as string
-    const address = formData.get('address') as string
-    const area = formData.get('area') as string
-    const city = formData.get('city') as string
-    const state = formData.get('state') as string
-    const pincode = formData.get('pincode') as string
+    const address = formData.get('address') as string || null
+    const area = formData.get('area') as string || null
+    const city = formData.get('city') as string || null
+    const state = formData.get('state') as string || null
+    const pincode = formData.get('pincode') as string || null
     const guardianName = formData.get('guardianName') as string
     const guardianPhone = formData.get('guardianPhone') as string
 

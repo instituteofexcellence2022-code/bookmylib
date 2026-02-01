@@ -18,11 +18,11 @@ const studentSchema = z.object({
     branchId: z.string().min(1, 'Please select a branch'),
     dob: z.string().optional(),
     gender: z.string().min(1, 'Please select a gender'),
-    address: z.string().min(5, 'Address is too short').or(z.literal('')),
-    pincode: z.string().regex(/^\d{6}$/, 'Pincode must be exactly 6 digits'),
-    area: z.string().min(1, 'Area is required'),
-    city: z.string().min(1, 'City is required'),
-    state: z.string().min(1, 'State is required'),
+    address: z.string().optional(),
+    pincode: z.string().regex(/^\d{6}$/, 'Pincode must be exactly 6 digits').or(z.literal('')),
+    area: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
     guardianName: z.string().min(2, 'Guardian name must be at least 2 characters').or(z.literal('')),
     guardianPhone: z.string().regex(/^\d{10}$/, 'Guardian phone must be exactly 10 digits').or(z.literal(''))
 }).superRefine((data, ctx) => {
