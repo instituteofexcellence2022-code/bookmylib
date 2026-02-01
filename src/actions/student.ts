@@ -300,6 +300,7 @@ export async function getStudentReferralData() {
         where: { id: studentId },
         include: {
             library: true,
+            branch: true,
             referralsMade: {
                 include: {
                     referee: true,
@@ -348,6 +349,7 @@ export async function getStudentReferralData() {
                 data: { referralCode: newCode },
                 include: {
                     library: true,
+                    branch: true,
                     referralsMade: {
                         include: {
                             referee: true,
@@ -383,6 +385,7 @@ export async function getStudentReferralData() {
         referralCode: student.referralCode,
         referrals: student.referralsMade,
         libraryName: student.library?.name,
+        branchName: student.branch?.name,
         settings,
         stats: {
             totalReferrals,

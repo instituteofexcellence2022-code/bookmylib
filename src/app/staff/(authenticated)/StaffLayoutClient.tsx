@@ -12,7 +12,8 @@ import {
   AlertTriangle, 
   UserCircle,
   Settings,
-  NotebookTabs
+  NotebookTabs,
+  ShieldCheck
 } from 'lucide-react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { TopBar } from '@/components/layout/TopBar'
@@ -33,6 +34,7 @@ const navItems = [
 
   // Finance
   { href: '/staff/finance', label: 'Finance', icon: IndianRupee, group: 'Finance' },
+  { href: '/staff/verification', label: 'Verification', icon: ShieldCheck, group: 'Finance' },
   { href: '/staff/khatabook', label: 'Khatabook', icon: NotebookTabs, group: 'Finance' },
 
   // Others

@@ -925,6 +925,10 @@ export async function verifyPayment(paymentId: string, status: 'completed' | 'fa
 
     revalidatePath('/owner/finance')
     revalidatePath('/staff/finance')
+    revalidatePath('/owner/verification')
+    revalidatePath('/staff/verification')
+    revalidatePath('/staff/khatabook')
+    revalidatePath('/owner/khatabook')
     return { success: true }
   } catch (error) {
     console.error('Verify payment error:', error)

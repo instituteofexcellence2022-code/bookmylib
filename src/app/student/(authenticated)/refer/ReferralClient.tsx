@@ -33,6 +33,7 @@ interface ReferralClientProps {
         referralCode: string | null
         referrals: Referral[]
         libraryName: string | null | undefined
+        branchName?: string | null | undefined
         settings: ReferralSettings
         stats: {
             totalReferrals: number
@@ -43,7 +44,7 @@ interface ReferralClientProps {
 }
 
 export default function ReferralClient({ data }: ReferralClientProps) {
-    const { referralCode, referrals, libraryName, settings, stats } = data
+    const { referralCode, referrals, libraryName, branchName, settings, stats } = data
     const [copied, setCopied] = useState(false)
 
     // Extract settings with fallback to support both old and new formats
@@ -83,7 +84,7 @@ export default function ReferralClient({ data }: ReferralClientProps) {
 
     const shareOnWhatsApp = () => {
         if (!code) return
-        const text = `Join ${libraryName || 'BookMyLib'} using my referral code *${code}* and get a discount! Sign up here: ${shareUrl}`
+        const text = `Join ${branchName || 'BookMyLib'} using my referral code *${code}* and get a discount! Sign up here: ${shareUrl}`
         window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
     }
 
@@ -94,7 +95,7 @@ export default function ReferralClient({ data }: ReferralClientProps) {
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Refer & Earn</h1>
                     <p className="text-gray-600 dark:text-gray-400 mt-1">
-                        Invite friends to {libraryName || 'the library'} and earn rewards.
+                        Invite friends to {branchName || 'the library'} and earn rewards.
                     </p>
                 </div>
                 
