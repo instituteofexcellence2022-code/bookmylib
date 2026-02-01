@@ -201,6 +201,19 @@ export async function createBranch(formData: FormData) {
     
     const wifiDetailsStr = formData.get('wifiDetails') as string
     const wifiDetails = wifiDetailsStr ? JSON.parse(wifiDetailsStr) : []
+    
+    const upiId = formData.get('upiId') as string
+    const payeeName = formData.get('payeeName') as string
+
+    // Validate UPI ID if provided
+    if (upiId && !/^[\w.-]+@[\w.-]+$/.test(upiId)) {
+      return { success: false, error: 'Invalid UPI ID format (e.g. username@bank)' }
+    }
+
+    // Validate UPI ID if provided
+    if (upiId && !/^[\w.-]+@[\w.-]+$/.test(upiId)) {
+      return { success: false, error: 'Invalid UPI ID format (e.g. username@bank)' }
+    }
 
     console.log('Creating branch:', { name, libraryRules })
 
@@ -243,7 +256,9 @@ export async function createBranch(formData: FormData) {
         mapsLink,
         images,
         wifiDetails,
-        libraryRules
+        libraryRules,
+        upiId,
+        payeeName
       }
     })
 
@@ -310,6 +325,14 @@ export async function updateBranch(formData: FormData) {
     
     const wifiDetailsStr = formData.get('wifiDetails') as string
     const wifiDetails = wifiDetailsStr ? JSON.parse(wifiDetailsStr) : []
+    
+    const upiId = formData.get('upiId') as string
+    const payeeName = formData.get('payeeName') as string
+
+    // Validate UPI ID if provided
+    if (upiId && !/^[\w.-]+@[\w.-]+$/.test(upiId)) {
+      return { success: false, error: 'Invalid UPI ID format (e.g. username@bank)' }
+    }
 
     // Handle Image Uploads
     const existingImagesRaw = formData.get('existingImages') as string
@@ -357,7 +380,9 @@ export async function updateBranch(formData: FormData) {
         mapsLink,
         images,
         wifiDetails,
-        libraryRules
+        libraryRules,
+        upiId,
+        payeeName
       }
     })
 

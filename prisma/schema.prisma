@@ -107,6 +107,8 @@ model Branch {
   operatingHours Json?
   amenities    String?   // JSON structure for amenities
   libraryRules Json?
+  upiId        String?
+  payeeName    String?
   qrCode       String?   @unique // Unique token for QR code attendance
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import { 
   CreditCard, Banknote, QrCode, Building, 
   AlertCircle, Check 
@@ -38,6 +39,8 @@ interface BookingPaymentProps {
   branchId: string
   adjustmentAmount?: number
   adjustmentLabel?: string
+  upiId?: string
+  payeeName?: string
   onSuccess: (paymentId?: string, status?: 'completed' | 'pending_verification') => void
   onBack: () => void
 }
@@ -49,6 +52,8 @@ export default function BookingPayment({
   branchId, 
   adjustmentAmount = 0,
   adjustmentLabel = 'Adjustment',
+  upiId,
+  payeeName,
   onSuccess, 
   onBack 
 }: BookingPaymentProps) {
@@ -61,12 +66,33 @@ export default function BookingPayment({
     details: unknown
   } | null>(null)
   const [processing, setProcessing] = useState(false)
+  const [transactionId, setTransactionId] = useState('')
   const [proofUrl, setProofUrl] = useState<string | null>(null)
 
   // Calculate Base Total (Plan + Fees)
   const feesTotal = fees.reduce((sum: number, fee) => sum + fee.amount, 0)
   const baseTotal = plan.price + feesTotal
   const subTotal = Math.max(0, baseTotal - adjustmentAmount)
+  
+  // Calculate Final Amount
+  const finalAmount = appliedCoupon ? appliedCoupon.finalAmount : subTotal
+
+  // Generate UPI Link
+  const upiLink = React.useMemo(() => {
+    if (!upiId) return ''
+    
+    const params = new URLSearchParams()
+    params.append('pa', upiId) // Payee Address
+    params.append('pn', payeeName || 'Library') // Payee Name
+    params.append('am', finalAmount.toString()) // Amount
+    params.append('cu', 'INR') // Currency
+    
+    // Transaction Note (tn) - Keep it short and safe
+    const note = `Pay for ${plan.name}`.substring(0, 50)
+    params.append('tn', note)
+
+    return `upi://pay?${params.toString()}`
+  }, [upiId, payeeName, finalAmount, plan.name])
 
   const handleApplyCoupon = async () => {
     if (!couponCode) return
@@ -154,6 +180,7 @@ export default function BookingPayment({
         formData.append('description', description)
         formData.append('branchId', branchId)
         if (proofUrl) formData.append('proofUrl', proofUrl)
+        if (transactionId) formData.append('transactionId', transactionId)
         if (appliedCoupon) formData.append('couponCode', appliedCoupon.code)
 
         const result = await createManualPayment(formData)
@@ -268,8 +295,11 @@ export default function BookingPayment({
                {[
                    { id: 'razorpay', label: 'Razorpay', icon: CreditCard, desc: 'Cards, UPI' },
                    { id: 'cashfree', label: 'Cashfree', icon: Banknote, desc: 'Secure Gateway' },
-                   { id: 'upi_app', label: 'UPI App', icon: QrCode, desc: 'PhonePe/GPay' },
-                   { id: 'qr_code', label: 'Library QR', icon: QrCode, desc: 'Scan & Pay' },
+                   // Only show UPI options if UPI ID is configured
+                   ...(upiId ? [
+                     { id: 'upi_app', label: 'UPI App', icon: QrCode, desc: 'PhonePe/GPay' },
+                     { id: 'qr_code', label: 'Library QR', icon: QrCode, desc: 'Scan to Pay' }
+                   ] : [])
                ].map((method) => (
                    <button
                    key={method.id}
@@ -384,21 +414,66 @@ export default function BookingPayment({
       {/* Manual Payment Proof */}
       {['upi_app', 'qr_code', 'front_desk'].includes(paymentMethod) && (
         <div className="mb-6 space-y-3 animate-in fade-in slide-in-from-top-2">
+          
+          {/* Dynamic UPI Section */}
+          {paymentMethod !== 'front_desk' && upiId && (
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 mb-4 flex flex-col items-center gap-4 text-center">
+               {paymentMethod === 'qr_code' ? (
+                  <>
+                    <div className="bg-white p-3 rounded-lg border shadow-sm">
+                      <QRCodeSVG value={upiLink} size={160} level="M" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">Scan to Pay ₹{finalAmount}</p>
+                      <p className="text-xs text-gray-500">Using any UPI App (GPay, PhonePe, Paytm)</p>
+                    </div>
+                    {/* Always show Pay via App button below QR on mobile as fallback */}
+                    <div className="block md:hidden w-full">
+                         <a 
+                           href={upiLink}
+                           className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white font-medium py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm"
+                         >
+                           <QrCode className="w-4 h-4" />
+                           Open UPI App
+                         </a>
+                    </div>
+                  </>
+               ) : (
+                 <>
+                    <a 
+                      href={upiLink}
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm animate-pulse"
+                    >
+                      <QrCode className="w-5 h-5" />
+                      Pay ₹{finalAmount} via UPI App
+                    </a>
+                    <p className="text-xs text-gray-500">Clicking this will open your installed UPI app (GPay, PhonePe, etc.) with the amount pre-filled.</p>
+                 </>
+               )}
+            </div>
+          )}
+
           <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800 flex gap-2">
             <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0" />
-            <p className="text-xs text-yellow-700 dark:text-yellow-400">
-              {paymentMethod === 'front_desk' 
-                ? 'Please pay at the desk. Your booking will be pending verification.'
-                : 'Please scan/pay and upload a screenshot. Your booking will be pending verification.'}
-            </p>
+            <div className="text-xs text-yellow-700 dark:text-yellow-400">
+              {paymentMethod === 'front_desk' ? (
+                <p>Please pay cash to library staff/owner. Your booking will be pending verification till they mark as accept.</p>
+              ) : (
+                <div className="space-y-1">
+                    {!upiId && <p className="font-semibold">Scan QR Code available at the Library Desk</p>}
+                    <p>After payment, please enter the Transaction ID / UTR below for verification.</p>
+                </div>
+              )}
+            </div>
           </div>
           
           {paymentMethod !== 'front_desk' && (
              <FormInput
-               label="Transaction ID / Proof URL"
-               placeholder="Enter Transaction Ref No."
-               value={proofUrl || ''}
-               onChange={(e) => setProofUrl(e.target.value)}
+               label="Transaction ID / UTR (Required)"
+               placeholder="Enter 12-digit UPI Reference ID"
+               value={transactionId}
+               onChange={(e) => setTransactionId(e.target.value)}
+               required
              />
           )}
         </div>

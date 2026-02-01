@@ -599,6 +599,7 @@ export async function createManualPayment(formData: FormData) {
   const type = formData.get('type') as string
   const relatedId = formData.get('relatedId') as string
   let description = formData.get('description') as string
+  const transactionId = formData.get('transactionId') as string
   const proofUrl = formData.get('proofUrl') as string // In real app, upload file and get URL
   const branchId = formData.get('branchId') as string
 
@@ -688,6 +689,7 @@ export async function createManualPayment(formData: FormData) {
         type,
         relatedId,
         description,
+        transactionId,
         proofUrl,
         promotionId,
         discountAmount
@@ -831,14 +833,22 @@ export async function verifyPayment(paymentId: string, status: 'completed' | 'fa
     if (!payment) return { success: false, error: 'Payment not found' }
 
     // Update Payment
+    const updateData: any = {
+      status,
+      verifiedBy: verifierId,
+      verifiedAt: new Date(),
+      verifierRole
+    }
+
+    // If payment is being completed and has no collector (e.g. manual payment),
+    // mark the verifier as the collector for finance tracking.
+    if (status === 'completed' && !payment.collectedBy) {
+      updateData.collectedBy = verifierId
+    }
+
     await prisma.payment.update({
       where: { id: paymentId },
-      data: {
-        status,
-        verifiedBy: verifierId,
-        verifiedAt: new Date(),
-        verifierRole
-      }
+      data: updateData
     })
 
     // If completed and subscription, activate it

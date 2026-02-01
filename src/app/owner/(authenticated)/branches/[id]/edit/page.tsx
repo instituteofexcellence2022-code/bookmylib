@@ -36,7 +36,8 @@ import {
   Lock,
   BookOpen,
   ShieldCheck,
-  Book
+  Book,
+  CreditCard
 } from 'lucide-react'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { CompactCard } from '@/components/ui/AnimatedCard'
@@ -100,7 +101,9 @@ export default function EditBranchPage() {
     images: [] as string[],
     imageFiles: [] as File[],
     wifiCredentials: [{ ssid: '', password: '' }],
-    libraryRules: [] as string[]
+    libraryRules: [] as string[],
+    upiId: '',
+    payeeName: ''
   })
 
   useEffect(() => {
@@ -197,6 +200,8 @@ export default function EditBranchPage() {
               openingTime: operatingHours.openingTime || '09:00',
               closingTime: operatingHours.closingTime || '21:00',
               is247: operatingHours.is247 || false,
+              upiId: (data as any).upiId || '',
+              payeeName: (data as any).payeeName || '',
               staffAvailableStart: operatingHours.staffAvailableStart || '09:00',
               staffAvailableEnd: operatingHours.staffAvailableEnd || '21:00',
               workingDays: operatingHours.workingDays || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
@@ -468,6 +473,10 @@ export default function EditBranchPage() {
       formDataToSend.append('area', formData.area)
       formDataToSend.append('description', formData.description)
       formDataToSend.append('mapsLink', formData.mapsLink)
+
+      // Payment Details
+      formDataToSend.append('upiId', formData.upiId)
+      formDataToSend.append('payeeName', formData.payeeName)
 
       // Handle Images
       // 1. Existing images (where imageFile is null)
@@ -800,6 +809,33 @@ export default function EditBranchPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </CompactCard>
+
+        <CompactCard>
+          <div className="space-y-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              Payment Configuration
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormInput
+                label="UPI ID (VPA)"
+                value={formData.upiId}
+                onChange={e => setFormData({...formData, upiId: e.target.value})}
+                placeholder="e.g. merchant@upi"
+              />
+              <FormInput
+                label="Payee Name"
+                value={formData.payeeName}
+                onChange={e => setFormData({...formData, payeeName: e.target.value})}
+                placeholder="e.g. Library Name"
+              />
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              These details will be used to generate dynamic QR codes for student payments.
+            </p>
           </div>
         </CompactCard>
 

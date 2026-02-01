@@ -36,7 +36,8 @@ import {
   Sparkles,
   BookOpen,
   ShieldCheck,
-  Book
+  Book,
+  CreditCard
 } from 'lucide-react'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { CompactCard } from '@/components/ui/AnimatedCard'
@@ -96,7 +97,9 @@ export default function AddBranchPage() {
     images: [] as string[],
     imageFiles: [] as File[],
     wifiCredentials: [{ ssid: '', password: '' }],
-    libraryRules: [] as string[]
+    libraryRules: [] as string[],
+    upiId: '',
+    payeeName: ''
   }
 
   const [formData, setFormData] = useState(initialFormData)
@@ -331,6 +334,10 @@ export default function AddBranchPage() {
       formDataToSend.append('description', formData.description)
       formDataToSend.append('mapsLink', formData.mapsLink)
       
+      // Payment Details
+      formDataToSend.append('upiId', formData.upiId)
+      formDataToSend.append('payeeName', formData.payeeName)
+
       // Append image files
       formData.imageFiles.forEach(file => {
         formDataToSend.append('imageFiles', file)
@@ -701,6 +708,33 @@ export default function AddBranchPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </CompactCard>
+
+        <CompactCard>
+          <div className="space-y-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              Payment Configuration
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormInput
+                label="UPI ID (VPA)"
+                value={formData.upiId}
+                onChange={e => setFormData({...formData, upiId: e.target.value})}
+                placeholder="e.g. merchant@upi"
+              />
+              <FormInput
+                label="Payee Name"
+                value={formData.payeeName}
+                onChange={e => setFormData({...formData, payeeName: e.target.value})}
+                placeholder="e.g. Library Name"
+              />
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              These details will be used to generate dynamic QR codes for student payments.
+            </p>
           </div>
         </CompactCard>
 

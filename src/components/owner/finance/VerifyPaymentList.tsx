@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { getPendingPayments, verifyPayment } from '@/actions/owner/finance'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
-import { Check, X, ExternalLink, Loader2, Image as ImageIcon } from 'lucide-react'
+import { Check, X, ExternalLink, Loader2, Image as ImageIcon, Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
 
@@ -141,10 +141,24 @@ export function VerifyPaymentList() {
                                     </span>
                                 </div>
                                 <div className="flex justify-between sm:block border-b sm:border-0 border-gray-100 dark:border-gray-800 pb-1 sm:pb-0">
-                                    <span className="text-gray-500 sm:block">Transaction ID</span>
-                                    <span className="font-mono text-gray-900 dark:text-white text-xs">
-                                        {payment.transactionId || 'N/A'}
-                                    </span>
+                                    <span className="text-gray-500 sm:block">Transaction ID / UTR</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-mono text-gray-900 dark:text-white font-medium bg-gray-50 dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
+                                            {payment.transactionId || 'N/A'}
+                                        </span>
+                                        {payment.transactionId && (
+                                            <button 
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(payment.transactionId!)
+                                                    toast.success('UTR Copied')
+                                                }}
+                                                className="text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors p-1"
+                                                title="Copy UTR"
+                                            >
+                                                <Copy size={14} />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="flex justify-between sm:block">
                                     <span className="text-gray-500 sm:block">Date</span>
