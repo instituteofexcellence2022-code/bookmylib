@@ -177,6 +177,7 @@ export async function createBranch(formData: FormData) {
     const name = formData.get('name') as string
     const address = formData.get('address') as string
     const city = formData.get('city') as string
+    const district = formData.get('district') as string
     const state = formData.get('state') as string
     const pincode = formData.get('pincode') as string
     const contactPhone = formData.get('contactPhone') as string
@@ -227,6 +228,7 @@ export async function createBranch(formData: FormData) {
         name,
         address,
         city,
+        district,
         state,
         pincode,
         contactPhone,
@@ -283,6 +285,7 @@ export async function updateBranch(formData: FormData) {
     const name = formData.get('name') as string
     const address = formData.get('address') as string
     const city = formData.get('city') as string
+    const district = formData.get('district') as string
     const state = formData.get('state') as string
     const pincode = formData.get('pincode') as string
     const contactPhone = formData.get('contactPhone') as string
@@ -339,6 +342,7 @@ export async function updateBranch(formData: FormData) {
         name,
         address,
         city,
+        district,
         state,
         pincode,
         contactPhone,

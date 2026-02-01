@@ -92,6 +92,7 @@ model Branch {
   name        String
   address     String
   city        String
+  district    String?
   state       String
   pincode     String
   contactPhone String?

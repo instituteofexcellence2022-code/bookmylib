@@ -318,6 +318,7 @@ export default function AddBranchPage() {
       // Send raw street address as 'address' since we have separate fields for area, city, etc.
       formDataToSend.append('address', formData.street)
       formDataToSend.append('city', formData.city)
+      formDataToSend.append('district', formData.district)
       formDataToSend.append('state', formData.state)
       formDataToSend.append('pincode', formData.zipCode)
       formDataToSend.append('contactPhone', formData.phone)

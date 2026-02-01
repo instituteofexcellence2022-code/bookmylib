@@ -147,6 +147,7 @@ export default function EditBranchPage() {
           setFormData(prev => {
             // Determine City and State: Use DB data if available, else fallback to Pincode data
             const effectiveCity = data.city || fetchedDetails?.District || ''
+            const effectiveDistrict = (data as any).district || fetchedDetails?.District || ''
             const effectiveState = data.state || fetchedDetails?.State || ''
             
             // Populate street address with robust cleanup
@@ -159,6 +160,7 @@ export default function EditBranchPage() {
                    data.area,
                    effectiveCity,
                    effectiveState,
+                   effectiveDistrict,
                    fetchedDetails?.District,
                    // Also exclude all potential areas from this pincode to be safe
                    ...fetchedAreas
@@ -187,6 +189,7 @@ export default function EditBranchPage() {
               phone: data.contactPhone || '',
               street: cleanStreet,
               city: effectiveCity,
+              district: effectiveDistrict,
               state: effectiveState,
               zipCode: data.pincode || '',
               status: data.isActive ? 'active' : 'maintenance',
@@ -453,6 +456,7 @@ export default function EditBranchPage() {
       // Send raw street address as 'address' since we have separate fields for area, city, etc.
       formDataToSend.append('address', formData.street)
       formDataToSend.append('city', formData.city)
+      formDataToSend.append('district', formData.district)
       formDataToSend.append('state', formData.state)
       formDataToSend.append('pincode', formData.zipCode)
       formDataToSend.append('contactPhone', formData.phone)
