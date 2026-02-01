@@ -201,7 +201,7 @@ export default function Home() {
           ${activeRole === 'owner' ? 'bg-amber-500' : activeRole === 'staff' ? 'bg-emerald-500' : activeRole === 'student' ? 'bg-blue-500' : 'bg-teal-500'}`} 
         />
         <div className={`absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full blur-[100px] opacity-20 transition-colors duration-700
-          ${activeRole === 'owner' ? 'bg-blue-500' : activeRole === 'staff' ? 'bg-teal-500' : activeRole === 'student' ? 'bg-cyan-500' : 'bg-emerald-500'}`} 
+          ${activeRole === 'owner' ? 'bg-orange-500' : activeRole === 'staff' ? 'bg-teal-500' : activeRole === 'student' ? 'bg-cyan-500' : 'bg-emerald-500'}`} 
         />
       </div>
 
