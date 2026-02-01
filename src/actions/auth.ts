@@ -19,6 +19,49 @@ export async function logout() {
     return { success: true }
 }
 
+import { getAuthenticatedOwner } from '@/lib/auth/owner'
+import { getAuthenticatedStaff } from '@/lib/auth/staff'
+import { getAuthenticatedStudent } from '@/lib/auth/student'
+
+export async function getCurrentUser() {
+    const cookieStore = await cookies()
+    
+    if (cookieStore.has(COOKIE_KEYS.OWNER)) {
+        const owner = await getAuthenticatedOwner()
+        if (owner) return { 
+            name: owner.name, 
+            image: null, 
+            initials: owner.name.substring(0, 2).toUpperCase(),
+            role: 'owner',
+            link: '/owner/dashboard'
+        }
+    }
+    
+    if (cookieStore.has(COOKIE_KEYS.STAFF)) {
+        const staff = await getAuthenticatedStaff()
+        if (staff) return { 
+            name: staff.name, 
+            image: staff.image, 
+            initials: staff.name.substring(0, 2).toUpperCase(),
+            role: 'staff',
+            link: '/staff/dashboard'
+        }
+    }
+    
+    if (cookieStore.has(COOKIE_KEYS.STUDENT)) {
+        const student = await getAuthenticatedStudent()
+        if (student) return { 
+            name: student.name, 
+            image: student.image, 
+            initials: student.name.substring(0, 2).toUpperCase(),
+            role: 'student',
+            link: '/student/home'
+        }
+    }
+    
+    return null
+}
+
 // --- Owner Auth ---
 
 export async function registerOwner(formData: FormData) {

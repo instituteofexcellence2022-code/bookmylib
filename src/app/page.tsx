@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { 
@@ -19,11 +19,14 @@ import {
   Wallet,
   Lock,
   Scroll,
-  ArrowRight
+  ArrowRight,
+  LogOut,
+  User
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { getCurrentUser, logout } from '@/actions/auth'
 
 type Role = 'owner' | 'staff' | 'student'
 
@@ -85,12 +88,45 @@ export default function Home() {
   const router = useRouter()
   const [activeRole, setActiveRole] = useState<Role>('student')
   const [mounted, setMounted] = useState(false)
+  const [user, setUser] = useState<{ name: string, image?: string | null, initials: string, role: string, link: string } | null>(null)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     // This effect runs only once after the initial render to indicate the component has mounted.
     // It's used to prevent hydration mismatches for client-side only content.
     setMounted(true)
+
+    // Check for session cookies to determine if user is logged in
+    const checkSession = async () => {
+      try {
+        const userData = await getCurrentUser()
+        setUser(userData)
+      } catch (error) {
+        console.error('Failed to check session:', error)
+      }
+    }
+    
+    checkSession()
+    
+    // Close dropdown when clicking outside
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
   }, [])
+
+  const handleLogout = async () => {
+    await logout()
+    setUser(null)
+    setIsDropdownOpen(false)
+    router.refresh()
+  }
 
   if (!mounted) {
     return (
@@ -140,7 +176,77 @@ export default function Home() {
             BookMyLib
           </span>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          {user && (
+            <div className="relative" ref={dropdownRef}>
+              <button 
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="group relative flex items-center gap-2 p-1 pr-3 rounded-full bg-white/10 backdrop-blur-sm border border-gray-200/20 hover:bg-white/20 dark:bg-gray-800/50 dark:hover:bg-gray-800 transition-all text-foreground focus:outline-none"
+                title="Account Menu"
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm shadow-sm ring-2 ring-white/20 dark:ring-gray-800/20 group-hover:ring-blue-500/50 transition-all">
+                  {user.image ? (
+                    <img src={user.image} alt={user.name} className="w-full h-full rounded-full object-cover" />
+                  ) : (
+                    user.initials
+                  )}
+                </div>
+                <span className="text-sm font-medium max-w-[100px] truncate hidden sm:block opacity-90 group-hover:opacity-100 transition-opacity">
+                  {user.name.split(' ')[0]}
+                </span>
+              </button>
+
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
+                  <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{user.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user.role}</p>
+                  </div>
+                  
+                  <div className="p-1">
+                    <Link 
+                      href={user.link}
+                      className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      <LayoutDashboard size={16} />
+                      Dashboard
+                    </Link>
+                    <Link 
+                      href={`/${user.role}/profile`}
+                      className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      <User size={16} />
+                      My Profile
+                    </Link>
+                    <Link 
+                      href={`/${user.role}/settings`}
+                      className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      <Settings size={16} />
+                      Settings
+                    </Link>
+                  </div>
+                  
+                  <div className="h-px bg-gray-100 dark:bg-gray-700 my-1" />
+                  
+                  <div className="p-1">
+                    <button 
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors"
+                    >
+                      <LogOut size={16} />
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </nav>
 
       <main className="relative z-10 max-w-7xl mx-auto px-6 pt-10 pb-20">

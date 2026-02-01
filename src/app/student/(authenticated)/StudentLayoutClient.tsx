@@ -12,7 +12,8 @@ import {
   AlertCircle,
   Bell,
   Gift,
-  CalendarCheck
+  CalendarCheck,
+  ArrowLeft
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
@@ -31,6 +32,7 @@ const navItems = [
   { href: '/student/issues', label: 'Issues', icon: AlertCircle },
   { href: '/student/notifications', label: 'Updates', icon: Bell },
   { href: '/student/profile', label: 'Profile', icon: User },
+  { href: '/', label: 'Back to Home', icon: ArrowLeft },
 ]
 
 interface StudentLayoutClientProps {
