@@ -52,8 +52,8 @@ export async function getOwnerBranches() {
       staff: branch.staff.length,
       revenue: 0, 
       amenities: safeParse(branch.amenities, []),
-      operatingHours: safeParse(branch.operatingHours, null),
-      libraryRules: safeParse(branch.libraryRules, []),
+      operatingHours: branch.operatingHours,
+      libraryRules: branch.libraryRules || [],
       status: branch.isActive ? 'active' : 'maintenance' // Map boolean to string status
     }))
 
@@ -154,8 +154,8 @@ export async function getBranchById(id: string) {
        lastMonthRevenue: lastMonthRevenueAgg._sum.amount || 0,
       revenueData,
       amenities: safeParse(branch.amenities, []),
-      operatingHours: safeParse(branch.operatingHours, null),
-      libraryRules: safeParse(branch.libraryRules, []),
+      operatingHours: branch.operatingHours,
+      libraryRules: branch.libraryRules || [],
       status: branch.isActive ? 'active' : 'maintenance'
     }
   } catch (error) {
@@ -181,9 +181,14 @@ export async function createBranch(formData: FormData) {
     const pincode = formData.get('pincode') as string
     const contactPhone = formData.get('contactPhone') as string
     const amenities = formData.get('amenities') as string 
-    const operatingHours = formData.get('operatingHours') as string 
+    
+    const operatingHoursStr = formData.get('operatingHours') as string 
+    const operatingHours = operatingHoursStr ? JSON.parse(operatingHoursStr) : null
+
     const status = formData.get('status') as string
-    const libraryRules = formData.get('libraryRules') as string
+    
+    const libraryRulesStr = formData.get('libraryRules') as string
+    const libraryRules = libraryRulesStr ? JSON.parse(libraryRulesStr) : []
 
     // New fields
     const contactEmail = formData.get('contactEmail') as string
@@ -192,7 +197,9 @@ export async function createBranch(formData: FormData) {
     const area = formData.get('area') as string
     const description = formData.get('description') as string
     const mapsLink = formData.get('mapsLink') as string
-    const wifiDetails = formData.get('wifiDetails') as string
+    
+    const wifiDetailsStr = formData.get('wifiDetails') as string
+    const wifiDetails = wifiDetailsStr ? JSON.parse(wifiDetailsStr) : []
 
     console.log('Creating branch:', { name, libraryRules })
 
@@ -280,9 +287,14 @@ export async function updateBranch(formData: FormData) {
     const pincode = formData.get('pincode') as string
     const contactPhone = formData.get('contactPhone') as string
     const amenities = formData.get('amenities') as string 
-    const operatingHours = formData.get('operatingHours') as string
+    
+    const operatingHoursStr = formData.get('operatingHours') as string
+    const operatingHours = operatingHoursStr ? JSON.parse(operatingHoursStr) : null
+
     const status = formData.get('status') as string
-    const libraryRules = formData.get('libraryRules') as string
+    
+    const libraryRulesStr = formData.get('libraryRules') as string
+    const libraryRules = libraryRulesStr ? JSON.parse(libraryRulesStr) : []
 
     // New fields
     const contactEmail = formData.get('contactEmail') as string
@@ -292,7 +304,9 @@ export async function updateBranch(formData: FormData) {
     const description = formData.get('description') as string
     console.log('Updating branch:', { id, description, libraryRules: formData.get('libraryRules') })
     const mapsLink = formData.get('mapsLink') as string
-    const wifiDetails = formData.get('wifiDetails') as string
+    
+    const wifiDetailsStr = formData.get('wifiDetails') as string
+    const wifiDetails = wifiDetailsStr ? JSON.parse(wifiDetailsStr) : []
 
     // Handle Image Uploads
     const existingImagesRaw = formData.get('existingImages') as string

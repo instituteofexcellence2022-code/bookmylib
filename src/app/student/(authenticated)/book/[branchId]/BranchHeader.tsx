@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { MapPin, Building2, Clock, Star, Wifi, Zap, Wind, Droplets, Car, ChevronLeft, ChevronRight, Info } from 'lucide-react'
+import { MapPin, Building2, Clock, Star, Wifi, Zap, Wind, Droplets, Car, ChevronLeft, ChevronRight, Info, Coffee, Printer, Camera, Armchair, Fan, Thermometer, Utensils, BatteryCharging, Lightbulb, Bath, Lock, Newspaper, BookOpen, ShieldCheck } from 'lucide-react'
 
 interface BranchHeaderProps {
     branch: {
@@ -11,14 +11,59 @@ interface BranchHeaderProps {
         name: string
         address: string
         city: string
-        operatingHours?: string | null
+        operatingHours?: any
     }
     images: string[]
+    amenities?: string[]
     showDetailsLink?: boolean
     backLink?: string
 }
 
-export default function BranchHeader({ branch, images, showDetailsLink = true, backLink }: BranchHeaderProps) {
+const AMENITY_ICONS: Record<string, any> = {
+    'wifi': Wifi,
+    'ac': Wind,
+    'coffee': Coffee,
+    'parking': Car,
+    'power': Zap,
+    'printer': Printer,
+    'cctv': Camera,
+    'lounge': Armchair,
+    'air_purifier': Fan,
+    'water_purifier': Droplets,
+    'hot_water': Thermometer,
+    'lunch': Utensils,
+    'charging': BatteryCharging,
+    'desk_lights': Lightbulb,
+    'washrooms': Bath,
+    'locker': Lock,
+    'newspaper': Newspaper,
+    'magazine': BookOpen,
+    'security': ShieldCheck
+}
+
+const AMENITY_LABELS: Record<string, string> = {
+    'wifi': 'Free WiFi',
+    'ac': 'Fully AC',
+    'coffee': 'Coffee',
+    'parking': 'Parking',
+    'power': 'Power Backup',
+    'printer': 'Printer',
+    'cctv': 'CCTV',
+    'lounge': 'Lounge',
+    'air_purifier': 'Air Purifier',
+    'water_purifier': 'RO Water',
+    'hot_water': 'Hot/Cold Water',
+    'lunch': 'Lunch Area',
+    'charging': 'Charging',
+    'desk_lights': 'Desk Light',
+    'washrooms': 'Sep. Washroom',
+    'locker': 'Locker',
+    'newspaper': 'Newspaper',
+    'magazine': 'Magazine',
+    'security': 'Security'
+}
+
+export default function BranchHeader({ branch, images, amenities = [], showDetailsLink = true, backLink }: BranchHeaderProps) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0)
     const [showInfo, setShowInfo] = useState(false)
 
@@ -36,21 +81,20 @@ export default function BranchHeader({ branch, images, showDetailsLink = true, b
 
     const currentImage = images.length > 0 ? images[currentImageIndex] : null
 
-    // Simple amenities parser/mock - moved from page.tsx
-    const amenities = [
-        { icon: Wifi, label: 'Free WiFi' },
-        { icon: Wind, label: 'Fully AC' },
-        { icon: Zap, label: 'Power Backup' },
-        { icon: Droplets, label: 'RO Water' },
-        { icon: Car, label: 'Parking' },
-    ]
+    // Process amenities
+    const processedAmenities = amenities.map(id => ({
+        icon: AMENITY_ICONS[id] || Star,
+        label: AMENITY_LABELS[id] || id.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+    }))
 
     // Parse operating hours
     const getLiveStatus = () => {
         try {
             if (!branch.operatingHours) return { isOpen: false, text: 'Closed' }
             
-            const hours = JSON.parse(branch.operatingHours)
+            const hours = typeof branch.operatingHours === 'string' 
+                ? JSON.parse(branch.operatingHours) 
+                : branch.operatingHours
             
             if (hours.is247) {
                 return { isOpen: true, text: 'Open 24/7' }
@@ -225,7 +269,7 @@ export default function BranchHeader({ branch, images, showDetailsLink = true, b
 
                     {/* Amenities / Tags */}
                     <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide md:max-w-md">
-                        {amenities.map((item, index) => (
+                        {processedAmenities.map((item, index) => (
                             <span key={index} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-sm text-white text-xs font-medium border border-white/10 whitespace-nowrap hover:bg-white/20 transition-colors">
                                 <item.icon className="w-3.5 h-3.5 text-emerald-300" />
                                 {item.label}

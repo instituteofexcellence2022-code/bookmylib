@@ -80,8 +80,8 @@ export interface BranchCardProps {
     managerName?: string | null
     description?: string | null
     mapsLink?: string | null
-    wifiDetails?: string | null
-    operatingHours?: string | null
+    wifiDetails?: any
+    operatingHours?: any
     _count: {
       seats: number
     }
@@ -171,7 +171,10 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
   let staffAvailability = '9 AM - 9 PM'
   try {
       if (branch.operatingHours) {
-          const hours = JSON.parse(branch.operatingHours)
+          const hours = typeof branch.operatingHours === 'string' 
+            ? JSON.parse(branch.operatingHours) 
+            : branch.operatingHours
+            
           if (hours.staffAvailableStart && hours.staffAvailableEnd) {
               const formatTime = (time: string) => {
                   const [h, m] = time.split(':')

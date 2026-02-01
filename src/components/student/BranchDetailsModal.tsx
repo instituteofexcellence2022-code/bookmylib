@@ -38,8 +38,8 @@ interface BranchDetailsModalProps {
     seatCount?: number
     description?: string | null
     mapsLink?: string | null
-    wifiDetails?: string | null
-    operatingHours?: string | null
+    wifiDetails?: any
+    operatingHours?: any
     amenities?: string | null
     images?: string | null
   }
@@ -80,17 +80,18 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: 
 
   if (!mounted || !isOpen) return null
 
-  const parseJson = <T,>(jsonString: string | null, fallback: T | null = null): T | null => {
-    if (!jsonString) return fallback
+  const parseJson = <T,>(input: any, fallback: T | null = null): T | null => {
+    if (!input) return fallback
+    if (typeof input !== 'string') return input as T
     try {
-      return JSON.parse(jsonString)
+      return JSON.parse(input)
     } catch {
       return fallback
     }
   }
 
-  const wifiDetails = parseJson<WifiDetail[]>(branch.wifiDetails ?? null, [])
-  const rawOperatingHours = parseJson<any>(branch.operatingHours ?? null)
+  const wifiDetails = parseJson<WifiDetail[]>(branch.wifiDetails, [])
+  const rawOperatingHours = parseJson<any>(branch.operatingHours)
   
   // Validate operating hours structure
   let operatingHours: OperatingHours | string | null = null

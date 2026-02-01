@@ -40,11 +40,22 @@ export default async function BranchBookingPage({ params }: { params: { branchId
         }
     } catch {}
 
+    // Parse amenities
+    let amenities: string[] = []
+    try {
+        if (branch.amenities) {
+            const parsed = JSON.parse(branch.amenities as string)
+            if (Array.isArray(parsed)) {
+                amenities = parsed
+            }
+        }
+    } catch {}
+
     return (
         <div className="space-y-6 max-w-[1600px] mx-auto">
             <div className="space-y-1">
                 <BackButton href="/student/book" />
-                <BranchHeader branch={branch} images={images} />
+                <BranchHeader branch={branch} images={images} amenities={amenities} />
             </div>
 
             <BookingClient 

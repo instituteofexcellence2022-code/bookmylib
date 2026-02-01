@@ -142,7 +142,7 @@ export default function EditBranchPage() {
 
           const amenities = Array.isArray(data.amenities) ? data.amenities : []
           const operatingHours = (data.operatingHours as any) || {}
-          const libraryRules = Array.isArray(data.libraryRules) ? data.libraryRules : []
+          const libraryRules = (Array.isArray(data.libraryRules) ? data.libraryRules : []) as string[]
           
           setFormData(prev => {
             // Determine City and State: Use DB data if available, else fallback to Pincode data
@@ -207,7 +207,7 @@ export default function EditBranchPage() {
               mapsLink: data.mapsLink || '',
               images: data.images ? JSON.parse(data.images) : [],
               imageFiles: data.images ? new Array(JSON.parse(data.images).length).fill(null) : [],
-              wifiCredentials: data.wifiDetails ? JSON.parse(data.wifiDetails) : [{ ssid: '', password: '' }],
+              wifiCredentials: (data.wifiDetails && Array.isArray(data.wifiDetails) ? data.wifiDetails : [{ ssid: '', password: '' }]) as { ssid: string, password: string }[],
               libraryRules: libraryRules
             }
           })
