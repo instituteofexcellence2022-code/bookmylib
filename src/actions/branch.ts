@@ -194,6 +194,8 @@ export async function createBranch(formData: FormData) {
     const mapsLink = formData.get('mapsLink') as string
     const wifiDetails = formData.get('wifiDetails') as string
 
+    console.log('Creating branch:', { name, libraryRules })
+
     // Handle Image Uploads
     const imageFiles = formData.getAll('imageFiles') as File[]
     const uploadedUrls: string[] = []
@@ -288,6 +290,7 @@ export async function updateBranch(formData: FormData) {
     const seatCount = parseInt(formData.get('seatCount') as string) || 0
     const area = formData.get('area') as string
     const description = formData.get('description') as string
+    console.log('Updating branch:', { id, description, libraryRules: formData.get('libraryRules') })
     const mapsLink = formData.get('mapsLink') as string
     const wifiDetails = formData.get('wifiDetails') as string
 
@@ -342,6 +345,8 @@ export async function updateBranch(formData: FormData) {
 
     revalidatePath('/owner/branches')
     revalidatePath(`/owner/branches/${id}`)
+    revalidatePath(`/student/book/${id}`)
+    revalidatePath(`/student/book/${id}/details`)
     return { success: true }
   } catch (error: any) {
     console.error('Error updating branch:', error)

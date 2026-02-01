@@ -20,7 +20,8 @@ import {
   QrCode as QrCodeIcon,
   Download,
   RefreshCw,
-  Printer
+  Printer,
+  Shield
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
@@ -68,6 +69,7 @@ interface BranchDetail {
   lastMonthRevenue?: number
   revenueData?: { date: string; amount: number }[]
   amenities: string[]
+  libraryRules: string[]
   images: string[]
   recentActivity: RecentActivity[]
   qrCode?: string
@@ -226,6 +228,7 @@ const tabs = [
           setBranch({
             ...data,
             amenities: Array.isArray(data.amenities) ? data.amenities : [],
+            libraryRules: Array.isArray(data.libraryRules) ? data.libraryRules : [],
             images: (() => {
               try {
                 const parsed = data.images ? JSON.parse(data.images) : [];
@@ -593,6 +596,25 @@ const tabs = [
                     </div>
                   ))}
                 </div>
+              </CompactCard>
+
+              <CompactCard>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  Library Rules
+                </h3>
+                {branch.libraryRules && branch.libraryRules.length > 0 ? (
+                  <ul className="space-y-3">
+                    {branch.libraryRules.map((rule, index) => (
+                      <li key={index} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
+                        <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
+                        <span>{rule}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No rules specified for this branch.</p>
+                )}
               </CompactCard>
 
               <CompactCard>

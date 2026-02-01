@@ -48,9 +48,9 @@ export default async function BranchDetailsPage({ params }: { params: { branchId
     } catch {}
     
     // Fallback if no rules found
-    if (rules.length === 0) {
-        rules = ['Maintain silence inside', 'No food allowed at desk', 'Keep phone on silent mode', 'Keep your desk clean']
-    }
+    // if (rules.length === 0) {
+    //     rules = ['Maintain silence inside', 'No food allowed at desk', 'Keep phone on silent mode', 'Keep your desk clean']
+    // }
 
     // Parse amenities
     let amenities: string[] = []
@@ -88,8 +88,8 @@ export default async function BranchDetailsPage({ params }: { params: { branchId
         }
     } catch {}
 
-    // Use description from DB or fallback
-    const description = branch.description || "Experience a quiet and productive study environment equipped with modern amenities. Our library offers high-speed internet, comfortable seating, and a distraction-free atmosphere perfect for students and professionals."
+    // Use description from DB
+    const description = branch.description
 
     return (
         <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
@@ -108,7 +108,7 @@ export default async function BranchDetailsPage({ params }: { params: { branchId
                             About this Branch
                         </h2>
                         <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
-                            {description}
+                            {description || <span className="text-gray-400 italic">No description provided.</span>}
                         </p>
                     </div>
 
@@ -171,14 +171,18 @@ export default async function BranchDetailsPage({ params }: { params: { branchId
                             <Shield className="w-5 h-5 text-purple-500" />
                             Library Rules
                         </h2>
-                        <ul className="space-y-3">
-                            {rules.map((rule, i) => (
-                                <li key={i} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
-                                    <span className="mt-1.5 w-1 h-1 rounded-full bg-gray-400 shrink-0" />
-                                    {rule}
-                                </li>
-                            ))}
-                        </ul>
+                        {rules.length > 0 ? (
+                            <ul className="space-y-3">
+                                {rules.map((rule, i) => (
+                                    <li key={i} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                        <span className="mt-1.5 w-1 h-1 rounded-full bg-gray-400 shrink-0" />
+                                        {rule}
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="text-gray-500 italic text-sm">No specific rules listed.</p>
+                        )}
                     </div>
                 </div>
             </div>
