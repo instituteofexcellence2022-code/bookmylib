@@ -105,6 +105,7 @@ model Branch {
   wifiDetails  String?  // JSON structure
   operatingHours String? // JSON structure for hours
   amenities    String?   // JSON structure for amenities
+  libraryRules String?   // JSON structure for library rules
   qrCode       String?   @unique // Unique token for QR code attendance
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())

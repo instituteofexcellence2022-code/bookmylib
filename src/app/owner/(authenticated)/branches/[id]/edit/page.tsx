@@ -32,14 +32,18 @@ import {
   Lamp,
   Bath,
   Loader2,
-  Sparkles
+  Sparkles,
+  Lock,
+  BookOpen,
+  ShieldCheck,
+  Book
 } from 'lucide-react'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { CompactCard } from '@/components/ui/AnimatedCard'
 import { FormInput } from '@/components/ui/FormInput'
 import { FormSelect } from '@/components/ui/FormSelect'
 import { FormTextarea } from '@/components/ui/FormTextarea'
-
+import { LibraryRulesInput } from '@/components/owner/LibraryRulesInput'
 import { getBranchById, updateBranch, deleteBranch } from '@/actions/branch'
 import toast from 'react-hot-toast'
 
@@ -95,7 +99,8 @@ export default function EditBranchPage() {
     workingDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
     images: [] as string[],
     imageFiles: [] as File[],
-    wifiCredentials: [{ ssid: '', password: '' }]
+    wifiCredentials: [{ ssid: '', password: '' }],
+    libraryRules: [] as string[]
   })
 
   useEffect(() => {
@@ -137,6 +142,7 @@ export default function EditBranchPage() {
 
           const amenities = Array.isArray(data.amenities) ? data.amenities : []
           const operatingHours = (data.operatingHours as any) || {}
+          const libraryRules = Array.isArray(data.libraryRules) ? data.libraryRules : []
           
           setFormData(prev => {
             // Determine City and State: Use DB data if available, else fallback to Pincode data
@@ -201,7 +207,8 @@ export default function EditBranchPage() {
               mapsLink: data.mapsLink || '',
               images: data.images ? JSON.parse(data.images) : [],
               imageFiles: data.images ? new Array(JSON.parse(data.images).length).fill(null) : [],
-              wifiCredentials: data.wifiDetails ? JSON.parse(data.wifiDetails) : [{ ssid: '', password: '' }]
+              wifiCredentials: data.wifiDetails ? JSON.parse(data.wifiDetails) : [{ ssid: '', password: '' }],
+              libraryRules: libraryRules
             }
           })
         } else {
@@ -244,21 +251,25 @@ export default function EditBranchPage() {
   }
 
   const amenities = [
-    { id: 'wifi', label: 'High-speed WiFi', icon: Wifi },
-    { id: 'ac', label: 'Air Conditioning', icon: Wind },
-    { id: 'coffee', label: 'Coffee Station', icon: Coffee },
-    { id: 'parking', label: 'Parking Space', icon: Car },
+    { id: 'wifi', label: 'Free WiFi', icon: Wifi },
+    { id: 'ac', label: 'Fully AC', icon: Wind },
+    { id: 'coffee', label: 'Coffee', icon: Coffee },
+    { id: 'parking', label: 'Parking', icon: Car },
     { id: 'power', label: 'Power Backup', icon: Zap },
-    { id: 'printer', label: 'Printing Stn', icon: Printer },
-    { id: 'cctv', label: '24/7 CCTV', icon: Shield },
-    { id: 'lounge', label: 'Discussion Area', icon: Armchair },
+    { id: 'printer', label: 'Printer', icon: Printer },
+    { id: 'cctv', label: 'CCTV', icon: Shield },
+    { id: 'lounge', label: 'Lounge', icon: Armchair },
     { id: 'air_purifier', label: 'Air Purifier', icon: Fan },
-    { id: 'water_purifier', label: 'Water Purifier', icon: Droplets },
-    { id: 'hot_water', label: 'Hot & Cold Water', icon: Thermometer },
+    { id: 'water_purifier', label: 'RO Water', icon: Droplets },
+    { id: 'hot_water', label: 'Hot/Cold Water', icon: Thermometer },
     { id: 'lunch', label: 'Lunch Area', icon: Utensils },
-    { id: 'charging', label: 'Charging Points', icon: Plug },
-    { id: 'desk_lights', label: 'Desk Lights', icon: Lamp },
-    { id: 'washrooms', label: 'Sep. Washrooms', icon: Bath }
+    { id: 'charging', label: 'Charging', icon: Plug },
+    { id: 'desk_lights', label: 'Desk Light', icon: Lamp },
+    { id: 'washrooms', label: 'Sep. Washroom', icon: Bath },
+    { id: 'locker', label: 'Locker', icon: Lock },
+    { id: 'newspaper', label: 'Newspaper', icon: BookOpen },
+    { id: 'magazine', label: 'Magazine', icon: Book },
+    { id: 'security', label: 'Security', icon: ShieldCheck }
   ]
 
   const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -480,6 +491,7 @@ export default function EditBranchPage() {
       }
       formDataToSend.append('operatingHours', JSON.stringify(operatingHours))
       formDataToSend.append('status', formData.status === 'active' ? 'active' : 'inactive')
+      formDataToSend.append('libraryRules', JSON.stringify(formData.libraryRules))
 
       const result = await updateBranch(formDataToSend)
       
@@ -994,6 +1006,24 @@ export default function EditBranchPage() {
                   </button>
                 )
               })}
+            </div>
+          </div>
+        </CompactCard>
+
+        <CompactCard>
+          <div className="space-y-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <Shield className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              Library Rules
+            </h2>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Set the rules for students in this branch. You can choose from common rules or add your own.
+              </p>
+              <LibraryRulesInput
+                value={formData.libraryRules}
+                onChange={(rules) => setFormData({ ...formData, libraryRules: rules })}
+              />
             </div>
           </div>
         </CompactCard>

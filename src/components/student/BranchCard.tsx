@@ -6,7 +6,8 @@ import Image from 'next/image'
 import { 
   MapPin, Building2, Users, ChevronDown, ChevronLeft, ChevronRight,
   Wifi, Coffee, Wind, Zap, Car, Lock, Camera, BookOpen, ShieldCheck,
-  Star, Clock, Info
+  Star, Clock, Info,
+  Book, Phone, Mail, Check, Copy
 } from 'lucide-react'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { BranchDetailsModal } from './BranchDetailsModal'
@@ -14,22 +15,23 @@ import { BranchDetailsModal } from './BranchDetailsModal'
 // Helper to parse amenities safely
 const getAmenities = (amenitiesString: string | null) => {
   const allAmenities = [
-    { id: 'wifi', icon: Wifi, label: 'High-speed WiFi' },
-    { id: 'ac', icon: Wind, label: 'Air Conditioning' },
+    { id: 'wifi', icon: Wifi, label: 'Free WiFi' },
+    { id: 'ac', icon: Wind, label: 'Fully AC' },
     { id: 'power', icon: Zap, label: 'Power Backup' },
-    { id: 'coffee', icon: Coffee, label: 'Coffee Station' },
+    { id: 'coffee', icon: Coffee, label: 'Coffee' },
     { id: 'water_purifier', icon: Coffee, label: 'RO Water' },
-    { id: 'parking', icon: Car, label: 'Parking Space' },
-    { id: 'printer', icon: Info, label: 'Printing Stn' },
-    { id: 'cctv', icon: Camera, label: '24/7 CCTV' },
-    { id: 'lounge', icon: Info, label: 'Discussion Area' },
+    { id: 'parking', icon: Car, label: 'Parking' },
+    { id: 'printer', icon: Info, label: 'Printer' },
+    { id: 'cctv', icon: Camera, label: 'CCTV' },
+    { id: 'lounge', icon: Info, label: 'Lounge' },
     { id: 'air_purifier', icon: Wind, label: 'Air Purifier' },
     { id: 'lunch', icon: Info, label: 'Lunch Area' },
-    { id: 'charging', icon: Zap, label: 'Charging Points' },
-    { id: 'desk_lights', icon: Info, label: 'Desk Lights' },
-    { id: 'washrooms', icon: Info, label: 'Washrooms' },
+    { id: 'charging', icon: Zap, label: 'Charging' },
+    { id: 'desk_lights', icon: Info, label: 'Desk Light' },
+    { id: 'washrooms', icon: Info, label: 'Sep. Washroom' },
     { id: 'locker', icon: Lock, label: 'Locker' },
     { id: 'newspaper', icon: BookOpen, label: 'Newspaper' },
+    { id: 'magazine', icon: Book, label: 'Magazine' },
     { id: 'security', icon: ShieldCheck, label: 'Security' }
   ]
 

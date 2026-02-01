@@ -53,6 +53,7 @@ export async function getOwnerBranches() {
       revenue: 0, 
       amenities: safeParse(branch.amenities, []),
       operatingHours: safeParse(branch.operatingHours, null),
+      libraryRules: safeParse(branch.libraryRules, []),
       status: branch.isActive ? 'active' : 'maintenance' // Map boolean to string status
     }))
 
@@ -154,6 +155,7 @@ export async function getBranchById(id: string) {
       revenueData,
       amenities: safeParse(branch.amenities, []),
       operatingHours: safeParse(branch.operatingHours, null),
+      libraryRules: safeParse(branch.libraryRules, []),
       status: branch.isActive ? 'active' : 'maintenance'
     }
   } catch (error) {
@@ -181,6 +183,7 @@ export async function createBranch(formData: FormData) {
     const amenities = formData.get('amenities') as string 
     const operatingHours = formData.get('operatingHours') as string 
     const status = formData.get('status') as string
+    const libraryRules = formData.get('libraryRules') as string
 
     // New fields
     const contactEmail = formData.get('contactEmail') as string
@@ -228,7 +231,8 @@ export async function createBranch(formData: FormData) {
         description,
         mapsLink,
         images,
-        wifiDetails
+        wifiDetails,
+        libraryRules
       }
     })
 
@@ -276,6 +280,7 @@ export async function updateBranch(formData: FormData) {
     const amenities = formData.get('amenities') as string 
     const operatingHours = formData.get('operatingHours') as string
     const status = formData.get('status') as string
+    const libraryRules = formData.get('libraryRules') as string
 
     // New fields
     const contactEmail = formData.get('contactEmail') as string
@@ -330,7 +335,8 @@ export async function updateBranch(formData: FormData) {
         description,
         mapsLink,
         images,
-        wifiDetails
+        wifiDetails,
+        libraryRules
       }
     })
 

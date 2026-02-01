@@ -2,19 +2,23 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { MapPin, Building2, Clock, Star, Wifi, Zap, Wind, Droplets, Car, ChevronLeft, ChevronRight, Info } from 'lucide-react'
 
 interface BranchHeaderProps {
     branch: {
+        id: string
         name: string
         address: string
         city: string
         operatingHours?: string | null
     }
     images: string[]
+    showDetailsLink?: boolean
+    backLink?: string
 }
 
-export default function BranchHeader({ branch, images }: BranchHeaderProps) {
+export default function BranchHeader({ branch, images, showDetailsLink = true, backLink }: BranchHeaderProps) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0)
     const [showInfo, setShowInfo] = useState(false)
 
@@ -34,8 +38,8 @@ export default function BranchHeader({ branch, images }: BranchHeaderProps) {
 
     // Simple amenities parser/mock - moved from page.tsx
     const amenities = [
-        { icon: Wifi, label: 'Free Wi-Fi' },
-        { icon: Wind, label: 'AC' },
+        { icon: Wifi, label: 'Free WiFi' },
+        { icon: Wind, label: 'Fully AC' },
         { icon: Zap, label: 'Power Backup' },
         { icon: Droplets, label: 'RO Water' },
         { icon: Car, label: 'Parking' },
@@ -180,8 +184,8 @@ export default function BranchHeader({ branch, images }: BranchHeaderProps) {
             </div>
             
             {/* Content Section */}
-            <div className="relative z-10 p-4 md:p-6">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
+            <div className={`relative z-10 px-4 pt-4 md:px-6 md:pt-6 ${(showDetailsLink || backLink) ? 'pb-0' : 'pb-4 md:pb-6'}`}>
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-1">
                     <div className="flex-1">
                         <div>
                             <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight leading-tight mb-2 text-shadow-sm">
@@ -220,7 +224,7 @@ export default function BranchHeader({ branch, images }: BranchHeaderProps) {
                     </div>
 
                     {/* Amenities / Tags */}
-                    <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide md:max-w-md">
+                    <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide md:max-w-md">
                         {amenities.map((item, index) => (
                             <span key={index} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 backdrop-blur-sm text-white text-xs font-medium border border-white/10 whitespace-nowrap hover:bg-white/20 transition-colors">
                                 <item.icon className="w-3.5 h-3.5 text-emerald-300" />
@@ -230,6 +234,32 @@ export default function BranchHeader({ branch, images }: BranchHeaderProps) {
                     </div>
                 </div>
             </div>
+
+            {showDetailsLink && (
+                <Link 
+                    href={`/student/book/${branch.id}/details`}
+                    className="relative z-20 h-9 w-full bg-black/40 backdrop-blur-md border-t border-white/10 flex items-center justify-between px-4 hover:bg-black/60 transition-colors group/link"
+                >
+                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                        More Library Details
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 text-emerald-400 group-hover/link:translate-x-0.5 transition-transform" />
+                </Link>
+            )}
+
+            {backLink && (
+                <Link 
+                    href={backLink}
+                    className="relative z-20 h-9 w-full bg-black/40 backdrop-blur-md border-t border-white/10 flex items-center justify-between px-4 hover:bg-black/60 transition-colors group/link"
+                >
+                    <div className="flex items-center gap-2">
+                        <ChevronLeft className="w-3.5 h-3.5 text-emerald-400 group-hover/link:-translate-x-0.5 transition-transform" />
+                        <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+                            Back to Booking
+                        </span>
+                    </div>
+                </Link>
+            )}
         </div>
     )
 }

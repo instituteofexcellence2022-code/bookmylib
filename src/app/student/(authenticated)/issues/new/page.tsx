@@ -13,7 +13,7 @@ const CATEGORIES = [
     id: 'service',
     label: 'Library Service',
     icon: Wifi,
-    subcategories: ['WiFi/Internet', 'Air Conditioning', 'Cleanliness', 'Furniture', 'Water Cooler', 'Lighting', 'Restroom', 'Other']
+    subcategories: ['Free WiFi', 'Fully AC', 'Cleanliness', 'Furniture', 'RO Water', 'Lighting', 'Washroom', 'Other']
   },
   {
     id: 'payment',
