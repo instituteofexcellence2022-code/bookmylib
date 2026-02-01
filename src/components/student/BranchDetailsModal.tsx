@@ -8,6 +8,7 @@ import {
   Lock, Copy, Check, Coffee, Wind, Zap, Car, Camera, BookOpen, Users, Book
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { verifyBranchSubscription } from '@/actions/booking'
 
 interface WifiDetail {
   ssid: string
@@ -27,6 +28,7 @@ interface BranchDetailsModalProps {
   onClose: () => void
   isActiveMember?: boolean
   branch: {
+    id?: string
     name: string
     address: string
     city: string
@@ -49,15 +51,35 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: 
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const [visiblePasswords, setVisiblePasswords] = useState<Record<number, boolean>>({})
+  const [verifying, setVerifying] = useState<Record<number, boolean>>({})
 
-  const togglePassword = (idx: number) => {
+  const togglePassword = async (idx: number) => {
     if (visiblePasswords[idx]) {
       setVisiblePasswords(prev => ({ ...prev, [idx]: false }))
     } else {
       if (isActiveMember) {
         setVisiblePasswords(prev => ({ ...prev, [idx]: true }))
       } else {
-        toast.error("Active subscription required to view WiFi password")
+        // Fallback: Verify with server action
+        if (!branch.id) {
+          toast.error("Active subscription required to view WiFi password")
+          return
+        }
+
+        setVerifying(prev => ({ ...prev, [idx]: true }))
+        try {
+          const result = await verifyBranchSubscription(branch.id)
+          if (result.success && result.hasActiveSubscription) {
+            setVisiblePasswords(prev => ({ ...prev, [idx]: true }))
+            toast.success("Subscription verified")
+          } else {
+            toast.error("Active subscription required to view WiFi password")
+          }
+        } catch (error) {
+          toast.error("Failed to verify subscription")
+        } finally {
+          setVerifying(prev => ({ ...prev, [idx]: false }))
+        }
       }
     }
   }
@@ -320,9 +342,10 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember }: 
                             
                             <button
                                 onClick={() => togglePassword(idx)}
-                                className="px-2 py-0.5 text-xs font-medium bg-white/50 dark:bg-black/20 text-emerald-700 dark:text-emerald-300 rounded border border-emerald-200 dark:border-emerald-800 hover:bg-white dark:hover:bg-black/40 transition-colors"
+                                disabled={verifying[idx]}
+                                className="px-2 py-0.5 text-xs font-medium bg-white/50 dark:bg-black/20 text-emerald-700 dark:text-emerald-300 rounded border border-emerald-200 dark:border-emerald-800 hover:bg-white dark:hover:bg-black/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {visiblePasswords[idx] ? 'Hide' : 'Show'}
+                                {verifying[idx] ? 'Checking...' : (visiblePasswords[idx] ? 'Hide' : 'Show')}
                             </button>
 
                             {visiblePasswords[idx] && (

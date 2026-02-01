@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { randomBytes } from 'crypto'
-import { sendPasswordResetEmail } from '@/actions/email'
+import { sendPasswordResetEmail, sendWelcomeEmail } from '@/actions/email'
 import { verify } from 'otplib'
 import { redirect } from 'next/navigation'
 import { COOKIE_KEYS, COOKIE_OPTIONS } from '@/lib/auth/session'
@@ -329,6 +329,13 @@ export async function registerStudent(formData: FormData) {
         // Auto-login after registration
         const cookieStore = await cookies()
         cookieStore.set(COOKIE_KEYS.STUDENT, student.id, COOKIE_OPTIONS)
+
+        // Send Welcome Email
+        await sendWelcomeEmail({
+            studentName: student.name,
+            studentEmail: email,
+            libraryName: 'BookMyLib' // Or fetch dynamic library name if available
+        })
 
         return { success: true }
     } catch (error) {

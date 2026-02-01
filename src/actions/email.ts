@@ -62,7 +62,7 @@ async function sendEmail({
 export async function sendReceiptEmail(data: ReceiptData) {
   try {
     if (!process.env.RESEND_API_KEY && !process.env.SMTP_USER) {
-      console.warn('Neither RESEND_API_KEY nor SMTP_USER is set. Email sending skipped.')
+      console.error('CRITICAL: Email service not configured. Missing RESEND_API_KEY or SMTP_USER.')
       return { success: false, error: 'Email service not configured' }
     }
 
@@ -131,9 +131,11 @@ export async function sendWelcomeEmail(data: {
 }) {
   try {
     if (!process.env.RESEND_API_KEY && !process.env.SMTP_USER) {
-      console.warn('Email service not configured.')
+      console.error('CRITICAL: Email service not configured. Missing RESEND_API_KEY or SMTP_USER.')
       return { success: false, error: 'Email service not configured' }
     }
+
+    console.log(`Sending Welcome Email to ${data.studentEmail} via ${process.env.RESEND_API_KEY ? 'Resend' : 'SMTP'}`)
 
     const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/student/login`
 

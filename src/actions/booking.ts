@@ -2,6 +2,8 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { cookies } from 'next/headers'
+import { COOKIE_KEYS } from '@/lib/auth/session'
 import { sendReceiptEmail } from '@/actions/email'
 import { formatSeatNumber } from '@/lib/utils'
 import { ReceiptData } from '@/lib/pdf-generator'
@@ -408,5 +410,30 @@ export async function checkStudentSubscription(studentId: string, branchId: stri
     } catch (error) {
         console.error('Error checking subscription:', error)
         return { hasActiveSubscription: false }
+    }
+}
+
+export async function verifyBranchSubscription(branchId: string) {
+    try {
+        const cookieStore = await cookies()
+        const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+
+        if (!studentId) {
+            return { success: false, hasActiveSubscription: false, error: 'Not authenticated' }
+        }
+
+        const subscription = await prisma.studentSubscription.findFirst({
+            where: {
+                studentId,
+                branchId,
+                status: 'active',
+                endDate: { gt: new Date() }
+            }
+        })
+
+        return { success: true, hasActiveSubscription: !!subscription }
+    } catch (error) {
+        console.error('Error verifying subscription:', error)
+        return { success: false, hasActiveSubscription: false, error: 'Failed to verify subscription' }
     }
 }
