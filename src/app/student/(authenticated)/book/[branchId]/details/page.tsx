@@ -40,9 +40,12 @@ export default async function BranchDetailsPage({ params }: { params: { branchId
     let rules: string[] = []
     try {
         if (branch.libraryRules) {
-            const parsed = JSON.parse(branch.libraryRules as string)
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                rules = parsed
+            const rulesData = branch.libraryRules
+            if (Array.isArray(rulesData)) {
+                rules = rulesData as string[]
+            } else if (typeof rulesData === 'string') {
+                const parsed = JSON.parse(rulesData)
+                if (Array.isArray(parsed)) rules = parsed
             }
         }
     } catch {}
@@ -108,7 +111,12 @@ export default async function BranchDetailsPage({ params }: { params: { branchId
     let operatingHours: any = null
     try {
         if (branch.operatingHours) {
-            operatingHours = JSON.parse(branch.operatingHours as string)
+            const op = branch.operatingHours
+            if (typeof op === 'string') {
+                operatingHours = JSON.parse(op)
+            } else {
+                operatingHours = op
+            }
         }
     } catch {}
 

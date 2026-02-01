@@ -202,6 +202,75 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
     setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length)
   }
 
+  // Calculate operating status
+  const getOperatingStatus = () => {
+    try {
+      if (!branch.operatingHours) return { isOpen: false, text: 'Closed' }
+      
+      const hours = typeof branch.operatingHours === 'string' 
+          ? JSON.parse(branch.operatingHours) 
+          : branch.operatingHours
+      
+      if (hours.is247) {
+          return { isOpen: true, text: 'Open 24/7' }
+      }
+      
+      if (hours.start && hours.end) {
+          const now = new Date()
+          const currentMinutes = now.getHours() * 60 + now.getMinutes()
+          
+          const [startH, startM] = hours.start.split(':').map(Number)
+          const [endH, endM] = hours.end.split(':').map(Number)
+          
+          const startTotal = startH * 60 + startM
+          const endTotal = endH * 60 + endM
+          
+          let isOpenNow = false
+          
+          if (endTotal < startTotal) {
+              // Overnight
+              isOpenNow = currentMinutes >= startTotal || currentMinutes < endTotal
+          } else {
+              isOpenNow = currentMinutes >= startTotal && currentMinutes < endTotal
+          }
+          
+          return { 
+              isOpen: isOpenNow, 
+              text: isOpenNow ? 'Open Now' : 'Closed' 
+          }
+      } else if (hours.openingTime && hours.closingTime) {
+          // Handle alternative format if exists
+          const now = new Date()
+          const currentMinutes = now.getHours() * 60 + now.getMinutes()
+          
+          const [startH, startM] = hours.openingTime.split(':').map(Number)
+          const [endH, endM] = hours.closingTime.split(':').map(Number)
+          
+          const startTotal = startH * 60 + startM
+          const endTotal = endH * 60 + endM
+          
+          let isOpenNow = false
+          
+          if (endTotal < startTotal) {
+              isOpenNow = currentMinutes >= startTotal || currentMinutes < endTotal
+          } else {
+              isOpenNow = currentMinutes >= startTotal && currentMinutes < endTotal
+          }
+          
+          return { 
+              isOpen: isOpenNow, 
+              text: isOpenNow ? 'Open Now' : 'Closed' 
+          }
+      }
+      
+      return { isOpen: false, text: 'Closed' }
+    } catch (e) {
+      return { isOpen: false, text: 'Closed' }
+    }
+  }
+
+  const { isOpen, text } = getOperatingStatus()
+
   return (
     <div className={`group bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col h-full ${(showHours || showAmenities) ? 'relative z-20' : ''}`}>
       {/* Branch Image with Overlay Badges */}
@@ -253,9 +322,13 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
 
         {/* Top Badges */}
         <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10 pointer-events-none">
-            <div className="bg-white/95 dark:bg-black/80 dark:backdrop-blur-md px-2.5 py-1 rounded-full flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 shadow-sm">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Open Now
+            <div className={`bg-white/95 dark:bg-black/80 dark:backdrop-blur-md px-2.5 py-1 rounded-full flex items-center gap-1.5 text-xs font-semibold shadow-sm ${
+                isOpen ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'
+            }`}>
+                <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                    isOpen ? 'bg-emerald-500' : 'bg-red-500'
+                }`} />
+                {text}
             </div>
             <div className="bg-white/95 dark:bg-black/80 dark:backdrop-blur-md px-2 py-1 rounded-lg flex items-center gap-1 text-xs font-bold text-amber-500 shadow-sm">
                 <Star className="w-3.5 h-3.5 fill-amber-500" />

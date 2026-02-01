@@ -82,8 +82,8 @@ export default function OwnerRegisterPage() {
             console.log('[REGISTER] Result:', result)
 
             if (result.success) {
-                toast.success('Registration successful! Please login.')
-                router.push('/owner/login')
+                toast.success('Registration successful!')
+                router.push('/owner/dashboard')
             } else {
                 toast.error(result.error || 'Registration failed')
             }

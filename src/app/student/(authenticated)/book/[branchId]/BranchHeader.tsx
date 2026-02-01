@@ -136,7 +136,10 @@ export default function BranchHeader({ branch, images, amenities = [], showDetai
     let staffAvailability = '9 AM - 9 PM'
     try {
         if (branch.operatingHours) {
-            const hours = JSON.parse(branch.operatingHours)
+            const hours = typeof branch.operatingHours === 'string' 
+                ? JSON.parse(branch.operatingHours) 
+                : branch.operatingHours
+            
             if (hours.staffAvailableStart && hours.staffAvailableEnd) {
                 const formatTime = (time: string) => {
                     const [h, m] = time.split(':')

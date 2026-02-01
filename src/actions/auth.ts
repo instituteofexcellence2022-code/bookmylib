@@ -107,6 +107,10 @@ export async function registerOwner(formData: FormData) {
             return owner
         })
 
+        // Set session
+        const cookieStore = await cookies()
+        cookieStore.set(COOKIE_KEYS.OWNER, result.id, COOKIE_OPTIONS)
+
         return { success: true, ownerId: result.id }
     } catch (error) {
         console.error('Owner registration error:', error)
