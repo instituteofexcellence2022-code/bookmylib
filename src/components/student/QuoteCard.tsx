@@ -6,6 +6,7 @@ import { Quote } from '@/lib/quotes'
 import { ChevronLeft, ChevronRight, Quote as QuoteIcon, Heart } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toggleQuoteLike } from '@/actions/quotes'
+import { toast } from 'react-hot-toast'
 
 interface QuoteCardProps {
   quotes: Quote[]
@@ -25,6 +26,10 @@ export function QuoteCard({ quotes, className, initialLikedIds = [] }: QuoteCard
     setIsMounted(true)
   }, [])
 
+  useEffect(() => {
+    setLikedIds(new Set(initialLikedIds))
+  }, [initialLikedIds])
+
   const currentQuote = quotes[currentIndex]
 
   const handleLike = async (e: React.MouseEvent) => {
@@ -42,9 +47,14 @@ export function QuoteCard({ quotes, className, initialLikedIds = [] }: QuoteCard
       return newSet
     })
 
-    // Server action
-    const result = await toggleQuoteLike(id)
-    if (!result.success) {
+    try {
+      // Server action
+      const result = await toggleQuoteLike(id)
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update like')
+      }
+    } catch (error) {
+      toast.error('Failed to update favorite')
       // Revert if failed
       setLikedIds(prev => {
         const newSet = new Set(prev)
@@ -189,6 +199,7 @@ const CardContent = ({
     {/* Like Button */}
     <button 
       onClick={onLike}
+      onPointerDown={(e) => e.stopPropagation()}
       className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors z-20"
     >
       <Heart 
