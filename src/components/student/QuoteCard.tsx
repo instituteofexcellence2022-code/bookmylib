@@ -200,7 +200,7 @@ const CardContent = ({
     <button 
       onClick={onLike}
       onPointerDown={(e) => e.stopPropagation()}
-      className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors z-20"
+      className="absolute top-3 right-3 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors z-30"
     >
       <Heart 
         size={20} 
