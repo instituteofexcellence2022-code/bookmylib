@@ -1,10 +1,11 @@
-import { getBranchDetails } from '@/actions/booking'
+import { getBranchDetails, checkStudentSubscription } from '@/actions/booking'
 import BranchHeader from '../BranchHeader'
 import { BackButton } from '@/components/ui/BackButton'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { COOKIE_KEYS } from '@/lib/auth/session'
-import { Clock, MapPin, Shield, Star, Info, Phone, Mail, Wifi } from 'lucide-react'
+import { Clock, MapPin, Shield, Star, Info, Phone, Mail } from 'lucide-react'
+import WifiCard from '@/components/student/WifiCard'
 
 export default async function BranchDetailsPage({ params }: { params: { branchId: string } }) {
     const cookieStore = await cookies()
@@ -16,6 +17,7 @@ export default async function BranchDetailsPage({ params }: { params: { branchId
 
     const { branchId } = await params
     const { success, branch, error } = await getBranchDetails(branchId)
+    const { hasActiveSubscription } = await checkStudentSubscription(studentId, branchId)
 
     if (!success || !branch) {
         return (
@@ -286,34 +288,7 @@ export default async function BranchDetailsPage({ params }: { params: { branchId
                     </div>
 
                     {/* WiFi Card */}
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
-                        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                            <Wifi className="w-5 h-5 text-sky-500" />
-                            Wi-Fi Details
-                        </h2>
-                        {wifiDetails.length > 0 ? (
-                            <div className="space-y-3">
-                                {wifiDetails.map((wifi, i) => (
-                                    <div key={i} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl space-y-2 border border-gray-100 dark:border-gray-600">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Network</span>
-                                            <span className="font-semibold text-gray-900 dark:text-white">{wifi.ssid}</span>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Password</span>
-                                            <code className="px-2 py-1 bg-white dark:bg-gray-800 rounded-md text-sm font-mono text-emerald-600 dark:text-emerald-400 border border-gray-200 dark:border-gray-600 select-all">
-                                                {wifi.password}
-                                            </code>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="text-center py-4">
-                                <p className="text-gray-500 dark:text-gray-400 italic text-sm">Ask staff for Wi-Fi details</p>
-                            </div>
-                        )}
-                    </div>
+                    <WifiCard wifiDetails={wifiDetails} hasActiveSubscription={hasActiveSubscription} />
 
                     {/* Rules Card */}
                     <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">

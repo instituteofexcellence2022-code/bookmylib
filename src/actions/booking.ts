@@ -393,3 +393,20 @@ export async function createBooking(data: {
         return { success: false as const, error: errorMessage }
     }
 }
+
+export async function checkStudentSubscription(studentId: string, branchId: string) {
+    try {
+        const subscription = await prisma.studentSubscription.findFirst({
+            where: {
+                studentId,
+                branchId,
+                status: 'active',
+                endDate: { gt: new Date() }
+            }
+        })
+        return { hasActiveSubscription: !!subscription }
+    } catch (error) {
+        console.error('Error checking subscription:', error)
+        return { hasActiveSubscription: false }
+    }
+}
