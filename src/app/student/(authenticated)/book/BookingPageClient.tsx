@@ -15,17 +15,19 @@ export function BookingPageClient({ branches, activeBranchIds }: BookingPageClie
   const [searchQuery, setSearchQuery] = useState('')
 
   const filteredBranches = branches?.filter(branch => {
-    if (!searchQuery) return true
+    if (!searchQuery.trim()) return true
     
-    const query = searchQuery.toLowerCase()
-    return (
-      branch.name.toLowerCase().includes(query) || 
-      branch.library.name.toLowerCase().includes(query) ||
-      branch.address.toLowerCase().includes(query) || 
-      branch.city.toLowerCase().includes(query) ||
-      branch.state.toLowerCase().includes(query) ||
-      branch.pincode.includes(query)
-    )
+    const searchTerms = searchQuery.toLowerCase().trim().split(/\s+/)
+    const searchableText = [
+      branch.name,
+      branch.library?.name,
+      branch.address,
+      branch.city,
+      branch.state,
+      branch.pincode
+    ].filter(Boolean).join(' ').toLowerCase()
+
+    return searchTerms.every(term => searchableText.includes(term))
   }) || []
 
   if (!branches || branches.length === 0) {
@@ -85,9 +87,21 @@ export function BookingPageClient({ branches, activeBranchIds }: BookingPageClie
         </div>
 
       {/* Content */}
-      {viewMode === 'grid' ? (
+      {filteredBranches.length === 0 ? (
+        <div className="py-12 text-center text-gray-500 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
+          <Search className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+          <p className="text-lg font-medium text-gray-900 dark:text-gray-100">No matching branches found</p>
+          <p className="text-sm mt-1">Try adjusting your search query</p>
+          <button 
+            onClick={() => setSearchQuery('')}
+            className="mt-4 text-sm text-emerald-600 hover:text-emerald-700 font-medium hover:underline"
+          >
+            Clear search
+          </button>
+        </div>
+      ) : viewMode === 'grid' ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {branches.map((branch) => (
+          {filteredBranches.map((branch) => (
             <BranchCard 
               key={branch.id} 
               branch={branch} 
@@ -97,8 +111,8 @@ export function BookingPageClient({ branches, activeBranchIds }: BookingPageClie
         </div>
       ) : (
         <div className="space-y-4">
-          {branches.map((branch) => (
-            <BranchListItem 
+          {filteredBranches.map((branch) => (
+            <BranchListItem
               key={branch.id} 
               branch={branch} 
               isActiveMember={activeBranchIds.includes(branch.id)}
