@@ -42,6 +42,49 @@ export default function BranchHeader({ branch, images }: BranchHeaderProps) {
     ]
 
     // Parse operating hours
+    const getLiveStatus = () => {
+        try {
+            if (!branch.operatingHours) return { isOpen: false, text: 'Closed' }
+            
+            const hours = JSON.parse(branch.operatingHours)
+            
+            if (hours.is247) {
+                return { isOpen: true, text: 'Open 24/7' }
+            }
+            
+            if (hours.start && hours.end) {
+                const now = new Date()
+                const currentMinutes = now.getHours() * 60 + now.getMinutes()
+                
+                const [startH, startM] = hours.start.split(':').map(Number)
+                const [endH, endM] = hours.end.split(':').map(Number)
+                
+                const startTotal = startH * 60 + startM
+                const endTotal = endH * 60 + endM
+                
+                let isOpenNow = false
+                
+                if (endTotal < startTotal) {
+                    // Overnight (e.g. 9 PM to 2 AM)
+                    isOpenNow = currentMinutes >= startTotal || currentMinutes < endTotal
+                } else {
+                    isOpenNow = currentMinutes >= startTotal && currentMinutes < endTotal
+                }
+                
+                return { 
+                    isOpen: isOpenNow, 
+                    text: isOpenNow ? 'Open Now' : 'Closed' 
+                }
+            }
+            
+            return { isOpen: false, text: 'Closed' }
+        } catch (e) {
+            return { isOpen: false, text: 'Closed' }
+        }
+    }
+
+    const { isOpen, text } = getLiveStatus()
+
     let staffAvailability = '9 AM - 9 PM'
     try {
         if (branch.operatingHours) {
@@ -114,11 +157,17 @@ export default function BranchHeader({ branch, images }: BranchHeaderProps) {
                 </>
             )}
 
-            {/* Verified Badge */}
+            {/* Live Status Badge */}
             <div className="absolute top-4 left-4 z-10">
-                <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold text-white shadow-lg border border-white/20 uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Verified Branch
+                <div className={`backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-bold text-white shadow-lg border uppercase tracking-wider flex items-center gap-1.5 ${
+                    isOpen 
+                        ? 'bg-emerald-500/20 border-emerald-400/30' 
+                        : 'bg-rose-500/20 border-rose-400/30'
+                }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                        isOpen ? 'bg-emerald-400' : 'bg-rose-400'
+                    }`} />
+                    {text}
                 </div>
             </div>
 
