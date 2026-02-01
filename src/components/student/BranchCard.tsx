@@ -337,9 +337,8 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
         </div>
 
         {/* Bottom Info */}
-        <div className="absolute bottom-0 left-0 right-0 p-5 text-white z-10 pointer-events-none">
-          <p className="text-emerald-300 text-xs font-bold uppercase tracking-wider mb-1">{branch.library.name}</p>
-          <h3 className="text-2xl font-bold mb-2 leading-tight">{branch.name}</h3>
+        <div className="absolute bottom-0 left-0 right-0 px-5 pt-5 pb-3 text-white z-10 pointer-events-none">
+          <h3 className="text-2xl font-bold mb-1 leading-tight">{branch.name}</h3>
           
           {lowestPlan ? (
             <div className="flex items-baseline gap-1.5">
@@ -446,7 +445,7 @@ export function BranchCard({ branch, isActiveMember }: BranchCardProps) {
                       title="More"
                    >
                       <Info className="w-3.5 h-3.5 text-emerald-500" />
-                      <span>More</span>
+                      <span className="hidden sm:inline">More</span>
                   </button>
              </div>
           </div>

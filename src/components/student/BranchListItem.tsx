@@ -275,7 +275,7 @@ export function BranchListItem({ branch, isActiveMember }: BranchCardProps) {
                 )}
              </div>
 
-             <div className="relative" ref={amenitiesRef}>
+             <div className="relative hidden sm:block" ref={amenitiesRef}>
                 <button 
                      onClick={(e) => {
                      e.preventDefault()
@@ -320,8 +320,8 @@ export function BranchListItem({ branch, isActiveMember }: BranchCardProps) {
                   title="More"
                >
                   <Info className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>More</span>
-              </button>
+                      <span className="hidden sm:inline">More</span>
+                  </button>
           </div>
         </div>
 

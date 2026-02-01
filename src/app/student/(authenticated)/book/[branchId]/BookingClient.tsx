@@ -16,6 +16,7 @@ import { cn, formatSeatNumber } from '@/lib/utils'
 
 import { Branch, Seat, Plan, AdditionalFee, Library } from '@prisma/client'
 import BookingPayment from '@/components/student/BookingPayment'
+import BranchHeader from './BranchHeader'
 
 type BranchWithDetails = Branch & {
     library: { name: string }
@@ -28,9 +29,11 @@ interface BookingClientProps {
     branch: BranchWithDetails
     studentId: string
     currentSubscription?: any
+    images?: string[]
+    amenities?: string[]
 }
 
-export default function BookingClient({ branch, studentId, currentSubscription }: BookingClientProps) {
+export default function BookingClient({ branch, studentId, currentSubscription, images = [], amenities = [] }: BookingClientProps) {
     const router = useRouter()
     const searchParams = useSearchParams()
     const action = searchParams.get('action')
@@ -213,7 +216,7 @@ export default function BookingClient({ branch, studentId, currentSubscription }
         const upgradeCredit = (action === 'upgrade' && currentSubscription?.plan) ? currentSubscription.plan.price : 0
         
         return (
-            <div className="max-w-3xl mx-auto py-8">
+            <div className="max-w-3xl mx-auto pb-8 pt-0">
                 <BookingPayment 
                     plan={selectedPlan}
                     seat={selectedSeat}
@@ -230,6 +233,10 @@ export default function BookingClient({ branch, studentId, currentSubscription }
 
     return (
         <div className="max-w-3xl mx-auto min-h-[calc(100vh-8rem)]">
+            <div className="mb-6 space-y-1 -mx-4 md:-mx-0">
+                <BranchHeader branch={branch} images={images} amenities={amenities} />
+            </div>
+
             {/* Main Booking Flow */}
             <div className="space-y-6 flex flex-col h-full relative z-20">
                  {/* Plan Selection (Step 1) */}

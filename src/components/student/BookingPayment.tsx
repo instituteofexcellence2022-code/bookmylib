@@ -52,7 +52,7 @@ export default function BookingPayment({
   onSuccess, 
   onBack 
 }: BookingPaymentProps) {
-  const [paymentMethod, setPaymentMethod] = useState<string>('razorpay')
+  const [paymentMethod, setPaymentMethod] = useState<string>('front_desk')
   const [couponCode, setCouponCode] = useState('')
   const [appliedCoupon, setAppliedCoupon] = useState<{
     code: string
