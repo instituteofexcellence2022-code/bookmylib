@@ -255,8 +255,25 @@ export async function deletePlan(id: string) {
     })
     revalidatePath('/owner/plans')
     return { success: true }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting plan:', error)
+    
+    // Check for Foreign Key constraint violation (P2003)
+    if (error.code === 'P2003') {
+      try {
+        // Soft delete (archive) instead
+        await prisma.plan.update({
+          where: { id },
+          data: { isActive: false }
+        })
+        revalidatePath('/owner/plans')
+        return { success: true, message: 'Plan has associated subscriptions. It has been archived instead of deleted.' }
+      } catch (archiveError) {
+        console.error('Error archiving plan:', archiveError)
+        return { success: false, error: 'Failed to archive plan' }
+      }
+    }
+
     return { success: false, error: 'Failed to delete plan' }
   }
 }

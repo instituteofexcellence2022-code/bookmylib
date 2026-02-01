@@ -6,7 +6,7 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
 import { FormSelect } from '@/components/ui/FormSelect'
 import { CompactCard } from '@/components/ui/AnimatedCard'
-import { Loader2, PlusCircle, Search, SlidersHorizontal, CalendarClock, IndianRupee, Clock, Trash2, Layers, MapPin, Receipt, X } from 'lucide-react'
+import { Loader2, PlusCircle, Search, SlidersHorizontal, CalendarClock, IndianRupee, Clock, Trash2, Layers, MapPin, Receipt, X, Edit } from 'lucide-react'
 import { getOwnerPlans, updatePlan, deletePlan } from '@/actions/plan'
 import { getOwnerFees, createFee, deleteFee, updateFee } from '@/actions/fee'
 import { getOwnerBranches } from '@/actions/branch'
@@ -123,8 +123,13 @@ export default function PlansAndFeesPage() {
     try {
       const result = await deletePlan(plan.id)
       if (result.success) {
-        setPlans(prev => prev.filter(p => p.id !== plan.id))
-        toast.success('Plan deleted')
+        if (result.message) {
+          toast.success(result.message)
+          setPlans(prev => prev.map(p => p.id === plan.id ? { ...p, isActive: false } : p))
+        } else {
+          setPlans(prev => prev.filter(p => p.id !== plan.id))
+          toast.success('Plan deleted')
+        }
       } else {
         toast.error(result.error || 'Failed to delete plan')
       }
@@ -419,9 +424,10 @@ export default function PlansAndFeesPage() {
                     <AnimatedButton
                         variant="outline"
                         size="sm"
+                        icon="edit"
                         onClick={() => router.push(`/owner/plans/${plan.id}`)}
                     >
-                        View
+                        Edit
                     </AnimatedButton>
                     <AnimatedButton
                         variant={plan.isActive ? 'outline' : 'purple'}

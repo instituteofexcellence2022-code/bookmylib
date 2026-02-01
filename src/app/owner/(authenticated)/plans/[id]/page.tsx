@@ -97,6 +97,8 @@ export default function SubscriptionDetailsPage({ params }: PlanDetailsPageProps
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    if (saving) return
+
     // Basic validation
     if (!form.name || !form.price || !form.duration) {
       toast.error('Please fill all required basic fields')
@@ -150,14 +152,19 @@ export default function SubscriptionDetailsPage({ params }: PlanDetailsPageProps
   }
 
   const handleDelete = async () => {
-    if (!plan) return
+    if (!plan || saving) return
     const confirmed = window.confirm(`Delete plan "${plan.name}"? This cannot be undone.`)
     if (!confirmed) return
 
+    setSaving(true)
     try {
       const result = await deletePlan(plan.id)
       if (result.success) {
-        toast.success('Plan deleted')
+        if (result.message) {
+          toast.success(result.message)
+        } else {
+          toast.success('Plan deleted')
+        }
         router.push('/owner/plans')
       } else {
         toast.error(result.error || 'Failed to delete plan')
@@ -165,6 +172,8 @@ export default function SubscriptionDetailsPage({ params }: PlanDetailsPageProps
     } catch (error) {
       console.error('Error deleting plan:', error)
       toast.error('Failed to delete plan')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -202,7 +211,8 @@ export default function SubscriptionDetailsPage({ params }: PlanDetailsPageProps
         <button
           type="button"
           onClick={handleDelete}
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+          disabled={saving}
+          className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <Trash2 className="w-4 h-4" />
           Delete

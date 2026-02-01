@@ -132,10 +132,8 @@ export async function sendWelcomeEmail(data: {
   try {
     if (!process.env.RESEND_API_KEY && !process.env.SMTP_USER) {
       console.error('CRITICAL: Email service not configured. Missing RESEND_API_KEY or SMTP_USER.')
-      return { success: false, error: 'Email service not configured' }
+      return { success: false, error: 'Email service not configured. Please contact support.' }
     }
-
-    console.log(`Sending Welcome Email to ${data.studentEmail} via ${process.env.RESEND_API_KEY ? 'Resend' : 'SMTP'}`)
 
     const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/student/login`
 

@@ -10,10 +10,11 @@ export const EMAIL_SENDER = process.env.EMAIL_FROM || (process.env.SMTP_USER ? `
 
 // --- Nodemailer Configuration (For Gmail / SMTP Users) ---
 // Use this if you don't have a domain and want to use Gmail or other SMTP
+const smtpPort = parseInt(process.env.SMTP_PORT || '465');
 const smtpConfig = {
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '465'),
-  secure: true, // true for 465, false for other ports
+  port: smtpPort,
+  secure: smtpPort === 465, // true for 465, false for other ports
   auth: {
     user: process.env.SMTP_USER, // Your email address (e.g., yourname@gmail.com)
     pass: process.env.SMTP_PASS, // Your App Password (not your gmail password)
@@ -23,4 +24,19 @@ const smtpConfig = {
 export const transporter = nodemailer.createTransport(smtpConfig);
 
 // Helper to determine which service to use
-export const useResend = !!process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.startsWith('re_');
+// Priority: SMTP (Google/Other) > Resend
+const hasSmtp = !!process.env.SMTP_USER && !!process.env.SMTP_PASS;
+const hasResend = !!process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.startsWith('re_');
+
+export const useResend = !hasSmtp && hasResend;
+
+// Log configuration on server start
+if (typeof window === 'undefined') {
+  if (hasSmtp) {
+    console.log('📧 Email Service: Configured to use SMTP (Nodemailer)')
+  } else if (hasResend) {
+    console.log('📧 Email Service: Configured to use Resend')
+  } else {
+    console.warn('⚠️ Email Service: No email service configured. Please set SMTP_USER/SMTP_PASS or RESEND_API_KEY')
+  }
+}
