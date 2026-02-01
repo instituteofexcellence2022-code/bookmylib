@@ -30,8 +30,8 @@ export async function createStudent(formData: FormData) {
     if (!owner) throw new Error('Owner not found')
 
     const name = formData.get('name') as string
-    const email = formData.get('email') as string
-    const phone = formData.get('phone') as string
+    const email = formData.get('email') as string || null
+    const phone = formData.get('phone') as string || null
     const password = formData.get('password') as string
     const branchId = formData.get('branchId') as string
     
@@ -49,15 +49,19 @@ export async function createStudent(formData: FormData) {
     const imageFile = formData.get('image') as File | null
     const govtIdFile = formData.get('govtId') as File | null
 
-    if (!name || !email || !phone || !branchId) {
+    if (!name || !branchId) {
         return { success: false, error: 'Required fields missing' }
+    }
+
+    if (!email && !phone) {
+        return { success: false, error: 'Email or Phone is required' }
     }
 
     if (!password && !dob) {
         return { success: false, error: 'Password or Date of Birth is required' }
     }
 
-    if (!/^\d{10}$/.test(phone)) {
+    if (phone && !/^\d{10}$/.test(phone)) {
         return { success: false, error: 'Phone number must be exactly 10 digits' }
     }
     if (guardianPhone && !/^\d{10}$/.test(guardianPhone)) {
@@ -66,12 +70,22 @@ export async function createStudent(formData: FormData) {
 
     try {
         // Check if email exists
-        const existing = await prisma.student.findUnique({ where: { email } })
-        if (existing) {
-            return { success: false, error: 'Email already exists' }
+        if (email) {
+            const existing = await prisma.student.findUnique({ where: { email } })
+            if (existing) {
+                return { success: false, error: 'Email already exists' }
+            }
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10)
+        // Check if phone exists
+        if (phone) {
+            const existingPhone = await prisma.student.findUnique({ where: { phone } })
+            if (existingPhone) {
+                return { success: false, error: 'Phone number already exists' }
+            }
+        }
+
+        const hashedPassword = password ? await bcrypt.hash(password, 10) : null
 
         let imagePath = null
         if (imageFile && imageFile.size > 0) {

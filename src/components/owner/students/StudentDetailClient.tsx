@@ -106,7 +106,7 @@ interface Ticket {
 interface StudentDetail {
   id: string
   name: string
-  email: string
+  email: string | null
   phone?: string | null
   image?: string | null
   dob?: string | Date | null

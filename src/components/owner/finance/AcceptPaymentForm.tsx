@@ -23,7 +23,7 @@ import { ReceiptData } from '@/lib/pdf-generator'
 interface Student {
     id: string
     name: string
-    email: string
+    email: string | null
     phone: string | null
 }
 

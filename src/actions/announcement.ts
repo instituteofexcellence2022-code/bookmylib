@@ -161,7 +161,9 @@ export async function createAnnouncement(data: {
           where: studentWhere,
           select: { email: true, name: true }
         })
-        recipients.push(...students)
+        
+        const validStudents = students.filter((s): s is { name: string; email: string } => s.email !== null)
+        recipients.push(...validStudents)
       }
 
       // Fetch Staff

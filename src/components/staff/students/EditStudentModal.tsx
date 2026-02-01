@@ -18,7 +18,7 @@ interface Student {
   state?: string | null
   pincode?: string | null
   name: string
-  email: string
+  email: string | null
   phone?: string | null
   dob?: string | Date | null
   gender?: string | null
@@ -160,8 +160,7 @@ export function EditStudentModal({ isOpen, onClose, student }: EditStudentModalP
                                         name="email"
                                         label="Email"
                                         type="email"
-                                        defaultValue={student.email}
-                                        required
+                                        defaultValue={student.email || ''}
                                         disabled
                                     />
                                     <div>
@@ -169,7 +168,6 @@ export function EditStudentModal({ isOpen, onClose, student }: EditStudentModalP
                                             name="phone"
                                             label="Phone"
                                             defaultValue={student.phone || ''}
-                                            required
                                             disabled
                                         />
                                         <p className="text-xs text-gray-500 mt-1">

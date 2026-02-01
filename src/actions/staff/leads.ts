@@ -259,11 +259,13 @@ export async function convertLeadToStudent(leadId: string, data: { password: str
         })
 
         // Send Welcome Email
-        await sendWelcomeEmail({
-            studentName: student.name,
-            studentEmail: student.email,
-            libraryName: staff.library?.name
-        })
+        if (student.email) {
+            await sendWelcomeEmail({
+                studentName: student.name,
+                studentEmail: student.email,
+                libraryName: staff.library?.name
+            })
+        }
 
         // Update lead status
         await prisma.lead.update({

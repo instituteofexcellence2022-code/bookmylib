@@ -12,9 +12,9 @@ import { z } from 'zod'
 
 const studentSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters'),
-    email: z.string().email('Invalid email address'),
-    phone: z.string().regex(/^\d{10}$/, 'Phone number must be exactly 10 digits'),
-    password: z.string().min(8, 'Password must be at least 8 characters'),
+    email: z.string().email('Invalid email address').or(z.literal('')),
+    phone: z.string().regex(/^\d{10}$/, 'Phone number must be exactly 10 digits').or(z.literal('')),
+    password: z.string().min(8, 'Password must be at least 8 characters').or(z.literal('')),
     branchId: z.string().min(1, 'Please select a branch'),
     dob: z.string().optional(),
     gender: z.string().min(1, 'Please select a gender'),
@@ -25,6 +25,31 @@ const studentSchema = z.object({
     state: z.string().min(1, 'State is required'),
     guardianName: z.string().min(2, 'Guardian name must be at least 2 characters').or(z.literal('')),
     guardianPhone: z.string().regex(/^\d{10}$/, 'Guardian phone must be exactly 10 digits').or(z.literal(''))
+}).superRefine((data, ctx) => {
+    if (!data.email && !data.phone) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Either Email or Phone is required",
+            path: ["email"]
+        });
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Either Email or Phone is required",
+            path: ["phone"]
+        });
+    }
+    if (!data.password && !data.dob) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Either Password or Date of Birth is required",
+            path: ["password"]
+        });
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Either Password or Date of Birth is required",
+            path: ["dob"]
+        });
+    }
 })
 
 export default function AddStudentPage() {
@@ -259,8 +284,8 @@ export default function AddStudentPage() {
                             type="email" 
                             label="Email Address" 
                             placeholder="john@example.com" 
-                            required 
                             icon={Mail}
+                            helperText="Required if Phone is empty"
                             value={formData.email}
                             onChange={handleChange}
                             onBlur={handleBlur}
@@ -271,8 +296,8 @@ export default function AddStudentPage() {
                             type="tel" 
                             label="Phone Number" 
                             placeholder="9876543210" 
-                            required 
                             icon={Phone}
+                            helperText="Required if Email is empty"
                             value={formData.phone}
                             onChange={handleChange}
                             onBlur={handleBlur}
@@ -284,9 +309,8 @@ export default function AddStudentPage() {
                             type="password" 
                             label="Password" 
                             placeholder="********" 
-                            required 
                             icon={Lock}
-                            helperText="Min 8 characters"
+                            helperText="Required if DOB is empty (Min 8 chars)"
                             value={formData.password}
                             onChange={handleChange}
                             onBlur={handleBlur}

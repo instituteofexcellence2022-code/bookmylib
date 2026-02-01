@@ -194,8 +194,8 @@ export async function createStudent(formData: FormData) {
     if (!staff) throw new Error('Unauthorized')
 
     const name = formData.get('name') as string
-    const email = formData.get('email') as string
-    const phone = formData.get('phone') as string
+    const email = formData.get('email') as string || null
+    const phone = formData.get('phone') as string || null
     const password = formData.get('password') as string
     
     // Strict Branch Isolation: Staff can ONLY create students in their branch
@@ -215,11 +215,17 @@ export async function createStudent(formData: FormData) {
     const imageFile = formData.get('image') as File | null
     const govtIdFile = formData.get('govtId') as File | null
 
-    if (!name || !email || !phone || !password) {
-        return { success: false, error: 'Required fields missing' }
+    if (!name) {
+        return { success: false, error: 'Name is required' }
+    }
+    if (!email && !phone) {
+        return { success: false, error: 'Email or Phone is required' }
+    }
+    if (!password && !dob) {
+        return { success: false, error: 'Password or Date of Birth is required' }
     }
 
-    if (!/^\d{10}$/.test(phone)) {
+    if (phone && !/^\d{10}$/.test(phone)) {
         return { success: false, error: 'Phone number must be exactly 10 digits' }
     }
     if (guardianPhone && !/^\d{10}$/.test(guardianPhone)) {
@@ -227,12 +233,21 @@ export async function createStudent(formData: FormData) {
     }
 
     try {
-        const existing = await prisma.student.findUnique({ where: { email } })
-        if (existing) {
-            return { success: false, error: 'Email already exists' }
+        if (email) {
+            const existing = await prisma.student.findUnique({ where: { email } })
+            if (existing) {
+                return { success: false, error: 'Email already exists' }
+            }
+        }
+        if (phone) {
+            const existingPhone = await prisma.student.findUnique({ where: { phone } })
+            if (existingPhone) {
+                return { success: false, error: 'Phone number already exists' }
+            }
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10)
+        const hashedPassword = password ? await bcrypt.hash(password, 10) : null
+
 
         let imagePath = null
         if (imageFile && imageFile.size > 0) {
@@ -268,11 +283,13 @@ export async function createStudent(formData: FormData) {
         })
 
         // Send Welcome Email
-        await sendWelcomeEmail({
-            studentName: student.name,
-            studentEmail: student.email,
-            libraryName: staff.library?.name
-        })
+        if (student.email) {
+            await sendWelcomeEmail({
+                studentName: student.name,
+                studentEmail: student.email,
+                libraryName: staff.library?.name
+            })
+        }
         
         // Log activity
         await prisma.staffActivity.create({
