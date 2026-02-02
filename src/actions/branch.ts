@@ -198,6 +198,8 @@ export async function createBranch(formData: FormData) {
     const area = formData.get('area') as string
     const description = formData.get('description') as string
     const mapsLink = formData.get('mapsLink') as string
+    const latitude = formData.get('latitude') ? parseFloat(formData.get('latitude') as string) : null
+    const longitude = formData.get('longitude') ? parseFloat(formData.get('longitude') as string) : null
     
     const wifiDetailsStr = formData.get('wifiDetails') as string
     const wifiDetails = wifiDetailsStr ? JSON.parse(wifiDetailsStr) : []
@@ -254,6 +256,8 @@ export async function createBranch(formData: FormData) {
         area,
         description,
         mapsLink,
+        latitude,
+        longitude,
         images,
         wifiDetails,
         libraryRules,
@@ -325,6 +329,8 @@ export async function updateBranch(formData: FormData) {
     const description = formData.get('description') as string
     console.log('Updating branch:', { id, description, libraryRules: formData.get('libraryRules') })
     const mapsLink = formData.get('mapsLink') as string
+    const latitude = formData.get('latitude') ? parseFloat(formData.get('latitude') as string) : null
+    const longitude = formData.get('longitude') ? parseFloat(formData.get('longitude') as string) : null
     
     const wifiDetailsStr = formData.get('wifiDetails') as string
     const wifiDetails = wifiDetailsStr ? JSON.parse(wifiDetailsStr) : []
@@ -381,6 +387,8 @@ export async function updateBranch(formData: FormData) {
         area,
         description,
         mapsLink,
+        latitude,
+        longitude,
         images,
         wifiDetails,
         libraryRules,

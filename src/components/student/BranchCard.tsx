@@ -338,9 +338,17 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
                 }`} />
                 {text}
             </div>
-            <div className="bg-white/95 dark:bg-black/80 dark:backdrop-blur-md px-2 py-1 rounded-lg flex items-center gap-1 text-xs font-bold text-amber-500 shadow-sm">
-                <Star className="w-3.5 h-3.5 fill-amber-500" />
-                4.8
+            <div className="flex gap-2">
+                {distance != null && (
+                    <div className="bg-white/95 dark:bg-black/80 dark:backdrop-blur-md px-2 py-1 rounded-lg flex items-center gap-1 text-xs font-bold text-gray-700 dark:text-gray-300 shadow-sm">
+                        <MapPin className="w-3.5 h-3.5 text-gray-500" />
+                        {distance.toFixed(1)} km
+                    </div>
+                )}
+                <div className="bg-white/95 dark:bg-black/80 dark:backdrop-blur-md px-2 py-1 rounded-lg flex items-center gap-1 text-xs font-bold text-amber-500 shadow-sm">
+                    <Star className="w-3.5 h-3.5 fill-amber-500" />
+                    4.8
+                </div>
             </div>
         </div>
 

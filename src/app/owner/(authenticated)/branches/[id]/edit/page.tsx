@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import { 
   Building2, 
@@ -37,7 +38,9 @@ import {
   BookOpen,
   ShieldCheck,
   Book,
-  CreditCard
+  CreditCard,
+  Crosshair,
+  Map as MapIcon
 } from 'lucide-react'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { CompactCard } from '@/components/ui/AnimatedCard'
@@ -47,6 +50,11 @@ import { FormTextarea } from '@/components/ui/FormTextarea'
 import { LibraryRulesInput } from '@/components/owner/LibraryRulesInput'
 import { getBranchById, updateBranch, deleteBranch } from '@/actions/branch'
 import toast from 'react-hot-toast'
+
+const LocationPicker = dynamic(() => import('@/components/owner/LocationPicker'), {
+  ssr: false,
+  loading: () => null
+})
 
 interface PostOffice {
   Name: string
@@ -70,6 +78,8 @@ export default function EditBranchPage() {
 
   const [isLoading, setIsLoading] = useState(true)
   const [isFetchingPincode, setIsFetchingPincode] = useState(false)
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false)
+  const [showMapPicker, setShowMapPicker] = useState(false)
   const [availableAreas, setAvailableAreas] = useState<string[]>([])
   const [isDeleting, setIsDeleting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -103,7 +113,9 @@ export default function EditBranchPage() {
     wifiCredentials: [{ ssid: '', password: '' }],
     libraryRules: [] as string[],
     upiId: '',
-    payeeName: ''
+    payeeName: '',
+    latitude: '',
+    longitude: ''
   })
 
   useEffect(() => {
@@ -213,6 +225,8 @@ export default function EditBranchPage() {
               area: data.area || (fetchedAreas.length === 1 ? fetchedAreas[0] : ''),
               description: data.description || '',
               mapsLink: data.mapsLink || '',
+              latitude: (data as any).latitude ? String((data as any).latitude) : '',
+              longitude: (data as any).longitude ? String((data as any).longitude) : '',
               images: data.images ? JSON.parse(data.images) : [],
               imageFiles: data.images ? new Array(JSON.parse(data.images).length).fill(null) : [],
               wifiCredentials: (data.wifiDetails && Array.isArray(data.wifiDetails) ? data.wifiDetails : [{ ssid: '', password: '' }]) as { ssid: string, password: string }[],
@@ -371,6 +385,69 @@ export default function EditBranchPage() {
     }
   }
 
+  const handleDetectLocation = () => {
+    if (!('geolocation' in navigator)) {
+      toast.error('Geolocation is not supported by your browser')
+      return
+    }
+
+    setIsDetectingLocation(true)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setFormData(prev => ({
+          ...prev,
+          latitude: position.coords.latitude.toString(),
+          longitude: position.coords.longitude.toString()
+        }))
+        toast.success('Location detected successfully')
+        setIsDetectingLocation(false)
+      },
+      (error) => {
+        console.error('Geolocation error:', error)
+        toast.error('Failed to detect location. Please enter manually.')
+        setIsDetectingLocation(false)
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    )
+  }
+
+  const handleMapsLinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setFormData(prev => ({ ...prev, mapsLink: value }))
+
+    // Try to extract coordinates from Google Maps URL
+    // Format 1: .../@12.9716,77.5946,17z...
+    const coordsMatch = value.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
+    
+    // Format 2: ...?q=12.9716,77.5946...
+    const qMatch = value.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/)
+
+    if (coordsMatch) {
+      setFormData(prev => ({
+        ...prev,
+        latitude: coordsMatch[1],
+        longitude: coordsMatch[2]
+      }))
+      toast.success('Coordinates extracted from map link')
+    } else if (qMatch) {
+      setFormData(prev => ({
+        ...prev,
+        latitude: qMatch[1],
+        longitude: qMatch[2]
+      }))
+      toast.success('Coordinates extracted from map link')
+    }
+  }
+
+  const handleLocationSelect = (lat: number, lng: number) => {
+    setFormData(prev => ({
+      ...prev,
+      latitude: lat.toString(),
+      longitude: lng.toString()
+    }))
+    toast.success('Location selected from map')
+  }
+
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -473,6 +550,8 @@ export default function EditBranchPage() {
       formDataToSend.append('area', formData.area)
       formDataToSend.append('description', formData.description)
       formDataToSend.append('mapsLink', formData.mapsLink)
+      formDataToSend.append('latitude', formData.latitude)
+      formDataToSend.append('longitude', formData.longitude)
 
       // Payment Details
       formDataToSend.append('upiId', formData.upiId)
@@ -686,9 +765,60 @@ export default function EditBranchPage() {
                     icon={Globe}
                     type="url"
                     value={formData.mapsLink}
-                    onChange={e => setFormData({...formData, mapsLink: e.target.value})}
+                    onChange={handleMapsLinkChange}
                     placeholder="https://maps.google..."
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Coordinates
+                    </label>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowMapPicker(true)}
+                        className="text-xs flex items-center gap-1.5 text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-medium transition-colors"
+                      >
+                        <MapIcon className="w-3.5 h-3.5" />
+                        Pick on Map
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDetectLocation}
+                        disabled={isDetectingLocation}
+                        className="text-xs flex items-center gap-1.5 text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-medium transition-colors"
+                      >
+                        {isDetectingLocation ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Crosshair className="w-3.5 h-3.5" />
+                        )}
+                        Detect My Location
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormInput
+                      label="Latitude"
+                      icon={MapPin}
+                      type="number"
+                      step="any"
+                      value={formData.latitude}
+                      onChange={e => setFormData({...formData, latitude: e.target.value})}
+                      placeholder="e.g. 12.9716"
+                    />
+                    <FormInput
+                      label="Longitude"
+                      icon={MapPin}
+                      type="number"
+                      step="any"
+                      value={formData.longitude}
+                      onChange={e => setFormData({...formData, longitude: e.target.value})}
+                      placeholder="e.g. 77.5946"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
