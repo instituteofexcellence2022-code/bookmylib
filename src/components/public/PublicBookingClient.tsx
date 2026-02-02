@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { 
     Check, Calendar, CreditCard, Info, 
     User, Mail, Phone, Cake, MapPin,
-    Armchair, ArrowRight, ArrowLeft, BookOpen
+    Armchair, ArrowRight, ArrowLeft, BookOpen,
+    LayoutGrid, List, ChevronLeft, ChevronRight
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -50,6 +51,26 @@ export function PublicBookingClient({ branch, images = [], amenities = [], rules
         phone: '',
         dob: ''
     })
+
+    // Pagination state
+    const [pageBySection, setPageBySection] = useState<Record<string, number>>({})
+    const [columns, setColumns] = useState(4)
+    const [viewMode, setViewMode] = useState<'pagination' | 'scroll'>('pagination')
+
+    // Handle responsive columns
+    React.useEffect(() => {
+        const handleResize = () => {
+            const width = window.innerWidth
+            if (width >= 1280) setColumns(10)      // xl
+            else if (width >= 768) setColumns(8)   // md
+            else if (width >= 640) setColumns(6)   // sm
+            else setColumns(4)                     // default
+        }
+        
+        handleResize() // Initial check
+        window.addEventListener('resize', handleResize)
+        return () => window.removeEventListener('resize', handleResize)
+    }, [])
 
     // Sort seats naturally
     const sortedSeats = React.useMemo(() => {
@@ -215,89 +236,253 @@ export function PublicBookingClient({ branch, images = [], amenities = [], rules
 
 
                         {/* 2. Select Seat (Optional) */}
-                        <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
-                                <Armchair className="w-5 h-5 text-purple-500" />
-                                Select Your Preferred Seat
-                            </h2>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 pl-7">
-                                Optional - You can skip this step and we'll assign one for you
-                            </p>
+                        <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col relative z-10">
+                            
+                            <div className="p-4 md:p-6 border-b border-gray-100 dark:border-gray-700 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50 dark:bg-gray-800/50">
+                                <div className="flex items-center justify-between w-full md:w-auto gap-4">
+                                    <div>
+                                        <h2 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                            <Armchair className="w-5 h-5 text-purple-500" />
+                                            Select Your Preferred Seat
+                                        </h2>
+                                        <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                            Optional - You can skip this step
+                                        </p>
+                                    </div>
+                                    
+                                    {/* View Toggle (Mobile Only) */}
+                                    <div className="flex md:hidden bg-white dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
+                                        <button
+                                            onClick={() => setViewMode('pagination')}
+                                            className={cn(
+                                                "p-1.5 rounded-md transition-all",
+                                                viewMode === 'pagination' 
+                                                    ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" 
+                                                    : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                            )}
+                                        >
+                                            <LayoutGrid className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => setViewMode('scroll')}
+                                            className={cn(
+                                                "p-1.5 rounded-md transition-all",
+                                                viewMode === 'scroll' 
+                                                    ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" 
+                                                    : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                            )}
+                                        >
+                                            <List className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
 
-                            <div className="flex flex-wrap items-center gap-4 mb-6 text-xs text-gray-500 dark:text-gray-400 pl-1">
-                                <div className="flex items-center gap-1.5">
-                                    <div className="w-3 h-3 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600" />
-                                    <span>Available</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <div className="w-3 h-3 rounded bg-purple-500 border border-purple-500" />
-                                    <span>Selected</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <div className="w-3 h-3 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 opacity-50" />
-                                    <span>Occupied</span>
+                                <div className="flex items-center gap-4">
+                                    {/* View Toggle (Desktop) */}
+                                    <div className="hidden md:flex bg-white dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
+                                        <button
+                                            onClick={() => setViewMode('pagination')}
+                                            className={cn(
+                                                "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                                                viewMode === 'pagination' 
+                                                    ? "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 shadow-sm" 
+                                                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                            )}
+                                        >
+                                            <LayoutGrid className="w-4 h-4" />
+                                            Paged
+                                        </button>
+                                        <button
+                                            onClick={() => setViewMode('scroll')}
+                                            className={cn(
+                                                "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                                                viewMode === 'scroll' 
+                                                    ? "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 shadow-sm" 
+                                                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                            )}
+                                        >
+                                            <List className="w-4 h-4" />
+                                            Scroll
+                                        </button>
+                                    </div>
+
+                                    {/* Legend */}
+                                    <div className="flex flex-wrap gap-3 text-xs">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-3 h-3 bg-white dark:bg-gray-800 border border-purple-500 rounded" />
+                                            <span className="text-gray-600 dark:text-gray-300">Available</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-3 h-3 bg-purple-500 rounded" />
+                                            <span className="text-gray-600 dark:text-gray-300">Selected</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-3 h-3 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded" />
+                                            <span className="text-gray-600 dark:text-gray-300">Occupied</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="max-h-[500px] overflow-y-auto pr-2 custom-scrollbar space-y-8">
-                                {Object.entries(seatsBySection).map(([section, seats]: [string, any]) => (
-                                    <div key={section}>
-                                        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-3 px-1 flex items-center gap-2">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
-                                            {section} Section
-                                            <span className="text-xs font-normal text-gray-400">({seats.filter((s: any) => !s.isOccupied).length} available)</span>
-                                        </h3>
-                                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
-                                            {seats.map((seat: any) => (
-                                                <motion.button
-                                                    key={seat.id}
-                                                    whileHover={!seat.isOccupied ? { scale: 1.05 } : {}}
-                                                    whileTap={!seat.isOccupied ? { scale: 0.95 } : {}}
-                                                    onClick={() => !seat.isOccupied && setSelectedSeat(selectedSeat?.id === seat.id ? null : seat)}
-                                                    disabled={seat.isOccupied}
-                                                    className={cn(
-                                                        "aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative group border",
-                                                        seat.isOccupied
-                                                            ? "bg-gray-50 dark:bg-gray-800 border-gray-100 dark:border-gray-700 opacity-50 cursor-not-allowed text-gray-400"
-                                                            : selectedSeat?.id === seat.id
-                                                                ? "bg-purple-500 border-purple-600 text-white shadow-lg shadow-purple-500/20"
-                                                                : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 text-gray-700 dark:text-gray-300"
-                                                    )}
-                                                >
-                                                    <Armchair className={cn(
-                                                        "w-5 h-5 md:w-6 md:h-6",
-                                                        seat.isOccupied ? "opacity-50" : ""
-                                                    )} />
-                                                    <span className="text-xs md:text-sm font-semibold truncate w-full text-center px-1">
-                                                        {formatSeatNumber(seat.number)}
-                                                    </span>
-                                                    {selectedSeat?.id === seat.id && (
-                                                        <motion.div
-                                                            layoutId="check"
-                                                            className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm border border-purple-100"
-                                                        >
-                                                            <Check className="w-2.5 h-2.5" />
-                                                        </motion.div>
-                                                    )}
-                                                </motion.button>
-                                            ))}
-                                        </div>
+                            <div className="p-4 md:p-6 bg-white dark:bg-gray-800 min-h-[300px]">
+                                {viewMode === 'pagination' ? (
+                                    <div className="space-y-8">
+                                        {Object.entries(seatsBySection).map(([section, seats]: [string, any]) => {
+                                            const sectionSeats = seats as any[]
+                                            const currentPage = pageBySection[section] || 0
+                                            const totalPages = Math.ceil(sectionSeats.length / (columns * 4)) // 4 rows
+                                            
+                                            const currentSeats = sectionSeats.slice(
+                                                currentPage * (columns * 4),
+                                                (currentPage + 1) * (columns * 4)
+                                            )
+
+                                            return (
+                                                <div key={section} className="space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                            {section} Section
+                                                        </h3>
+                                                        
+                                                        {totalPages > 1 && (
+                                                            <div className="flex items-center gap-1">
+                                                                <button
+                                                                    onClick={() => setPageBySection(prev => ({
+                                                                        ...prev,
+                                                                        [section]: Math.max(0, (prev[section] || 0) - 1)
+                                                                    }))}
+                                                                    disabled={currentPage === 0}
+                                                                    className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                                                                >
+                                                                    <ChevronLeft className="w-4 h-4" />
+                                                                </button>
+                                                                <span className="text-xs font-medium text-gray-500 min-w-[3rem] text-center">
+                                                                    {currentPage + 1} / {totalPages}
+                                                                </span>
+                                                                <button
+                                                                    onClick={() => setPageBySection(prev => ({
+                                                                        ...prev,
+                                                                        [section]: Math.min(totalPages - 1, (prev[section] || 0) + 1)
+                                                                    }))}
+                                                                    disabled={currentPage === totalPages - 1}
+                                                                    className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                                                                >
+                                                                    <ChevronRight className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div 
+                                                        className="grid gap-2 md:gap-3"
+                                                        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+                                                    >
+                                                        {currentSeats.map((seat: any) => (
+                                                            <motion.button
+                                                                key={seat.id}
+                                                                whileHover={!seat.isOccupied ? { scale: 1.05 } : {}}
+                                                                whileTap={!seat.isOccupied ? { scale: 0.95 } : {}}
+                                                                onClick={() => !seat.isOccupied && setSelectedSeat(selectedSeat?.id === seat.id ? null : seat)}
+                                                                disabled={seat.isOccupied}
+                                                                className={cn(
+                                                                    "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative group",
+                                                                    seat.isOccupied
+                                                                        ? "bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60 text-gray-400 dark:text-gray-500"
+                                                                        : selectedSeat?.id === seat.id
+                                                                            ? "bg-purple-500 border-purple-600 text-white shadow-md shadow-purple-500/20"
+                                                                            : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
+                                                                )}
+                                                            >
+                                                                <Armchair className={cn(
+                                                                    "w-6 h-6 md:w-7 md:h-7",
+                                                                    seat.isOccupied ? "opacity-50" : ""
+                                                                )} />
+                                                                <span className="text-sm md:text-base font-semibold truncate w-full text-center px-1">
+                                                                    {formatSeatNumber(seat.number)}
+                                                                </span>
+                                                                {selectedSeat?.id === seat.id && (
+                                                                    <motion.div
+                                                                        layoutId="check"
+                                                                        className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm"
+                                                                    >
+                                                                        <Check className="w-2 h-2 md:w-2.5 md:h-2.5" />
+                                                                    </motion.div>
+                                                                )}
+                                                            </motion.button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
+                                        {branch.seats.length === 0 && (
+                                            <div className="text-center text-gray-500 py-8">
+                                                No seats configuration found.
+                                            </div>
+                                        )}
                                     </div>
-                                ))}
-                                {branch.seats.length === 0 && (
-                                    <div className="text-center text-gray-500 py-8">
-                                        No seats configuration found.
+                                ) : (
+                                    <div className="space-y-8 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                                        {Object.entries(seatsBySection).map(([section, seats]: [string, any]) => (
+                                            <div key={section} className="space-y-3">
+                                                <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2 sticky top-0 bg-white dark:bg-gray-800 z-10 py-2">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                    {section} Section
+                                                    <span className="text-xs font-normal text-gray-400">({seats.filter((s: any) => !s.isOccupied).length} available)</span>
+                                                </h3>
+                                                <div 
+                                                    className="grid gap-2 md:gap-3"
+                                                    style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+                                                >
+                                                    {(seats as any[]).map((seat: any) => (
+                                                        <motion.button
+                                                            key={seat.id}
+                                                            whileHover={!seat.isOccupied ? { scale: 1.05 } : {}}
+                                                            whileTap={!seat.isOccupied ? { scale: 0.95 } : {}}
+                                                            onClick={() => !seat.isOccupied && setSelectedSeat(selectedSeat?.id === seat.id ? null : seat)}
+                                                            disabled={seat.isOccupied}
+                                                            className={cn(
+                                                                "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative",
+                                                                seat.isOccupied
+                                                                    ? "bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60 text-gray-400 dark:text-gray-500"
+                                                                    : selectedSeat?.id === seat.id
+                                                                        ? "bg-purple-500 border-purple-600 text-white shadow-md shadow-purple-500/20"
+                                                                        : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
+                                                            )}
+                                                        >
+                                                            <Armchair className={cn(
+                                                                "w-6 h-6 md:w-7 md:h-7",
+                                                                seat.isOccupied ? "opacity-50" : ""
+                                                            )} />
+                                                            <span className="text-sm md:text-base font-semibold truncate w-full text-center px-1">
+                                                                {formatSeatNumber(seat.number)}
+                                                            </span>
+                                                            {selectedSeat?.id === seat.id && (
+                                                                <div className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm">
+                                                                    <Check className="w-2 h-2 md:w-2.5 md:h-2.5" />
+                                                                </div>
+                                                            )}
+                                                        </motion.button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
                             </div>
-                            
+
                             {selectedSeat && (
-                                <div className="mt-4 flex items-center gap-2 text-sm text-purple-700 bg-purple-50 dark:bg-purple-900/20 px-4 py-3 rounded-xl border border-purple-100 dark:border-purple-800/50">
-                                    <Check className="w-4 h-4" />
-                                    <span>Selected Seat: <strong>{formatSeatNumber(selectedSeat.number)}</strong></span>
+                                <div className="p-4 bg-purple-50 dark:bg-purple-900/20 border-t border-purple-100 dark:border-purple-800/50 flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center">
+                                        <Check className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-900 dark:text-white">Selected Seat</p>
+                                        <p className="text-xs text-purple-600 dark:text-purple-400 font-bold">{formatSeatNumber(selectedSeat.number)}</p>
+                                    </div>
                                     <button 
                                         onClick={() => setSelectedSeat(null)}
-                                        className="ml-auto text-xs hover:underline text-purple-600"
+                                        className="ml-auto text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 hover:underline"
                                     >
                                         Change
                                     </button>
