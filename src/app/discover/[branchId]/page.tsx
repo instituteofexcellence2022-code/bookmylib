@@ -41,21 +41,6 @@ export default async function PublicBranchBookingPage({ params }: { params: { br
         }
     } catch {}
 
-    // Parse library rules
-    let rules: string[] = []
-    try {
-        if (branch.libraryRules) {
-            // Check if it's already an object/array (Prisma sometimes parses JSON automatically)
-            const rulesData = typeof branch.libraryRules === 'string' 
-                ? JSON.parse(branch.libraryRules) 
-                : branch.libraryRules
-
-            if (Array.isArray(rulesData)) {
-                rules = rulesData
-            }
-        }
-    } catch {}
-
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-12">
             <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
@@ -66,7 +51,6 @@ export default async function PublicBranchBookingPage({ params }: { params: { br
                     branch={branch} 
                     images={images}
                     amenities={amenities}
-                    rules={rules}
                 />
             </div>
         </div>

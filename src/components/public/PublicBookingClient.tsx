@@ -28,12 +28,11 @@ interface PublicBookingClientProps {
     branch: BranchWithDetails
     images?: string[]
     amenities?: string[]
-    rules?: string[]
 }
 
 type BookingStep = 'selection' | 'details' | 'payment'
 
-export function PublicBookingClient({ branch, images = [], amenities = [], rules = [] }: PublicBookingClientProps) {
+export function PublicBookingClient({ branch, images = [], amenities = [] }: PublicBookingClientProps) {
     const router = useRouter()
     const [step, setStep] = useState<BookingStep>('selection')
     const [showDetails, setShowDetails] = useState(false)
@@ -155,7 +154,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], rules
 
     return (
         <div className="max-w-4xl mx-auto pb-12">
-            <div className="mb-8">
+            <div className="mb-2">
                 <PublicBranchHeader 
                     branch={branch} 
                     images={images} 
@@ -165,7 +164,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], rules
             </div>
 
             {/* Progress Steps */}
-            <div className="flex items-center justify-center mb-8">
+            <div className="flex items-center justify-center mb-2">
                 <div className="flex items-center gap-2">
                     {[
                         { id: 'selection', label: '1. Select Plan' },
@@ -205,23 +204,22 @@ export function PublicBookingClient({ branch, images = [], amenities = [], rules
                         className="space-y-8"
                     >
                         {/* 1. Choose Plan */}
-                        <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                    <CreditCard className="w-5 h-5 text-purple-500" />
-                                    Choose a Plan
-                                </h2>
+                        <section className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm">
+                            <div className="flex flex-col gap-3 mb-4">
+                                <div className="flex items-center justify-between gap-3">
+                                    <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 whitespace-nowrap">
+                                        <CreditCard className="w-4 h-4 text-purple-500" />
+                                        Choose a Plan
+                                    </h2>
 
-                                {/* Filters */}
-                                <div className="flex flex-wrap items-center gap-3">
                                     {/* Category Filter */}
-                                    <div className="flex items-center p-1 bg-gray-100 dark:bg-gray-900 rounded-lg">
+                                    <div className="flex items-center p-1 bg-gray-100 dark:bg-gray-900 rounded-lg shrink-0">
                                         {['all', 'fixed', 'flexible'].map(cat => (
                                             <button
                                                 key={cat}
                                                 onClick={() => setFilterCategory(cat)}
                                                 className={cn(
-                                                    "px-3 py-1.5 rounded-md text-xs font-medium transition-all capitalize",
+                                                    "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all capitalize",
                                                     filterCategory === cat
                                                         ? "bg-white dark:bg-gray-800 text-purple-600 dark:text-purple-400 shadow-sm"
                                                         : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
@@ -231,27 +229,27 @@ export function PublicBookingClient({ branch, images = [], amenities = [], rules
                                             </button>
                                         ))}
                                     </div>
-
-                                    {/* Duration Filter */}
-                                    {uniqueDurations.length > 2 && (
-                                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-[200px] md:max-w-none">
-                                            {uniqueDurations.map(dur => (
-                                                <button
-                                                    key={dur}
-                                                    onClick={() => setFilterDuration(dur)}
-                                                    className={cn(
-                                                        "px-3 py-1.5 rounded-full text-xs font-medium transition-all border whitespace-nowrap",
-                                                        filterDuration === dur
-                                                            ? "bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-300"
-                                                            : "bg-white border-gray-200 text-gray-600 hover:border-purple-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
-                                                    )}
-                                                >
-                                                    {dur === 'all' ? 'Any Duration' : dur.toLowerCase().replace(/ months?/, ' Mo').replace(/ days?/, ' Days')}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
                                 </div>
+
+                                {/* Duration Filter - Row 2 */}
+                                {uniqueDurations.length > 2 && (
+                                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                                        {uniqueDurations.map(dur => (
+                                            <button
+                                                key={dur}
+                                                onClick={() => setFilterDuration(dur)}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-full text-xs font-medium transition-all border whitespace-nowrap",
+                                                    filterDuration === dur
+                                                        ? "bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-300"
+                                                        : "bg-white border-gray-200 text-gray-600 hover:border-purple-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
+                                                )}
+                                            >
+                                                {dur === 'all' ? 'Any Duration' : dur.toLowerCase().replace(/ months?/, ' Mo').replace(/ days?/, ' Days')}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             <div className="space-y-2 max-h-[400px] overflow-y-auto px-1 -mx-1 custom-scrollbar">
