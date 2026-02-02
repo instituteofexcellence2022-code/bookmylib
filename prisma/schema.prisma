@@ -102,6 +102,8 @@ model Branch {
   area         String?
   description  String?
   mapsLink     String?
+  latitude     Float?
+  longitude    Float?
   images       String?  // JSON array
   wifiDetails  Json?
   operatingHours Json?

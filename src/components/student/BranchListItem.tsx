@@ -56,7 +56,7 @@ const getAmenities = (amenitiesString: string | null) => {
   }
 }
 
-export function BranchListItem({ branch, isActiveMember, theme = 'emerald', publicMode = false }: BranchCardProps) {
+export function BranchListItem({ branch, isActiveMember, theme = 'emerald', publicMode = false, distance }: BranchCardProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [showHours, setShowHours] = useState(false)
   const [showAmenities, setShowAmenities] = useState(false)
@@ -242,6 +242,12 @@ export function BranchListItem({ branch, isActiveMember, theme = 'emerald', publ
 
           {/* Compact Stats */}
           <div className="flex items-center gap-2 flex-wrap">
+             {distance != null && (
+                <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 px-2.5 py-1.5 rounded-full border border-gray-100 dark:border-gray-800 shrink-0">
+                    <MapPin className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
+                    <span>{distance.toFixed(1)} km</span>
+                </div>
+             )}
              <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 px-2.5 py-1.5 rounded-full border border-gray-100 dark:border-gray-800 shrink-0">
                 <Users className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
                 <span>{branch._count.seats} Seats</span>

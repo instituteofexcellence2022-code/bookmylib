@@ -89,15 +89,18 @@ export interface BranchCardProps {
     _count: {
       seats: number
     }
+    latitude?: number | null
+    longitude?: number | null
     plans?: {
       price: number
       duration: number
       durationUnit: string
     }[]
   }
+  distance?: number | null
 }
 
-export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMode = false }: BranchCardProps) {
+export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMode = false, distance }: BranchCardProps) {
   const [showAmenities, setShowAmenities] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
   const [showHours, setShowHours] = useState(false)
@@ -372,6 +375,12 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
              </div>
              
              <div className="flex items-center gap-2 flex-wrap">
+                 {distance != null && (
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 px-2.5 py-1.5 rounded-full border border-gray-100 dark:border-gray-800 shrink-0">
+                        <MapPin className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
+                        <span>{distance.toFixed(1)} km</span>
+                    </div>
+                 )}
                  <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 px-2.5 py-1.5 rounded-full border border-gray-100 dark:border-gray-800 shrink-0">
                     <Users className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
                     <span>{branch._count.seats} Seats</span>

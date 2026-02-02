@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { LayoutGrid, List, Building2, Search, MapPin } from 'lucide-react'
 import { BranchCard, BranchCardProps } from '@/components/student/BranchCard'
 import { BranchListItem } from '@/components/student/BranchListItem'
@@ -17,9 +17,50 @@ interface BookingPageClientProps {
 export function BookingPageClient({ branches, activeBranchIds, theme = 'emerald', publicMode = false }: BookingPageClientProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const themeClasses = getThemeClasses(theme)
+
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          })
+        },
+        (error) => {
+          console.log('Geolocation error:', error)
+        }
+      )
+    }
+  }, [])
+
+  // Helper function to calculate distance using Haversine formula
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371 // Radius of the earth in km
+    const dLat = (lat2 - lat1) * (Math.PI / 180)
+    const dLon = (lon2 - lon1) * (Math.PI / 180)
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) *
+        Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    const d = R * c // Distance in km
+    return d
+  }
   
-  const filteredBranches = branches?.filter(branch => {
+  const branchesWithDistance = branches?.map(branch => {
+    let distance: number | null = null
+    if (userLocation && branch.latitude && branch.longitude) {
+      distance = calculateDistance(userLocation.lat, userLocation.lng, branch.latitude, branch.longitude)
+    }
+    return { ...branch, distance }
+  }) || []
+
+  const filteredBranches = branchesWithDistance.filter(branch => {
     if (!searchQuery.trim()) return true
     
     const searchTerms = searchQuery.toLowerCase().trim().split(/\s+/)
@@ -33,7 +74,14 @@ export function BookingPageClient({ branches, activeBranchIds, theme = 'emerald'
     ].filter(Boolean).join(' ').toLowerCase()
 
     return searchTerms.every(term => searchableText.includes(term))
-  }) || []
+  }).sort((a, b) => {
+    if (a.distance !== null && b.distance !== null) {
+      return a.distance - b.distance
+    }
+    if (a.distance !== null) return -1
+    if (b.distance !== null) return 1
+    return 0
+  })
 
   if (!branches || branches.length === 0) {
     return (
@@ -113,6 +161,7 @@ export function BookingPageClient({ branches, activeBranchIds, theme = 'emerald'
               isActiveMember={activeBranchIds.includes(branch.id)}
               theme={theme}
               publicMode={publicMode}
+              distance={branch.distance}
             />
           ))}
         </div>
@@ -125,6 +174,7 @@ export function BookingPageClient({ branches, activeBranchIds, theme = 'emerald'
               isActiveMember={activeBranchIds.includes(branch.id)}
               theme={theme}
               publicMode={publicMode}
+              distance={branch.distance}
             />
           ))}
         </div>
