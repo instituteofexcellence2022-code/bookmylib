@@ -630,12 +630,11 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                     Start Date
                                 </h3>
                                 <input
-                                    type="date"
-                                    value={bookingDate}
-                                    min={new Date().toISOString().split('T')[0]}
-                                    onChange={(e) => setBookingDate(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 outline-none focus:ring-2 focus:ring-purple-500 transition-all"
-                                />
+                          type="date"
+                          value={bookingDate}
+                          onChange={(e) => setBookingDate(e.target.value)}
+                          className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                        />
                             </div>
                         </div>
 
