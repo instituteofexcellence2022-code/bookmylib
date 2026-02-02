@@ -245,32 +245,24 @@ export default async function PublicBranchDetailsPage({ params }: { params: { br
                     {/* Sidebar Info */}
                     <div className="space-y-6">
                         {/* Location Card */}
-                        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
-                            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                                <MapPin className="w-5 h-5 text-red-500" />
-                                Location
-                            </h2>
-                            {branch.mapsLink ? (
+                            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+                                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                    <MapPin className="w-5 h-5 text-red-500" />
+                                    Location
+                                </h2>
                                 <div className="aspect-video w-full bg-gray-100 dark:bg-gray-700 rounded-xl mb-4 relative overflow-hidden group">
                                     <iframe 
-                                        src={branch.mapsLink}
+                                        src={branch.mapsLink?.includes('embed') ? branch.mapsLink : `https://maps.google.com/maps?q=${encodeURIComponent(`${branch.name}, ${branch.address}, ${branch.city}, ${branch.state}`)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
                                         width="100%" 
                                         height="100%" 
                                         style={{ border: 0 }} 
                                         allowFullScreen 
                                         loading="lazy" 
                                         referrerPolicy="no-referrer-when-downgrade"
-                                        className="absolute inset-0 w-full h-full"
+                                        className="absolute inset-0 w-full h-full grayscale hover:grayscale-0 transition-all duration-500"
                                     />
                                 </div>
-                            ) : (
-                                <div className="aspect-video w-full bg-gray-100 dark:bg-gray-700 rounded-xl mb-4 relative overflow-hidden group">
-                                    <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                                        <span className="text-xs">Map View Not Available</span>
-                                    </div>
-                                </div>
-                            )}
-                            <address className="not-italic text-sm text-gray-600 dark:text-gray-300">
+                                <address className="not-italic text-sm text-gray-600 dark:text-gray-300">
                                 <p className="font-medium text-gray-900 dark:text-white mb-1">{branch.name}</p>
                                 <p>{branch.address}, {branch.city}, {branch.state} - {branch.pincode}</p>
                             </address>
