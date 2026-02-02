@@ -6,7 +6,7 @@ import {
     Check, Calendar, CreditCard, Info, 
     User, Mail, Phone, Cake, MapPin,
     Armchair, ArrowRight, ArrowLeft, BookOpen,
-    LayoutGrid, List, ChevronLeft, ChevronRight, Clock
+    LayoutGrid, List, ChevronLeft, ChevronRight, Clock, Filter
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -56,6 +56,25 @@ export function PublicBookingClient({ branch, images = [], amenities = [], rules
     const [pageBySection, setPageBySection] = useState<Record<string, number>>({})
     const [columns, setColumns] = useState(4)
     const [viewMode, setViewMode] = useState<'pagination' | 'scroll'>('pagination')
+
+    // Filter State
+    const [filterCategory, setFilterCategory] = useState<string>('all')
+    const [filterDuration, setFilterDuration] = useState<string>('all')
+
+    // Derived Filters
+    const uniqueDurations = React.useMemo(() => {
+        const set = new Set(branch.plans.map(p => `${p.duration} ${p.durationUnit}`))
+        return ['all', ...Array.from(set)]
+    }, [branch.plans])
+
+    const filteredPlans = React.useMemo(() => {
+        return branch.plans.filter(plan => {
+            const matchCategory = filterCategory === 'all' || plan.category === filterCategory
+            const matchDuration = filterDuration === 'all' || `${plan.duration} ${plan.durationUnit}` === filterDuration
+            return matchCategory && matchDuration
+        })
+    }, [branch.plans, filterCategory, filterDuration])
+
 
     // Handle responsive columns
     React.useEffect(() => {
@@ -187,17 +206,68 @@ export function PublicBookingClient({ branch, images = [], amenities = [], rules
                     >
                         {/* 1. Choose Plan */}
                         <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                                <CreditCard className="w-5 h-5 text-purple-500" />
-                                Choose a Plan
-                            </h2>
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                    <CreditCard className="w-5 h-5 text-purple-500" />
+                                    Choose a Plan
+                                </h2>
+
+                                {/* Filters */}
+                                <div className="flex flex-wrap items-center gap-3">
+                                    {/* Category Filter */}
+                                    <div className="flex items-center p-1 bg-gray-100 dark:bg-gray-900 rounded-lg">
+                                        {['all', 'fixed', 'flexible'].map(cat => (
+                                            <button
+                                                key={cat}
+                                                onClick={() => setFilterCategory(cat)}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-md text-xs font-medium transition-all capitalize",
+                                                    filterCategory === cat
+                                                        ? "bg-white dark:bg-gray-800 text-purple-600 dark:text-purple-400 shadow-sm"
+                                                        : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                                                )}
+                                            >
+                                                {cat === 'all' ? 'All' : cat}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Duration Filter */}
+                                    {uniqueDurations.length > 2 && (
+                                        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-[200px] md:max-w-none">
+                                            {uniqueDurations.map(dur => (
+                                                <button
+                                                    key={dur}
+                                                    onClick={() => setFilterDuration(dur)}
+                                                    className={cn(
+                                                        "px-3 py-1.5 rounded-full text-xs font-medium transition-all border whitespace-nowrap",
+                                                        filterDuration === dur
+                                                            ? "bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-300"
+                                                            : "bg-white border-gray-200 text-gray-600 hover:border-purple-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
+                                                    )}
+                                                >
+                                                    {dur === 'all' ? 'Any Duration' : dur.toLowerCase().replace(/ months?/, ' Mo').replace(/ days?/, ' Days')}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
                             <div className="space-y-2 max-h-[400px] overflow-y-auto px-1 -mx-1 custom-scrollbar">
-                                {branch.plans.length === 0 ? (
-                                    <div className="text-center py-8 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-                                        <p className="text-sm">No subscription plans available.</p>
+                                {filteredPlans.length === 0 ? (
+                                    <div className="text-center py-12 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                                        <Filter className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                                        <p className="text-sm font-medium">No plans match your filters.</p>
+                                        <button 
+                                            onClick={() => { setFilterCategory('all'); setFilterDuration('all'); }}
+                                            className="text-xs text-purple-600 dark:text-purple-400 mt-2 hover:underline"
+                                        >
+                                            Clear all filters
+                                        </button>
                                     </div>
                                 ) : (
-                                    branch.plans.map(plan => (
+                                    filteredPlans.map(plan => (
                                         <div 
                                             key={plan.id}
                                             onClick={() => handlePlanSelect(plan)}
