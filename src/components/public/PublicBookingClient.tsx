@@ -51,6 +51,23 @@ export function PublicBookingClient({ branch, images = [], amenities = [], rules
         dob: ''
     })
 
+    // Sort seats naturally
+    const sortedSeats = React.useMemo(() => {
+        return [...(branch.seats || [])].sort((a: any, b: any) => {
+            return a.number.localeCompare(b.number, undefined, { numeric: true, sensitivity: 'base' })
+        })
+    }, [branch.seats])
+
+    // Group seats by section
+    const seatsBySection = React.useMemo(() => {
+        return sortedSeats.reduce((acc: any, seat: any) => {
+            const section = seat.section || 'General'
+            if (!acc[section]) acc[section] = []
+            acc[section].push(seat)
+            return acc
+        }, {})
+    }, [sortedSeats])
+
     const handlePlanSelect = (plan: Plan) => {
         setSelectedPlan(plan)
     }
@@ -194,41 +211,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], rules
                             </div>
                         </section>
 
-                        {/* Amenities Section */}
-                        {amenities.length > 0 && (
-                            <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                                    <Check className="w-5 h-5 text-emerald-500" />
-                                    Included Amenities
-                                </h2>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                                    {amenities.map((amenity, idx) => (
-                                        <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-700/30 text-sm text-gray-700 dark:text-gray-300">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                            <span className="capitalize">{amenity.replace(/-/g, ' ')}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-                        )}
 
-                        {/* Library Rules Section */}
-                        {rules.length > 0 && (
-                            <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                                    <BookOpen className="w-5 h-5 text-emerald-500" />
-                                    Library Rules
-                                </h2>
-                                <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    {rules.map((rule, idx) => (
-                                        <li key={idx} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/30 p-3 rounded-lg">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
-                                            <span>{rule}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </section>
-                        )}
 
 
                         {/* 2. Select Seat (Optional) */}
@@ -241,7 +224,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], rules
                                 Optional - You can skip this step and we'll assign one for you
                             </p>
 
-                            <div className="flex flex-wrap items-center gap-4 mb-4 text-xs text-gray-500 dark:text-gray-400 pl-1">
+                            <div className="flex flex-wrap items-center gap-4 mb-6 text-xs text-gray-500 dark:text-gray-400 pl-1">
                                 <div className="flex items-center gap-1.5">
                                     <div className="w-3 h-3 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600" />
                                     <span>Available</span>
@@ -251,36 +234,73 @@ export function PublicBookingClient({ branch, images = [], amenities = [], rules
                                     <span>Selected</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                    <div className="w-3 h-3 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700" />
+                                    <div className="w-3 h-3 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 opacity-50" />
                                     <span>Occupied</span>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 max-h-60 overflow-y-auto p-1 custom-scrollbar">
-                                {branch.seats.filter(s => !s.isOccupied).map(seat => (
-                                    <button
-                                        key={seat.id}
-                                        onClick={() => setSelectedSeat(selectedSeat?.id === seat.id ? null : seat)}
-                                        className={cn(
-                                            "p-2 text-sm rounded-lg border transition-all text-center font-medium",
-                                            selectedSeat?.id === seat.id
-                                                ? "bg-emerald-500 text-white border-emerald-600"
-                                                : "bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-emerald-300"
-                                        )}
-                                    >
-                                        {formatSeatNumber(seat.number)}
-                                    </button>
+                            <div className="max-h-[500px] overflow-y-auto pr-2 custom-scrollbar space-y-8">
+                                {Object.entries(seatsBySection).map(([section, seats]: [string, any]) => (
+                                    <div key={section}>
+                                        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-3 px-1 flex items-center gap-2">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                                            {section} Section
+                                            <span className="text-xs font-normal text-gray-400">({seats.filter((s: any) => !s.isOccupied).length} available)</span>
+                                        </h3>
+                                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                                            {seats.map((seat: any) => (
+                                                <motion.button
+                                                    key={seat.id}
+                                                    whileHover={!seat.isOccupied ? { scale: 1.05 } : {}}
+                                                    whileTap={!seat.isOccupied ? { scale: 0.95 } : {}}
+                                                    onClick={() => !seat.isOccupied && setSelectedSeat(selectedSeat?.id === seat.id ? null : seat)}
+                                                    disabled={seat.isOccupied}
+                                                    className={cn(
+                                                        "aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative group border",
+                                                        seat.isOccupied
+                                                            ? "bg-gray-50 dark:bg-gray-800 border-gray-100 dark:border-gray-700 opacity-50 cursor-not-allowed text-gray-400"
+                                                            : selectedSeat?.id === seat.id
+                                                                ? "bg-purple-500 border-purple-600 text-white shadow-lg shadow-purple-500/20"
+                                                                : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 text-gray-700 dark:text-gray-300"
+                                                    )}
+                                                >
+                                                    <Armchair className={cn(
+                                                        "w-5 h-5 md:w-6 md:h-6",
+                                                        seat.isOccupied ? "opacity-50" : ""
+                                                    )} />
+                                                    <span className="text-xs md:text-sm font-semibold truncate w-full text-center px-1">
+                                                        {formatSeatNumber(seat.number)}
+                                                    </span>
+                                                    {selectedSeat?.id === seat.id && (
+                                                        <motion.div
+                                                            layoutId="check"
+                                                            className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm border border-purple-100"
+                                                        >
+                                                            <Check className="w-2.5 h-2.5" />
+                                                        </motion.div>
+                                                    )}
+                                                </motion.button>
+                                            ))}
+                                        </div>
+                                    </div>
                                 ))}
-                                {branch.seats.filter(s => !s.isOccupied).length === 0 && (
-                                    <div className="col-span-full text-center text-gray-500 py-4">
-                                        No specific seats available currently.
+                                {branch.seats.length === 0 && (
+                                    <div className="text-center text-gray-500 py-8">
+                                        No seats configuration found.
                                     </div>
                                 )}
                             </div>
+                            
                             {selectedSeat && (
-                                <div className="mt-4 flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-2 rounded-lg inline-block">
+                                <div className="mt-4 flex items-center gap-2 text-sm text-purple-700 bg-purple-50 dark:bg-purple-900/20 px-4 py-3 rounded-xl border border-purple-100 dark:border-purple-800/50">
                                     <Check className="w-4 h-4" />
-                                    Selected Seat: <strong>{formatSeatNumber(selectedSeat.number)}</strong>
+                                    <span>Selected Seat: <strong>{formatSeatNumber(selectedSeat.number)}</strong></span>
+                                    <button 
+                                        onClick={() => setSelectedSeat(null)}
+                                        className="ml-auto text-xs hover:underline text-purple-600"
+                                    >
+                                        Change
+                                    </button>
                                 </div>
                             )}
                         </section>
