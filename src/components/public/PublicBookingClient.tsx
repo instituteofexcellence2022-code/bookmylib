@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { 
     Check, Calendar, CreditCard, Info, 
     User, Mail, Phone, Cake, MapPin,
-    Armchair, ArrowRight, ArrowLeft
+    Armchair, ArrowRight, ArrowLeft, BookOpen
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -27,13 +27,15 @@ interface PublicBookingClientProps {
     branch: BranchWithDetails
     images?: string[]
     amenities?: string[]
+    rules?: string[]
 }
 
 type BookingStep = 'selection' | 'details' | 'payment'
 
-export function PublicBookingClient({ branch, images = [], amenities = [] }: PublicBookingClientProps) {
+export function PublicBookingClient({ branch, images = [], amenities = [], rules = [] }: PublicBookingClientProps) {
     const router = useRouter()
     const [step, setStep] = useState<BookingStep>('selection')
+    const [showDetails, setShowDetails] = useState(false)
     
     // Selection State
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
@@ -90,7 +92,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [] }: Pub
                     branch={branch} 
                     images={images} 
                     amenities={amenities} 
-                    backLink="/discover"
+                    showDetailsLink={true}
                 />
             </div>
 
@@ -141,44 +143,120 @@ export function PublicBookingClient({ branch, images = [], amenities = [] }: Pub
                                 Choose a Plan
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {branch.plans.map(plan => (
-                                    <button
-                                        key={plan.id}
-                                        onClick={() => handlePlanSelect(plan)}
-                                        className={cn(
-                                            "relative p-4 rounded-xl border-2 text-left transition-all hover:shadow-md",
-                                            selectedPlan?.id === plan.id
-                                                ? "border-purple-500 bg-purple-50/50 dark:bg-purple-900/10"
-                                                : "border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-purple-200 dark:hover:border-purple-800"
-                                        )}
-                                    >
-                                        <div className="flex justify-between items-start mb-2">
-                                            <h3 className="font-bold text-gray-900 dark:text-white">{plan.name}</h3>
-                                            {selectedPlan?.id === plan.id && (
-                                                <div className="bg-purple-500 text-white p-1 rounded-full">
-                                                    <Check className="w-3 h-3" />
+                                {branch.plans.map(plan => {
+                                    const isBestValue = plan.duration >= 90 // Example logic
+                                    return (
+                                        <button
+                                            key={plan.id}
+                                            onClick={() => handlePlanSelect(plan)}
+                                            className={cn(
+                                                "relative p-5 rounded-xl border-2 text-left transition-all hover:shadow-lg group overflow-hidden",
+                                                selectedPlan?.id === plan.id
+                                                    ? "border-purple-500 bg-purple-50/50 dark:bg-purple-900/10 shadow-purple-100 dark:shadow-none"
+                                                    : "border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-purple-200 dark:hover:border-purple-800"
+                                            )}
+                                        >
+                                            {isBestValue && (
+                                                <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">
+                                                    BEST VALUE
                                                 </div>
                                             )}
-                                        </div>
-                                        <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-2">
-                                            ₹{plan.price}
-                                            <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-1">/ {plan.duration} days</span>
-                                        </div>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
-                                            {plan.description}
-                                        </p>
-                                    </button>
-                                ))}
+                                            <div className="flex justify-between items-start mb-3">
+                                                <div>
+                                                    <h3 className="font-bold text-gray-900 dark:text-white text-lg group-hover:text-purple-600 transition-colors">{plan.name}</h3>
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">
+                                                        {plan.description}
+                                                    </p>
+                                                </div>
+                                                {selectedPlan?.id === plan.id ? (
+                                                    <div className="bg-purple-500 text-white p-1 rounded-full shadow-sm">
+                                                        <Check className="w-3.5 h-3.5" />
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-600 group-hover:border-purple-400 transition-colors" />
+                                                )}
+                                            </div>
+                                            
+                                            <div className="flex items-baseline gap-1 mt-4">
+                                                <span className="text-2xl font-bold text-gray-900 dark:text-white">₹{plan.price}</span>
+                                                <span className="text-sm text-gray-500 dark:text-gray-400">/ {plan.duration} days</span>
+                                            </div>
+                                            
+                                            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700/50 flex items-center gap-2 text-xs text-gray-500 font-medium">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                Full Access
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 ml-2" />
+                                                WiFi Included
+                                            </div>
+                                        </button>
+                                    )
+                                })}
                             </div>
                         </section>
 
+                        {/* Amenities Section */}
+                        {amenities.length > 0 && (
+                            <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                    <Check className="w-5 h-5 text-emerald-500" />
+                                    Included Amenities
+                                </h2>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                    {amenities.map((amenity, idx) => (
+                                        <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-700/30 text-sm text-gray-700 dark:text-gray-300">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                            <span className="capitalize">{amenity.replace(/-/g, ' ')}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+
+                        {/* Library Rules Section */}
+                        {rules.length > 0 && (
+                            <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                    <BookOpen className="w-5 h-5 text-emerald-500" />
+                                    Library Rules
+                                </h2>
+                                <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {rules.map((rule, idx) => (
+                                        <li key={idx} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/30 p-3 rounded-lg">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                                            <span>{rule}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
+                        )}
+
+
                         {/* 2. Select Seat (Optional) */}
                         <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                                <Armchair className="w-5 h-5 text-emerald-500" />
-                                Select Seat (Optional)
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+                                <Armchair className="w-5 h-5 text-purple-500" />
+                                Select Your Preferred Seat
                             </h2>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 max-h-60 overflow-y-auto p-1">
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 pl-7">
+                                Optional - You can skip this step and we'll assign one for you
+                            </p>
+
+                            <div className="flex flex-wrap items-center gap-4 mb-4 text-xs text-gray-500 dark:text-gray-400 pl-1">
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-3 h-3 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600" />
+                                    <span>Available</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-3 h-3 rounded bg-purple-500 border border-purple-500" />
+                                    <span>Selected</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-3 h-3 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700" />
+                                    <span>Occupied</span>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 max-h-60 overflow-y-auto p-1 custom-scrollbar">
                                 {branch.seats.filter(s => !s.isOccupied).map(seat => (
                                     <button
                                         key={seat.id}
@@ -288,63 +366,127 @@ export function PublicBookingClient({ branch, images = [], amenities = [] }: Pub
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
-                        className="max-w-xl mx-auto"
+                        className="grid md:grid-cols-3 gap-8"
                     >
-                        <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 border border-gray-100 dark:border-gray-700 shadow-sm">
-                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Enter Your Details</h2>
-                            <form onSubmit={handleDetailsSubmit} className="space-y-5">
-                                <FormInput
-                                    label="Full Name"
-                                    icon={User}
-                                    placeholder="John Doe"
-                                    value={studentDetails.name}
-                                    onChange={(e) => setStudentDetails(prev => ({ ...prev, name: e.target.value }))}
-                                    required
-                                />
-                                <FormInput
-                                    label="Email Address"
-                                    icon={Mail}
-                                    type="email"
-                                    placeholder="john@example.com"
-                                    value={studentDetails.email}
-                                    onChange={(e) => setStudentDetails(prev => ({ ...prev, email: e.target.value }))}
-                                    required
-                                />
-                                <FormInput
-                                    label="Phone Number"
-                                    icon={Phone}
-                                    type="tel"
-                                    placeholder="9876543210"
-                                    value={studentDetails.phone}
-                                    onChange={(e) => setStudentDetails(prev => ({ ...prev, phone: e.target.value }))}
-                                    required
-                                />
-                                <FormInput
-                                    label="Date of Birth"
-                                    icon={Cake}
-                                    type="date"
-                                    value={studentDetails.dob}
-                                    onChange={(e) => setStudentDetails(prev => ({ ...prev, dob: e.target.value }))}
-                                    required
-                                />
+                        {/* Summary Side Panel */}
+                        <div className="md:col-span-1 space-y-4 h-fit">
+                            <div className="bg-purple-50 dark:bg-purple-900/10 rounded-2xl p-6 border border-purple-100 dark:border-purple-800/30 sticky top-24">
+                                <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                    <Info className="w-4 h-4 text-purple-500" />
+                                    Booking Summary
+                                </h3>
+                                
+                                <div className="space-y-4 text-sm">
+                                    <div>
+                                        <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">Selected Plan</p>
+                                        <div className="font-semibold text-gray-900 dark:text-white flex justify-between items-center">
+                                            <span>{selectedPlan?.name}</span>
+                                            <span>₹{selectedPlan?.price}</span>
+                                        </div>
+                                        <p className="text-xs text-gray-500">{selectedPlan?.duration} days</p>
+                                    </div>
 
-                                <div className="pt-4 flex gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setStep('selection')}
-                                        className="flex-1 px-6 py-3 border border-gray-200 dark:border-gray-700 rounded-xl font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                                    >
-                                        Back
-                                    </button>
-                                    <AnimatedButton
-                                        type="submit"
-                                        className="flex-[2] bg-purple-600 hover:bg-purple-700 text-white"
-                                        icon="arrowRight"
-                                    >
-                                        Proceed to Pay
-                                    </AnimatedButton>
+                                    {selectedSeat && (
+                                        <div className="pt-3 border-t border-purple-100 dark:border-purple-800/30">
+                                            <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">Seat</p>
+                                            <p className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                                {formatSeatNumber(selectedSeat.number)}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    <div className="pt-3 border-t border-purple-100 dark:border-purple-800/30">
+                                        <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">Start Date</p>
+                                        <p className="font-semibold text-gray-900 dark:text-white">
+                                            {new Date(bookingDate).toLocaleDateString('en-IN', { 
+                                                day: 'numeric', month: 'short', year: 'numeric' 
+                                            })}
+                                        </p>
+                                    </div>
+
+                                    <div className="pt-3 border-t border-purple-100 dark:border-purple-800/30 flex justify-between items-center">
+                                        <span className="font-bold text-gray-900 dark:text-white">Total</span>
+                                        <span className="font-bold text-xl text-purple-600 dark:text-purple-400">₹{totalAmount}</span>
+                                    </div>
                                 </div>
-                            </form>
+                            </div>
+                        </div>
+
+                        {/* Details Form */}
+                        <div className="md:col-span-2">
+                            <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 border border-gray-100 dark:border-gray-700 shadow-sm">
+                                <div className="mb-6">
+                                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Enter Your Details</h2>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                        We need a few details to create your account and manage your booking.
+                                    </p>
+                                </div>
+                                
+                                <form onSubmit={handleDetailsSubmit} className="space-y-5">
+                                    <div className="grid md:grid-cols-2 gap-5">
+                                        <FormInput
+                                            label="Full Name"
+                                            icon={User}
+                                            placeholder="John Doe"
+                                            value={studentDetails.name}
+                                            onChange={(e) => setStudentDetails(prev => ({ ...prev, name: e.target.value }))}
+                                            required
+                                            className="bg-gray-50 dark:bg-gray-900/50"
+                                        />
+                                        <FormInput
+                                            label="Phone Number"
+                                            icon={Phone}
+                                            type="tel"
+                                            placeholder="9876543210"
+                                            value={studentDetails.phone}
+                                            onChange={(e) => setStudentDetails(prev => ({ ...prev, phone: e.target.value }))}
+                                            required
+                                            className="bg-gray-50 dark:bg-gray-900/50"
+                                        />
+                                    </div>
+
+                                    <FormInput
+                                        label="Email Address"
+                                        icon={Mail}
+                                        type="email"
+                                        placeholder="john@example.com"
+                                        value={studentDetails.email}
+                                        onChange={(e) => setStudentDetails(prev => ({ ...prev, email: e.target.value }))}
+                                        required
+                                        className="bg-gray-50 dark:bg-gray-900/50"
+                                    />
+                                    
+                                    <FormInput
+                                        label="Date of Birth"
+                                        icon={Cake}
+                                        type="date"
+                                        value={studentDetails.dob}
+                                        onChange={(e) => setStudentDetails(prev => ({ ...prev, dob: e.target.value }))}
+                                        required
+                                        className="bg-gray-50 dark:bg-gray-900/50"
+                                    />
+
+                                    <div className="flex gap-4 pt-6 mt-4 border-t border-gray-100 dark:border-gray-700">
+                                        <AnimatedButton
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => setStep('selection')}
+                                            className="flex-1"
+                                            icon="arrowLeft"
+                                            iconPosition="left"
+                                        >
+                                            Back
+                                        </AnimatedButton>
+                                        <AnimatedButton
+                                            type="submit"
+                                            className="flex-[2] bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-500/20"
+                                            icon="arrowRight"
+                                        >
+                                            Proceed to Pay
+                                        </AnimatedButton>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
                     </motion.div>
                 )}

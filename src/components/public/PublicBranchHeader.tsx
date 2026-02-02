@@ -17,6 +17,7 @@ interface PublicBranchHeaderProps {
     amenities?: string[]
     showDetailsLink?: boolean
     backLink?: string
+    onShowDetails?: () => void
 }
 
 const AMENITY_ICONS: Record<string, any> = {
@@ -63,7 +64,7 @@ const AMENITY_LABELS: Record<string, string> = {
     'security': 'Security'
 }
 
-export default function PublicBranchHeader({ branch, images, amenities = [], showDetailsLink = false, backLink }: PublicBranchHeaderProps) {
+export default function PublicBranchHeader({ branch, images, amenities = [], showDetailsLink = false, backLink, onShowDetails }: PublicBranchHeaderProps) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0)
     const [showInfo, setShowInfo] = useState(false)
 
@@ -284,11 +285,11 @@ export default function PublicBranchHeader({ branch, images, amenities = [], sho
 
             {showDetailsLink && (
                 <Link 
-                    href={`/discover/${branch.id}`}
+                    href={`/discover/${branch.id}/details`}
                     className="relative z-20 h-9 w-full bg-black/40 backdrop-blur-md border-t border-white/10 flex items-center justify-between px-4 hover:bg-black/60 transition-colors group/link"
                 >
                     <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
-                        View Branch Details
+                        More Library Details
                     </span>
                     <ChevronRight className="w-3.5 h-3.5 text-emerald-400 group-hover/link:translate-x-0.5 transition-transform" />
                 </Link>
@@ -297,6 +298,7 @@ export default function PublicBranchHeader({ branch, images, amenities = [], sho
             {backLink && (
                 <Link 
                     href={backLink}
+                    prefetch={false}
                     className="relative z-20 h-9 w-full bg-black/40 backdrop-blur-md border-t border-white/10 flex items-center justify-between px-4 hover:bg-black/60 transition-colors group/link"
                 >
                     <div className="flex items-center gap-2">

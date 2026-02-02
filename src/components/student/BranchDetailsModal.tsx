@@ -9,7 +9,8 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { verifyBranchSubscription } from '@/actions/booking'
-import { getThemeClasses, ThemeColor } from '@/lib/utils'
+import { getThemeClasses } from '@/lib/utils'
+import type { ThemeColor } from '@/lib/utils'
 import Link from 'next/link'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 

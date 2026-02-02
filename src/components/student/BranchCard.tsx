@@ -11,7 +11,8 @@ import {
 } from 'lucide-react'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { BranchDetailsModal } from './BranchDetailsModal'
-import { getThemeClasses, ThemeColor } from '@/lib/utils'
+import { getThemeClasses } from '@/lib/utils'
+import type { ThemeColor } from '@/lib/utils'
 
 // Helper to parse amenities safely
 const getAmenities = (amenitiesString: string | null) => {
@@ -455,8 +456,19 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
           </div>
         </div>
 
-        <div className="mt-6">
-          <Link href={publicMode ? `/discover/${branch.id}` : `/student/book/${branch.id}`} className="block">
+        <div className="mt-6 flex gap-3">
+          <AnimatedButton
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              setShowDetails(true)
+            }}
+            variant="outline"
+            className="flex-1 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
+          >
+            Details
+          </AnimatedButton>
+          <Link href={publicMode ? `/discover/${branch.id}` : `/student/book/${branch.id}`} className="flex-1 block">
             <AnimatedButton 
               fullWidth 
               variant="primary"
@@ -464,7 +476,7 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
               iconPosition="right"
               className={`${themeClasses.button} shadow-lg hover:shadow-xl translate-y-0`}
             >
-              View Seats & Book
+              Book
             </AnimatedButton>
           </Link>
         </div>

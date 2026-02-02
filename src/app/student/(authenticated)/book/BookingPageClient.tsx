@@ -4,7 +4,8 @@ import React, { useState } from 'react'
 import { LayoutGrid, List, Building2, Search, MapPin } from 'lucide-react'
 import { BranchCard, BranchCardProps } from '@/components/student/BranchCard'
 import { BranchListItem } from '@/components/student/BranchListItem'
-import { ThemeColor, getThemeClasses } from '@/lib/utils'
+import { getThemeClasses } from '@/lib/utils'
+import type { ThemeColor } from '@/lib/utils'
 
 interface BookingPageClientProps {
   branches: BranchCardProps['branch'][] | null

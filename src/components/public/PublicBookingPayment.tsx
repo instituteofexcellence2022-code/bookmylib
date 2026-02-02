@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { 
-  CreditCard, Banknote, Check 
+  CreditCard, Banknote, Check, Shield, Lock, Smartphone
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { initiatePublicBooking } from '@/actions/public-booking'
@@ -302,8 +302,8 @@ export default function PublicBookingPayment({
       {/* Payment Method Selection */}
       <div className="grid grid-cols-2 gap-3 mb-6">
         {[
-            { id: 'razorpay', label: 'Razorpay', icon: CreditCard, desc: 'Cards, UPI' },
-            { id: 'cashfree', label: 'Cashfree', icon: Banknote, desc: 'Secure Gateway' }
+            { id: 'razorpay', label: 'Razorpay', icon: CreditCard, desc: 'Cards, UPI, Netbanking' },
+            { id: 'cashfree', label: 'Cashfree', icon: Banknote, desc: 'Secure Payment Gateway' }
         ].map((method) => (
             <button
             key={method.id}
@@ -339,6 +339,22 @@ export default function PublicBookingPayment({
                 )}
             </button>
         ))}
+      </div>
+
+      {/* Trust Signals */}
+      <div className="flex items-center justify-center gap-6 mb-8 py-4 border-t border-b border-gray-100 dark:border-gray-700/50">
+        <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+            <Shield className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Secure Payment</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+            <Lock className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Encrypted</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+            <Smartphone className="w-3.5 h-3.5 text-emerald-500" />
+            <span>UPI Supported</span>
+        </div>
       </div>
 
       {/* Actions */}

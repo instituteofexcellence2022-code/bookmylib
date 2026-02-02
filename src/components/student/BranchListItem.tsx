@@ -192,6 +192,7 @@ export function BranchListItem({ branch, isActiveMember, theme = 'emerald', publ
             <Building2 className={`w-8 h-8 ${themeClasses.iconLight}`} />
           </div>
         )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
         
         {/* Compact Image Nav */}
         {images.length > 1 && (
@@ -340,6 +341,17 @@ export function BranchListItem({ branch, isActiveMember, theme = 'emerald', publ
             )}
           </div>
 
+          <AnimatedButton
+            variant="outline"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              setShowDetails(true)
+            }}
+            className="flex-none text-xs py-1.5 px-3 h-auto whitespace-nowrap border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+          >
+            Details
+          </AnimatedButton>
           <Link href={publicMode ? `/discover/${branch.id}` : `/student/book/${branch.id}`} className="flex-none">
             <AnimatedButton 
               variant="primary"
