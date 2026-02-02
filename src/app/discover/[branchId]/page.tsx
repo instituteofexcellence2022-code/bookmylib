@@ -1,10 +1,12 @@
 import { getBranchDetails } from '@/actions/booking'
+import { getBranchOffers } from '@/actions/promo'
 import { PublicBookingClient } from '@/components/public/PublicBookingClient'
 import { BackButton } from '@/components/ui/BackButton'
 
 export default async function PublicBranchBookingPage({ params }: { params: { branchId: string } }) {
     const { branchId } = await params
     const { success, branch, error } = await getBranchDetails(branchId)
+    const offers = await getBranchOffers(branchId)
 
     if (!success || !branch) {
         return (
@@ -51,6 +53,7 @@ export default async function PublicBranchBookingPage({ params }: { params: { br
                     branch={branch} 
                     images={images}
                     amenities={amenities}
+                    offers={offers as any}
                 />
             </div>
         </div>

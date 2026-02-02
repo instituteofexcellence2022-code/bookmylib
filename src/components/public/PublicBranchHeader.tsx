@@ -5,7 +5,22 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { MapPin, Building2, Clock, Star, Wifi, Zap, Wind, Droplets, Car, ChevronLeft, ChevronRight, Info, Coffee, Printer, Camera, Armchair, Fan, Thermometer, Utensils, BatteryCharging, Lightbulb, Bath, Lock, Newspaper, BookOpen, ShieldCheck, TicketPercent, X } from 'lucide-react'
 
+export interface PublicOffer {
+    id: string
+    code: string
+    description: string | null
+    type: string
+    value: number
+    duration: number | null
+    durationUnit: string | null
+    startDate: string | null
+    endDate: string | null
+    minOrderValue: number | null
+    maxDiscount: number | null
+}
+
 interface PublicBranchHeaderProps {
+    offers?: PublicOffer[]
     branch: {
         id: string
         name: string
@@ -64,7 +79,7 @@ const AMENITY_LABELS: Record<string, string> = {
     'security': 'Security'
 }
 
-export default function PublicBranchHeader({ branch, images, amenities = [], showDetailsLink = false, backLink, onShowDetails }: PublicBranchHeaderProps) {
+export default function PublicBranchHeader({ branch, images, amenities = [], showDetailsLink = false, backLink, onShowDetails, offers = [] }: PublicBranchHeaderProps) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0)
     const [showInfo, setShowInfo] = useState(false)
     const [showOffers, setShowOffers] = useState(false)
@@ -347,37 +362,74 @@ export default function PublicBranchHeader({ branch, images, amenities = [], sho
                         </div>
                         
                         <div className="p-4 space-y-3">
-                            {/* Dummy Offers */}
-                            <div className="p-3 rounded-xl border border-dashed border-emerald-200 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-900/10 flex gap-3">
-                                <div className="flex flex-col items-center justify-center px-3 py-1 bg-white dark:bg-gray-800 rounded-lg border border-emerald-100 dark:border-emerald-800 shadow-sm min-w-[60px]">
-                                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">FLAT</span>
-                                    <span className="text-xl font-black text-emerald-700 dark:text-emerald-300">10%</span>
-                                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">OFF</span>
-                                </div>
-                                <div className="flex-1">
-                                    <h4 className="font-bold text-gray-800 dark:text-gray-200 text-sm">Student Special</h4>
-                                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Get flat 10% off on all quarterly plans. Valid for students with valid ID.</p>
-                                    <div className="mt-2 flex items-center gap-2">
-                                        <code className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-[10px] font-mono font-bold tracking-wider border border-emerald-200 dark:border-emerald-800">STUDENT10</code>
-                                        <span className="text-[10px] text-gray-400">Valid till 31st Dec</span>
+                            {offers && offers.length > 0 ? (
+                                offers.map((offer) => (
+                                    <div key={offer.id} className={`p-3 rounded-xl border border-dashed flex gap-3 ${
+                                        offer.type === 'free_trial' 
+                                            ? 'border-purple-200 dark:border-purple-800 bg-purple-50/30 dark:bg-purple-900/10'
+                                            : 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-900/10'
+                                    }`}>
+                                        <div className={`flex flex-col items-center justify-center px-3 py-1 bg-white dark:bg-gray-800 rounded-lg border shadow-sm min-w-[60px] ${
+                                             offer.type === 'free_trial'
+                                                ? 'border-purple-100 dark:border-purple-800'
+                                                : 'border-emerald-100 dark:border-emerald-800'
+                                        }`}>
+                                            <span className={`text-xs font-bold ${
+                                                 offer.type === 'free_trial' ? 'text-purple-600 dark:text-purple-400' : 'text-emerald-600 dark:text-emerald-400'
+                                            }`}>
+                                                {offer.type === 'free_trial' ? 'FREE' : 'FLAT'}
+                                            </span>
+                                            <span className={`text-xl font-black ${
+                                                 offer.type === 'free_trial' ? 'text-purple-700 dark:text-purple-300' : 'text-emerald-700 dark:text-emerald-300'
+                                            }`}>
+                                                {offer.type === 'free_trial' 
+                                                    ? offer.duration 
+                                                    : offer.type === 'percentage' 
+                                                        ? `${offer.value}%` 
+                                                        : `₹${offer.value}`
+                                                }
+                                            </span>
+                                            <span className={`text-[10px] font-bold ${
+                                                 offer.type === 'free_trial' ? 'text-purple-600 dark:text-purple-400' : 'text-emerald-600 dark:text-emerald-400'
+                                            }`}>
+                                                {offer.type === 'free_trial' 
+                                                    ? (offer.durationUnit === 'months' ? 'MTH' : 'DAY')
+                                                    : 'OFF'
+                                                }
+                                            </span>
+                                        </div>
+                                        <div className="flex-1">
+                                            <h4 className="font-bold text-gray-800 dark:text-gray-200 text-sm">
+                                                {offer.description || offer.code}
+                                            </h4>
+                                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                                {offer.type === 'free_trial' 
+                                                    ? `Experience our premium library space for free for ${offer.duration} ${offer.durationUnit}.`
+                                                    : `Get ${offer.type === 'percentage' ? 'flat' : 'upto'} ${offer.value}${offer.type === 'percentage' ? '%' : '₹'} off on your subscription.`
+                                                }
+                                            </p>
+                                            <div className="mt-2 flex items-center gap-2">
+                                                <code className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider border ${
+                                                    offer.type === 'free_trial'
+                                                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800'
+                                                        : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                                }`}>
+                                                    {offer.code}
+                                                </code>
+                                                {offer.endDate && (
+                                                    <span className="text-[10px] text-gray-400">
+                                                        Valid till {new Date(offer.endDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
+                                ))
+                            ) : (
+                                <div className="text-center py-8 text-gray-500">
+                                    No active offers at the moment.
                                 </div>
-                            </div>
-
-                            <div className="p-3 rounded-xl border border-dashed border-purple-200 dark:border-purple-800 bg-purple-50/30 dark:bg-purple-900/10 flex gap-3">
-                                <div className="flex flex-col items-center justify-center px-3 py-1 bg-white dark:bg-gray-800 rounded-lg border border-purple-100 dark:border-purple-800 shadow-sm min-w-[60px]">
-                                    <span className="text-xs font-bold text-purple-600 dark:text-purple-400">FREE</span>
-                                    <span className="text-xl font-black text-purple-700 dark:text-purple-300">1</span>
-                                    <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400">DAY</span>
-                                </div>
-                                <div className="flex-1">
-                                    <h4 className="font-bold text-gray-800 dark:text-gray-200 text-sm">Free Trial</h4>
-                                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Experience our premium library space for free for one day.</p>
-                                    <div className="mt-2 flex items-center gap-2">
-                                        <code className="px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 text-[10px] font-mono font-bold tracking-wider border border-purple-200 dark:border-purple-800">TRIALDAY</code>
-                                    </div>
-                                </div>
-                            </div>
+                            )}
                         </div>
 
                         <div className="p-4 bg-gray-50/50 dark:bg-gray-900/50 text-center">

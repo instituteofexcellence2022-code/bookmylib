@@ -34,7 +34,9 @@ export async function getOwnerPromotions() {
       ...p,
       usedCount: p._count.payments,
       type: p.type,
-      value: p.value,
+      value: p.value || 0, // Handle optional value
+      duration: p.duration,
+      durationUnit: p.durationUnit,
       validFrom: p.startDate,
       validTo: p.endDate,
       minOrder: p.minOrderValue
@@ -53,7 +55,16 @@ export async function createPromotion(formData: FormData) {
     const code = formData.get('code') as string
     const description = formData.get('description') as string
     const type = formData.get('type') as string
-    const value = parseFloat(formData.get('value') as string)
+    
+    // Handle value based on type
+    const valueRaw = formData.get('value') as string
+    const value = valueRaw ? parseFloat(valueRaw) : null
+    
+    // Handle duration for free_trial
+    const durationRaw = formData.get('duration') as string
+    const duration = durationRaw ? parseInt(durationRaw) : null
+    const durationUnit = formData.get('durationUnit') as string || null
+
     const validFrom = new Date(formData.get('validFrom') as string)
     const validTo = new Date(formData.get('validTo') as string)
     const usageLimit = formData.get('usageLimit') ? parseInt(formData.get('usageLimit') as string) : null
@@ -66,8 +77,15 @@ export async function createPromotion(formData: FormData) {
 
     // Validation
     if (!code) return { success: false, error: 'Code is required' }
-    if (isNaN(value) || value < 0) return { success: false, error: 'Invalid value' }
-    if (type === 'percentage' && value > 100) return { success: false, error: 'Percentage cannot exceed 100%' }
+    
+    if (type === 'free_trial') {
+        if (!duration || duration <= 0) return { success: false, error: 'Duration is required for free trial' }
+        if (!durationUnit) return { success: false, error: 'Duration unit is required for free trial' }
+    } else {
+        if (value === null || isNaN(value) || value < 0) return { success: false, error: 'Invalid value' }
+        if (type === 'percentage' && value > 100) return { success: false, error: 'Percentage cannot exceed 100%' }
+    }
+    
     if (validTo < validFrom) return { success: false, error: 'End date cannot be before start date' }
 
     // Unique Code Check
@@ -87,6 +105,8 @@ export async function createPromotion(formData: FormData) {
         description,
         type,
         value,
+        duration,
+        durationUnit,
         startDate: validFrom,
         endDate: validTo,
         usageLimit,
@@ -118,7 +138,14 @@ export async function updatePromotion(formData: FormData) {
     const code = formData.get('code') as string
     const description = formData.get('description') as string
     const type = formData.get('type') as string
-    const value = parseFloat(formData.get('value') as string)
+    
+    const valueRaw = formData.get('value') as string
+    const value = valueRaw ? parseFloat(valueRaw) : null
+
+    const durationRaw = formData.get('duration') as string
+    const duration = durationRaw ? parseInt(durationRaw) : null
+    const durationUnit = formData.get('durationUnit') as string || null
+
     const validFrom = new Date(formData.get('validFrom') as string)
     const validTo = new Date(formData.get('validTo') as string)
     const usageLimit = formData.get('usageLimit') ? parseInt(formData.get('usageLimit') as string) : null
@@ -132,8 +159,15 @@ export async function updatePromotion(formData: FormData) {
 
     // Validation
     if (!code) return { success: false, error: 'Code is required' }
-    if (isNaN(value) || value < 0) return { success: false, error: 'Invalid value' }
-    if (type === 'percentage' && value > 100) return { success: false, error: 'Percentage cannot exceed 100%' }
+    
+    if (type === 'free_trial') {
+        if (!duration || duration <= 0) return { success: false, error: 'Duration is required for free trial' }
+        if (!durationUnit) return { success: false, error: 'Duration unit is required for free trial' }
+    } else {
+        if (value === null || isNaN(value) || value < 0) return { success: false, error: 'Invalid value' }
+        if (type === 'percentage' && value > 100) return { success: false, error: 'Percentage cannot exceed 100%' }
+    }
+
     if (validTo < validFrom) return { success: false, error: 'End date cannot be before start date' }
 
     // Unique Code Check (excluding current promo)
@@ -153,6 +187,8 @@ export async function updatePromotion(formData: FormData) {
         description,
         type,
         value,
+        duration,
+        durationUnit,
         startDate: validFrom,
         endDate: validTo,
         usageLimit,
@@ -266,5 +302,60 @@ export async function getReferralSettings() {
   } catch (error) {
     console.error('Error fetching referral settings:', error)
     return null
+  }
+}
+
+export async function getBranchOffers(branchId: string) {
+  try {
+    // Get branch to find libraryId
+    const branch = await prisma.branch.findUnique({
+        where: { id: branchId },
+        select: { libraryId: true }
+    })
+    
+    if (!branch) return []
+
+    const today = new Date()
+
+    const promotions = await prisma.promotion.findMany({
+      where: {
+        libraryId: branch.libraryId,
+        isActive: true,
+        OR: [
+          { branchId: branchId },
+          { branchId: null } // Global library offers
+        ],
+        AND: [
+            {
+                OR: [
+                    { startDate: { lte: today } },
+                    { startDate: null }
+                ]
+            },
+            {
+                OR: [
+                    { endDate: { gte: today } },
+                    { endDate: null }
+                ]
+            }
+        ]
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+    
+    // Convert Decimal/Date types to plain objects if necessary, though server actions usually handle this.
+    // However, explicit mapping is safer for client components.
+    return promotions.map(p => ({
+        ...p,
+        value: p.value || 0,
+        startDate: p.startDate?.toISOString() || null,
+        endDate: p.endDate?.toISOString() || null,
+        createdAt: p.createdAt.toISOString()
+    }))
+  } catch (error) {
+    console.error('Error fetching branch offers:', error)
+    return []
   }
 }

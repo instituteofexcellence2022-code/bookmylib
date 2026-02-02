@@ -284,12 +284,12 @@ export async function initiatePayment(
     
     if (promo && promo.isActive) {
       promotionId = promo.id
-      if (promo.type === 'percentage') {
+      if (promo.type === 'percentage' && promo.value !== null) {
         discountAmount = (amount * promo.value) / 100
         if (promo.maxDiscount && discountAmount > promo.maxDiscount) {
           discountAmount = promo.maxDiscount
         }
-      } else if (promo.type === 'fixed') {
+      } else if (promo.type === 'fixed' && promo.value !== null) {
         discountAmount = promo.value
       }
       finalAmount = Math.max(0, amount - discountAmount)
@@ -767,12 +767,12 @@ export async function createManualPayment(formData: FormData) {
     // Basic validation (should be more robust)
     if (promo && promo.isActive) {
       promotionId = promo.id
-      if (promo.type === 'percentage') {
+      if (promo.type === 'percentage' && promo.value !== null) {
         discountAmount = (amount * promo.value) / 100
         if (promo.maxDiscount && discountAmount > promo.maxDiscount) {
           discountAmount = promo.maxDiscount
         }
-      } else if (promo.type === 'fixed') {
+      } else if (promo.type === 'fixed' && promo.value !== null) {
         discountAmount = promo.value
       }
       finalAmount = Math.max(0, amount - discountAmount)
@@ -910,12 +910,12 @@ export async function validateCoupon(code: string, amount: number, studentId?: s
     
     // Calculate discount
     let discount = 0
-    if (promo.type === 'percentage') {
+    if (promo.type === 'percentage' && promo.value !== null) {
       discount = (amount * promo.value) / 100
       if (promo.maxDiscount && discount > promo.maxDiscount) {
         discount = promo.maxDiscount
       }
-    } else if (promo.type === 'fixed') {
+    } else if (promo.type === 'fixed' && promo.value !== null) {
       discount = promo.value
     }
 

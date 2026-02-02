@@ -1,5 +1,6 @@
 
 import { getBranchDetails } from '@/actions/booking'
+import { getBranchOffers } from '@/actions/promo'
 import PublicBranchHeader from '@/components/public/PublicBranchHeader'
 import { BackButton } from '@/components/ui/BackButton'
 import { Clock, MapPin, Shield, Star, Info, Phone, Mail } from 'lucide-react'
@@ -8,6 +9,7 @@ import WifiCard from '@/components/student/WifiCard'
 export default async function PublicBranchDetailsPage({ params }: { params: { branchId: string } }) {
     const { branchId } = await params
     const { success, branch, error } = await getBranchDetails(branchId)
+    const offers = await getBranchOffers(branchId)
 
     if (!success || !branch) {
         return (
@@ -166,6 +168,7 @@ export default async function PublicBranchDetailsPage({ params }: { params: { br
                         amenities={amenityIds} 
                         showDetailsLink={false} 
                         backLink={`/discover/${branchId}`} 
+                        offers={offers as any}
                     />
                 </div>
 

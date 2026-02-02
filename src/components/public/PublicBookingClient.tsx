@@ -14,7 +14,7 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
 import { cn, formatSeatNumber } from '@/lib/utils'
 import { Branch, Seat, Plan, AdditionalFee } from '@prisma/client'
-import PublicBranchHeader from './PublicBranchHeader'
+import PublicBranchHeader, { PublicOffer } from './PublicBranchHeader'
 import PublicBookingPayment from './PublicBookingPayment'
 
 type BranchWithDetails = Branch & {
@@ -28,11 +28,12 @@ interface PublicBookingClientProps {
     branch: BranchWithDetails
     images?: string[]
     amenities?: string[]
+    offers?: PublicOffer[]
 }
 
 type BookingStep = 'selection' | 'details' | 'payment'
 
-export function PublicBookingClient({ branch, images = [], amenities = [] }: PublicBookingClientProps) {
+export function PublicBookingClient({ branch, images = [], amenities = [], offers = [] }: PublicBookingClientProps) {
     const router = useRouter()
     const [step, setStep] = useState<BookingStep>('selection')
     const [showDetails, setShowDetails] = useState(false)
@@ -160,6 +161,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [] }: Pub
                     images={images} 
                     amenities={amenities} 
                     showDetailsLink={true}
+                    offers={offers}
                 />
             </div>
 

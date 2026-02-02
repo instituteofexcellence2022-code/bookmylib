@@ -120,7 +120,7 @@ export function AcceptPaymentForm() {
         code: string
         description: string | null
         type: string
-        value: number
+        value: number | null
         minOrderValue: number | null
         maxDiscount: number | null
         startDate: Date | string | null

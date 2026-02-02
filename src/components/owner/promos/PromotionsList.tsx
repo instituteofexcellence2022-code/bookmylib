@@ -4,7 +4,8 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { 
   Loader2, Search, SlidersHorizontal, 
   Tag, Calendar, IndianRupee, Trash2, 
-  Percent, Hash, X, MapPin, Layers
+  Percent, Hash, X, MapPin, Layers,
+  Clock
 } from 'lucide-react'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
@@ -29,7 +30,9 @@ interface Promotion {
   description?: string
   isActive: boolean
   type: string
-  value: number
+  value: number | null
+  duration?: number | null
+  durationUnit?: string | null
   validFrom: string | Date
   validTo: string | Date
   usedCount: number
@@ -79,10 +82,7 @@ export function PromotionsList() {
         getOwnerBranches(),
         getOwnerPlans()
       ])
-      // Type assertion or mapping might be needed if the API return type is strictly different
-      // but assuming it matches close enough for now or using 'as any' if strictly needed,
-      // but let's try to match structure. 
-      // getOwnerPromotions returns mapped data that should match our interface mostly.
+      
       setPromotions(promosData as unknown as Promotion[] || [])
       setBranches(branchesData as {id: string, name: string}[] || [])
       setPlans(plansData || [])
@@ -175,6 +175,34 @@ export function PromotionsList() {
     } catch {
       toast.error('Failed to update status')
     }
+  }
+
+  const getPromoIcon = (type: string) => {
+      switch (type) {
+          case 'percentage': return <Percent className="w-5 h-5" />
+          case 'fixed': return <IndianRupee className="w-5 h-5" />
+          case 'free_trial': return <Clock className="w-5 h-5" />
+          default: return <Tag className="w-5 h-5" />
+      }
+  }
+
+  const getPromoColorClass = (type: string) => {
+    switch (type) {
+        case 'percentage': return 'bg-orange-50 text-orange-600 dark:bg-orange-900/20'
+        case 'fixed': return 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20'
+        case 'free_trial': return 'bg-blue-50 text-blue-600 dark:bg-blue-900/20'
+        default: return 'bg-gray-50 text-gray-600 dark:bg-gray-900/20'
+    }
+  }
+
+  const getPromoLabel = (promo: Promotion) => {
+      if (promo.type === 'free_trial') {
+          return `${promo.duration} ${promo.durationUnit} FREE TRIAL`
+      }
+      if (promo.type === 'percentage') {
+          return `${promo.value}% OFF`
+      }
+      return `₹${promo.value} FLAT OFF`
   }
 
   return (
@@ -278,17 +306,13 @@ export function PromotionsList() {
               <div>
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${
-                      promo.type === 'percentage' 
-                        ? 'bg-orange-50 text-orange-600 dark:bg-orange-900/20' 
-                        : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20'
-                    }`}>
-                      {promo.type === 'percentage' ? <Percent className="w-5 h-5" /> : <IndianRupee className="w-5 h-5" />}
+                    <div className={`p-2 rounded-lg ${getPromoColorClass(promo.type)}`}>
+                      {getPromoIcon(promo.type)}
                     </div>
                     <div>
                       <h3 className="font-bold text-lg text-gray-900 dark:text-white tracking-tight">{promo.code}</h3>
                       <p className="text-xs text-gray-500 uppercase font-medium tracking-wider">
-                        {promo.type === 'percentage' ? `${promo.value}% OFF` : `₹${promo.value} FLAT OFF`}
+                        {getPromoLabel(promo)}
                       </p>
                     </div>
                   </div>
@@ -418,39 +442,65 @@ export function PromotionsList() {
                   onChange={(e) => setPromoType(e.target.value)}
                   options={[
                     { label: 'Percentage (%)', value: 'percentage' },
-                    { label: 'Flat Amount (₹)', value: 'fixed' }
+                    { label: 'Flat Amount (₹)', value: 'fixed' },
+                    { label: 'Free Trial', value: 'free_trial' }
                   ]}
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <FormInput
-                  name="value"
-                  label="Discount Value"
-                  type="number"
-                  min="0"
-                  max={promoType === 'percentage' ? "100" : undefined}
-                  step="0.01"
-                  placeholder="e.g. 20"
-                  defaultValue={editingPromo?.value}
-                  required
-                />
-                {promoType === 'percentage' ? (
-                  <FormInput
-                    name="maxDiscount"
-                    label="Max Discount (Optional)"
-                    type="number"
-                    min="0"
-                    placeholder="e.g. 500"
-                    defaultValue={editingPromo?.maxDiscount}
-                  />
-                ) : (
-                  <div className="hidden">
-                    {/* Hidden input to clear maxDiscount when switching to fixed */}
-                    <input type="hidden" name="maxDiscount" value="" />
+              {promoType === 'free_trial' ? (
+                  <div className="grid grid-cols-2 gap-4">
+                      <FormInput
+                          name="duration"
+                          label="Trial Duration"
+                          type="number"
+                          min="1"
+                          placeholder="e.g. 7"
+                          defaultValue={editingPromo?.duration || ''}
+                          required
+                      />
+                      <FormSelect
+                          name="durationUnit"
+                          label="Duration Unit"
+                          defaultValue={editingPromo?.durationUnit || 'days'}
+                          options={[
+                              { label: 'Days', value: 'days' },
+                              { label: 'Months', value: 'months' }
+                          ]}
+                      />
+                      {/* Hidden inputs for non-relevant fields */}
+                      <input type="hidden" name="value" value="0" />
                   </div>
-                )}
-              </div>
+              ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormInput
+                      name="value"
+                      label="Discount Value"
+                      type="number"
+                      min="0"
+                      max={promoType === 'percentage' ? "100" : undefined}
+                      step="0.01"
+                      placeholder="e.g. 20"
+                      defaultValue={editingPromo?.value ?? ''}
+                      required
+                    />
+                    {promoType === 'percentage' ? (
+                      <FormInput
+                        name="maxDiscount"
+                        label="Max Discount (Optional)"
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 500"
+                        defaultValue={editingPromo?.maxDiscount ?? ''}
+                      />
+                    ) : (
+                      <div className="hidden">
+                        {/* Hidden input to clear maxDiscount when switching to fixed */}
+                        <input type="hidden" name="maxDiscount" value="" />
+                      </div>
+                    )}
+                  </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <FormInput
@@ -480,14 +530,16 @@ export function PromotionsList() {
               <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
                 <h4 className="text-sm font-semibold mb-3 text-gray-900 dark:text-white">Restrictions & Limits</h4>
                 <div className="grid grid-cols-2 gap-4">
-                  <FormInput
-                    name="minOrder"
-                    label="Min Order Value"
-                    type="number"
-                    min="0"
-                    placeholder="e.g. 1000"
-                    defaultValue={editingPromo?.minOrder}
-                  />
+                  {promoType !== 'free_trial' && (
+                      <FormInput
+                        name="minOrder"
+                        label="Min Order Value"
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 1000"
+                        defaultValue={editingPromo?.minOrder}
+                      />
+                  )}
                   <FormInput
                     name="usageLimit"
                     label="Total Usage Limit"
@@ -509,49 +561,19 @@ export function PromotionsList() {
                 </div>
               </div>
 
-              <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
-                <h4 className="text-sm font-semibold mb-3 text-gray-900 dark:text-white">Scope (Optional)</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormSelect
-                    name="branchId"
-                    label="Specific Branch"
-                    defaultValue={editingPromo?.branchId || 'all'}
-                    options={[
-                      { label: 'All Branches', value: 'all' },
-                      ...branches.map(b => ({ label: b.name, value: b.id }))
-                    ]}
-                  />
-                  <FormSelect
-                    name="planId"
-                    label="Specific Plan"
-                    defaultValue={editingPromo?.planId || 'all'}
-                    options={[
-                      { label: 'All Plans', value: 'all' },
-                      ...plans.map(p => ({ label: p.name, value: p.id }))
-                    ]}
-                  />
-                </div>
-              </div>
-
-              {editingPromo && (
-                <input type="hidden" name="isActive" value={String(editingPromo.isActive)} />
-              )}
-
-              <div className="pt-2 flex gap-3">
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
                 <AnimatedButton
+                  variant="outline"
                   type="button"
-                  variant="ghost"
-                  fullWidth
                   onClick={() => setIsModalOpen(false)}
                 >
                   Cancel
                 </AnimatedButton>
                 <AnimatedButton
-                  type="submit"
                   variant="primary"
-                  fullWidth
-                  >
-                  {editingPromo ? 'Save Changes' : 'Create Promotion'}
+                  type="submit"
+                >
+                  {editingPromo ? 'Update' : 'Create'}
                 </AnimatedButton>
               </div>
             </form>
