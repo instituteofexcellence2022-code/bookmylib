@@ -6,7 +6,7 @@ import {
     Check, Calendar, CreditCard, Info, 
     User, Mail, Phone, Cake, MapPin,
     Armchair, ArrowRight, ArrowLeft, BookOpen,
-    LayoutGrid, List, ChevronLeft, ChevronRight
+    LayoutGrid, List, ChevronLeft, ChevronRight, Clock
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -69,8 +69,19 @@ export function PublicBookingClient({ branch, images = [], amenities = [], rules
         
         handleResize() // Initial check
         window.addEventListener('resize', handleResize)
+
         return () => window.removeEventListener('resize', handleResize)
     }, [])
+
+    // Helper to format 24h time to 12h
+    const formatTime = (timeStr?: string) => {
+        if (!timeStr) return '-'
+        const [hours, minutes] = timeStr.split(':')
+        const h = parseInt(hours)
+        const ampm = h >= 12 ? 'PM' : 'AM'
+        const h12 = h % 12 || 12
+        return `${h12}:${minutes} ${ampm}`
+    }
 
     // Sort seats naturally
     const sortedSeats = React.useMemo(() => {
@@ -175,60 +186,75 @@ export function PublicBookingClient({ branch, images = [], amenities = [], rules
                         className="space-y-8"
                     >
                         {/* 1. Choose Plan */}
-                        <section>
+                        <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
                             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                                 <CreditCard className="w-5 h-5 text-purple-500" />
                                 Choose a Plan
                             </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {branch.plans.map(plan => {
-                                    const isBestValue = plan.duration >= 90 // Example logic
-                                    return (
-                                        <button
+                            <div className="space-y-2 max-h-[400px] overflow-y-auto px-1 -mx-1 custom-scrollbar">
+                                {branch.plans.length === 0 ? (
+                                    <div className="text-center py-8 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                                        <p className="text-sm">No subscription plans available.</p>
+                                    </div>
+                                ) : (
+                                    branch.plans.map(plan => (
+                                        <div 
                                             key={plan.id}
                                             onClick={() => handlePlanSelect(plan)}
                                             className={cn(
-                                                "relative p-5 rounded-xl border-2 text-left transition-all hover:shadow-lg group overflow-hidden",
+                                                "p-3 rounded-xl border cursor-pointer transition-all duration-200 relative",
                                                 selectedPlan?.id === plan.id
-                                                    ? "border-purple-500 bg-purple-50/50 dark:bg-purple-900/10 shadow-purple-100 dark:shadow-none"
-                                                    : "border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-purple-200 dark:hover:border-purple-800"
+                                                    ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-sm ring-1 ring-purple-500/20"
+                                                    : "border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-700 hover:shadow-sm"
                                             )}
                                         >
-                                            {isBestValue && (
-                                                <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">
-                                                    BEST VALUE
+                                            <div className="flex justify-between items-start mb-1">
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{plan.name}</h4>
+                                                    {selectedPlan?.id === plan.id && (
+                                                        <div className="w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center shadow-sm shrink-0">
+                                                            <Check className="w-2.5 h-2.5 text-white" />
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
-                                            <div className="flex justify-between items-start mb-3">
-                                                <div>
-                                                    <h3 className="font-bold text-gray-900 dark:text-white text-lg group-hover:text-purple-600 transition-colors">{plan.name}</h3>
-                                                    <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">
-                                                        {plan.description}
-                                                    </p>
-                                                </div>
-                                                {selectedPlan?.id === plan.id ? (
-                                                    <div className="bg-purple-500 text-white p-1 rounded-full shadow-sm">
-                                                        <Check className="w-3.5 h-3.5" />
-                                                    </div>
-                                                ) : (
-                                                    <div className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-600 group-hover:border-purple-400 transition-colors" />
-                                                )}
+                                                <span className="font-bold text-purple-600 dark:text-purple-400 text-sm">₹{plan.price}</span>
                                             </div>
                                             
-                                            <div className="flex items-baseline gap-1 mt-4">
-                                                <span className="text-2xl font-bold text-gray-900 dark:text-white">₹{plan.price}</span>
-                                                <span className="text-sm text-gray-500 dark:text-gray-400">/ {plan.duration} days</span>
-                                            </div>
+                                            <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{plan.description}</p>
                                             
-                                            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700/50 flex items-center gap-2 text-xs text-gray-500 font-medium">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                                Full Access
-                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 ml-2" />
-                                                WiFi Included
+                                            <div className="flex items-center gap-2 mb-2 text-[11px] text-gray-600 dark:text-gray-300">
+                                                <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
+                                                    <Clock className="w-2.5 h-2.5 text-gray-400" />
+                                                    <span className="font-medium">{plan.duration} {plan.durationUnit}</span>
+                                                </div>
+                                                
+                                                <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
+                                                    <Info className="w-2.5 h-2.5 text-gray-400" />
+                                                    <span className="font-medium">
+                                                        {plan.category === 'fixed' 
+                                                            ? `${formatTime(plan.shiftStart || undefined)} - ${formatTime(plan.shiftEnd || undefined)}`
+                                                            : `${plan.hoursPerDay} Hrs/Day`
+                                                        }
+                                                    </span>
+                                                </div>
                                             </div>
-                                        </button>
-                                    )
-                                })}
+
+                                            <div className="flex flex-wrap gap-1.5">
+                                                <span className={cn(
+                                                    "px-1.5 py-0.5 rounded text-[10px] font-medium border capitalize",
+                                                    plan.category === 'fixed'
+                                                        ? "bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/30"
+                                                        : "bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-900/30"
+                                                )}>
+                                                    {plan.category}
+                                                </span>
+                                                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-600 border border-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700 capitalize">
+                                                    {plan.billingCycle.replace(/_/g, ' ')}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         </section>
 
