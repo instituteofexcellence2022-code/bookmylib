@@ -609,7 +609,7 @@ export async function getStudentDetailsForScanner(studentId: string) {
                 candidateBranchId: candidateBranch?.id || null,
                 registrationStatus,
                 attendance: student.attendance || [],
-                pendingPayment: student.payments.find((p: any) => p.status === 'pending') || null,
+                pendingPayment: student.payments.find((p: any) => p.status === 'pending' || p.status === 'pending_verification') || null,
                 lastPayment: student.payments.find((p: any) => p.status === 'completed') || null
             }
         }

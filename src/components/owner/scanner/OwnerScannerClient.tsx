@@ -581,7 +581,7 @@ export function OwnerScannerClient() {
                                 className="h-auto flex-col p-3 gap-1 bg-purple-600 hover:bg-purple-700 text-white"
                             >
                                 <ShieldCheck className="w-5 h-5" />
-                                <span>Approve Payment</span>
+                                <span>Verify Payment</span>
                             </AnimatedButton>
                             <AnimatedButton 
                                 onClick={() => handlePaymentVerify('reject')}
@@ -601,15 +601,6 @@ export function OwnerScannerClient() {
                             <span>Accept Payment</span>
                         </AnimatedButton>
                     )}
-
-                    <AnimatedButton 
-                        variant="outline"
-                        onClick={() => router.push(`/owner/finance?tab=accept&studentId=${student.id}`)}
-                        className="h-auto flex-col p-4 gap-2 border-dashed"
-                    >
-                        <CreditCard className="w-6 h-6 text-emerald-600" />
-                        <span>Accept Payment</span>
-                    </AnimatedButton>
 
                     <AnimatedButton 
                         variant="outline"
