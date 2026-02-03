@@ -13,7 +13,7 @@ const withPWA = withPWAInit({
 });
 
 const nextConfig: NextConfig = {
-  outputFileTracingRoot: path.join(__dirname, '../../'),
+  // outputFileTracingRoot: path.join(__dirname, '../../'),
   // turbopack: {
   //   root: __dirname,
   // },
