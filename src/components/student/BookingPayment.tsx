@@ -111,17 +111,30 @@ export default function BookingPayment({
   const upiLink = React.useMemo(() => {
     if (!upiId) return ''
     
-    const params = new URLSearchParams()
-    params.append('pa', upiId) // Payee Address
-    params.append('pn', payeeName || 'Library') // Payee Name
-    params.append('am', finalAmount.toFixed(2)) // Amount
-    params.append('cu', 'INR') // Currency
-    
-    // Transaction Note (tn) - Keep it short and safe
-    const note = `Pay for ${plan.name}`.substring(0, 50)
-    params.append('tn', note)
+    // Clean inputs
+    const cleanUpiId = upiId.trim()
+    const cleanPayeeName = (payeeName || 'Library').trim()
+    const cleanNote = `Pay for ${plan.name}`.substring(0, 50).trim()
 
-    return `upi://pay?${params.toString()}`
+    // Format Amount: Remove decimals if whole number to avoid "100.00" -> "10000" parsing issues in some apps
+    // Also ensures we don't send > 2 decimal places
+    const amountStr = Number.isInteger(finalAmount) 
+        ? finalAmount.toString() 
+        : finalAmount.toFixed(2)
+
+    // Manual construction to ensure compatibility with all UPI apps
+    // URLSearchParams can sometimes encode spaces as '+' which fails in some apps (e.g. GPay)
+    // We strictly use %20 for spaces
+    
+    const params = [
+        `pa=${encodeURIComponent(cleanUpiId)}`,
+        `pn=${encodeURIComponent(cleanPayeeName)}`,
+        `am=${amountStr}`,
+        `cu=INR`,
+        `tn=${encodeURIComponent(cleanNote)}`
+    ]
+
+    return `upi://pay?${params.join('&')}`
   }, [upiId, payeeName, finalAmount, plan.name])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
