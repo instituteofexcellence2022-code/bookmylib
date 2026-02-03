@@ -330,12 +330,24 @@ export async function registerStudent(formData: FormData) {
         const cookieStore = await cookies()
         cookieStore.set(COOKIE_KEYS.STUDENT, student.id, COOKIE_OPTIONS)
 
-        // Send Welcome Email
-        await sendWelcomeEmail({
-            studentName: student.name,
-            studentEmail: email,
-            libraryName: 'BookMyLib' // Or fetch dynamic library name if available
-        })
+        // Send Welcome Email (Non-blocking with timeout)
+        try {
+            // We don't await the email sending to ensure the user isn't blocked
+            // but we do want to catch any synchronous errors
+            const emailPromise = sendWelcomeEmail({
+                studentName: student.name,
+                studentEmail: email,
+                libraryName: 'BookMyLib'
+            })
+            
+            // Allow 2 seconds max for email sending to prevent hanging
+            const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ success: false, error: 'Email timeout' }), 2000))
+            
+            // Race the email sending against the timeout
+            await Promise.race([emailPromise, timeoutPromise])
+        } catch (error) {
+            console.error('Welcome email sending error (non-fatal):', error)
+        }
 
         return { success: true }
     } catch (error) {
