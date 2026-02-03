@@ -102,10 +102,10 @@ export default function BookingPayment({
   // Calculate Base Total (Plan + Fees)
   const feesTotal = fees.reduce((sum: number, fee) => sum + Number(fee.amount), 0)
   const baseTotal = Number(plan.price) + feesTotal
-  const subTotal = Math.max(0, baseTotal - adjustmentAmount)
+  const subTotal = Math.round(Math.max(0, baseTotal - adjustmentAmount))
   
   // Calculate Final Amount
-  const finalAmount = appliedCoupon ? appliedCoupon.finalAmount : subTotal
+  const finalAmount = Math.round(appliedCoupon ? appliedCoupon.finalAmount : subTotal)
 
   // Generate UPI Link
   const upiLink = React.useMemo(() => {

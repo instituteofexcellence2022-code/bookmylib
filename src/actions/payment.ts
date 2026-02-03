@@ -293,7 +293,7 @@ export async function initiatePayment(
       } else if (promo.type === 'fixed' && promo.value !== null) {
         discountAmount = promo.value
       }
-      finalAmount = Math.max(0, amount - discountAmount)
+      finalAmount = Math.round(Math.max(0, amount - discountAmount))
       updatedDescription += ` (Coupon: ${couponCode})`
     }
   } 
@@ -319,7 +319,7 @@ export async function initiatePayment(
             } else {
               discountAmount = refereeDiscountValue
             }
-            finalAmount = Math.max(0, amount - discountAmount)
+            finalAmount = Math.round(Math.max(0, amount - discountAmount))
             updatedDescription = updatedDescription ? `${updatedDescription} (Referral Discount)` : `Referral Discount Applied`
           }
         }

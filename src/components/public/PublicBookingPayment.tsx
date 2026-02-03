@@ -60,10 +60,10 @@ export default function PublicBookingPayment({
   // Calculate Base Total (Plan + Fees)
   const feesTotal = fees.reduce((sum: number, fee) => sum + Number(fee.amount), 0)
   const baseTotal = Number(plan.price) + feesTotal
-  const subTotal = baseTotal
+  const subTotal = Math.round(baseTotal)
   
   // Calculate Final Amount
-  const finalAmount = appliedCoupon ? appliedCoupon.finalAmount : subTotal
+  const finalAmount = Math.round(appliedCoupon ? appliedCoupon.finalAmount : subTotal)
 
   const handleApplyCoupon = async () => {
     if (!couponCode) return

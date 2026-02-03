@@ -151,7 +151,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
     const feesTotal = branch.fees
         .filter(f => selectedFees.includes(f.id))
         .reduce((sum, f) => sum + Number(f.amount), 0)
-    const totalAmount = (Number(selectedPlan?.price) || 0) + feesTotal
+    const totalAmount = Math.round((Number(selectedPlan?.price) || 0) + feesTotal)
 
     return (
         <div className="max-w-4xl mx-auto pb-12">
