@@ -1,12 +1,13 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { 
   CreditCard, Banknote, QrCode, Building, 
-  AlertCircle, Check 
+  AlertCircle, Check, Upload, X, Loader2
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { uploadFile } from '@/actions/upload'
 import { 
   initiatePayment, 
   validateCoupon,
@@ -39,19 +40,31 @@ interface BookingPaymentProps {
     [key: string]: any
   }[]
   branchId: string
+  branchName: string
   adjustmentAmount?: number
   adjustmentLabel?: string
   upiId?: string
   payeeName?: string
-  onSuccess: (paymentId?: string, status?: 'completed' | 'pending_verification') => void
+  onSuccess: (paymentId?: string, status?: 'completed' | 'pending_verification', proofUrl?: string) => void
   onBack: () => void
+}
+
+// Helper to format 24h time to 12h
+const formatTime = (timeStr?: string) => {
+    if (!timeStr) return '-'
+    const [hours, minutes] = timeStr.split(':')
+    const h = parseInt(hours)
+    const ampm = h >= 12 ? 'PM' : 'AM'
+    const h12 = h % 12 || 12
+    return `${h12}:${minutes} ${ampm}`
 }
 
 export default function BookingPayment({ 
   plan, 
   seat, 
   fees, 
-  branchId, 
+  branchId,
+  branchName, 
   adjustmentAmount = 0,
   adjustmentLabel = 'Adjustment',
   upiId,
@@ -68,8 +81,17 @@ export default function BookingPayment({
     details: unknown
   } | null>(null)
   const [processing, setProcessing] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [transactionId, setTransactionId] = useState('')
   const [proofUrl, setProofUrl] = useState<string | null>(null)
+  const [showVerification, setShowVerification] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Reset verification step when payment method changes
+  const handlePaymentMethodChange = (method: string) => {
+    setPaymentMethod(method)
+    setShowVerification(false)
+  }
 
   // Calculate Base Total (Plan + Fees)
   const feesTotal = fees.reduce((sum: number, fee) => sum + fee.amount, 0)
@@ -95,6 +117,31 @@ export default function BookingPayment({
 
     return `upi://pay?${params.toString()}`
   }, [upiId, payeeName, finalAmount, plan.name])
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size must be less than 5MB')
+        return
+    }
+
+    setUploading(true)
+    try {
+        const url = await uploadFile(file)
+        if (url) {
+            setProofUrl(url)
+            toast.success('Screenshot uploaded successfully')
+        }
+    } catch (error) {
+        toast.error('Failed to upload screenshot')
+        console.error(error)
+    } finally {
+        setUploading(false)
+        if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   const handleApplyCoupon = async () => {
     if (!couponCode) return
@@ -258,6 +305,14 @@ export default function BookingPayment({
         }
       } else {
         // Manual Payment
+        
+        // Validate Proof URL for manual payments (Mandatory)
+        if (!proofUrl) {
+            toast.error('Please upload a payment screenshot')
+            setProcessing(false)
+            return
+        }
+
         const formData = new FormData()
         formData.append('amount', amount.toString())
         formData.append('method', paymentMethod)
@@ -265,7 +320,7 @@ export default function BookingPayment({
         formData.append('relatedId', plan.id)
         formData.append('description', description)
         formData.append('branchId', branchId)
-        if (proofUrl) formData.append('proofUrl', proofUrl)
+        formData.append('proofUrl', proofUrl)
         if (transactionId) formData.append('transactionId', transactionId)
         if (appliedCoupon) formData.append('couponCode', appliedCoupon.code)
 
@@ -273,7 +328,7 @@ export default function BookingPayment({
         
         if (result.success) {
           toast.success('Payment submitted for verification')
-          onSuccess(result.paymentId, 'pending_verification') 
+          onSuccess(result.paymentId, 'pending_verification', proofUrl) 
         } else {
           toast.error(result.error || 'Submission failed')
           setProcessing(false)
@@ -294,7 +349,7 @@ export default function BookingPayment({
         <div className="grid grid-cols-2 gap-3">
            {/* Cash / Front Desk Card */}
            <button
-            onClick={() => setPaymentMethod('front_desk')}
+            onClick={() => handlePaymentMethodChange('front_desk')}
             className={`relative p-3 rounded-xl border transition-all group text-left overflow-hidden h-full flex flex-col justify-between gap-2 ${
               !isOnline
                 ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20 ring-1 ring-emerald-500/20' 
@@ -332,7 +387,7 @@ export default function BookingPayment({
           {/* Online Payment Card */}
           <button
             onClick={() => {
-                if (!isOnline) setPaymentMethod('razorpay')
+                if (!isOnline) handlePaymentMethodChange('razorpay')
             }}
             className={`relative p-3 rounded-xl border transition-all group text-left overflow-hidden h-full flex flex-col justify-between gap-2 ${
               isOnline
@@ -389,7 +444,7 @@ export default function BookingPayment({
                ].map((method) => (
                    <button
                    key={method.id}
-                   onClick={() => setPaymentMethod(method.id)}
+                   onClick={() => handlePaymentMethodChange(method.id)}
                    className={`relative p-2 rounded-xl border text-left transition-all group overflow-hidden ${
                        paymentMethod === method.id
                        ? 'border-purple-500 bg-purple-50/50 dark:bg-purple-900/20 ring-1 ring-purple-500/20' 
@@ -428,81 +483,153 @@ export default function BookingPayment({
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm max-w-2xl mx-auto">
       <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Complete Payment</h2>
-        <p className="text-sm text-gray-500">Review your booking details and proceed to pay.</p>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+            {showVerification ? 'Submit Verification Details' : 'Complete Payment'}
+        </h2>
+        <p className="text-sm text-gray-500">
+            {showVerification 
+                ? 'Please upload proof of payment for verification.' 
+                : 'Review your booking details and proceed to pay.'}
+        </p>
       </div>
 
       {/* Summary */}
-      <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 mb-6 space-y-3">
-        <div className="flex justify-between text-sm">
-          <span className="text-gray-600 dark:text-gray-300">Plan: {plan.name}</span>
-          <span className="font-medium">₹{plan.price}</span>
-        </div>
-        {fees.map((fee) => (
-          <div key={fee.id} className="flex justify-between text-sm">
-            <span className="text-gray-600 dark:text-gray-300">{fee.name}</span>
-            <span className="font-medium">₹{fee.amount}</span>
+      {showVerification ? (
+       <div className="space-y-4 mb-6">
+          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 border border-purple-100 dark:border-purple-800">
+             <div className="flex items-center justify-between">
+                <div>
+                   <p className="text-sm text-purple-900 dark:text-purple-100 font-medium">Payment Amount</p>
+                   <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">₹{appliedCoupon ? appliedCoupon.finalAmount : subTotal}</p>
+                </div>
+                <div className="text-right">
+                   <p className="text-xs text-purple-600 dark:text-purple-400 mb-1">Method</p>
+                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-gray-800 text-xs font-medium text-gray-700 dark:text-gray-300 shadow-sm border border-purple-100 dark:border-purple-900">
+                      {paymentMethod === 'upi_app' ? <QrCode className="w-3 h-3" /> : <QrCode className="w-3 h-3" />}
+                      {paymentMethod === 'upi_app' ? 'UPI App' : 'QR Scan'}
+                   </span>
+                </div>
+             </div>
           </div>
-        ))}
-        {seat && (
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600 dark:text-gray-300">Seat Selection</span>
-            <span className="font-medium text-emerald-600">Selected: {formatSeatNumber(seat.number)}</span>
-          </div>
-        )}
+       </div>
+      ) : (
+      <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 mb-6 border border-gray-100 dark:border-gray-800">
+         <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Booking Details</h3>
+         <div className="space-y-3 text-sm">
+            
+            {/* Branch */}
+            <div className="flex justify-between">
+               <span className="text-gray-500 dark:text-gray-400">Library</span>
+               <span className="font-medium text-gray-900 dark:text-white text-right">{branchName}</span>
+            </div>
 
-        {adjustmentAmount > 0 && (
-          <div className="flex justify-between text-sm text-blue-600 font-medium">
-             <span>{adjustmentLabel}</span>
-             <span>- ₹{adjustmentAmount}</span>
-          </div>
-        )}
-        
-        <div className="border-t border-gray-200 dark:border-gray-700 pt-2 flex justify-between font-bold">
-          <span>Subtotal</span>
-          <span>₹{subTotal}</span>
-        </div>
+            {/* Plan Name & Type */}
+            <div className="flex justify-between">
+               <span className="text-gray-500 dark:text-gray-400">Plan</span>
+               <div className="text-right">
+                   <span className="font-medium text-gray-900 dark:text-white block">{plan.name}</span>
+                   <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">{plan.category} Plan</span>
+               </div>
+            </div>
 
-        {appliedCoupon && (
-          <div className="flex justify-between text-sm text-green-600 font-medium">
-            <span>Discount ({appliedCoupon.code})</span>
-            <span>- ₹{appliedCoupon.discount}</span>
-          </div>
-        )}
+            {/* Duration & Timing */}
+            <div className="flex justify-between">
+               <span className="text-gray-500 dark:text-gray-400">Duration & Time</span>
+               <div className="text-right">
+                   <span className="font-medium text-gray-900 dark:text-white block">{plan.duration} {plan.durationUnit}</span>
+                   <span className="text-xs text-gray-500 dark:text-gray-400">
+                       {plan.category === 'fixed' 
+                           ? `${formatTime(plan.shiftStart)} - ${formatTime(plan.shiftEnd)}`
+                           : `${plan.hoursPerDay} Hrs/Day`
+                       }
+                   </span>
+               </div>
+            </div>
 
-        <div className="border-t border-gray-200 dark:border-gray-700 pt-2 flex justify-between font-bold text-lg text-purple-600">
-          <span>Total Payable</span>
-          <span>₹{appliedCoupon ? appliedCoupon.finalAmount : subTotal}</span>
-        </div>
+            {/* Seat */}
+            {seat && (
+               <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Seat</span>
+                  <span className="font-medium text-emerald-600">No. {formatSeatNumber(seat.number)}</span>
+               </div>
+            )}
+
+            <div className="h-px bg-gray-200 dark:bg-gray-700 my-2" />
+
+            {/* Price Breakdown */}
+            <div className="flex justify-between">
+               <span className="text-gray-500 dark:text-gray-400">Plan Price</span>
+               <span className="font-medium text-gray-900 dark:text-white">₹{plan.price}</span>
+            </div>
+
+            {fees.map((fee) => (
+              <div key={fee.id} className="flex justify-between">
+                <span className="text-gray-500 dark:text-gray-400">{fee.name}</span>
+                <span className="font-medium text-gray-900 dark:text-white">₹{fee.amount}</span>
+              </div>
+            ))}
+
+            {adjustmentAmount > 0 && (
+              <div className="flex justify-between text-blue-600 font-medium">
+                 <span>{adjustmentLabel}</span>
+                 <span>- ₹{adjustmentAmount}</span>
+              </div>
+            )}
+            
+            {/* Subtotal */}
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-2 flex justify-between font-bold">
+              <span className="text-gray-900 dark:text-white">Subtotal</span>
+              <span className="text-gray-900 dark:text-white">₹{subTotal}</span>
+            </div>
+
+            {appliedCoupon && (
+              <div className="flex justify-between text-green-600 font-medium">
+                <span>Discount ({appliedCoupon.code})</span>
+                <span>- ₹{appliedCoupon.discount}</span>
+              </div>
+            )}
+
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-2 flex justify-between font-bold text-lg">
+              <span className="text-gray-900 dark:text-white">Total Payable</span>
+              <span className="text-purple-600 dark:text-purple-400">₹{appliedCoupon ? appliedCoupon.finalAmount : subTotal}</span>
+            </div>
+         </div>
       </div>
+      )}
 
       {/* Coupon */}
-      <div className="flex gap-2 mb-6">
-        <FormInput
-          placeholder="Enter coupon code"
-          value={couponCode}
-          onChange={(e) => setCouponCode(e.target.value)}
-          className="flex-1"
-        />
-        <AnimatedButton 
-          variant="secondary" 
-          onClick={handleApplyCoupon}
-          disabled={!couponCode || !!appliedCoupon}
-        >
-          Apply
-        </AnimatedButton>
-      </div>
+      {!showVerification && (
+        <div className="flex gap-2 mb-6">
+            <FormInput
+            placeholder="Enter coupon code"
+            value={couponCode}
+            onChange={(e) => setCouponCode(e.target.value)}
+            className="flex-1"
+            />
+            <AnimatedButton 
+            variant="secondary" 
+            onClick={handleApplyCoupon}
+            disabled={!couponCode || !!appliedCoupon}
+            >
+            Apply
+            </AnimatedButton>
+        </div>
+      )}
 
       {/* Payment Methods */}
-      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Select Payment Method</h4>
-      {renderPaymentMethods()}
+      {!showVerification && (
+        <>
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Select Payment Method</h4>
+            {renderPaymentMethods()}
+        </>
+      )}
 
       {/* Manual Payment Proof */}
       {['upi_app', 'qr_code', 'front_desk'].includes(paymentMethod) && (
         <div className="mb-6 space-y-3 animate-in fade-in slide-in-from-top-2">
           
-          {/* Dynamic UPI Section */}
-          {paymentMethod !== 'front_desk' && upiId && (
+          {/* Step 1: Dynamic UPI Section (QR/Link) - Hide during verification */}
+          {paymentMethod !== 'front_desk' && !showVerification && upiId && (
             <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 mb-4 flex flex-col items-center gap-4 text-center">
                {paymentMethod === 'qr_code' ? (
                   <>
@@ -539,28 +666,86 @@ export default function BookingPayment({
             </div>
           )}
 
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800 flex gap-2">
-            <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0" />
-            <div className="text-xs text-yellow-700 dark:text-yellow-400">
-              {paymentMethod === 'front_desk' ? (
-                <p>Please pay cash to library staff/owner. Your booking will be pending verification till they mark as accept.</p>
-              ) : (
-                <div className="space-y-1">
-                    {!upiId && <p className="font-semibold">Scan QR Code available at the Library Desk</p>}
-                    <p>After payment, please enter the Transaction ID / UTR below for verification.</p>
+          {/* Alert - Hide during verification for UPI/QR */}
+          {(!showVerification || paymentMethod === 'front_desk') && (
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800 flex gap-2">
+                <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0" />
+                <div className="text-xs text-yellow-700 dark:text-yellow-400">
+                {paymentMethod === 'front_desk' ? (
+                    <p>Please pay cash to library staff/owner. Your booking will be pending verification till they mark as accept.</p>
+                ) : (
+                    <div className="space-y-1">
+                        {!upiId && <p className="font-semibold">Scan QR Code available at the Library Desk</p>}
+                        <p>After payment, please click "I have made the Payment" to proceed with verification.</p>
+                    </div>
+                )}
                 </div>
-              )}
             </div>
-          </div>
+          )}
           
-          {paymentMethod !== 'front_desk' && (
-             <FormInput
-               label="Transaction ID / UTR (Required)"
-               placeholder="Enter 12-digit UPI Reference ID"
-               value={transactionId}
-               onChange={(e) => setTransactionId(e.target.value)}
-               required
-             />
+          {/* Step 2: Verification Inputs - Show ONLY during verification */}
+          {paymentMethod !== 'front_desk' && showVerification && (
+             <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
+               <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl border border-purple-100 dark:border-purple-800 mb-4">
+                   <h3 className="font-semibold text-purple-900 dark:text-purple-100 mb-1">Verify Payment</h3>
+                   <p className="text-xs text-purple-700 dark:text-purple-300">
+                      Payment of <strong>₹{finalAmount}</strong> made? Please upload screenshot below for verification.
+                   </p>
+               </div>
+
+               <FormInput
+                 label="Transaction ID / UTR (Optional)"
+                 placeholder="Enter 12-digit UPI Reference ID"
+                 value={transactionId}
+                 onChange={(e) => setTransactionId(e.target.value)}
+               />
+
+               <div className="space-y-2">
+                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block">
+                   Payment Screenshot <span className="text-red-500">*</span>
+                 </label>
+                 
+                 {!proofUrl ? (
+                   <div 
+                     className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                     onClick={() => fileInputRef.current?.click()}
+                   >
+                     <input 
+                       type="file" 
+                       ref={fileInputRef}
+                       className="hidden" 
+                       accept="image/*"
+                       onChange={handleFileUpload}
+                     />
+                     <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-full text-purple-600 dark:text-purple-400">
+                       {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
+                     </div>
+                     <div className="text-center">
+                       <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                         {uploading ? 'Uploading...' : 'Click to upload screenshot'}
+                       </p>
+                       <p className="text-xs text-gray-500">JPG, PNG (Max 5MB)</p>
+                     </div>
+                   </div>
+                 ) : (
+                   <div className="relative border border-gray-200 dark:border-gray-700 rounded-xl p-3 flex items-center gap-3 bg-gray-50 dark:bg-gray-900/50">
+                     <div className="p-2 bg-emerald-100 dark:bg-emerald-900/20 rounded-lg text-emerald-600 dark:text-emerald-400">
+                       <Check className="w-4 h-4" />
+                     </div>
+                     <div className="flex-1 min-w-0">
+                       <p className="text-sm font-medium text-gray-900 dark:text-white truncate">Screenshot uploaded</p>
+                       <a href={proofUrl} target="_blank" rel="noreferrer" className="text-xs text-purple-600 hover:underline">View</a>
+                     </div>
+                     <button 
+                       onClick={() => setProofUrl(null)}
+                       className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
+                     >
+                       <X className="w-4 h-4 text-gray-500" />
+                     </button>
+                   </div>
+                 )}
+               </div>
+             </div>
           )}
         </div>
       )}
@@ -569,20 +754,38 @@ export default function BookingPayment({
         <AnimatedButton
           variant="secondary"
           className="flex-1"
-          onClick={onBack}
+          onClick={() => {
+              if (showVerification) {
+                  setShowVerification(false)
+              } else {
+                  onBack()
+              }
+          }}
           disabled={processing}
         >
           Back
         </AnimatedButton>
-        <AnimatedButton
-          variant="primary"
-          className="flex-1"
-          onClick={handlePayment}
-          disabled={processing}
-          isLoading={processing}
-        >
-          Pay & Book
-        </AnimatedButton>
+        
+        {['upi_app', 'qr_code'].includes(paymentMethod) && !showVerification ? (
+             <AnimatedButton
+               variant="primary"
+               className="flex-1"
+               onClick={() => setShowVerification(true)}
+               disabled={processing}
+             >
+               I have made the Payment
+             </AnimatedButton>
+        ) : (
+            <AnimatedButton
+            variant="primary"
+            className="flex-1"
+            onClick={handlePayment}
+            disabled={processing}
+            isLoading={processing}
+            >
+            {showVerification ? 'Submit Verification' : 'Pay & Book'}
+            </AnimatedButton>
+        )}
       </div>
       {/* Load Payment Gateways */}
       <Script 

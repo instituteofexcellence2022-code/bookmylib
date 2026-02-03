@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { LogOut, X, ChevronLeft, ChevronRight, LucideIcon } from 'lucide-react'
+import { LogOut, X, ChevronLeft, ChevronRight, LucideIcon, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface NavItem {
@@ -99,8 +99,8 @@ export function Sidebar({
       />
 
       <aside className={cn(
-      "fixed md:sticky top-0 left-0 z-40 h-[100dvh] w-48 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-all duration-300 ease-in-out flex flex-col",
-      isCollapsed ? "md:w-[72px]" : "md:w-48",
+      "fixed md:sticky top-0 left-0 z-40 h-[100dvh] w-52 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-all duration-300 ease-in-out flex flex-col",
+      isCollapsed ? "md:w-[72px]" : "md:w-52",
       isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
     )}>
         {/* Header */}
@@ -114,7 +114,7 @@ export function Sidebar({
                     "min-w-[2rem] w-8 h-8 rounded-lg flex items-center justify-center shadow-md transition-transform duration-300 group-hover/header:scale-105",
                     colors.logoGradient || colors.logoBg
                   )}>
-                    <span className="text-white font-bold text-lg drop-shadow-sm">{typeof title === 'string' ? title.charAt(0) : 'B'}</span>
+                    <BookOpen className="text-white w-5 h-5 drop-shadow-sm" />
                   </div>
                 )}
                 <motion.span 

@@ -7,7 +7,7 @@ import {
     Check, X, Armchair, Calendar, 
     CreditCard, Clock, MapPin, Info,
     ChevronRight, ChevronLeft, ShieldCheck,
-    LayoutGrid, List
+    LayoutGrid, List, Library as LibraryIcon
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
@@ -39,12 +39,16 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
     const action = searchParams.get('action')
     const planIdParam = searchParams.get('planId')
 
-    const [step, setStep] = useState<'selection' | 'payment'>('selection')
+    const [step, setStep] = useState<'selection' | 'payment' | 'success'>('selection')
     const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null)
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
     const [selectedFees, setSelectedFees] = useState<string[]>([])
     const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0])
     const [isLoading, setIsLoading] = useState(false)
+    const [successData, setSuccessData] = useState<{
+        status: 'completed' | 'pending_verification',
+        paymentId?: string
+    } | null>(null)
     
     // Pagination state
     const [pageBySection, setPageBySection] = useState<Record<string, number>>({})
@@ -167,7 +171,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
         setStep('payment')
     }
 
-    const handlePaymentSuccess = async (paymentId?: string, status?: 'completed' | 'pending_verification') => {
+    const handlePaymentSuccess = async (paymentId?: string, status?: 'completed' | 'pending_verification', proofUrl?: string) => {
         if (!selectedPlan) {
             toast.error('No plan selected')
             return
@@ -181,16 +185,20 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                 seatId: selectedSeat?.id,
                 startDate: bookingDate,
                 additionalFeeIds: selectedFees,
-                paymentId
+                paymentId,
+                paymentDetails: proofUrl ? {
+                    amount: totalAmount,
+                    method: 'manual', 
+                    proofUrl
+                } : undefined
             })
 
             if (result.success) {
-                if (status === 'pending_verification') {
-                    toast.success('Your transaction has been sent for verification')
-                } else {
-                    toast.success('Booking successful!')
-                }
-                router.push('/student/payments?tab=history')
+                setSuccessData({
+                    status: status || 'completed',
+                    paymentId: result.paymentId
+                })
+                setStep('success')
             } else {
                 toast.error(result.error || 'Booking failed')
             }
@@ -212,6 +220,74 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
         return `${h12}:${minutes} ${ampm}`
     }
 
+    if (step === 'success' && successData) {
+        return (
+            <div className="max-w-xl mx-auto min-h-[60vh] flex items-center justify-center p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 border border-gray-100 dark:border-gray-700 shadow-sm text-center space-y-6 w-full animate-in fade-in zoom-in-95 duration-300 relative overflow-hidden">
+                    
+                    {/* Branding Header */}
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-500 opacity-50" />
+                    <div className="flex items-center justify-center gap-2 mb-2 opacity-90">
+                        <LibraryIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                        <span className="font-bold text-lg text-gray-900 dark:text-white tracking-tight">BookMyLib</span>
+                    </div>
+
+                    <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Check className="w-10 h-10 text-green-600 dark:text-green-400" strokeWidth={3} />
+                    </div>
+
+                    <div className="space-y-3">
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                            {successData.status === 'pending_verification' ? 'Payment Submitted!' : 'Booking Confirmed!'}
+                        </h2>
+                        
+                        <div className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-gray-50 dark:bg-gray-700/50 rounded-full border border-gray-100 dark:border-gray-600">
+                            <MapPin className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                                {branch.name}
+                            </span>
+                        </div>
+
+                        <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
+                            {successData.status === 'pending_verification' 
+                                ? 'Thank you for your payment. Your booking is currently under verification.' 
+                                : 'Thank you! Your subscription is now active.'}
+                        </p>
+                    </div>
+
+                    {successData.status === 'pending_verification' && (
+                        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 text-left flex gap-3">
+                            <Info className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
+                            <div className="space-y-2">
+                                <h4 className="font-semibold text-yellow-800 dark:text-yellow-200 text-sm">Next Steps</h4>
+                                <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1 list-disc pl-4">
+                                    <li>Visit the front desk to get your booking approved immediately.</li>
+                                    <li>Or wait for the library staff to verify your payment online.</li>
+                                    <li>You will receive a notification once verified.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="pt-4 space-y-3">
+                        <AnimatedButton
+                            onClick={() => router.push('/student/dashboard')}
+                            className="w-full"
+                        >
+                            Go to Dashboard
+                        </AnimatedButton>
+                        <button
+                            onClick={() => router.push('/student/payments?tab=history')}
+                            className="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 transition-colors"
+                        >
+                            View Payment History
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
     if (step === 'payment' && selectedPlan) {
         const upgradeCredit = (action === 'upgrade' && currentSubscription?.plan) ? currentSubscription.plan.price : 0
         
@@ -222,6 +298,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                     seat={selectedSeat}
                     fees={branch.fees?.filter((f: any) => selectedFees.includes(String(f.id))) || []}
                     branchId={branch.id}
+                    branchName={branch.name}
                     adjustmentAmount={upgradeCredit}
                     adjustmentLabel="Upgrade Credit"
                     upiId={(branch as any).upiId || undefined}

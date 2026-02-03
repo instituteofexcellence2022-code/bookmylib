@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Bell, Menu, LogOut, User, Settings } from 'lucide-react'
+import { Bell, Menu, LogOut, User, Settings, Moon, Sun } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { useTheme } from 'next-themes'
 import { InstallButton } from '@/components/ui/InstallButton'
 import { cn } from '@/lib/utils'
 
@@ -29,8 +29,11 @@ export function TopBar({ user, title, className, onMenuClick, onLogout, announce
   const dropdownRef = useRef<HTMLDivElement>(null)
   const notificationRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false)
@@ -80,7 +83,6 @@ export function TopBar({ user, title, className, onMenuClick, onLogout, announce
 
        <div className="flex items-center gap-3 md:gap-4">
           <InstallButton />
-          <ThemeToggle />
           
           {/* Notifications */}
           <div className="relative" ref={notificationRef}>
@@ -190,6 +192,16 @@ export function TopBar({ user, title, className, onMenuClick, onLogout, announce
                     <Settings size={16} />
                     Settings
                   </Link>
+                  <button 
+                    onClick={() => {
+                      setTheme(theme === 'dark' ? 'light' : 'dark')
+                      setIsDropdownOpen(false)
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                  >
+                    {mounted && theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+                    {mounted && theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                  </button>
                 </div>
                 
                 <div className="h-px bg-gray-100 dark:bg-gray-700 my-1" />

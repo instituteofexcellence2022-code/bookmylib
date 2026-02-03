@@ -135,6 +135,7 @@ export async function createBooking(data: {
         remarks?: string
         type?: string
         discount?: number
+        proofUrl?: string
     }
 }): Promise<{ success: true; subscriptionId: string; paymentId?: string; invoiceNo?: string | null; seatNumber?: string; amount?: number; discount?: number; method?: string } | { success: false; error: string }> {
     try {
@@ -280,7 +281,8 @@ export async function createBooking(data: {
                         notes: paymentDetails?.remarks ? `${feeDescription}. ${paymentDetails.remarks}` : feeDescription,
                         invoiceNo: generatedInvoiceNo,
                         relatedId: planId,
-                        discountAmount: discount
+                        discountAmount: discount,
+                        proofUrl: paymentDetails?.proofUrl
                     }
                 })
                 paymentIdToUse = payment.id
