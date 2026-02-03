@@ -19,6 +19,15 @@ const smtpConfig = {
     user: process.env.SMTP_USER, // Your email address (e.g., yourname@gmail.com)
     pass: process.env.SMTP_PASS, // Your App Password (not your gmail password)
   },
+  // Optimizations for Google SMTP
+  pool: true, // Use pooled connections
+  maxConnections: 5, // Limit concurrent connections
+  maxMessages: 100, // Limit messages per connection
+  rateLimit: 10, // Limit messages per second (approx)
+  // Network optimizations
+  family: 4, // Force IPv4 to avoid IPv6 timeouts
+  connectionTimeout: 10000, // 10 seconds timeout for connection
+  socketTimeout: 10000, // 10 seconds timeout for socket
 };
 
 export const transporter = nodemailer.createTransport(smtpConfig);
