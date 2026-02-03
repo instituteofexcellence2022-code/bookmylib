@@ -58,8 +58,8 @@ export default function PublicBookingPayment({
   const [processing, setProcessing] = useState(false)
 
   // Calculate Base Total (Plan + Fees)
-  const feesTotal = fees.reduce((sum: number, fee) => sum + fee.amount, 0)
-  const baseTotal = plan.price + feesTotal
+  const feesTotal = fees.reduce((sum: number, fee) => sum + Number(fee.amount), 0)
+  const baseTotal = Number(plan.price) + feesTotal
   const subTotal = baseTotal
   
   // Calculate Final Amount

@@ -95,9 +95,9 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
     }, [])
 
     // Calculate total
-    const totalAmount = (selectedPlan?.price || 0) + 
+    const totalAmount = (Number(selectedPlan?.price) || 0) + 
         (branch.fees || []).filter((f: any) => selectedFees.includes(String(f.id)))
-            .reduce((sum: number, f: any) => sum + f.amount, 0)
+            .reduce((sum: number, f: any) => sum + Number(f.amount), 0)
 
     // Sort seats naturally
     const sortedSeats = React.useMemo(() => {

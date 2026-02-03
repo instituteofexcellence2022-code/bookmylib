@@ -100,8 +100,8 @@ export default function BookingPayment({
   }
 
   // Calculate Base Total (Plan + Fees)
-  const feesTotal = fees.reduce((sum: number, fee) => sum + fee.amount, 0)
-  const baseTotal = plan.price + feesTotal
+  const feesTotal = fees.reduce((sum: number, fee) => sum + Number(fee.amount), 0)
+  const baseTotal = Number(plan.price) + feesTotal
   const subTotal = Math.max(0, baseTotal - adjustmentAmount)
   
   // Calculate Final Amount
@@ -114,7 +114,7 @@ export default function BookingPayment({
     const params = new URLSearchParams()
     params.append('pa', upiId) // Payee Address
     params.append('pn', payeeName || 'Library') // Payee Name
-    params.append('am', finalAmount.toString()) // Amount
+    params.append('am', finalAmount.toFixed(2)) // Amount
     params.append('cu', 'INR') // Currency
     
     // Transaction Note (tn) - Keep it short and safe
