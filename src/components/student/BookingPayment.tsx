@@ -20,7 +20,7 @@ import {
 import Script from 'next/script'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
-import { formatSeatNumber } from '@/lib/utils'
+import { formatSeatNumber, cn } from '@/lib/utils'
 
 interface BookingPaymentProps {
   plan: {
