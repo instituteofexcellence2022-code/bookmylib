@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { motion } from 'framer-motion'
-import { Shield, User, Download, Share2, CheckCircle, BadgeCheck, Mail, Phone, BookOpen, Eye, EyeOff } from 'lucide-react'
+import { Shield, User, Download, Share2, CheckCircle, BadgeCheck, Mail, Phone, BookOpen, Eye, EyeOff, Clock } from 'lucide-react'
 import { format } from 'date-fns'
 import { toPng } from 'html-to-image'
 import { useRef } from 'react'
@@ -34,6 +34,7 @@ interface DigitalIdCardProps {
         }
         startDate: string
         endDate: string
+        status: string
     }
 }
 
@@ -53,7 +54,8 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                 plan: activeSubscription.plan.name,
                 branch: activeSubscription.branch.name,
                 seat: activeSubscription.seat ? formatSeatNumber(activeSubscription.seat.number) : 'General',
-                validUntil: format(new Date(activeSubscription.endDate), 'yyyy-MM-dd')
+                validUntil: format(new Date(activeSubscription.endDate), 'yyyy-MM-dd'),
+                status: activeSubscription.status
             } : {
                 status: 'No Active Subscription'
             })
@@ -280,33 +282,43 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
                             {/* Right: Subscription Details */}
                             <div className="flex-1 min-w-0 space-y-3 pt-1">
                                 {activeSubscription ? (
-                                    <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5">
-                                        <div className="min-w-0">
-                                            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Current Plan</p>
-                                            <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 truncate">
-                                                {activeSubscription.plan.name}
-                                            </p>
+                                    activeSubscription.status === 'pending' ? (
+                                        <div className="bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 p-3 rounded-lg text-sm text-center font-medium border border-yellow-200 dark:border-yellow-900/30 flex flex-col gap-1 h-full justify-center">
+                                            <div className="flex items-center justify-center gap-2">
+                                                <Clock className="w-4 h-4 animate-pulse" />
+                                                <span className="font-bold">Pending Verification</span>
+                                            </div>
+                                            <span className="text-xs opacity-90">Payment submitted & under review</span>
                                         </div>
-                                        <div className="text-left">
-                                            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Seat Number</p>
-                                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                                                {activeSubscription.seat ? formatSeatNumber(activeSubscription.seat.number) : 'General'}
-                                            </p>
-                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5">
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Current Plan</p>
+                                                <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 truncate">
+                                                    {activeSubscription.plan.name}
+                                                </p>
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Seat Number</p>
+                                                <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                                                    {activeSubscription.seat ? formatSeatNumber(activeSubscription.seat.number) : 'General'}
+                                                </p>
+                                            </div>
 
-                                        <div className="min-w-0">
-                                            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Branch</p>
-                                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
-                                                {activeSubscription.branch.name}
-                                            </p>
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Branch</p>
+                                                <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                                                    {activeSubscription.branch.name}
+                                                </p>
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Valid Until</p>
+                                                <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                                                    {format(new Date(activeSubscription.endDate), 'MMM dd, yyyy')}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div className="text-left">
-                                            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Valid Until</p>
-                                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                                                {format(new Date(activeSubscription.endDate), 'MMM dd, yyyy')}
-                                            </p>
-                                        </div>
-                                    </div>
+                                    )
                                 ) : (
                                     <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm text-center font-medium border border-red-100 dark:border-red-900/30">
                                         No Active Subscription

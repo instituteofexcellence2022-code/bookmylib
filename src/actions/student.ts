@@ -26,7 +26,12 @@ export async function getStudentProfile() {
                     seat: true
                 },
                 where: {
-                    status: 'active'
+                    status: {
+                        in: ['active', 'pending']
+                    }
+                },
+                orderBy: {
+                    createdAt: 'desc'
                 }
             },
             attendance: {

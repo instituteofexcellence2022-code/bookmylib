@@ -71,7 +71,7 @@ export default function HomeClient({ student, stats, todayAttendance, quotes, li
               {isCheckedIn 
                 ? `Checked In • ${todayAttendance.branch.name}` 
                 : activeSubscription 
-                  ? `Not Checked In • ${activeSubscription.branch.name}`
+                  ? (activeSubscription.status === 'pending' ? `Pending • ${activeSubscription.branch.name}` : `Not Checked In • ${activeSubscription.branch.name}`)
                   : 'No Active Plan'}
             </span>
           </div>

@@ -70,12 +70,12 @@ export async function markAttendance(qrCode: string, location?: { lat: number, l
         
         if (!branch) return { success: false, error: 'Invalid QR Code' }
 
-        // 2. Check active subscription for this branch
+        // 2. Check active or pending subscription for this branch
         const subscription = await prisma.studentSubscription.findFirst({
             where: {
                 studentId: studentId,
                 branchId: branch.id,
-                status: 'active',
+                status: { in: ['active', 'pending'] },
                 endDate: { gte: new Date() }
             }
         })

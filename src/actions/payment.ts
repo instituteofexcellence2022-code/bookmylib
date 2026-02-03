@@ -5,6 +5,7 @@ import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { sendReceiptEmail } from '@/actions/email'
 import { formatSeatNumber } from '@/lib/utils'
+import { addDays, addMonths } from 'date-fns'
 import { razorpay } from '@/lib/payment/razorpay'
 import { cashfree } from '@/lib/payment/cashfree'
 import crypto from 'crypto'
@@ -803,6 +804,40 @@ export async function createManualPayment(formData: FormData) {
     }
   }
 
+  // Create pending subscription if needed
+  let subscriptionId = null
+  if (type === 'subscription' && relatedId) {
+    try {
+      const plan = await prisma.plan.findUnique({ where: { id: relatedId } })
+      if (plan) {
+        const startDate = new Date()
+        let endDate = startDate
+        
+        if (plan.durationUnit === 'months') {
+          endDate = addMonths(startDate, plan.duration)
+        } else {
+          endDate = addDays(startDate, plan.duration)
+        }
+
+        const sub = await prisma.studentSubscription.create({
+          data: {
+            libraryId,
+            branchId,
+            studentId: student.id,
+            planId: plan.id,
+            startDate,
+            endDate,
+            status: 'pending',
+            amount: finalAmount
+          }
+        })
+        subscriptionId = sub.id
+      }
+    } catch (error) {
+      console.error('Failed to create pending subscription:', error)
+    }
+  }
+
   try {
     const payment = await prisma.payment.create({
       data: {
@@ -813,7 +848,7 @@ export async function createManualPayment(formData: FormData) {
         method, // 'upi', 'cash', etc.
         status: 'pending_verification',
         type,
-        relatedId,
+        relatedId: subscriptionId || relatedId,
         description,
         transactionId,
         proofUrl,
