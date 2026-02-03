@@ -160,18 +160,52 @@ export default function BookingPayment({
         }
 
         if (text) {
-             // Look for 12 digit number (common for UPI/IMPS)
-             const twelveDigitRegex = /\b\d{12}\b/g
-             const matches = text.match(twelveDigitRegex)
+             console.log("OCR Text Extracted:", text)
+             const cleanText = text.toLowerCase().replace(/\s+/g, ' ')
              
-             if (matches && matches.length > 0) {
-                 const potentialId = matches[0]
-                 if (!transactionId) {
-                     setTransactionId(potentialId)
-                     toast.success('Transaction ID detected!', {
-                         icon: '✨'
-                     })
+             // Strategy 1: Look for keywords + number
+             // Keywords: "upi ref", "utr", "transaction id", "txn id", "ref no"
+             const keywordPatterns = [
+                 /(?:upi\s*ref(?:erence)?\s*(?:id|no|num)?|utr|txn\s*id|transaction\s*id)[\s\:\-\.]*(\d{12})/i,
+                 /(\d{12})/ // Fallback: just find any 12 digit number
+             ]
+
+             let detectedId = null
+
+             for (const pattern of keywordPatterns) {
+                 const match = cleanText.match(pattern)
+                 if (match && match[1]) {
+                     detectedId = match[1]
+                     break
+                 } else if (match && match[0] && /^\d{12}$/.test(match[0])) {
+                    // Fallback pattern match[0] is the whole match group
+                    detectedId = match[0]
+                    break
                  }
+             }
+             
+             // Strategy 2: Global fallback if not found above
+             if (!detectedId) {
+                 const twelveDigitRegex = /\b\d{12}\b/g
+                 const matches = text.match(twelveDigitRegex)
+                 if (matches && matches.length > 0) {
+                     detectedId = matches[0]
+                 }
+             }
+
+             if (detectedId) {
+                 if (!transactionId) {
+                     setTransactionId(detectedId)
+                     toast.success('Transaction ID detected!', {
+                         icon: '✨',
+                         duration: 4000
+                     })
+                     // Optional: Visual feedback logic could go here
+                 }
+             } else {
+                 toast('Could not auto-detect Transaction ID. Please enter manually.', {
+                     icon: '📝'
+                 })
              }
         }
     } catch (error) {
@@ -752,6 +786,10 @@ export default function BookingPayment({
                  placeholder="Enter 12-digit UPI Reference ID"
                  value={transactionId}
                  onChange={(e) => setTransactionId(e.target.value)}
+                 className={cn(
+                    "transition-all duration-1000",
+                    transactionId && "bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800"
+                 )}
                />
 
                <div className="space-y-2">
