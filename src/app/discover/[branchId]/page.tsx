@@ -3,7 +3,7 @@ import { getBranchOffers } from '@/actions/promo'
 import { PublicBookingClient } from '@/components/public/PublicBookingClient'
 import { BackButton } from '@/components/ui/BackButton'
 
-export default async function PublicBranchBookingPage({ params }: { params: { branchId: string } }) {
+export default async function PublicBranchBookingPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = await params
     const { success, branch, error } = await getBranchDetails(branchId)
     const offers = await getBranchOffers(branchId)

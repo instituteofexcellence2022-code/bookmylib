@@ -30,6 +30,7 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { getCurrentUser, logout } from '@/actions/auth'
 import { getPublishedBranches } from '@/actions/booking'
 import { BookingPageClient } from '@/app/student/(authenticated)/book/BookingPageClient'
+import { InstallPrompt } from '@/components/layout/InstallPrompt'
 
 type Role = 'discover' | 'student' | 'staff' | 'owner'
 
@@ -194,6 +195,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background transition-colors duration-500 overflow-hidden selection:bg-teal-100 dark:selection:bg-teal-900/30">
+      <InstallPrompt />
       
       {/* Background Elements */}
       <div className="fixed inset-0 pointer-events-none">

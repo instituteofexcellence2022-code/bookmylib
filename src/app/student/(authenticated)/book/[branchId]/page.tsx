@@ -6,7 +6,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { COOKIE_KEYS } from '@/lib/auth/session'
 
-export default async function BranchBookingPage({ params }: { params: { branchId: string } }) {
+export default async function BranchBookingPage({ params }: { params: Promise<{ branchId: string }> }) {
     const cookieStore = await cookies()
     const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
 

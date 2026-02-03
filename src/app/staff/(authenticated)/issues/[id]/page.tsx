@@ -3,7 +3,7 @@ import { getTicketDetails } from '@/actions/ticket'
 import TicketResponseClient from '@/app/owner/(authenticated)/issues/[id]/TicketResponseClient'
 import { notFound } from 'next/navigation'
 
-export default async function TicketDetailPage({ params }: { params: { id: string } }) {
+export default async function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const ticket = await getTicketDetails(id)
 

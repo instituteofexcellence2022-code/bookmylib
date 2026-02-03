@@ -7,7 +7,7 @@ import { COOKIE_KEYS } from '@/lib/auth/session'
 import { Clock, MapPin, Shield, Star, Info, Phone, Mail } from 'lucide-react'
 import WifiCard from '@/components/student/WifiCard'
 
-export default async function BranchDetailsPage({ params }: { params: { branchId: string } }) {
+export default async function BranchDetailsPage({ params }: { params: Promise<{ branchId: string }> }) {
     const cookieStore = await cookies()
     const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
 
