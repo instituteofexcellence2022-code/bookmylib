@@ -6,7 +6,7 @@ import { X, Camera, RefreshCw, User, CheckCircle, AlertTriangle, CreditCard, Fil
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { getStudentDetailsForScanner } from '@/actions/staff/students'
-import { markStudentAttendance } from '@/actions/staff/attendance'
+import { markStudentAttendance, markStaffSelfAttendance } from '@/actions/staff/attendance'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import Image from 'next/image'
@@ -116,12 +116,32 @@ export function ScannerClient() {
                 // assume text is ID if not JSON
             }
 
+            // 1. Try to fetch student details
             const res = await getStudentDetailsForScanner(studentId)
             
             if (res.success) {
                 setStudentData(res.data)
                 setScanning(false)
+                setLoading(false)
             } else {
+                // 2. If student not found, try Staff Self Attendance (Branch QR)
+                try {
+                    const attendanceRes = await markStaffSelfAttendance(decodedText)
+                    
+                    if (attendanceRes.success) {
+                        toast.success(attendanceRes.type === 'check-in' ? 'Staff Check-in Successful' : 'Staff Check-out Successful')
+                        
+                        // Restart scanner after short delay
+                        setTimeout(() => {
+                            setLoading(false)
+                            setScanning(true)
+                        }, 2000)
+                        return
+                    }
+                } catch (e) {
+                    // Ignore error and proceed to show student not found
+                }
+
                 toast.error(res.error || 'Student not found')
                 setError(res.error || 'Student not found')
                 // Wait a bit then restart scanner
@@ -135,8 +155,6 @@ export function ScannerClient() {
             console.error(err)
             setError('System error')
             setLoading(false)
-        } finally {
-            if (!studentData) setLoading(false)
         }
     }
 
