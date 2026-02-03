@@ -18,6 +18,7 @@ import {
   AlertCircle,
   Loader2,
   QrCode as QrCodeIcon,
+  BookOpen,
   Download,
   RefreshCw,
   Printer,
@@ -220,12 +221,15 @@ const tabs = [
 
   const handlePrintQR = () => {
     const printContent = document.getElementById('printable-qr-card');
-    if (!printContent) return;
+    if (!printContent) {
+        toast.error('Could not find QR code content to print');
+        return;
+    }
 
     const windowUrl = 'about:blank';
     const uniqueName = new Date().getTime();
     const windowName = 'Print' + uniqueName;
-    const printWindow = window.open(windowUrl, windowName, 'left=50000,top=50000,width=0,height=0');
+    const printWindow = window.open(windowUrl, windowName, 'width=800,height=600');
 
     if (printWindow) {
       printWindow.document.write(`
@@ -236,29 +240,56 @@ const tabs = [
             <script src="https://cdn.tailwindcss.com"></script>
             <style>
               @page { size: A4 portrait; margin: 0; }
-              body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-              .print-container { width: 100%; height: 100vh; display: flex; align-items: center; justify-content: center; background: white; }
-              .poster { width: 100%; max-width: 210mm; padding: 20px; box-sizing: border-box; }
+              body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
+              .print-container { width: 100%; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+              
+              /* Force white background and high contrast text for print */
+              #printable-qr-card { 
+                background-color: white !important; 
+                color: black !important; 
+                box-shadow: none !important;
+                width: 100%;
+                max-width: 210mm;
+                border: 1px solid #e5e7eb;
+              }
+
+              /* Ensure text visibility */
+              .text-gray-400, .text-gray-500, .text-gray-600 {
+                color: #4b5563 !important; /* Make grays darker (gray-600) for print readability */
+              }
+              
+              /* Ensure truncated text wraps in print if needed */
+              .truncate {
+                white-space: normal !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+              }
+              
+              /* Reset background opacities for better print reproduction */
+              .bg-gray-50 { background-color: #f9fafb !important; }
+              .bg-blue-600 { background-color: #2563eb !important; color: white !important; }
             </style>
           </head>
           <body>
             <div class="print-container">
-                <div class="poster">
-                    ${printContent.innerHTML}
-                </div>
+                ${printContent.outerHTML}
             </div>
             <script>
               window.onload = function() {
+                // Wait for Tailwind to process
                 setTimeout(function() {
+                  window.focus();
                   window.print();
-                  window.close();
-                }, 500);
+                  // Allow user to close or keep open
+                }, 1000);
               };
             </script>
           </body>
         </html>
       `);
       printWindow.document.close();
+    } else {
+        toast.error('Pop-up blocked. Please allow pop-ups for this site to print.');
     }
   }
 
@@ -877,32 +908,34 @@ const tabs = [
           >
              <div className="md:col-span-2 lg:col-span-1">
                 <CompactCard>
-                    <div className="flex flex-col items-center justify-center p-6 space-y-6 bg-white dark:bg-gray-900 rounded-xl" id="printable-qr-card">
-                       {/* 1. Header with Branding */}
-                       <div className="w-full flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
-                         <div className="flex items-center gap-3">
-                            <div className="p-2.5 bg-purple-600 rounded-xl text-white shadow-lg shadow-purple-600/20">
-                                <Armchair className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">BookMyLib</h2>
-                                <p className="text-xs text-purple-600 dark:text-purple-400 font-medium tracking-wide uppercase">Smart Library</p>
-                            </div>
-                         </div>
-                         <div className="text-right">
-                            <h3 className="font-bold text-gray-900 dark:text-white text-lg">{branch.name}</h3>
-                            <div className="flex items-center justify-end gap-1 text-xs text-gray-500">
-                                <MapPin className="w-3 h-3" />
-                                <span>{branch.city || 'Branch'}</span>
-                            </div>
-                         </div>
+                    <div className="flex flex-col items-center justify-center p-6 space-y-4 bg-white dark:bg-gray-900 rounded-xl" id="printable-qr-card">
+                       {/* 1. Header with Brand & Branch Info */}
+                       <div className="w-full flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-2">
+                           {/* Brand Logo */}
+                           <div className="flex items-center gap-2">
+                             <div className="p-2 rounded-xl bg-blue-600">
+                               <BookOpen className="w-5 h-5 text-white" />
+                             </div>
+                             <span className="font-bold text-xl tracking-tighter text-gray-900 dark:text-white">
+                               BookMy<span className="text-blue-600">Lib</span>
+                             </span>
+                           </div>
+
+                           {/* Branch Info */}
+                           <div className="text-right">
+                               <h3 className="font-semibold text-gray-900 dark:text-white text-sm">{branch.name}</h3>
+                               <div className="flex items-center justify-end gap-1 text-xs text-gray-500">
+                                   <MapPin className="w-3.5 h-3.5" />
+                                   <span>{branch.city || 'Branch'}</span>
+                               </div>
+                           </div>
                        </div>
     
                        {/* 2. Main QR Section */}
                        <div className="flex flex-col items-center space-y-5 py-2">
                          <div className="relative group">
                             <div className="absolute -inset-1.5 bg-gradient-to-tr from-purple-600 via-pink-600 to-blue-600 rounded-2xl opacity-75 blur transition duration-1000 group-hover:duration-200 group-hover:opacity-100"></div>
-                            <div className="relative p-6 bg-white rounded-xl shadow-xl">
+                        <div className="relative p-6 bg-white rounded-xl shadow-xl">
                                 {qrDataUrl ? (
                                     <img src={qrDataUrl} alt="Branch QR" className="w-64 h-64 object-contain" />
                                 ) : (
@@ -914,71 +947,65 @@ const tabs = [
                          </div>
                          <div className="flex items-center gap-2 text-sm font-bold text-purple-700 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-300 px-5 py-2 rounded-full border border-purple-100 dark:border-purple-800">
                             <Scan className="w-4 h-4" />
-                            <span>Scan with Phone Camera</span>
+                            <span>Scan Now</span>
                          </div>
                        </div>
     
                        {/* 3. Dual Instruction Section */}
                        <div className="grid grid-cols-2 gap-4 w-full">
                           {/* New Users */}
-                          <div className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-transparent border border-blue-100 dark:border-blue-900/50 p-4 rounded-2xl text-center space-y-3 relative overflow-hidden group hover:shadow-md transition-all">
+                          <div className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-transparent border border-blue-100 dark:border-blue-900/50 p-3 rounded-2xl relative overflow-hidden group hover:shadow-md transition-all flex items-center gap-3 text-left">
                             <div className="absolute top-0 right-0 w-16 h-16 bg-blue-100/50 dark:bg-blue-800/20 rounded-bl-full -mr-8 -mt-8"></div>
-                            <div className="mx-auto w-12 h-12 bg-white dark:bg-blue-900/50 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-sm border border-blue-50 dark:border-blue-800">
-                                <Search className="w-6 h-6" />
+                            <div className="w-10 h-10 bg-white dark:bg-blue-900/50 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-sm border border-blue-50 dark:border-blue-800 shrink-0">
+                                <Search className="w-5 h-5" />
                             </div>
                             <div>
-                                <h4 className="font-bold text-blue-900 dark:text-blue-300 text-sm mb-1">New Visitor?</h4>
-                                <p className="text-xs text-blue-700 dark:text-blue-400 leading-snug">
-                                    View photos, amenities & book seats instantly.
+                                <h4 className="font-bold text-blue-900 dark:text-blue-300 text-xs uppercase tracking-wide opacity-80">New Visitor?</h4>
+                                <p className="text-sm font-bold text-blue-800 dark:text-blue-200 leading-tight mt-0.5">
+                                    View details & Book seats
                                 </p>
                             </div>
                           </div>
                           
                           {/* Existing Students */}
-                          <div className="bg-gradient-to-br from-green-50 to-white dark:from-green-900/20 dark:to-transparent border border-green-100 dark:border-green-900/50 p-4 rounded-2xl text-center space-y-3 relative overflow-hidden group hover:shadow-md transition-all">
+                          <div className="bg-gradient-to-br from-green-50 to-white dark:from-green-900/20 dark:to-transparent border border-green-100 dark:border-green-900/50 p-3 rounded-2xl relative overflow-hidden group hover:shadow-md transition-all flex items-center gap-3 text-left">
                              <div className="absolute top-0 right-0 w-16 h-16 bg-green-100/50 dark:bg-green-800/20 rounded-bl-full -mr-8 -mt-8"></div>
-                             <div className="mx-auto w-12 h-12 bg-white dark:bg-green-900/50 rounded-full flex items-center justify-center text-green-600 dark:text-green-400 shadow-sm border border-green-50 dark:border-green-800">
-                                <UserCheck className="w-6 h-6" />
+                             <div className="w-10 h-10 bg-white dark:bg-green-900/50 rounded-full flex items-center justify-center text-green-600 dark:text-green-400 shadow-sm border border-green-50 dark:border-green-800 shrink-0">
+                                <UserCheck className="w-5 h-5" />
                             </div>
                             <div>
-                                <h4 className="font-bold text-green-900 dark:text-green-300 text-sm mb-1">Member?</h4>
-                                <p className="text-xs text-green-700 dark:text-green-400 leading-snug">
-                                    Mark attendance (Check-in/out) automatically.
+                                <h4 className="font-bold text-green-900 dark:text-green-300 text-xs uppercase tracking-wide opacity-80">Member?</h4>
+                                <p className="text-sm font-bold text-green-800 dark:text-green-200 leading-tight mt-0.5">
+                                    Mark Attendance (In/Out)
                                 </p>
                             </div>
                           </div>
                        </div>
     
                        {/* 4. Footer Details */}
-                       <div className="w-full pt-5 border-t border-gray-100 dark:border-gray-800 grid grid-cols-2 gap-y-3 gap-x-4 text-xs text-gray-600 dark:text-gray-400">
+                       <div className="w-full pt-5 border-t border-gray-100 dark:border-gray-800 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400">
+                          {(branch.owner?.name) && (
+                            <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                <span className="text-gray-400 font-medium uppercase text-[10px] shrink-0">Owner</span>
+                                <span className="font-semibold text-gray-900 dark:text-white truncate">{branch.owner.name}</span>
+                            </div>
+                          )}
                           {branch.phone && (
                             <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                <Phone className="w-3.5 h-3.5 text-gray-400" />
-                                <span className="font-medium">{branch.phone}</span>
+                                <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                <span className="font-medium truncate">{branch.phone}</span>
                             </div>
                           )}
                           {branch.email && (
                             <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                 <Mail className="w-3.5 h-3.5 text-gray-400" />
-                                 <span className="truncate font-medium">{branch.email}</span>
+                                 <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                 <span className="font-medium truncate">{branch.email}</span>
                             </div>
                           )}
-                          {(branch.owner?.name || branch.managerName) && (
-                            <div className="col-span-2 flex flex-wrap gap-4 px-2">
-                                {branch.owner?.name && (
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-gray-400 font-medium uppercase text-[10px]">Owner</span>
-                                        <span className="font-semibold text-gray-900 dark:text-white">{branch.owner.name}</span>
-                                    </div>
-                                )}
-                                {branch.managerName && (
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-gray-400 font-medium uppercase text-[10px]">Manager</span>
-                                        <span className="font-semibold text-gray-900 dark:text-white">{branch.managerName}</span>
-                                    </div>
-                                )}
-                            </div>
-                          )}
+                          <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                              <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                              <span className="font-medium line-clamp-1">{[branch.address, branch.city, branch.state].filter(Boolean).join(', ')}</span>
+                          </div>
                        </div>
 
                        {/* 5. Powered By Footer */}

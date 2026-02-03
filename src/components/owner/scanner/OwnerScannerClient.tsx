@@ -141,7 +141,7 @@ export function OwnerScannerClient() {
             if (!scannerRef.current.isScanning) {
                 await scannerRef.current.start(
                     cameraId,
-                    { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
                     (decodedText) => handleScan(decodedText),
                     (errorMessage) => { /* ignore */ }
                 )
@@ -789,7 +789,7 @@ export function OwnerScannerClient() {
         <div className="max-w-md mx-auto h-[calc(100vh-140px)] flex flex-col">
             <div className="bg-black rounded-xl overflow-hidden relative flex-1">
                 {/* Scanner Overlay */}
-                <div id="reader" className="w-full h-full object-cover" />
+                <div id="reader" className="w-full h-full [&_video]:w-full [&_video]:h-full [&_video]:object-cover" />
                 
                 {/* Auto-Process Toggle */}
                 <div className="absolute top-16 right-4 z-20">

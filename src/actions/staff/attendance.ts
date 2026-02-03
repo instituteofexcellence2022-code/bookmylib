@@ -501,10 +501,26 @@ export async function verifyStaffStudentQR(studentId: string) {
 export async function getStaffBranchInfo() {
     const staff = await getAuthenticatedStaff()
     if (!staff) return null
+    
+    const branch = await prisma.branch.findUnique({
+        where: { id: staff.branch.id },
+        include: { owner: true }
+    })
+
+    if (!branch) return null
+
     return {
-        id: staff.branch.id,
-        name: staff.branch.name,
-        qrCode: staff.branch.qrCode
+        id: branch.id,
+        name: branch.name,
+        qrCode: branch.qrCode,
+        address: branch.address,
+        city: branch.city,
+        state: branch.state,
+        phone: branch.contactPhone,
+        email: branch.contactEmail,
+        owner: branch.owner ? {
+            name: branch.owner.name
+        } : null
     }
 }
 
