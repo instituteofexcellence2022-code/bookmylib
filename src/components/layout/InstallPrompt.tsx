@@ -29,31 +29,37 @@ export function InstallPrompt() {
 
     window.addEventListener('beforeinstallprompt', handler)
 
+    // Fallback: If not standalone, show prompt after a delay even if event didn't fire (for manual instructions)
+    const timer = setTimeout(() => {
+        if (!window.matchMedia('(display-mode: standalone)').matches) {
+            setShowPrompt(true)
+        }
+    }, 2000)
+
     return () => {
       window.removeEventListener('beforeinstallprompt', handler)
+      clearTimeout(timer)
     }
   }, [])
 
   const handleInstall = async () => {
-    if (!deferredPrompt) return
-
-    deferredPrompt.prompt()
-    const { outcome } = await deferredPrompt.userChoice
-    
-    if (outcome === 'accepted') {
-      setShowPrompt(false)
-      setDeferredPrompt(null)
+    if (deferredPrompt) {
+        deferredPrompt.prompt()
+        const { outcome } = await deferredPrompt.userChoice
+        
+        if (outcome === 'accepted') {
+          setShowPrompt(false)
+          setDeferredPrompt(null)
+        }
+    } else {
+        // Manual instructions
+        alert("To install this app:\n1. Click the Share icon (iOS) or Menu icon (Android/Desktop)\n2. Select 'Add to Home Screen' or 'Install App'")
     }
   }
 
   // Don't show if already installed
   if (isStandalone) return null
 
-  // Don't show if no prompt available (except maybe special iOS handling later)
-  if (!showPrompt && !isIOS) return null
-
-  // For iOS, we might want to show a custom instruction, but for now we'll stick to the "Add to Home Screen" standard behavior which is browser-controlled or manual.
-  // We'll focus on the standard `beforeinstallprompt` for now.
   if (!showPrompt) return null 
 
   return (
