@@ -302,7 +302,7 @@ export default function AddBranchPage() {
         toast.error('Failed to detect location. Please enter manually.')
         setIsDetectingLocation(false)
       },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     )
   }
 
@@ -604,19 +604,30 @@ export default function AddBranchPage() {
                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Coordinates
                     </label>
-                    <button
-                      type="button"
-                      onClick={handleDetectLocation}
-                      disabled={isDetectingLocation}
-                      className="text-xs flex items-center gap-1.5 text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-medium transition-colors"
-                    >
-                      {isDetectingLocation ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Crosshair className="w-3.5 h-3.5" />
-                      )}
-                      Detect My Location
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowMapPicker(true)}
+                        className="text-xs flex items-center gap-1.5 text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-medium transition-colors"
+                      >
+                        <MapIcon className="w-3.5 h-3.5" />
+                        Pick on Map
+                      </button>
+                      <span className="text-gray-300 dark:text-gray-600">|</span>
+                      <button
+                        type="button"
+                        onClick={handleDetectLocation}
+                        disabled={isDetectingLocation}
+                        className="text-xs flex items-center gap-1.5 text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-medium transition-colors"
+                      >
+                        {isDetectingLocation ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Crosshair className="w-3.5 h-3.5" />
+                        )}
+                        Detect My Location
+                      </button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <FormInput
@@ -1122,6 +1133,14 @@ export default function AddBranchPage() {
         </div>
       </form>
 
+      {showMapPicker && (
+        <LocationPicker
+          initialLat={formData.latitude ? parseFloat(formData.latitude) : undefined}
+          initialLng={formData.longitude ? parseFloat(formData.longitude) : undefined}
+          onLocationSelect={handleLocationSelect}
+          onClose={() => setShowMapPicker(false)}
+        />
+      )}
       {showMapPicker && (
         <LocationPicker
           initialLat={formData.latitude ? parseFloat(formData.latitude) : undefined}
