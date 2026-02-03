@@ -6,6 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { InstallButton } from '@/components/ui/InstallButton'
 import { cn } from '@/lib/utils'
 
 interface TopBarProps {
@@ -78,6 +79,7 @@ export function TopBar({ user, title, className, onMenuClick, onLogout, announce
        </div>
 
        <div className="flex items-center gap-3 md:gap-4">
+          <InstallButton />
           <ThemeToggle />
           
           {/* Notifications */}

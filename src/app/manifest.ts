@@ -7,18 +7,14 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'BookMyLib',
     description: 'Complete library management solution for owners, staff, and students.',
     start_url: '/',
+    id: '/',
     display: 'standalone',
     background_color: '#ffffff',
     theme_color: '#9333ea',
     icons: [
       {
         src: '/globe.svg',
-        sizes: '192x192',
-        type: 'image/svg+xml',
-      },
-      {
-        src: '/globe.svg',
-        sizes: '512x512',
+        sizes: 'any',
         type: 'image/svg+xml',
       },
     ],

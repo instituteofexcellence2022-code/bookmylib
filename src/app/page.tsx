@@ -27,6 +27,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { InstallButton } from '@/components/ui/InstallButton'
 import { getCurrentUser, logout } from '@/actions/auth'
 import { getPublishedBranches } from '@/actions/booking'
 import { BookingPageClient } from '@/app/student/(authenticated)/book/BookingPageClient'
@@ -104,6 +105,7 @@ export default function Home() {
   const router = useRouter()
   const [activeRole, setActiveRole] = useState<Role>('discover')
   const [mounted, setMounted] = useState(false)
+  const [installPromptOpen, setInstallPromptOpen] = useState(false)
   const [user, setUser] = useState<{ name: string, image?: string | null, initials: string, role: string, link: string } | null>(null)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [branches, setBranches] = useState<any[] | null>(null)
@@ -195,7 +197,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background transition-colors duration-500 overflow-hidden selection:bg-teal-100 dark:selection:bg-teal-900/30">
-      <InstallPrompt />
+      <InstallPrompt onOpenChange={setInstallPromptOpen} />
       
       {/* Background Elements */}
       <div className="fixed inset-0 pointer-events-none">
@@ -219,6 +221,7 @@ export default function Home() {
           </span>
         </div>
         <div className="flex items-center gap-3">
+          <InstallButton />
           <ThemeToggle />
           {user && (
             <div className="relative" ref={dropdownRef}>
@@ -291,7 +294,7 @@ export default function Home() {
         </div>
       </nav>
 
-      <main className="relative z-10 max-w-7xl mx-auto px-6 pt-10 pb-20">
+      <main className={`relative z-10 max-w-7xl mx-auto px-6 pb-20 transition-all duration-300 ${installPromptOpen ? 'pt-24' : 'pt-10'}`}>
         
         {/* Role Toggle */}
         <div className="flex justify-center mb-8">

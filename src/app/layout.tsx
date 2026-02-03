@@ -39,6 +39,23 @@ export default function RootLayout({
           {children}
           <Toaster position="top-center" />
           <SonnerToaster position="top-center" />
+          {/* Dev helper to clean up service workers */}
+          {process.env.NODE_ENV === 'development' && (
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+                  if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                      for(let registration of registrations) {
+                        registration.unregister();
+                        console.log('Service Worker unregistered in dev mode');
+                      }
+                    });
+                  }
+                `,
+              }}
+            />
+          )}
         </ThemeProvider>
       </body>
     </html>

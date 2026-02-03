@@ -1,66 +1,41 @@
-
 'use client'
 
 import React, { useEffect, useState } from 'react'
 import { Download, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useInstallPrompt } from '@/hooks/useInstallPrompt'
 
-export function InstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+interface InstallPromptProps {
+  onOpenChange?: (isOpen: boolean) => void
+}
+
+export function InstallPrompt({ onOpenChange }: InstallPromptProps) {
+  const { deferredPrompt, isStandalone, installApp } = useInstallPrompt()
   const [showPrompt, setShowPrompt] = useState(false)
-  const [isIOS, setIsIOS] = useState(false)
-  const [isStandalone, setIsStandalone] = useState(false)
 
   useEffect(() => {
-    // Check if already in standalone mode
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsStandalone(true)
-    }
+    onOpenChange?.(showPrompt)
+  }, [showPrompt])
 
-    // Check for iOS
-    const userAgent = window.navigator.userAgent.toLowerCase()
-    setIsIOS(/iphone|ipad|ipod/.test(userAgent))
-
-    const handler = (e: Event) => {
-      e.preventDefault()
-      setDeferredPrompt(e)
-      setShowPrompt(true)
-    }
-
-    window.addEventListener('beforeinstallprompt', handler)
-
-    // Fallback: If not standalone, show prompt after a delay even if event didn't fire (for manual instructions)
+  useEffect(() => {
+    // Fallback: If not standalone, show prompt after a delay
+    // This runs independently of the hook's event listener to ensure we show manual instructions if needed
     const timer = setTimeout(() => {
         if (!window.matchMedia('(display-mode: standalone)').matches) {
             setShowPrompt(true)
         }
     }, 2000)
 
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handler)
-      clearTimeout(timer)
-    }
+    return () => clearTimeout(timer)
   }, [])
 
-  const handleInstall = async () => {
-    if (deferredPrompt) {
-        deferredPrompt.prompt()
-        const { outcome } = await deferredPrompt.userChoice
-        
-        if (outcome === 'accepted') {
-          setShowPrompt(false)
-          setDeferredPrompt(null)
-        }
-    } else {
-        // Manual instructions
-        alert("To install this app:\n1. Click the Share icon (iOS) or Menu icon (Android/Desktop)\n2. Select 'Add to Home Screen' or 'Install App'")
-    }
+  const handleInstallClick = async () => {
+      await installApp()
+      setShowPrompt(false)
   }
 
   // Don't show if already installed
   if (isStandalone) return null
-
-  if (!showPrompt) return null 
 
   return (
     <AnimatePresence>
@@ -69,7 +44,7 @@ export function InstallPrompt() {
           initial={{ opacity: 0, y: -50 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -50 }}
-          className="fixed top-4 right-4 z-50 flex items-center gap-3 p-3 pr-4 bg-white dark:bg-gray-900 border border-purple-100 dark:border-purple-900/50 rounded-xl shadow-lg shadow-purple-500/10"
+          className="fixed top-20 right-4 z-50 flex items-center gap-3 p-3 pr-4 bg-white dark:bg-gray-900 border border-purple-100 dark:border-purple-900/50 rounded-xl shadow-lg shadow-purple-500/10"
         >
           <div className="flex items-center justify-center w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
              {/* Using a generic app icon or the Lucide download icon */}
@@ -86,7 +61,7 @@ export function InstallPrompt() {
           </div>
 
           <button
-            onClick={handleInstall}
+            onClick={handleInstallClick}
             className="ml-2 px-3 py-1.5 text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
           >
             Install
