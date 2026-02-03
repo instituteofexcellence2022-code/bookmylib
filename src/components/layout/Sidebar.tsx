@@ -92,14 +92,14 @@ export function Sidebar({
       {/* Overlay for mobile */}
       <div 
         className={cn(
-          "fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity duration-300",
+          "fixed inset-0 bg-black/50 z-50 md:hidden transition-opacity duration-300",
           isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         )} 
         onClick={onClose}
       />
 
       <aside className={cn(
-      "fixed md:sticky top-0 left-0 z-40 h-[100dvh] w-52 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-all duration-300 ease-in-out flex flex-col",
+      "fixed inset-y-0 md:sticky md:top-0 md:h-screen left-0 z-50 w-52 bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-all duration-300 ease-in-out flex flex-col",
       isCollapsed ? "md:w-[72px]" : "md:w-52",
       isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
     )}>
@@ -108,7 +108,7 @@ export function Sidebar({
           "h-14 flex items-center px-4 md:px-5 border-b border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm",
           isCollapsed ? "md:justify-center" : "justify-between"
         )}>
-            <div className={cn("flex items-center gap-3 overflow-hidden whitespace-nowrap group/header", isCollapsed && "md:justify-center w-full")}>
+            <Link href="/" className={cn("flex items-center gap-3 overflow-hidden whitespace-nowrap group/header", isCollapsed && "md:justify-center w-full")}>
                 {logo || (
                   <div className={cn(
                     "min-w-[2rem] w-8 h-8 rounded-lg flex items-center justify-center shadow-md transition-transform duration-300 group-hover/header:scale-105",
@@ -124,7 +124,7 @@ export function Sidebar({
                 >
                   {title}
                 </motion.span>
-             </div>
+             </Link>
              <button onClick={onClose} className="md:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1">
                 <X size={18} />
              </button>
@@ -132,7 +132,7 @@ export function Sidebar({
         
         {/* Navigation */}
         <nav className={cn(
-          "flex-1 py-3 px-2 space-y-0.5 min-h-0",
+          "flex-1 py-2 px-2 space-y-0.5 min-h-0",
           isCollapsed ? "overflow-visible" : "overflow-y-auto overflow-x-hidden"
         )}>
            {items.map((item, index) => {
@@ -143,7 +143,8 @@ export function Sidebar({
                <React.Fragment key={item.href}>
                  {showHeader && (
                     <div className={cn(
-                      "px-3 mt-4 mb-2 transition-all duration-300",
+                      "px-3 mb-2 transition-all duration-300",
+                      index === 0 ? "mt-2" : "mt-4",
                       isCollapsed ? "flex justify-center" : ""
                     )}>
                       {isCollapsed ? (
