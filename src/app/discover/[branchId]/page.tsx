@@ -2,11 +2,21 @@ import { getBranchDetails } from '@/actions/booking'
 import { getBranchOffers } from '@/actions/promo'
 import { PublicBookingClient } from '@/components/public/PublicBookingClient'
 import { BackButton } from '@/components/ui/BackButton'
+import { cookies } from 'next/headers'
+import { COOKIE_KEYS } from '@/lib/auth/session'
+import Link from 'next/link'
+import { QrCode, ShieldCheck, LogIn } from 'lucide-react'
 
-export default async function PublicBranchBookingPage({ params }: { params: Promise<{ branchId: string }> }) {
+export default async function PublicBranchBookingPage({ params, searchParams }: { params: Promise<{ branchId: string }>, searchParams: Promise<{ qr_code?: string }> }) {
     const { branchId } = await params
+    const { qr_code } = await searchParams
     const { success, branch, error } = await getBranchDetails(branchId)
     const offers = await getBranchOffers(branchId)
+
+    // Check for authenticated sessions
+    const cookieStore = await cookies()
+    const studentSession = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+    const staffSession = cookieStore.get(COOKIE_KEYS.STAFF)?.value
 
     if (!success || !branch) {
         return (
@@ -49,6 +59,58 @@ export default async function PublicBranchBookingPage({ params }: { params: Prom
                 <div className="flex items-center justify-between">
                     <BackButton href="/" />
                 </div>
+                
+                {/* QR Code Action Banner */}
+                {qr_code && (
+                    <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm border border-purple-100 dark:border-purple-900/30">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                                    <QrCode className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-gray-900 dark:text-white">You scanned a Branch QR Code</h3>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                        {studentSession 
+                                            ? "Mark your attendance quickly" 
+                                            : staffSession 
+                                                ? "Manage your staff shift" 
+                                                : "Login to mark attendance"}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 w-full sm:w-auto">
+                                {studentSession ? (
+                                    <Link 
+                                        href={`/student/attendance/scan?qr_code=${qr_code}`}
+                                        className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+                                    >
+                                        <QrCode className="w-4 h-4" />
+                                        Mark Attendance
+                                    </Link>
+                                ) : staffSession ? (
+                                    <Link 
+                                        href={`/staff/scanner?code=${qr_code}`}
+                                        className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors"
+                                    >
+                                        <ShieldCheck className="w-4 h-4" />
+                                        Staff Check-in
+                                    </Link>
+                                ) : (
+                                    <Link 
+                                        href="/student/login"
+                                        className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 rounded-lg font-medium transition-colors"
+                                    >
+                                        <LogIn className="w-4 h-4" />
+                                        Login to Check-in
+                                    </Link>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <PublicBookingClient 
                     branch={branch} 
                     images={images}
