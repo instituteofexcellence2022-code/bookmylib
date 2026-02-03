@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
+import { format } from 'date-fns'
 import { QRCodeSVG } from 'qrcode.react'
 import { 
   CreditCard, Banknote, QrCode, Building, 
@@ -45,6 +46,7 @@ interface BookingPaymentProps {
   adjustmentLabel?: string
   upiId?: string
   payeeName?: string
+  startDate: string
   onSuccess: (paymentId?: string, status?: 'completed' | 'pending_verification', proofUrl?: string) => void
   onBack: () => void
 }
@@ -69,6 +71,7 @@ export default function BookingPayment({
   adjustmentLabel = 'Adjustment',
   upiId,
   payeeName,
+  startDate,
   onSuccess, 
   onBack 
 }: BookingPaymentProps) {
@@ -537,6 +540,9 @@ export default function BookingPayment({
                <span className="text-gray-500 dark:text-gray-400">Duration & Time</span>
                <div className="text-right">
                    <span className="font-medium text-gray-900 dark:text-white block">{plan.duration} {plan.durationUnit}</span>
+                   <span className="text-xs text-gray-500 dark:text-gray-400 block mb-0.5">
+                       Starts {format(new Date(startDate), 'dd MMM yyyy')}
+                   </span>
                    <span className="text-xs text-gray-500 dark:text-gray-400">
                        {plan.category === 'fixed' 
                            ? `${formatTime(plan.shiftStart)} - ${formatTime(plan.shiftEnd)}`

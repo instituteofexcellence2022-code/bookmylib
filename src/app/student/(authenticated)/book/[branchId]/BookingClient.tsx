@@ -303,6 +303,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                     adjustmentLabel="Upgrade Credit"
                     upiId={(branch as any).upiId || undefined}
                     payeeName={(branch as any).payeeName || undefined}
+                    startDate={bookingDate}
                     onSuccess={handlePaymentSuccess}
                     onBack={() => setStep('selection')}
                 />
