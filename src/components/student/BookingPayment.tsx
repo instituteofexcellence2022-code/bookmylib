@@ -107,34 +107,42 @@ export default function BookingPayment({
   // Calculate Final Amount
   const finalAmount = Math.round(appliedCoupon ? appliedCoupon.finalAmount : subTotal)
 
-  // Generate UPI Link
-  const upiLink = React.useMemo(() => {
-    if (!upiId) return ''
+  // Generate UPI Links
+  const { upiLinkQr, upiLinkIntent } = React.useMemo(() => {
+    if (!upiId) return { upiLinkQr: '', upiLinkIntent: '' }
     
     // Clean inputs
     const cleanUpiId = upiId.trim()
     const cleanPayeeName = (payeeName || 'Library').trim()
     const cleanNote = `Pay for ${plan.name}`.substring(0, 50).trim()
+    
+    // Generate a pseudo-unique transaction ref to help apps classify the txn
+    // We use a stable prefix + short timestamp to avoid issues
+    const tr = `LIB${Date.now().toString().slice(-8)}`
 
-    // Format Amount: Remove decimals if whole number to avoid "100.00" -> "10000" parsing issues in some apps
-    // Also ensures we don't send > 2 decimal places
+    // Format Amount: Keep integer string as it works for QR
+    // This avoids the "100.00" -> "10000" parsing bug in some apps
     const amountStr = Number.isInteger(finalAmount) 
         ? finalAmount.toString() 
         : finalAmount.toFixed(2)
 
-    // Manual construction to ensure compatibility with all UPI apps
-    // URLSearchParams can sometimes encode spaces as '+' which fails in some apps (e.g. GPay)
-    // We strictly use %20 for spaces
-    
-    const params = [
-        `pa=${encodeURIComponent(cleanUpiId)}`,
-        `pn=${encodeURIComponent(cleanPayeeName)}`,
-        `am=${amountStr}`,
-        `cu=INR`,
-        `tn=${encodeURIComponent(cleanNote)}`
-    ]
+    const buildParams = (mode: string) => {
+        const params = [
+            `pa=${encodeURIComponent(cleanUpiId)}`,
+            `pn=${encodeURIComponent(cleanPayeeName)}`,
+            `am=${amountStr}`,
+            `cu=INR`,
+            `tn=${encodeURIComponent(cleanNote)}`,
+            `tr=${tr}`,
+            `mode=${mode}` 
+        ]
+        return `upi://pay?${params.join('&')}`
+    }
 
-    return `upi://pay?${params.join('&')}`
+    return {
+        upiLinkQr: buildParams('01'), // QR Code mode
+        upiLinkIntent: buildParams('04') // Intent mode
+    }
   }, [upiId, payeeName, finalAmount, plan.name])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -727,7 +735,7 @@ export default function BookingPayment({
                {paymentMethod === 'qr_code' ? (
                   <>
                     <div className="bg-white p-3 rounded-lg border shadow-sm">
-                      <QRCodeSVG value={upiLink} size={160} level="M" />
+                      <QRCodeSVG value={upiLinkQr} size={160} level="M" />
                     </div>
                     <div>
                       <p className="text-sm font-bold text-gray-900 dark:text-white">Scan to Pay ₹{finalAmount}</p>
@@ -736,7 +744,7 @@ export default function BookingPayment({
                     {/* Always show Pay via App button below QR on mobile as fallback */}
                     <div className="block md:hidden w-full">
                          <a 
-                           href={upiLink}
+                           href={upiLinkIntent}
                            className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white font-medium py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors text-sm"
                          >
                            <QrCode className="w-4 h-4" />
@@ -747,7 +755,7 @@ export default function BookingPayment({
                ) : (
                  <>
                     <a 
-                      href={upiLink}
+                      href={upiLinkIntent}
                       className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm animate-pulse"
                     >
                       <QrCode className="w-5 h-5" />
