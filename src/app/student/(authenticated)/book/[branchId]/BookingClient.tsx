@@ -271,7 +271,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
 
                     <div className="pt-4 space-y-3">
                         <AnimatedButton
-                            onClick={() => router.push('/student/dashboard')}
+                            onClick={() => router.push('/student/home')}
                             className="w-full"
                         >
                             Go to Dashboard

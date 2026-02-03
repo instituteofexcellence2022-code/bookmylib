@@ -126,7 +126,7 @@ export default function BookingPayment({
         ? finalAmount.toString() 
         : finalAmount.toFixed(2)
 
-    const buildParams = (mode: string) => {
+    const buildParams = (mode?: string) => {
         const params = new URLSearchParams()
         params.append('pa', cleanUpiId)
         params.append('pn', cleanPayeeName)
@@ -134,14 +134,14 @@ export default function BookingPayment({
         params.append('cu', 'INR')
         params.append('tn', cleanNote)
         params.append('tr', tr)
-        params.append('mode', mode)
+        if (mode) params.append('mode', mode)
         
         return `upi://pay?${params.toString()}`
     }
 
     return {
         upiLinkQr: buildParams('01'), // QR Code mode
-        upiLinkIntent: buildParams('04') // Intent mode
+        upiLinkIntent: buildParams() // Intent mode (no mode param for better compatibility)
     }
   }, [upiId, payeeName, finalAmount, plan.name])
 
