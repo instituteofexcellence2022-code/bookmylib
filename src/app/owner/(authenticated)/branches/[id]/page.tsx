@@ -21,7 +21,11 @@ import {
   Download,
   RefreshCw,
   Printer,
-  Shield
+  Shield,
+  Scan,
+  Search,
+  UserCheck,
+  ExternalLink
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
@@ -73,6 +77,8 @@ interface BranchDetail {
   images: string[]
   recentActivity: RecentActivity[]
   qrCode?: string
+  managerName?: string | null
+  owner?: { name: string; phone?: string | null } | null
   operatingHours?: {
     openingTime: string
     closingTime: string
@@ -244,6 +250,8 @@ const tabs = [
             status: data.isActive ? 'active' : 'maintenance',
             staff: data.staffCount,
             staffList: data.staffList,
+            managerName: data.managerName,
+            owner: data.owner,
             email: data.contactEmail || '', 
             phone: data.contactPhone || '',
             recentActivity: [] // Not implemented yet
@@ -831,52 +839,142 @@ const tabs = [
             transition={{ duration: 0.2 }}
             className="grid grid-cols-1 md:grid-cols-2 gap-6"
           >
-             <CompactCard>
-                <div className="flex flex-col items-center justify-center p-8 space-y-6">
-                   <div className="text-center space-y-2">
-                     <h3 className="text-xl font-bold text-gray-900 dark:text-white">Branch Check-in QR</h3>
-                     <p className="text-sm text-gray-500 dark:text-gray-400">Scan this QR code to check in/out</p>
-                   </div>
-                   
-                   <div className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100">
-                     {qrDataUrl ? (
-                        <img src={qrDataUrl} alt="Branch QR Code" className="w-64 h-64 object-contain" />
-                     ) : (
-                        <div className="w-64 h-64 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center text-gray-400">
-                           <QrCodeIcon className="w-16 h-16 opacity-50" />
-                        </div>
-                     )}
-                   </div>
-
-                   <div className="flex gap-3 w-full max-w-xs">
-                     <AnimatedButton 
-                        variant="primary" 
-                        className="flex-1"
-                        onClick={handleGenerateQR}
-                        disabled={isGeneratingQr}
-                     >
-                        {isGeneratingQr ? (
-                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                        ) : (
-                            <RefreshCw className="w-4 h-4 mr-2" />
-                        )}
-                        {branch?.qrCode ? 'Regenerate' : 'Generate'}
-                     </AnimatedButton>
-                     
-                     {branch?.qrCode && (
-                        <AnimatedButton 
-                            variant="outline" 
-                            onClick={handleDownloadQR}
-                            // icon="download" // AnimatedButton might not support string icon if not typed
-                        >
-                            <Download className="w-4 h-4 mr-2" />
-                            Save
-                        </AnimatedButton>
-                     )}
-                   </div>
-                </div>
-             </CompactCard>
-
+             <div className="md:col-span-2 lg:col-span-1">
+                <CompactCard>
+                    <div className="flex flex-col items-center justify-center p-6 space-y-6 bg-white dark:bg-gray-900 rounded-xl" id="qr-code-card">
+                       {/* 1. Header with Branding */}
+                       <div className="w-full flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
+                         <div className="flex items-center gap-3">
+                            <div className="p-2.5 bg-purple-600 rounded-xl text-white shadow-lg shadow-purple-600/20">
+                                <Armchair className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">BookMyLib</h2>
+                                <p className="text-xs text-purple-600 dark:text-purple-400 font-medium tracking-wide uppercase">Smart Library</p>
+                            </div>
+                         </div>
+                         <div className="text-right">
+                            <h3 className="font-bold text-gray-900 dark:text-white text-lg">{branch.name}</h3>
+                            <div className="flex items-center justify-end gap-1 text-xs text-gray-500">
+                                <MapPin className="w-3 h-3" />
+                                <span>{branch.city || 'Branch'}</span>
+                            </div>
+                         </div>
+                       </div>
+    
+                       {/* 2. Main QR Section */}
+                       <div className="flex flex-col items-center space-y-5 py-2">
+                         <div className="relative group">
+                            <div className="absolute -inset-1.5 bg-gradient-to-tr from-purple-600 via-pink-600 to-blue-600 rounded-2xl opacity-75 blur transition duration-1000 group-hover:duration-200 group-hover:opacity-100"></div>
+                            <div className="relative p-6 bg-white rounded-xl shadow-xl">
+                                {qrDataUrl ? (
+                                    <img src={qrDataUrl} alt="Branch QR" className="w-64 h-64 object-contain" />
+                                ) : (
+                                    <div className="w-64 h-64 flex items-center justify-center bg-gray-50 text-gray-400">
+                                        <QrCodeIcon className="w-16 h-16" />
+                                    </div>
+                                )}
+                            </div>
+                         </div>
+                         <div className="flex items-center gap-2 text-sm font-bold text-purple-700 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-300 px-5 py-2 rounded-full border border-purple-100 dark:border-purple-800">
+                            <Scan className="w-4 h-4" />
+                            <span>Scan with Phone Camera</span>
+                         </div>
+                       </div>
+    
+                       {/* 3. Dual Instruction Section */}
+                       <div className="grid grid-cols-2 gap-4 w-full">
+                          {/* New Users */}
+                          <div className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-transparent border border-blue-100 dark:border-blue-900/50 p-4 rounded-2xl text-center space-y-3 relative overflow-hidden group hover:shadow-md transition-all">
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-blue-100/50 dark:bg-blue-800/20 rounded-bl-full -mr-8 -mt-8"></div>
+                            <div className="mx-auto w-12 h-12 bg-white dark:bg-blue-900/50 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-sm border border-blue-50 dark:border-blue-800">
+                                <Search className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-blue-900 dark:text-blue-300 text-sm mb-1">New Visitor?</h4>
+                                <p className="text-xs text-blue-700 dark:text-blue-400 leading-snug">
+                                    View photos, amenities & book seats instantly.
+                                </p>
+                            </div>
+                          </div>
+                          
+                          {/* Existing Students */}
+                          <div className="bg-gradient-to-br from-green-50 to-white dark:from-green-900/20 dark:to-transparent border border-green-100 dark:border-green-900/50 p-4 rounded-2xl text-center space-y-3 relative overflow-hidden group hover:shadow-md transition-all">
+                             <div className="absolute top-0 right-0 w-16 h-16 bg-green-100/50 dark:bg-green-800/20 rounded-bl-full -mr-8 -mt-8"></div>
+                             <div className="mx-auto w-12 h-12 bg-white dark:bg-green-900/50 rounded-full flex items-center justify-center text-green-600 dark:text-green-400 shadow-sm border border-green-50 dark:border-green-800">
+                                <UserCheck className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-green-900 dark:text-green-300 text-sm mb-1">Member?</h4>
+                                <p className="text-xs text-green-700 dark:text-green-400 leading-snug">
+                                    Mark attendance (Check-in/out) automatically.
+                                </p>
+                            </div>
+                          </div>
+                       </div>
+    
+                       {/* 4. Footer Details */}
+                       <div className="w-full pt-5 border-t border-gray-100 dark:border-gray-800 grid grid-cols-2 gap-y-3 gap-x-4 text-xs text-gray-600 dark:text-gray-400">
+                          {branch.phone && (
+                            <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                <Phone className="w-3.5 h-3.5 text-gray-400" />
+                                <span className="font-medium">{branch.phone}</span>
+                            </div>
+                          )}
+                          {branch.email && (
+                            <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                 <Mail className="w-3.5 h-3.5 text-gray-400" />
+                                 <span className="truncate font-medium">{branch.email}</span>
+                            </div>
+                          )}
+                          {(branch.owner?.name || branch.managerName) && (
+                            <div className="col-span-2 flex flex-wrap gap-4 px-2">
+                                {branch.owner?.name && (
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-gray-400 font-medium uppercase text-[10px]">Owner</span>
+                                        <span className="font-semibold text-gray-900 dark:text-white">{branch.owner.name}</span>
+                                    </div>
+                                )}
+                                {branch.managerName && (
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-gray-400 font-medium uppercase text-[10px]">Manager</span>
+                                        <span className="font-semibold text-gray-900 dark:text-white">{branch.managerName}</span>
+                                    </div>
+                                )}
+                            </div>
+                          )}
+                       </div>
+                    </div>
+    
+                    {/* Actions below card */}
+                    <div className="mt-6 flex gap-3">
+                         <AnimatedButton 
+                            variant="primary" 
+                            className="flex-1"
+                            onClick={handleGenerateQR}
+                            disabled={isGeneratingQr}
+                         >
+                            {isGeneratingQr ? (
+                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            ) : (
+                                <RefreshCw className="w-4 h-4 mr-2" />
+                            )}
+                            {branch?.qrCode ? 'Regenerate' : 'Generate'}
+                         </AnimatedButton>
+                         
+                         {branch?.qrCode && (
+                            <AnimatedButton 
+                                variant="outline" 
+                                onClick={handleDownloadQR}
+                            >
+                                <Download className="w-4 h-4 mr-2" />
+                                Save & Print
+                            </AnimatedButton>
+                         )}
+                    </div>
+                </CompactCard>
+             </div>
+ 
              <CompactCard>
                 <div className="space-y-6">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Instructions</h3>

@@ -69,6 +69,7 @@ export async function getBranchById(id: string) {
       where: { id },
       include: {
         staff: true,
+        owner: true,
         seats: {
           include: {
             subscriptions: {
