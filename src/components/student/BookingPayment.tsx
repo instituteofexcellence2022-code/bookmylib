@@ -3,9 +3,11 @@
 import React, { useState, useRef } from 'react'
 import { format } from 'date-fns'
 import { QRCodeSVG } from 'qrcode.react'
+import { createWorker } from 'tesseract.js'
 import { 
   CreditCard, Banknote, QrCode, Building, 
-  AlertCircle, Check, Upload, X, Loader2
+  AlertCircle, Check, Upload, X, Loader2,
+  Copy, ScanText
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { uploadFile } from '@/actions/upload'
@@ -88,6 +90,7 @@ export default function BookingPayment({
   const [transactionId, setTransactionId] = useState('')
   const [proofUrl, setProofUrl] = useState<string | null>(null)
   const [showVerification, setShowVerification] = useState(false)
+  const [isScanning, setIsScanning] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Reset verification step when payment method changes
@@ -131,17 +134,52 @@ export default function BookingPayment({
     }
 
     setUploading(true)
+    setIsScanning(true)
+
     try {
-        const url = await uploadFile(file)
+        // Run Upload and OCR in parallel
+        const uploadPromise = uploadFile(file)
+        
+        const ocrPromise = (async () => {
+            try {
+                const worker = await createWorker('eng')
+                const ret = await worker.recognize(file)
+                await worker.terminate()
+                return ret.data.text
+            } catch (err) {
+                console.error("OCR Failed", err)
+                return null
+            }
+        })()
+
+        const [url, text] = await Promise.all([uploadPromise, ocrPromise])
+
         if (url) {
             setProofUrl(url)
             toast.success('Screenshot uploaded successfully')
+        }
+
+        if (text) {
+             // Look for 12 digit number (common for UPI/IMPS)
+             const twelveDigitRegex = /\b\d{12}\b/g
+             const matches = text.match(twelveDigitRegex)
+             
+             if (matches && matches.length > 0) {
+                 const potentialId = matches[0]
+                 if (!transactionId) {
+                     setTransactionId(potentialId)
+                     toast.success('Transaction ID detected!', {
+                         icon: '✨'
+                     })
+                 }
+             }
         }
     } catch (error) {
         toast.error('Failed to upload screenshot')
         console.error(error)
     } finally {
         setUploading(false)
+        setIsScanning(false)
         if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
@@ -702,7 +740,15 @@ export default function BookingPayment({
                </div>
 
                <FormInput
-                 label="Transaction ID / UTR (Optional)"
+                 label={
+                   <div className="flex items-center justify-between">
+                     <span>Transaction ID / UTR (Optional)</span>
+                     <span className="text-xs text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                       <ScanText className="w-3 h-3" />
+                       Auto-detects from screenshot
+                     </span>
+                   </div>
+                 }
                  placeholder="Enter 12-digit UPI Reference ID"
                  value={transactionId}
                  onChange={(e) => setTransactionId(e.target.value)}
@@ -730,7 +776,7 @@ export default function BookingPayment({
                      </div>
                      <div className="text-center">
                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                         {uploading ? 'Uploading...' : 'Click to upload screenshot'}
+                         {uploading ? (isScanning ? 'Scanning text...' : 'Uploading...') : 'Click to upload screenshot'}
                        </p>
                        <p className="text-xs text-gray-500">JPG, PNG (Max 5MB)</p>
                      </div>
