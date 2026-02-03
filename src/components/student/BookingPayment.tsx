@@ -7,7 +7,7 @@ import { createWorker } from 'tesseract.js'
 import { 
   CreditCard, Banknote, QrCode, Building, 
   AlertCircle, Check, Upload, X, Loader2,
-  Copy, ScanText
+  Copy
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { uploadFile } from '@/actions/upload'
@@ -774,15 +774,7 @@ export default function BookingPayment({
                </div>
 
                <FormInput
-                 label={
-                   <div className="flex items-center justify-between">
-                     <span>Transaction ID / UTR (Optional)</span>
-                     <span className="text-xs text-purple-600 dark:text-purple-400 flex items-center gap-1">
-                       <ScanText className="w-3 h-3" />
-                       Auto-detects from screenshot
-                     </span>
-                   </div>
-                 }
+                 label="Transaction ID / UTR (Optional)"
                  placeholder="Enter 12-digit UPI Reference ID"
                  value={transactionId}
                  onChange={(e) => setTransactionId(e.target.value)}
