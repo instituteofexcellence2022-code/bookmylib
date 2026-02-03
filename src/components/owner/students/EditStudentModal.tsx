@@ -101,7 +101,7 @@ export function EditStudentModal({ isOpen, onClose, student }: EditStudentModalP
         // FormData should pick them up automatically even if controlled.
         // However, for the conditional Area field, we need to ensure it has the name="area".
         
-        const result = await updateStudent(formData)
+        const result = await updateStudent(student.id, formData)
         
         if (result.success) {
             toast.success('Student updated successfully')

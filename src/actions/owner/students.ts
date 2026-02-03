@@ -121,7 +121,7 @@ export async function createStudent(formData: FormData) {
         })
 
         revalidatePath('/owner/students')
-        return { success: true, studentId: student.id }
+        return { success: true, data: student }
     } catch (error) {
         console.error('Error creating student:', error)
         return { success: false, error: 'Failed to create student' }
@@ -539,13 +539,91 @@ export async function deleteStudent(studentId: string) {
     }
 }
 
-export async function updateStudent(formData: FormData) {
+export async function getStudentDetailsForScanner(studentId: string) {
+    const cookieStore = await cookies()
+    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
+    if (!ownerId) return { success: false, error: 'Unauthorized' }
+
+    const owner = await prisma.owner.findUnique({
+        where: { id: ownerId },
+        select: { libraryId: true }
+    })
+    if (!owner) return { success: false, error: 'Owner not found' }
+
+    try {
+        const student = await prisma.student.findUnique({
+            where: { id: studentId },
+            include: {
+                subscriptions: {
+                    where: {
+                        libraryId: owner.libraryId,
+                        // Removed status filter to get ANY subscription (Active, Expired, Pending)
+                    },
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
+                    include: {
+                        plan: true,
+                        branch: true,
+                        seat: true
+                    }
+                },
+                attendance: {
+                    where: { libraryId: owner.libraryId },
+                    orderBy: { checkIn: 'desc' },
+                    take: 5
+                },
+                payments: {
+                    where: {
+                        libraryId: owner.libraryId
+                    },
+                    orderBy: { createdAt: 'desc' },
+                    take: 5
+                },
+                branch: {
+                    select: { id: true, name: true, address: true, city: true }
+                }
+            }
+        })
+
+        if (!student) return { success: false, error: 'Student not found' }
+
+        const latestSubscription = student.subscriptions[0] || null
+        const candidateBranch = latestSubscription?.branch || student.branch || null
+        const registrationStatus = latestSubscription ? 'registered' : 'not_registered'
+
+        return {
+            success: true,
+            data: {
+                student: {
+                    id: student.id,
+                    name: student.name,
+                    email: student.email,
+                    phone: student.phone,
+                    image: student.image,
+                    isBlocked: student.isBlocked,
+                    govtIdStatus: student.govtIdStatus,
+                    govtIdUrl: student.govtIdUrl
+                },
+                subscription: latestSubscription,
+                candidateBranch,
+                candidateBranchId: candidateBranch?.id || null,
+                registrationStatus,
+                attendance: student.attendance || [],
+                pendingPayment: student.payments.find((p: any) => p.status === 'pending') || null,
+                lastPayment: student.payments.find((p: any) => p.status === 'completed') || null
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching student details:', error)
+        return { success: false, error: 'Failed to fetch student details' }
+    }
+}
+
+export async function updateStudent(id: string, formData: FormData) {
     const cookieStore = await cookies()
     const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
 
     if (!ownerId) return { success: false, error: 'Unauthorized' }
-
-    const id = formData.get('id') as string
     const name = formData.get('name') as string
     const email = formData.get('email') as string
     const phone = formData.get('phone') as string

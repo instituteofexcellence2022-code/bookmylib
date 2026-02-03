@@ -7,6 +7,7 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
 import { FormSelect } from '@/components/ui/FormSelect'
 import { getOwnerStudents } from '@/actions/owner/students'
+import { getStudentDetails } from '@/actions/owner/students'
 import { getOwnerBranches } from '@/actions/branch'
 import { getBranchDetails, createBooking } from '@/actions/booking'
 import { validateCoupon } from '@/actions/payment'
@@ -15,6 +16,7 @@ import { CheckCircle2 } from 'lucide-react'
 
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { cn, formatSeatNumber } from '@/lib/utils'
 import { motion } from 'framer-motion'
 import { sendReceiptEmail } from '@/actions/email'
@@ -70,6 +72,7 @@ interface Seat {
 
 export function AcceptPaymentForm() {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const [submitting, setSubmitting] = useState(false)
     const [step, setStep] = useState<'student' | 'branch' | 'booking' | 'payment' | 'preview' | 'success'>('branch')
     
@@ -166,7 +169,15 @@ export function AcceptPaymentForm() {
             try {
                 const res = await getOwnerBranches()
                 setBranches(res)
-                if (res.length === 1) {
+                // Prefill from query if provided
+                const branchId = searchParams.get('branchId')
+                if (branchId) {
+                    const found = res.find(b => b.id === branchId)
+                    if (found) {
+                        setSelectedBranch(found)
+                        setStep('student')
+                    }
+                } else if (res.length === 1) {
                     setSelectedBranch(res[0])
                     setStep('student')
                 }
@@ -175,7 +186,7 @@ export function AcceptPaymentForm() {
             }
         }
         loadBranches()
-    }, [])
+    }, [searchParams])
 
     // Load Branch Details
     useEffect(() => {
@@ -198,6 +209,33 @@ export function AcceptPaymentForm() {
             loadDetails()
         }
     }, [selectedBranch])
+    
+    // Prefill student from query
+    useEffect(() => {
+        const studentId = searchParams.get('studentId')
+        if (studentId) {
+            ;(async () => {
+                try {
+                    const res = await getStudentDetails(studentId)
+                    if (res && res.student) {
+                        const s = res.student
+                        setSelectedStudent({
+                            id: s.id,
+                            name: s.name,
+                            email: s.email,
+                            phone: s.phone
+                        })
+                        // If branch already selected, move forward
+                        if (selectedBranch) {
+                            setStep('booking')
+                        }
+                    }
+                } catch {
+                    // ignore
+                }
+            })()
+        }
+    }, [searchParams, selectedBranch])
 
     // Responsive Columns
     useEffect(() => {

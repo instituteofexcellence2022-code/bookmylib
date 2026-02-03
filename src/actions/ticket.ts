@@ -167,6 +167,93 @@ export async function getStudentTickets() {
   }
 }
 
+export async function createOwnerTicket(formData: FormData) {
+  const cookieStore = await cookies()
+  const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
+
+  if (!ownerId) {
+    return { success: false, error: 'Unauthorized' }
+  }
+
+  const owner = await getOwnerProfile()
+  if (!owner) return { success: false, error: 'Owner not found' }
+
+  const studentId = formData.get('studentId') as string
+  if (!studentId) {
+    return { success: false, error: 'Student ID is required' }
+  }
+
+  const student = await prisma.student.findUnique({
+    where: { id: studentId },
+    select: { 
+        libraryId: true,
+        branchId: true 
+    }
+  })
+
+  if (!student) {
+      return { success: false, error: 'Student not found' }
+  }
+
+  // Ensure student belongs to owner's library
+  if (student.libraryId !== owner.libraryId) {
+      return { success: false, error: 'Student does not belong to your library' }
+  }
+
+  const subject = formData.get('subject') as string
+  const description = formData.get('description') as string
+  const category = formData.get('category') as string
+  const priority = (formData.get('priority') as string) || 'medium'
+  const attachment = formData.get('attachment') as File
+
+  let attachmentUrl = null
+  if (attachment && attachment.size > 0) {
+    try {
+      attachmentUrl = await uploadFile(attachment)
+    } catch (e) {
+      console.error('Attachment upload failed:', e)
+    }
+  }
+
+  try {
+    const ticket = await prisma.supportTicket.create({
+      data: {
+        libraryId: owner.libraryId,
+        studentId,
+        branchId: student.branchId,
+        subject,
+        description,
+        category,
+        priority,
+        status: 'open',
+        attachmentUrl
+      },
+      include: {
+        student: true,
+        branch: true
+      }
+    })
+
+    // Send Ticket Received Email
+    if (ticket.student?.email) {
+       await sendTicketUpdateEmail({
+        studentName: ticket.student.name,
+        studentEmail: ticket.student.email,
+        ticketId: ticket.id,
+        ticketSubject: ticket.subject,
+        type: 'created',
+        branchName: ticket.branch?.name
+      })
+    }
+
+    revalidatePath('/owner/issues')
+    return { success: true, ticket }
+  } catch (error) {
+    console.error('Error creating ticket:', error)
+    return { success: false, error: 'Failed to create ticket' }
+  }
+}
+
 // Owner Actions
 
 export async function getOwnerTickets(filters: { status?: string; category?: string } = {}) {

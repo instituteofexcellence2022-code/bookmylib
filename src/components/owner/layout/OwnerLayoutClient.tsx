@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { 
   LayoutDashboard, 
+  Scan,
   Store, 
   Users, 
   GraduationCap, 
@@ -26,6 +27,7 @@ import { logout } from '@/actions/auth'
 const navItems = [
   { href: '/owner/dashboard', label: 'Dashboard', icon: LayoutDashboard, group: 'Overview' },
   
+  { href: '/owner/scanner', label: 'Master Scanner', icon: Scan, group: 'Operations' },
   { href: '/owner/branches', label: 'Branches', icon: Store, group: 'Operations' },
   { href: '/owner/staff', label: 'Staff', icon: Users, group: 'Operations' },
   { href: '/owner/students', label: 'Students', icon: GraduationCap, group: 'Operations' },

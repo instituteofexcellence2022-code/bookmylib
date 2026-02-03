@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -33,7 +33,7 @@ import { EditStudentModal } from './EditStudentModal'
 import { StudentNotesClient } from './StudentNotesClient'
 import { deleteStudent, toggleBlockStudent } from '@/actions/owner/students'
 import { toast } from 'react-hot-toast'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { sendReceiptEmail } from '@/actions/email'
 import { generateReceiptPDF, ReceiptData } from '@/lib/pdf-generator'
 import { verifyPayment } from '@/actions/payment'
@@ -47,7 +47,7 @@ interface Subscription {
   finalAmount?: number | null
   amountPaid?: number
   plan: { name: string }
-  branch: { name: string }
+  branch: { name: string; id: string }
   seat?: { number: string } | null
 }
 
@@ -139,11 +139,12 @@ interface StudentDetailClientProps {
 
 export function StudentDetailClient({ student, stats }: StudentDetailClientProps) {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const [activeTab, setActiveTab] = useState('profile')
     const [showEditModal, setShowEditModal] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
     const [isBlocking, setIsBlocking] = useState(false)
-    
+
     const activeSub = student.subscriptions.find(s => s.status === 'active')
 
     const tabs = [
@@ -154,6 +155,13 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
         { id: 'issues', label: 'Issues', icon: MessageSquare },
         { id: 'notes', label: 'Notes', icon: StickyNote },
     ]
+
+    useEffect(() => {
+        const tab = searchParams.get('tab')
+        if (tab && tabs.some(t => t.id === tab)) {
+            setActiveTab(tab)
+        }
+    }, [searchParams])
 
     const handleBlockToggle = async () => {
         const action = student.isBlocked ? 'unblock' : 'block'
@@ -496,8 +504,16 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                                                         <div className="text-xs text-indigo-200">Expires</div>
                                                         <div className="font-semibold">{format(new Date(activeSub.endDate), 'PP')}</div>
                                                     </div>
-                                                    <div className="bg-white/20 px-2 py-1 rounded text-xs font-bold">
-                                                        {Math.ceil((new Date(activeSub.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days left
+                                                    <div className="flex flex-col items-end gap-2">
+                                                        <div className="bg-white/20 px-2 py-1 rounded text-xs font-bold">
+                                                            {Math.ceil((new Date(activeSub.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days left
+                                                        </div>
+                                                        <button 
+                                                            onClick={() => router.push(`/owner/finance?tab=accept&studentId=${student.id}&branchId=${activeSub.branch.id || ''}`)}
+                                                            className="text-xs bg-white text-indigo-600 px-3 py-1.5 rounded-lg font-semibold hover:bg-indigo-50 transition-colors shadow-sm"
+                                                        >
+                                                            Renew / Add Plan
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -505,7 +521,11 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                                             <div className="text-center py-8 text-gray-500 bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700">
                                                 <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-50" />
                                                 <p>No active subscription</p>
-                                                <AnimatedButton variant="primary" className="mt-4 mx-auto" onClick={() => {}}>
+                                                <AnimatedButton 
+                                                    variant="primary" 
+                                                    className="mt-4 mx-auto" 
+                                                    onClick={() => router.push(`/owner/finance?tab=accept&studentId=${student.id}`)}
+                                                >
                                                     Assign Plan
                                                 </AnimatedButton>
                                             </div>
@@ -747,9 +767,18 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
 
                     {activeTab === 'issues' && (
                          <AnimatedCard>
-                             <div className="flex items-center gap-2 mb-4 border-b border-gray-100 dark:border-gray-800 pb-2">
-                                 <MessageSquare className="h-5 w-5 text-gray-500" />
-                                 <h3 className="text-lg font-semibold">Support Tickets</h3>
+                             <div className="flex items-center justify-between mb-4 border-b border-gray-100 dark:border-gray-800 pb-2">
+                                 <div className="flex items-center gap-2">
+                                     <MessageSquare className="h-5 w-5 text-gray-500" />
+                                     <h3 className="text-lg font-semibold">Support Tickets</h3>
+                                 </div>
+                                 <AnimatedButton 
+                                     variant="outline" 
+                                     className="h-8 px-3 text-xs"
+                                     onClick={() => router.push(`/owner/issues/new?studentId=${student.id}`)}
+                                 >
+                                     New Ticket
+                                 </AnimatedButton>
                              </div>
                              <div className="overflow-x-auto">
                                 <table className="w-full text-left text-sm">
