@@ -183,15 +183,11 @@ const tabs = [
 
   useEffect(() => {
     if (branch?.qrCode) {
-      // Generate a URL that works for both public access and app scanning
-      const baseUrl = window.location.origin
-      const qrPayload = `${baseUrl}/discover/${branch.id}?qr_code=${branch.qrCode}`
-      
-      QRCode.toDataURL(qrPayload)
+      QRCode.toDataURL(branch.qrCode)
         .then(url => setQrDataUrl(url))
         .catch(err => console.error(err))
     }
-  }, [branch?.qrCode, branch?.id])
+  }, [branch?.qrCode])
 
   const handleGenerateQR = async () => {
     setIsGeneratingQr(true)

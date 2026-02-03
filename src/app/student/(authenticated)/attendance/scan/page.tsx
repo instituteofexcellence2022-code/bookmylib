@@ -155,20 +155,8 @@ export default function ScanPage() {
           await scannerRef.current.stop().catch(e => console.error(e))
       }
 
-      // Extract token from URL if present
-      let payload = qrCode
       try {
-        if (qrCode.startsWith('http')) {
-            const url = new URL(qrCode)
-            const token = url.searchParams.get('qr_code')
-            if (token) payload = token
-        }
-      } catch (e) {
-        // Not a valid URL, treat as raw code
-      }
-
-      try {
-          const res = await markAttendance(payload)
+          const res = await markAttendance(qrCode)
           if (res.success) {
               setResult({
                   type: res.type === 'check-in' ? 'Check-in' : 'Check-out',
