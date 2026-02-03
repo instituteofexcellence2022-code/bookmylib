@@ -13,7 +13,7 @@ import Image from 'next/image'
 import { format, differenceInCalendarDays } from 'date-fns'
 import { formatSeatNumber } from '@/lib/utils'
 
-export function ScannerClient() {
+export function ScannerClient({ initialCode }: { initialCode?: string }) {
     const router = useRouter()
     const [scanning, setScanning] = useState(true)
     const [studentData, setStudentData] = useState<any>(null)
@@ -23,6 +23,15 @@ export function ScannerClient() {
     const [currentCameraId, setCurrentCameraId] = useState<string | null>(null)
     const scannerRef = useRef<Html5Qrcode | null>(null)
     const mountedRef = useRef(false)
+    const initialProcessed = useRef(false)
+
+    // Handle initial code
+    useEffect(() => {
+        if (initialCode && !initialProcessed.current) {
+            initialProcessed.current = true
+            handleScan(initialCode)
+        }
+    }, [initialCode])
 
     // Sound feedback
     const playBeep = useCallback(() => {
@@ -133,7 +142,8 @@ export function ScannerClient() {
             } else {
                 // 2. If student not found, try Staff Self Attendance (Branch QR)
                 try {
-                    const attendanceRes = await markStaffSelfAttendance(decodedText)
+                    // Use the parsed ID/Token which might be the Branch QR code
+                    const attendanceRes = await markStaffSelfAttendance(studentId)
                     
                     if (attendanceRes.success) {
                         toast.success(attendanceRes.type === 'check-in' ? 'Staff Check-in Successful' : 'Staff Check-out Successful')
