@@ -113,7 +113,14 @@ export function ScannerClient() {
                 const data = JSON.parse(decodedText)
                 if (data.id) studentId = data.id
             } catch (e) {
-                // assume text is ID if not JSON
+                // Check if URL and extract qr_code or use raw text
+                if (decodedText.startsWith('http')) {
+                    try {
+                        const url = new URL(decodedText)
+                        const token = url.searchParams.get('qr_code')
+                        if (token) studentId = token
+                    } catch (urlErr) {}
+                }
             }
 
             // 1. Try to fetch student details
