@@ -189,6 +189,70 @@ export async function getStaffStudents(filters: StudentFilter = {}) {
     }
 }
 
+export async function getStudentDetailsForScanner(studentId: string) {
+    const staff = await getAuthenticatedStaff()
+    if (!staff) return { success: false, error: 'Unauthorized' }
+
+    try {
+        const student = await prisma.student.findUnique({
+            where: { id: studentId },
+            include: {
+                subscriptions: {
+                    where: {
+                        OR: [
+                            { status: 'active' },
+                            { status: 'pending' }
+                        ]
+                    },
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
+                    include: {
+                        plan: true,
+                        branch: true,
+                        seat: true
+                    }
+                },
+                attendance: {
+                    where: {
+                        checkIn: {
+                            gte: new Date(new Date().setHours(0, 0, 0, 0))
+                        }
+                    },
+                    orderBy: { checkIn: 'desc' },
+                    take: 1
+                },
+                payments: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 5
+                }
+            }
+        })
+
+        if (!student) return { success: false, error: 'Student not found' }
+
+        return {
+            success: true,
+            data: {
+                student: {
+                    id: student.id,
+                    name: student.name,
+                    email: student.email,
+                    phone: student.phone,
+                    image: student.image,
+                    isBlocked: student.isBlocked
+                },
+                subscription: student.subscriptions[0] || null,
+                attendance: student.attendance[0] || null,
+                pendingPayment: student.payments.find((p: any) => p.status === 'pending') || null,
+                lastPayment: student.payments.find((p: any) => p.status === 'completed') || null
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching student details:', error)
+        return { success: false, error: 'Failed to fetch student details' }
+    }
+}
+
 export async function createStudent(formData: FormData) {
     const staff = await getAuthenticatedStaff()
     if (!staff) throw new Error('Unauthorized')

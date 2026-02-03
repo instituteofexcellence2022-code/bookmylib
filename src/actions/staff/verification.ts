@@ -23,16 +23,22 @@ async function getAuthenticatedStaff() {
     return staff
 }
 
-export async function getPendingPayments() {
+export async function getPendingPayments(studentId?: string) {
     const staff = await getAuthenticatedStaff()
     if (!staff) throw new Error('Unauthorized')
 
+    const whereClause: any = {
+        libraryId: staff.libraryId,
+        branchId: staff.branchId,
+        status: 'pending_verification'
+    }
+
+    if (studentId) {
+        whereClause.studentId = studentId
+    }
+
     const payments = await prisma.payment.findMany({
-        where: {
-            libraryId: staff.libraryId,
-            branchId: staff.branchId,
-            status: 'pending_verification'
-        },
+        where: whereClause,
         include: {
             student: {
                 select: {

@@ -8,6 +8,7 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { Check, X, ExternalLink, Loader2, Image as ImageIcon, Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 // Define types locally or import if available
 interface PaymentRequest {
@@ -45,10 +46,13 @@ export function StaffVerifyPaymentList() {
     const [payments, setPayments] = useState<PaymentRequest[]>([])
     const [loading, setLoading] = useState(true)
     const [processingId, setProcessingId] = useState<string | null>(null)
+    const searchParams = useSearchParams()
+    const router = useRouter()
+    const studentId = searchParams.get('studentId') || undefined
 
     const fetchPayments = async () => {
         try {
-            const data = await getPendingPayments()
+            const data = await getPendingPayments(studentId)
             setPayments(data)
         } catch (error) {
             console.error(error)
@@ -60,7 +64,7 @@ export function StaffVerifyPaymentList() {
 
     useEffect(() => {
         fetchPayments()
-    }, [])
+    }, [studentId])
 
     const handleVerify = async (id: string, action: 'approve' | 'reject') => {
         setProcessingId(id)
@@ -100,6 +104,19 @@ export function StaffVerifyPaymentList() {
 
     return (
         <div className="space-y-4">
+            {studentId && (
+                <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/30">
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                        Showing pending payments for selected student
+                    </p>
+                    <button
+                        onClick={() => router.push('/staff/verification')}
+                        className="text-sm font-medium text-blue-700 dark:text-blue-300 hover:underline"
+                    >
+                        Clear Filter
+                    </button>
+                </div>
+            )}
             {payments.map((payment, index) => (
                 <AnimatedCard key={payment.id} delay={index * 0.1} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
                     <div className="flex flex-col md:flex-row gap-4 md:gap-6">

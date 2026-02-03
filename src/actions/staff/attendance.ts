@@ -115,8 +115,82 @@ export async function getStaffAttendanceLogs(filters: AttendanceFilter) {
             pages: Math.ceil(total / limit)
         }
     } catch (error) {
-        console.error('Error fetching attendance logs:', error)
-        throw new Error('Failed to fetch attendance logs')
+        console.error('Error fetching staff attendance logs:', error)
+        throw new Error('Failed to fetch logs')
+    }
+}
+
+export async function markStudentAttendance(studentId: string, action: 'check-in' | 'check-out') {
+    const staff = await getAuthenticatedStaff()
+    if (!staff) return { success: false, error: 'Unauthorized' }
+
+    try {
+        if (action === 'check-in') {
+            // Verify active/pending subscription for this branch
+             const subscription = await prisma.studentSubscription.findFirst({
+                where: {
+                    studentId: studentId,
+                    branchId: staff.branchId,
+                    status: { in: ['active', 'pending'] },
+                    endDate: { gte: new Date() }
+                }
+            })
+
+            if (!subscription) {
+                 return { success: false, error: 'No active subscription for this branch' }
+            }
+            
+            // Check if already checked in
+            const existing = await prisma.attendance.findFirst({
+                where: {
+                    studentId,
+                    checkOut: null,
+                    checkIn: { gte: new Date(new Date().setHours(0,0,0,0)) }
+                }
+            })
+            
+            if (existing) return { success: false, error: 'Already checked in' }
+
+            await prisma.attendance.create({
+                data: {
+                    libraryId: staff.libraryId,
+                    branchId: staff.branchId,
+                    studentId,
+                    date: new Date(),
+                    checkIn: new Date(),
+                    status: 'present'
+                }
+            })
+        } else {
+             // Check out
+            const existing = await prisma.attendance.findFirst({
+                where: {
+                    studentId,
+                    checkOut: null,
+                    checkIn: { gte: new Date(new Date().setHours(0,0,0,0)) }
+                }
+            })
+            
+            if (!existing) return { success: false, error: 'Not checked in' }
+
+            const checkOutTime = new Date()
+            const duration = Math.floor((checkOutTime.getTime() - existing.checkIn.getTime()) / 60000)
+
+             await prisma.attendance.update({
+                where: { id: existing.id },
+                data: {
+                    checkOut: checkOutTime,
+                    duration: duration > 0 ? duration : 0,
+                    status: 'present'
+                }
+            })
+        }
+
+        revalidatePath('/staff/attendance')
+        return { success: true }
+    } catch (error) {
+         console.error('Error marking attendance:', error)
+         return { success: false, error: 'System error' }
     }
 }
 

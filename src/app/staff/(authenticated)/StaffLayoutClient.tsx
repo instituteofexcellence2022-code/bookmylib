@@ -13,7 +13,8 @@ import {
   UserCircle,
   Settings,
   NotebookTabs,
-  ShieldCheck
+  ShieldCheck,
+  ScanLine
 } from 'lucide-react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { TopBar } from '@/components/layout/TopBar'
@@ -25,6 +26,7 @@ import { toast } from 'react-hot-toast'
 const navItems = [
   // Main
   { href: '/staff/dashboard', label: 'Dashboard', icon: LayoutGrid, group: 'Main' },
+  { href: '/staff/scanner', label: 'Master Scanner', icon: ScanLine, group: 'Main' },
 
   // Operations
   { href: '/staff/leads', label: 'Leads', icon: Users, group: 'Operations' },
