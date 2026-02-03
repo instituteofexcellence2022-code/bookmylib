@@ -16,7 +16,7 @@ interface TopBarProps {
     image?: string | null
     initials: string
   }
-  title?: string
+  title?: string | React.ReactNode
   className?: string
   onMenuClick?: () => void
   onLogout?: () => void | Promise<void>

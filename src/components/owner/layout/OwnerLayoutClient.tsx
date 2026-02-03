@@ -65,7 +65,11 @@ export function OwnerLayoutClient({ children, user }: OwnerLayoutClientProps) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
       <Sidebar
-        title="Owner"
+        title={
+          <span className="font-bold text-xl tracking-tighter">
+            BookMy<span className="text-amber-600">Lib</span>
+          </span>
+        }
         items={navItems}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}

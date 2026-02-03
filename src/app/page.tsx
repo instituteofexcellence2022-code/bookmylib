@@ -216,8 +216,13 @@ export default function Home() {
             ${activeRole === 'owner' ? 'bg-amber-600' : activeRole === 'staff' ? 'bg-emerald-600' : activeRole === 'student' ? 'bg-blue-600' : 'bg-teal-600'}`}>
             <BookOpen className="w-6 h-6 text-white" />
           </div>
-          <span className="font-bold text-xl tracking-tight text-foreground">
-            BookMyLib
+          <span className="font-bold text-2xl tracking-tighter text-foreground">
+            BookMy<span className={`transition-colors duration-500 ${
+              activeRole === 'owner' ? 'text-amber-600' : 
+              activeRole === 'staff' ? 'text-emerald-600' : 
+              activeRole === 'student' ? 'text-blue-600' : 
+              'text-teal-600'
+            }`}>Lib</span>
           </span>
         </div>
         <div className="flex items-center gap-3">

@@ -69,11 +69,15 @@ export default function StaffLayoutClient({ children, user, announcements }: {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
       <Sidebar
-        title="Staff"
+        title={
+          <span className="font-bold text-xl tracking-tighter">
+            BookMy<span className="text-emerald-600">Lib</span>
+          </span>
+        }
         items={navItems}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
-        themeColor="green"
+        themeColor="emerald"
         onLogout={handleLogout}
       />
 
@@ -94,7 +98,7 @@ export default function StaffLayoutClient({ children, user, announcements }: {
       <BottomNav
         items={navItems}
         onMenuClick={() => setIsSidebarOpen(true)}
-        themeColor="green"
+        themeColor="emerald"
       />
     </div>
   )

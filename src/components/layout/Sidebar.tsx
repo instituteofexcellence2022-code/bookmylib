@@ -17,7 +17,7 @@ export interface NavItem {
 }
 
 interface SidebarProps {
-  title: string
+  title: string | React.ReactNode
   logo?: React.ReactNode
   items: NavItem[]
   isOpen: boolean
@@ -114,7 +114,7 @@ export function Sidebar({
                     "min-w-[2rem] w-8 h-8 rounded-lg flex items-center justify-center shadow-md transition-transform duration-300 group-hover/header:scale-105",
                     colors.logoGradient || colors.logoBg
                   )}>
-                    <span className="text-white font-bold text-lg drop-shadow-sm">{title.charAt(0)}</span>
+                    <span className="text-white font-bold text-lg drop-shadow-sm">{typeof title === 'string' ? title.charAt(0) : 'B'}</span>
                   </div>
                 )}
                 <motion.span 

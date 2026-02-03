@@ -1,20 +1,10 @@
 import { ImageResponse } from 'next/og'
-import { cookies } from 'next/headers'
 
-// Route segment config
 export const runtime = 'edge'
 
-// Image metadata
-export const size = {
-  width: 512,
-  height: 512,
-}
-export const contentType = 'image/png'
-
-// Image generation
-export default async function Icon() {
-  const cookieStore = await cookies()
-  const theme = cookieStore.get('app-theme')?.value || 'discover'
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const theme = searchParams.get('theme') || 'discover'
 
   let bgColor = '#0d9488' // discover (teal-600)
 
@@ -28,7 +18,6 @@ export default async function Icon() {
 
   return new ImageResponse(
     (
-      // ImageResponse JSX element
       <div
         style={{
           fontSize: 24,
@@ -38,7 +27,7 @@ export default async function Icon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          borderRadius: '20%', // Standard app icon shape
+          borderRadius: '20%',
         }}
       >
         <svg
@@ -58,9 +47,8 @@ export default async function Icon() {
       </div>
     ),
     {
-      // For convenience, we can re-use the exported icons size metadata
-      // config to also set the ImageResponse's width and height.
-      ...size,
+      width: 512,
+      height: 512,
     }
   )
 }

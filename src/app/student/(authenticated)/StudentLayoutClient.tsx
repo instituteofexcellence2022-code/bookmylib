@@ -58,7 +58,11 @@ export default function StudentLayoutClient({ children, user, announcements = []
   return (
     <div className="h-[100dvh] overflow-hidden bg-gray-50 dark:bg-gray-900 flex">
       <Sidebar
-        title="BookMyLib"
+        title={
+          <span className="font-bold text-xl tracking-tighter">
+            BookMy<span className="text-blue-600">Lib</span>
+          </span>
+        }
         logo={
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
             <BookOpen className="text-white w-5 h-5" />
@@ -74,7 +78,11 @@ export default function StudentLayoutClient({ children, user, announcements = []
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
         <TopBar
           user={user}
-          title="BookMyLib"
+          title={
+            <span className="font-bold text-lg tracking-tighter">
+              BookMy<span className="text-blue-600">Lib</span>
+            </span>
+          }
           onMenuClick={() => setIsSidebarOpen(true)}
           onLogout={handleLogout}
           announcements={announcements}

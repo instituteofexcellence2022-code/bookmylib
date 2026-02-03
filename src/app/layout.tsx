@@ -20,6 +20,8 @@ export const metadata: Metadata = {
   description: "Complete library management solution for owners, staff, and students.",
 };
 
+import { ThemeSync } from "@/components/layout/ThemeSync";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -30,6 +32,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <ThemeSync />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
