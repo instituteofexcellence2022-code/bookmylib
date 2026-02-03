@@ -25,7 +25,9 @@ import {
   Scan,
   Search,
   UserCheck,
-  ExternalLink
+  ExternalLink,
+  Smartphone,
+  Info
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
@@ -216,14 +218,48 @@ const tabs = [
     }
   }
 
-  const handleDownloadQR = () => {
-    if (!qrDataUrl) return
-    const link = document.createElement('a')
-    link.href = qrDataUrl
-    link.download = `${branch?.name || 'branch'}-qrcode.png`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+  const handlePrintQR = () => {
+    const printContent = document.getElementById('printable-qr-card');
+    if (!printContent) return;
+
+    const windowUrl = 'about:blank';
+    const uniqueName = new Date().getTime();
+    const windowName = 'Print' + uniqueName;
+    const printWindow = window.open(windowUrl, windowName, 'left=50000,top=50000,width=0,height=0');
+
+    if (printWindow) {
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>${branch?.name || 'Branch'} - QR Poster</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <style>
+              @page { size: A4 portrait; margin: 0; }
+              body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              .print-container { width: 100%; height: 100vh; display: flex; align-items: center; justify-content: center; background: white; }
+              .poster { width: 100%; max-width: 210mm; padding: 20px; box-sizing: border-box; }
+            </style>
+          </head>
+          <body>
+            <div class="print-container">
+                <div class="poster">
+                    ${printContent.innerHTML}
+                </div>
+            </div>
+            <script>
+              window.onload = function() {
+                setTimeout(function() {
+                  window.print();
+                  window.close();
+                }, 500);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
   }
 
   useEffect(() => {
@@ -841,7 +877,7 @@ const tabs = [
           >
              <div className="md:col-span-2 lg:col-span-1">
                 <CompactCard>
-                    <div className="flex flex-col items-center justify-center p-6 space-y-6 bg-white dark:bg-gray-900 rounded-xl" id="qr-code-card">
+                    <div className="flex flex-col items-center justify-center p-6 space-y-6 bg-white dark:bg-gray-900 rounded-xl" id="printable-qr-card">
                        {/* 1. Header with Branding */}
                        <div className="w-full flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
                          <div className="flex items-center gap-3">
@@ -944,6 +980,11 @@ const tabs = [
                             </div>
                           )}
                        </div>
+
+                       {/* 5. Powered By Footer */}
+                       <div className="w-full pt-4 border-t border-gray-100 dark:border-gray-800 flex justify-center">
+                          <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Powered by BookMyLib</p>
+                       </div>
                     </div>
     
                     {/* Actions below card */}
@@ -965,9 +1006,9 @@ const tabs = [
                          {branch?.qrCode && (
                             <AnimatedButton 
                                 variant="outline" 
-                                onClick={handleDownloadQR}
+                                onClick={handlePrintQR}
                             >
-                                <Download className="w-4 h-4 mr-2" />
+                                <Printer className="w-4 h-4 mr-2" />
                                 Save & Print
                             </AnimatedButton>
                          )}
