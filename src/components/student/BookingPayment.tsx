@@ -127,16 +127,16 @@ export default function BookingPayment({
         : finalAmount.toFixed(2)
 
     const buildParams = (mode: string) => {
-        const params = [
-            `pa=${encodeURIComponent(cleanUpiId)}`,
-            `pn=${encodeURIComponent(cleanPayeeName)}`,
-            `am=${amountStr}`,
-            `cu=INR`,
-            `tn=${encodeURIComponent(cleanNote)}`,
-            `tr=${tr}`,
-            `mode=${mode}` 
-        ]
-        return `upi://pay?${params.join('&')}`
+        const params = new URLSearchParams()
+        params.append('pa', cleanUpiId)
+        params.append('pn', cleanPayeeName)
+        params.append('am', amountStr)
+        params.append('cu', 'INR')
+        params.append('tn', cleanNote)
+        params.append('tr', tr)
+        params.append('mode', mode)
+        
+        return `upi://pay?${params.toString()}`
     }
 
     return {
