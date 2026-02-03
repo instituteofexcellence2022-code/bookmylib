@@ -773,17 +773,6 @@ export default function BookingPayment({
                    </p>
                </div>
 
-               <FormInput
-                 label="Transaction ID / UTR (Optional)"
-                 placeholder="Enter 12-digit UPI Reference ID"
-                 value={transactionId}
-                 onChange={(e) => setTransactionId(e.target.value)}
-                 className={cn(
-                    "transition-all duration-1000",
-                    transactionId && "bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800"
-                 )}
-               />
-
                <div className="space-y-2">
                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block">
                    Payment Screenshot <span className="text-red-500">*</span>
@@ -829,6 +818,17 @@ export default function BookingPayment({
                    </div>
                  )}
                </div>
+
+               <FormInput
+                 label="Transaction ID / UTR (Optional)"
+                 placeholder="Enter 12-digit UPI Reference ID"
+                 value={transactionId}
+                 onChange={(e) => setTransactionId(e.target.value)}
+                 className={cn(
+                    "transition-all duration-1000",
+                    transactionId && "bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800"
+                 )}
+               />
              </div>
           )}
         </div>
