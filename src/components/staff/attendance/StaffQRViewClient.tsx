@@ -95,8 +95,8 @@ export function StaffQRViewClient() {
                     color: black !important; 
                     box-shadow: none !important;
                     width: 100%;
-                    max-width: 210mm;
-                    border: 1px solid #e5e7eb;
+                max-width: 140mm;
+                border: 1px solid #e5e7eb;
                   }
     
                   /* Ensure text visibility */
@@ -191,28 +191,28 @@ export function StaffQRViewClient() {
                        {/* 3. Dual Instruction Section */}
                        <div className="grid grid-cols-2 gap-4 w-full">
                           {/* New Users */}
-                          <div className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-transparent border border-blue-100 dark:border-blue-900/50 p-3 rounded-2xl relative overflow-hidden group hover:shadow-md transition-all flex items-center gap-3 text-left">
+                          <div className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-transparent border border-blue-100 dark:border-blue-900/50 p-4 rounded-2xl relative overflow-hidden group hover:shadow-md transition-all flex items-center gap-4 text-left">
                             <div className="absolute top-0 right-0 w-16 h-16 bg-blue-100/50 dark:bg-blue-800/20 rounded-bl-full -mr-8 -mt-8"></div>
-                            <div className="w-10 h-10 bg-white dark:bg-blue-900/50 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-sm border border-blue-50 dark:border-blue-800 shrink-0">
-                                <Search className="w-5 h-5" />
+                            <div className="w-14 h-14 bg-white dark:bg-blue-900/50 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-sm border border-blue-50 dark:border-blue-800 shrink-0">
+                                <Search className="w-7 h-7" />
                             </div>
                             <div>
-                                <h4 className="font-bold text-blue-900 dark:text-blue-300 text-xs uppercase tracking-wide opacity-80">New Visitor?</h4>
-                                <p className="text-sm font-bold text-blue-800 dark:text-blue-200 leading-tight mt-0.5">
+                                <h4 className="font-bold text-blue-900 dark:text-blue-300 text-sm uppercase tracking-wide opacity-80">New Visitor?</h4>
+                                <p className="text-lg font-bold text-blue-800 dark:text-blue-200 leading-tight mt-1">
                                     View details & Book seats
                                 </p>
                             </div>
                           </div>
                           
                           {/* Existing Students */}
-                          <div className="bg-gradient-to-br from-green-50 to-white dark:from-green-900/20 dark:to-transparent border border-green-100 dark:border-green-900/50 p-3 rounded-2xl relative overflow-hidden group hover:shadow-md transition-all flex items-center gap-3 text-left">
+                          <div className="bg-gradient-to-br from-green-50 to-white dark:from-green-900/20 dark:to-transparent border border-green-100 dark:border-green-900/50 p-4 rounded-2xl relative overflow-hidden group hover:shadow-md transition-all flex items-center gap-4 text-left">
                              <div className="absolute top-0 right-0 w-16 h-16 bg-green-100/50 dark:bg-green-800/20 rounded-bl-full -mr-8 -mt-8"></div>
-                             <div className="w-10 h-10 bg-white dark:bg-green-900/50 rounded-full flex items-center justify-center text-green-600 dark:text-green-400 shadow-sm border border-green-50 dark:border-green-800 shrink-0">
-                                <UserCheck className="w-5 h-5" />
+                             <div className="w-14 h-14 bg-white dark:bg-green-900/50 rounded-full flex items-center justify-center text-green-600 dark:text-green-400 shadow-sm border border-green-50 dark:border-green-800 shrink-0">
+                                <UserCheck className="w-7 h-7" />
                             </div>
                             <div>
-                                <h4 className="font-bold text-green-900 dark:text-green-300 text-xs uppercase tracking-wide opacity-80">Member?</h4>
-                                <p className="text-sm font-bold text-green-800 dark:text-green-200 leading-tight mt-0.5">
+                                <h4 className="font-bold text-green-900 dark:text-green-300 text-sm uppercase tracking-wide opacity-80">Member?</h4>
+                                <p className="text-lg font-bold text-green-800 dark:text-green-200 leading-tight mt-1">
                                     Mark Attendance (In/Out)
                                 </p>
                             </div>
