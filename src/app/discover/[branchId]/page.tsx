@@ -2,11 +2,32 @@ import { getBranchDetails } from '@/actions/booking'
 import { getBranchOffers } from '@/actions/promo'
 import { PublicBookingClient } from '@/components/public/PublicBookingClient'
 import { BackButton } from '@/components/ui/BackButton'
+import { cookies } from 'next/headers'
+import { COOKIE_KEYS } from '@/lib/auth/session'
+import Link from 'next/link'
+import { QrCode, ShieldCheck, LogIn, Loader2 } from 'lucide-react'
+import { redirect } from 'next/navigation'
 
-export default async function PublicBranchBookingPage({ params }: { params: Promise<{ branchId: string }> }) {
+export default async function PublicBranchBookingPage({ params, searchParams }: { params: Promise<{ branchId: string }>, searchParams: Promise<{ qr_code?: string }> }) {
     const { branchId } = await params
+    const { qr_code } = await searchParams
     const { success, branch, error } = await getBranchDetails(branchId)
     const offers = await getBranchOffers(branchId)
+
+    // Check for authenticated sessions
+    const cookieStore = await cookies()
+    const studentSession = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+    const staffSession = cookieStore.get(COOKIE_KEYS.STAFF)?.value
+
+    // Auto-redirect logic for minimal user click
+    if (qr_code) {
+        if (studentSession) {
+            redirect(`/student/attendance/scan?qr_code=${qr_code}`)
+        }
+        if (staffSession) {
+            redirect(`/staff/scanner?code=${qr_code}`)
+        }
+    }
 
     if (!success || !branch) {
         return (
@@ -49,6 +70,36 @@ export default async function PublicBranchBookingPage({ params }: { params: Prom
                 <div className="flex items-center justify-between">
                     <BackButton href="/" />
                 </div>
+
+                {/* QR Code Action Banner for Guest/Public Users */}
+                {qr_code && (
+                    <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm border border-purple-100 dark:border-purple-900/30">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                                    <QrCode className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-gray-900 dark:text-white">You scanned a Branch QR Code</h3>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                        Login to quickly mark your attendance
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 w-full sm:w-auto">
+                                <Link 
+                                    href={`/student/login?redirect=/student/attendance/scan?qr_code=${qr_code}`}
+                                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+                                >
+                                    <LogIn className="w-4 h-4" />
+                                    Login to Check-in
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <PublicBookingClient 
                     branch={branch} 
                     images={images}

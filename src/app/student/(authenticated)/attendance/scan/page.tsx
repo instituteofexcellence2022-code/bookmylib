@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Camera, X, RefreshCw, CheckCircle, AlertCircle, Loader2, Volume2, VolumeX, LogOut } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { Html5Qrcode } from 'html5-qrcode'
 import { markAttendance, getStudentAttendanceStatus } from '@/actions/attendance'
@@ -11,6 +11,9 @@ import { toast } from 'sonner'
 
 export default function ScanPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const initialQrCode = searchParams.get('qr_code')
+
   const [scanning, setScanning] = useState(true)
   const [result, setResult] = useState<{ type: string; branchName: string; timestamp: Date; duration?: number; message?: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -30,7 +33,12 @@ export default function ScanPage() {
               setCurrentStatus(res.status as any)
           }
       })
-  }, [])
+
+      // Handle initial QR code if present
+      if (initialQrCode) {
+        handleScan(initialQrCode)
+      }
+  }, [initialQrCode])
 
   // Sound feedback
   const playBeep = useCallback(() => {
@@ -155,8 +163,20 @@ export default function ScanPage() {
           await scannerRef.current.stop().catch(e => console.error(e))
       }
 
+      // Extract token from URL if present
+      let payload = qrCode
       try {
-          const res = await markAttendance(qrCode)
+        if (qrCode.startsWith('http')) {
+            const url = new URL(qrCode)
+            const token = url.searchParams.get('qr_code')
+            if (token) payload = token
+        }
+      } catch (e) {
+        // Not a valid URL, treat as raw code
+      }
+
+      try {
+          const res = await markAttendance(payload)
           if (res.success) {
               setResult({
                   type: res.type === 'check-in' ? 'Check-in' : 'Check-out',
