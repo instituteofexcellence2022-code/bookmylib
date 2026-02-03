@@ -537,12 +537,14 @@ export default function BookingPayment({
 
             {/* Duration & Timing */}
             <div className="flex justify-between">
-               <span className="text-gray-500 dark:text-gray-400">Duration & Time</span>
-               <div className="text-right">
-                   <span className="font-medium text-gray-900 dark:text-white block">{plan.duration} {plan.durationUnit}</span>
-                   <span className="text-xs text-gray-500 dark:text-gray-400 block mb-0.5">
+               <div>
+                   <span className="text-gray-500 dark:text-gray-400 block">Duration & Time</span>
+                   <span className="text-xs text-gray-500 dark:text-gray-400 block mt-0.5">
                        Starts {format(new Date(startDate), 'dd MMM yyyy')}
                    </span>
+               </div>
+               <div className="text-right">
+                   <span className="font-medium text-gray-900 dark:text-white block">{plan.duration} {plan.durationUnit}</span>
                    <span className="text-xs text-gray-500 dark:text-gray-400">
                        {plan.category === 'fixed' 
                            ? `${formatTime(plan.shiftStart)} - ${formatTime(plan.shiftEnd)}`
