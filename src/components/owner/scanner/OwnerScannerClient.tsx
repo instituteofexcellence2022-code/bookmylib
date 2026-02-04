@@ -31,7 +31,7 @@ export function OwnerScannerClient() {
     const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null)
     
     // Automation State
-    const [autoProcess, setAutoProcess] = useState(true)
+    const [autoProcess, setAutoProcess] = useState(false)
     const [processing, setProcessing] = useState(false)
     const [successState, setSuccessState] = useState<{type: 'check-in' | 'check-out', timestamp: Date} | null>(null)
 

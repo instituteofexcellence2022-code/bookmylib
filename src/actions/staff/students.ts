@@ -243,7 +243,7 @@ export async function getStudentDetailsForScanner(studentId: string) {
                 },
                 subscription: student.subscriptions[0] || null,
                 attendance: student.attendance[0] || null,
-                pendingPayment: student.payments.find((p: any) => p.status === 'pending') || null,
+                pendingPayment: student.payments.find((p: any) => p.status === 'pending' || p.status === 'pending_verification') || null,
                 lastPayment: student.payments.find((p: any) => p.status === 'completed') || null
             }
         }

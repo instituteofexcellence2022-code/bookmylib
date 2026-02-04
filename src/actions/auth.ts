@@ -340,8 +340,8 @@ export async function registerStudent(formData: FormData) {
                 libraryName: 'BookMyLib'
             })
             
-            // Allow 2 seconds max for email sending to prevent hanging
-            const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ success: false, error: 'Email timeout' }), 2000))
+            // Allow 10 seconds max for email sending to prevent hanging
+            const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ success: false, error: 'Email timeout' }), 10000))
             
             // Race the email sending against the timeout
             await Promise.race([emailPromise, timeoutPromise])

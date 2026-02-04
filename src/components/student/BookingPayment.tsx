@@ -402,8 +402,9 @@ export default function BookingPayment({
       } else {
         // Manual Payment
         
-        // Validate Proof URL for manual payments (Mandatory)
-        if (!proofUrl) {
+        // Validate Proof URL for manual payments (Mandatory only for online manual payments)
+        const isOnlineManual = ['upi_app', 'qr_code'].includes(paymentMethod)
+        if (isOnlineManual && !proofUrl) {
             toast.error('Please upload a payment screenshot')
             setProcessing(false)
             return
@@ -416,7 +417,7 @@ export default function BookingPayment({
         formData.append('relatedId', plan.id)
         formData.append('description', description)
         formData.append('branchId', branchId)
-        formData.append('proofUrl', proofUrl)
+        if (proofUrl) formData.append('proofUrl', proofUrl)
         if (transactionId) formData.append('transactionId', transactionId)
         if (appliedCoupon) formData.append('couponCode', appliedCoupon.code)
 
@@ -424,7 +425,7 @@ export default function BookingPayment({
         
         if (result.success) {
           toast.success('Payment submitted for verification')
-          onSuccess(result.paymentId, 'pending_verification', proofUrl) 
+          onSuccess(result.paymentId, 'pending_verification', proofUrl || undefined) 
         } else {
           toast.error(result.error || 'Submission failed')
           setProcessing(false)

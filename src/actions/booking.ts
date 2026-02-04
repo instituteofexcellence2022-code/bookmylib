@@ -137,7 +137,7 @@ export async function createBooking(data: {
         discount?: number
         proofUrl?: string
     }
-}): Promise<{ success: true; subscriptionId: string; paymentId?: string; invoiceNo?: string | null; seatNumber?: string; amount?: number; discount?: number; method?: string } | { success: false; error: string }> {
+}): Promise<{ success: true; subscriptionId: string; paymentId?: string; invoiceNo?: string | null; seatNumber?: string; amount?: number; discount?: number; method?: string; status?: string } | { success: false; error: string }> {
     try {
         const { studentId, branchId, planId, seatId, startDate, additionalFeeIds = [], paymentId, paymentDetails } = data
 
@@ -331,15 +331,16 @@ export async function createBooking(data: {
                 seatNumber,
                 amount: finalAmount,
                 discount,
-                method: paymentDetails?.method
+                method: paymentDetails?.method,
+                status: paymentStatus
             }
         }, {
             maxWait: 5000,
             timeout: 20000
         })
 
-        // Send Receipt Email Automatically
-        if (result.success && result.paymentId) {
+        // Send Receipt Email Automatically (Only if payment is completed)
+        if (result.success && result.paymentId && result.status === 'completed') {
             try {
                 // Construct fee items
                 const feeItems: { description: string, amount: number }[] = []

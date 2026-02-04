@@ -993,6 +993,12 @@ export async function verifyPayment(paymentId: string, status: 'completed' | 'fa
 
     if (!payment) return { success: false, error: 'Payment not found' }
 
+    // Check if already completed to avoid duplicate processing/emails
+    const wasAlreadyCompleted = payment.status === 'completed'
+    if (wasAlreadyCompleted && status === 'completed') {
+        return { success: true, message: 'Payment already verified' }
+    }
+
     // Update Payment
     const updateData: any = {
       status,
