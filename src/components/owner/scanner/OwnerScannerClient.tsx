@@ -141,7 +141,16 @@ export function OwnerScannerClient() {
             if (!scannerRef.current.isScanning) {
                 await scannerRef.current.start(
                     cameraId,
-                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    { 
+                        fps: 20, 
+                        qrbox: { width: 250, height: 250 },
+                        aspectRatio: 1.0,
+                        videoConstraints: {
+                            width: { min: 640, ideal: 1280, max: 1920 },
+                            height: { min: 480, ideal: 720, max: 1080 },
+                            facingMode: "environment"
+                        }
+                    },
                     (decodedText) => handleScan(decodedText),
                     (errorMessage) => { /* ignore */ }
                 )
