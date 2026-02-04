@@ -10,7 +10,7 @@ interface InstallPromptProps {
 }
 
 export function InstallPrompt({ onOpenChange }: InstallPromptProps) {
-  const { deferredPrompt, isStandalone, installApp } = useInstallPrompt()
+  const { deferredPrompt, isStandalone, installApp, isIOS } = useInstallPrompt()
   const [showPrompt, setShowPrompt] = useState(false)
 
   useEffect(() => {
@@ -18,16 +18,30 @@ export function InstallPrompt({ onOpenChange }: InstallPromptProps) {
   }, [showPrompt])
 
   useEffect(() => {
-    // Fallback: If not standalone, show prompt after a delay
-    // This runs independently of the hook's event listener to ensure we show manual instructions if needed
+    // Only show if:
+    // 1. Not in standalone mode
+    // 2. AND (Is iOS OR has deferredPrompt)
+    // Note: deferredPrompt is null if already installed on Android/Desktop
     const timer = setTimeout(() => {
-        if (!window.matchMedia('(display-mode: standalone)').matches) {
+        if (isStandalone) return;
+
+        if (isIOS || deferredPrompt) {
             setShowPrompt(true)
         }
     }, 2000)
 
     return () => clearTimeout(timer)
-  }, [])
+  }, [isStandalone, isIOS, deferredPrompt])
+
+  // Auto-dismiss after 10 seconds
+  useEffect(() => {
+    if (showPrompt) {
+      const timer = setTimeout(() => {
+        setShowPrompt(false)
+      }, 10000)
+      return () => clearTimeout(timer)
+    }
+  }, [showPrompt])
 
   const handleInstallClick = async () => {
       await installApp()
