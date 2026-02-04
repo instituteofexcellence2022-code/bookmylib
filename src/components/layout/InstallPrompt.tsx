@@ -1,17 +1,65 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { Download, X } from 'lucide-react'
+import { Download, X, BookOpen, Users, Shield } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useInstallPrompt } from '@/hooks/useInstallPrompt'
 
 interface InstallPromptProps {
   onOpenChange?: (isOpen: boolean) => void
+  role?: string
 }
 
-export function InstallPrompt({ onOpenChange }: InstallPromptProps) {
+export function InstallPrompt({ onOpenChange, role }: InstallPromptProps) {
   const { deferredPrompt, isStandalone, installApp, isIOS } = useInstallPrompt()
   const [showPrompt, setShowPrompt] = useState(false)
+
+  // Determine theme based on role
+  const getTheme = () => {
+    switch (role) {
+      case 'owner':
+        return {
+          icon: Shield,
+          bg: 'bg-amber-100 dark:bg-amber-900/30',
+          text: 'text-amber-600 dark:text-amber-400',
+          border: 'border-amber-100 dark:border-amber-900/50',
+          shadow: 'shadow-amber-500/10',
+          button: 'bg-amber-600 hover:bg-amber-700'
+        }
+      case 'staff':
+        return {
+          icon: Users,
+          bg: 'bg-emerald-100 dark:bg-emerald-900/30',
+          text: 'text-emerald-600 dark:text-emerald-400',
+          border: 'border-emerald-100 dark:border-emerald-900/50',
+          shadow: 'shadow-emerald-500/10',
+          button: 'bg-emerald-600 hover:bg-emerald-700'
+        }
+      case 'student':
+      case 'discover':
+        return {
+          icon: BookOpen,
+          bg: 'bg-blue-100 dark:bg-blue-900/30',
+          text: 'text-blue-600 dark:text-blue-400',
+          border: 'border-blue-100 dark:border-blue-900/50',
+          shadow: 'shadow-blue-500/10',
+          button: 'bg-blue-600 hover:bg-blue-700'
+        }
+      default:
+        // Default (Purple)
+        return {
+          icon: Download,
+          bg: 'bg-purple-100 dark:bg-purple-900/30',
+          text: 'text-purple-600 dark:text-purple-400',
+          border: 'border-purple-100 dark:border-purple-900/50',
+          shadow: 'shadow-purple-500/10',
+          button: 'bg-purple-600 hover:bg-purple-700'
+        }
+    }
+  }
+
+  const theme = getTheme()
+  const Icon = theme.icon
 
   useEffect(() => {
     onOpenChange?.(showPrompt)
@@ -58,11 +106,11 @@ export function InstallPrompt({ onOpenChange }: InstallPromptProps) {
           initial={{ opacity: 0, y: -50 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -50 }}
-          className="fixed top-20 right-4 z-50 flex items-center gap-3 p-3 pr-4 bg-white dark:bg-gray-900 border border-purple-100 dark:border-purple-900/50 rounded-xl shadow-lg shadow-purple-500/10"
+          className={`fixed top-20 right-4 z-50 flex items-center gap-3 p-3 pr-4 bg-white dark:bg-gray-900 border rounded-xl shadow-lg ${theme.border} ${theme.shadow}`}
         >
-          <div className="flex items-center justify-center w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+          <div className={`flex items-center justify-center w-10 h-10 rounded-lg ${theme.bg}`}>
              {/* Using a generic app icon or the Lucide download icon */}
-            <Download className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+            <Icon className={`w-5 h-5 ${theme.text}`} />
           </div>
           
           <div className="flex flex-col">
@@ -76,7 +124,7 @@ export function InstallPrompt({ onOpenChange }: InstallPromptProps) {
 
           <button
             onClick={handleInstallClick}
-            className="ml-2 px-3 py-1.5 text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
+            className={`ml-2 px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-colors ${theme.button}`}
           >
             Install
           </button>
