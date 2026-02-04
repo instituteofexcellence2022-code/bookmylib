@@ -228,74 +228,140 @@ export default function Home() {
         <div className="flex items-center gap-3">
           <InstallButton />
           <ThemeToggle />
-          {user && (
-            <div className="relative" ref={dropdownRef}>
-              <button 
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="group relative flex items-center gap-2 p-1 pr-3 rounded-full bg-white/10 backdrop-blur-sm border border-gray-200/20 hover:bg-white/20 dark:bg-gray-800/50 dark:hover:bg-gray-800 transition-all text-foreground focus:outline-none"
-                title="Account Menu"
-              >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm shadow-sm ring-2 ring-white/20 dark:ring-gray-800/20 group-hover:ring-blue-500/50 transition-all">
-                  {user.image ? (
+          <div className="relative" ref={dropdownRef}>
+            <button 
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="group relative flex items-center gap-2 p-1 pr-3 rounded-full bg-white/10 backdrop-blur-sm border border-gray-200/20 hover:bg-white/20 dark:bg-gray-800/50 dark:hover:bg-gray-800 transition-all text-foreground focus:outline-none"
+              title={user ? "Account Menu" : "Sign In / Sign Up"}
+            >
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm ring-2 ring-white/20 dark:ring-gray-800/20 group-hover:ring-blue-500/50 transition-all ${user ? 'bg-gradient-to-br from-blue-500 to-indigo-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                {user ? (
+                  user.image ? (
                     <img src={user.image} alt={user.name} className="w-full h-full rounded-full object-cover" />
                   ) : (
                     user.initials
-                  )}
-                </div>
-                <span className="text-sm font-medium max-w-[100px] truncate hidden sm:block opacity-90 group-hover:opacity-100 transition-opacity">
-                  {user.name.split(' ')[0]}
-                </span>
-              </button>
+                  )
+                ) : (
+                  <User className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                )}
+              </div>
+              <span className="text-sm font-medium max-w-[100px] truncate hidden sm:block opacity-90 group-hover:opacity-100 transition-opacity">
+                {user ? user.name.split(' ')[0] : 'Guest'}
+              </span>
+            </button>
 
-              {isDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
-                  <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{user.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user.role}</p>
-                  </div>
-                  
-                  <div className="p-1">
-                    <Link 
-                      href={user.link}
-                      className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
-                      onClick={() => setIsDropdownOpen(false)}
-                    >
-                      <LayoutDashboard size={16} />
-                      Dashboard
-                    </Link>
-                    <Link 
-                      href={`/${user.role}/profile`}
-                      className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
-                      onClick={() => setIsDropdownOpen(false)}
-                    >
-                      <User size={16} />
-                      My Profile
-                    </Link>
-                    <Link 
-                      href={`/${user.role}/settings`}
-                      className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
-                      onClick={() => setIsDropdownOpen(false)}
-                    >
-                      <Settings size={16} />
-                      Settings
-                    </Link>
-                  </div>
-                  
-                  <div className="h-px bg-gray-100 dark:bg-gray-700 my-1" />
-                  
-                  <div className="p-1">
-                    <button 
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors"
-                    >
-                      <LogOut size={16} />
-                      Sign Out
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+            {isDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 py-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
+                {user ? (
+                  <>
+                    <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{user.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user.role}</p>
+                    </div>
+                    
+                    <div className="p-1">
+                      <Link 
+                        href={user.link}
+                        className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        <LayoutDashboard size={16} />
+                        Dashboard
+                      </Link>
+                      <Link 
+                        href={`/${user.role}/profile`}
+                        className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        <User size={16} />
+                        My Profile
+                      </Link>
+                      <Link 
+                        href={`/${user.role}/settings`}
+                        className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        <Settings size={16} />
+                        Settings
+                      </Link>
+                    </div>
+                    
+                    <div className="h-px bg-gray-100 dark:bg-gray-700 my-1" />
+                    
+                    <div className="p-1">
+                      <button 
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors"
+                      >
+                        <LogOut size={16} />
+                        Sign Out
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">Welcome!</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Sign in to your account</p>
+                    </div>
+                    
+                    <div className="p-1">
+                      {/* Dynamic Login Links based on Active Role */}
+                      {activeRole === 'owner' ? (
+                        <>
+                          <Link 
+                            href="/owner/login"
+                            className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                            onClick={() => setIsDropdownOpen(false)}
+                          >
+                            <Shield size={16} className="text-amber-500" />
+                            Owner Login
+                          </Link>
+                          <Link 
+                            href="/owner/register"
+                            className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                            onClick={() => setIsDropdownOpen(false)}
+                          >
+                            <UserCircle size={16} className="text-amber-500" />
+                            Register Library
+                          </Link>
+                        </>
+                      ) : activeRole === 'staff' ? (
+                        <Link 
+                          href="/staff/login"
+                          className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                          onClick={() => setIsDropdownOpen(false)}
+                        >
+                          <Users size={16} className="text-emerald-500" />
+                          Staff Login
+                        </Link>
+                      ) : (
+                        // Student / Discover (Default to Student Login)
+                        <>
+                          <Link 
+                            href="/student/login"
+                            className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                            onClick={() => setIsDropdownOpen(false)}
+                          >
+                            <BookOpen size={16} className="text-blue-500" />
+                            Student Login
+                          </Link>
+                          <Link 
+                            href="/student/register"
+                            className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                            onClick={() => setIsDropdownOpen(false)}
+                          >
+                            <UserCircle size={16} className="text-blue-500" />
+                            Student Register
+                          </Link>
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </nav>
 
