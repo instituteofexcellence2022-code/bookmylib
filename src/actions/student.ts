@@ -98,304 +98,87 @@ export async function updateStudentProfile(formData: FormData) {
     const gender = formData.get('gender') as string
     const address = formData.get('address') as string
     const area = formData.get('area') as string
+    const pincode = formData.get('pincode') as string
     const city = formData.get('city') as string
     const state = formData.get('state') as string
-    const pincode = formData.get('pincode') as string
-    const guardianName = formData.get('guardianName') as string
-    const guardianPhone = formData.get('guardianPhone') as string
-
-    let image = formData.get('image') as string
-    const imageFile = formData.get('imageFile') as File | null
-    const govtIdUrl = formData.get('govtIdUrl') as string
-
-    // Handle Image Upload
-    if (imageFile && imageFile.size > 0) {
-        try {
-            const uploadedUrl = await uploadFile(imageFile)
-            if (uploadedUrl) {
-                image = uploadedUrl
-            }
-        } catch (e) {
-            console.error('Failed to upload profile image', e)
-            return { success: false, error: 'Failed to upload profile image' }
-        }
-    }
+    const idProofType = formData.get('idProofType') as string
+    
+    // File uploads
+    const profileImage = formData.get('profileImage') as File
+    const idProofFile = formData.get('idProofFile') as File
 
     try {
+        const data: any = {
+            name,
+            phone,
+            gender: gender || null,
+            address: address || null,
+            area: area || null,
+            pincode: pincode || null,
+            city: city || null,
+            state: state || null,
+            idProofType: idProofType || null,
+        }
+
+        if (dob) {
+            data.dob = new Date(dob)
+        }
+
+        if (profileImage && profileImage.size > 0) {
+            const url = await uploadFile(profileImage, 'avatars')
+            data.imageUrl = url
+        }
+
+        if (idProofFile && idProofFile.size > 0) {
+            const url = await uploadFile(idProofFile, 'documents')
+            data.idProofUrl = url
+        }
+
         await prisma.student.update({
             where: { id: studentId },
-            data: {
-                name,
-                phone,
-                dob: dob ? new Date(dob) : undefined,
-                gender,
-                address,
-                area,
-                city,
-                state,
-                pincode,
-                guardianName,
-                guardianPhone,
-                image: image || undefined,
-                govtIdUrl: govtIdUrl || undefined,
-                govtIdStatus: govtIdUrl ? 'pending' : undefined
-            }
+            data
         })
 
         revalidatePath('/student/profile')
         return { success: true }
     } catch (error) {
-        console.error('Error updating student profile:', error)
+        console.error('Error updating profile:', error)
         return { success: false, error: 'Failed to update profile' }
     }
 }
 
-export async function updateStudentProfileImage(formData: FormData) {
-    const cookieStore = await cookies()
-    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
-
-    if (!studentId) {
-        return { success: false, error: 'Unauthorized' }
-    }
-
-    const imageFile = formData.get('imageFile') as File | null
-
-    if (!imageFile || imageFile.size === 0) {
-        return { success: false, error: 'No image file provided' }
-    }
-
+export async function checkPublicStudentByEmail(email: string) {
     try {
-        const uploadedUrl = await uploadFile(imageFile)
+        if (!email) return { success: false }
         
-        if (!uploadedUrl) {
-            return { success: false, error: 'Failed to upload image' }
-        }
-
-        await prisma.student.update({
-            where: { id: studentId },
-            data: {
-                image: uploadedUrl
-            }
+        const student = await prisma.student.findFirst({
+            where: { email: { equals: email, mode: 'insensitive' } },
+            select: { name: true, phone: true, dob: true }
         })
 
-        revalidatePath('/student/profile')
-        return { success: true, imageUrl: uploadedUrl }
+        if (!student) return { success: true, exists: false }
+
+        // Masking
+        // Phone: ******1234
+        const maskedPhone = student.phone.length > 4 
+            ? student.phone.replace(/.(?=.{4})/g, '*') 
+            : '******' + student.phone
+
+        // Mask DOB: ****-**-**
+        // We return a string that indicates it's set but hidden
+        const maskedDob = '****-**-**'
+
+        return {
+            success: true,
+            exists: true,
+            student: {
+                name: student.name,
+                phone: maskedPhone,
+                dob: maskedDob
+            }
+        }
     } catch (error) {
-        console.error('Error updating profile image:', error)
-        return { success: false, error: 'Failed to update profile image' }
-    }
-}
-
-export async function changeStudentPassword(formData: FormData) {
-    const cookieStore = await cookies()
-    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
-
-    if (!studentId) {
-        return { success: false, error: 'Unauthorized' }
-    }
-
-    const currentPassword = formData.get('currentPassword') as string
-    const newPassword = formData.get('newPassword') as string
-    
-    if (!newPassword) {
-        return { success: false, error: 'New password is required' }
-    }
-
-    try {
-        const student = await prisma.student.findUnique({
-            where: { id: studentId }
-        })
-
-        if (!student) {
-             return { success: false, error: 'Student not found' }
-        }
-
-        if (student.password) {
-            if (!currentPassword) {
-                return { success: false, error: 'Current password is required' }
-            }
-            const isMatch = await bcrypt.compare(currentPassword, student.password)
-            if (!isMatch) {
-                return { success: false, error: 'Incorrect current password' }
-            }
-        }
-
-        const hashedPassword = await bcrypt.hash(newPassword, 10)
-
-        await prisma.student.update({
-            where: { id: studentId },
-            data: { password: hashedPassword }
-        })
-
-        return { success: true }
-    } catch (error) {
-        console.error('Error changing password:', error)
-        return { success: false, error: 'Failed to change password' }
-    }
-}
-
-export async function uploadGovtId(formData: FormData) {
-    const cookieStore = await cookies()
-    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
-
-    if (!studentId) {
-        return { success: false, error: 'Unauthorized' }
-    }
-
-    const file = formData.get('file') as File
-    
-    if (!file) {
-        return { success: false, error: 'No file uploaded' }
-    }
-
-    try {
-        const url = await uploadFile(file)
-        
-        if (!url) {
-            return { success: false, error: 'Upload failed' }
-        }
-
-        await prisma.student.update({
-            where: { id: studentId },
-            data: { 
-                govtIdUrl: url,
-                govtIdStatus: 'pending'
-            }
-        })
-
-        revalidatePath('/student/profile')
-        return { success: true, url }
-    } catch (error) {
-        console.error('Error uploading Govt ID:', error)
-        return { success: false, error: error instanceof Error ? error.message : 'Upload failed' }
-    }
-}
-
-export async function updateStudentPreferences(preferences: any) {
-    const cookieStore = await cookies()
-    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
-
-    if (!studentId) {
-        return { success: false, error: 'Unauthorized' }
-    }
-
-    try {
-        await prisma.student.update({
-            where: { id: studentId },
-            data: { preferences }
-        })
-
-        revalidatePath('/student/settings')
-        return { success: true }
-    } catch (error) {
-        console.error('Error updating preferences:', error)
-        return { success: false, error: 'Failed to update preferences' }
-    }
-}
-
-export async function getStudentReferralData() {
-    const cookieStore = await cookies()
-    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
-
-    if (!studentId) {
-        redirect('/student/login')
-    }
-
-    let student = await prisma.student.findUnique({
-        where: { id: studentId },
-        include: {
-            library: true,
-            branch: true,
-            referralsMade: {
-                include: {
-                    referee: true,
-                    rewardCoupon: {
-                        select: { code: true }
-                    }
-                },
-                orderBy: {
-                    createdAt: 'desc'
-                }
-            }
-        }
-    })
-
-    if (!student) {
-        redirect('/student/logout')
-    }
-
-    // Generate referral code if not exists
-    if (!student.referralCode) {
-        const namePrefix = (student.name || 'USER').replace(/[^a-zA-Z]/g, '').substring(0, 4).toUpperCase()
-        
-        // Retry logic for referral code generation
-        let newCode = ''
-        let attempts = 0
-        const maxAttempts = 3
-        
-        while (attempts < maxAttempts) {
-            const randomSuffix = Math.floor(1000 + Math.random() * 9000)
-            newCode = `${namePrefix}${randomSuffix}`
-            
-            // Check if code exists
-            const existing = await prisma.student.findUnique({ where: { referralCode: newCode } })
-            if (!existing) break
-            
-            attempts++
-        }
-        
-        if (attempts >= maxAttempts) {
-             newCode = `${namePrefix}${Date.now().toString().slice(-6)}`
-        }
-
-        try {
-            student = await prisma.student.update({
-                where: { id: studentId },
-                data: { referralCode: newCode },
-                include: {
-                    library: true,
-                    branch: true,
-                    referralsMade: {
-                        include: {
-                            referee: true,
-                            rewardCoupon: {
-                                select: { code: true }
-                            }
-                        },
-                        orderBy: {
-                            createdAt: 'desc'
-                        }
-                    }
-                }
-            })
-        } catch (e) {
-            console.error('Referral code generation error', e)
-        }
-    }
-
-    const settings = student.library?.referralSettings as any || {}
-    
-    // Calculate stats
-    const totalReferrals = student.referralsMade.length
-    const totalCoupons = student.referralsMade.filter(r => r.rewardCoupon?.code).length
-    const coupons = student.referralsMade
-        .filter(r => r.rewardCoupon?.code && r.status === 'completed')
-        .map(r => ({
-            code: r.rewardCoupon?.code || '',
-            status: r.status,
-            createdAt: r.createdAt
-        }))
-
-    return {
-        referralCode: student.referralCode,
-        referrals: student.referralsMade,
-        libraryName: student.library?.name,
-        branchName: student.branch?.name,
-        settings,
-        stats: {
-            totalReferrals,
-            totalCoupons,
-            activeCoupons: coupons.length // Assuming completed = active coupon
-        }
+        console.error('Error checking student:', error)
+        return { success: false, error: 'Failed to check email' }
     }
 }

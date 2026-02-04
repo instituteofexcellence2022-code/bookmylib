@@ -1,14 +1,19 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { 
-  CreditCard, Banknote, Check, Shield, Lock, Smartphone
+  CreditCard, Banknote, Check, Shield, Lock, Smartphone,
+  QrCode, Upload, X, Loader2, Copy, AlertCircle
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { initiatePublicBooking } from '@/actions/public-booking'
-import { verifyPaymentSignature } from '@/actions/payment'
-import { validateCoupon } from '@/actions/payment'
-import { formatSeatNumber } from '@/lib/utils'
+import { verifyPaymentSignature, validateCoupon } from '@/actions/payment'
+import { formatSeatNumber, cn } from '@/lib/utils'
+import { QRCodeSVG } from 'qrcode.react'
+import { uploadFile } from '@/actions/upload'
+import { createWorker } from 'tesseract.js'
+import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { FormInput } from '@/components/ui/FormInput'
 
 interface PublicBookingPaymentProps {
   plan: {
@@ -28,6 +33,8 @@ interface PublicBookingPaymentProps {
     [key: string]: any
   }[]
   branchId: string
+  upiId?: string
+  payeeName?: string
   studentDetails: {
     name: string
     email: string
@@ -43,6 +50,8 @@ export default function PublicBookingPayment({
   seat, 
   fees, 
   branchId, 
+  upiId,
+  payeeName,
   studentDetails,
   onSuccess, 
   onBack 
@@ -56,6 +65,11 @@ export default function PublicBookingPayment({
     details: unknown
   } | null>(null)
   const [processing, setProcessing] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [transactionId, setTransactionId] = useState('')
+  const [proofUrl, setProofUrl] = useState<string | null>(null)
+  const [isScanning, setIsScanning] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Calculate Base Total (Plan + Fees)
   const feesTotal = fees.reduce((sum: number, fee) => sum + Number(fee.amount), 0)
@@ -65,16 +79,128 @@ export default function PublicBookingPayment({
   // Calculate Final Amount
   const finalAmount = Math.round(appliedCoupon ? appliedCoupon.finalAmount : subTotal)
 
+  // Generate UPI Links
+  const { upiLinkQr, upiLinkIntent } = React.useMemo(() => {
+    if (!upiId) return { upiLinkQr: '', upiLinkIntent: '' }
+    
+    // Clean inputs
+    const cleanUpiId = upiId.trim()
+    const cleanPayeeName = (payeeName || 'Library').trim()
+    const cleanNote = `Pay for ${plan.name}`.substring(0, 50).trim()
+    
+    // Generate a pseudo-unique transaction ref
+    const tr = `LIB${Date.now().toString().slice(-8)}`
+
+    // Format Amount
+    const amountStr = Number.isInteger(finalAmount) 
+        ? finalAmount.toString() 
+        : finalAmount.toFixed(2)
+
+    const buildParams = (mode?: string) => {
+        const params = new URLSearchParams()
+        params.append('pa', cleanUpiId)
+        params.append('pn', cleanPayeeName)
+        params.append('am', amountStr)
+        params.append('cu', 'INR')
+        params.append('tn', cleanNote)
+        params.append('tr', tr)
+        if (mode) params.append('mode', mode)
+        
+        return `upi://pay?${params.toString()}`
+    }
+
+    return {
+        upiLinkQr: buildParams('01'), // QR Code mode
+        upiLinkIntent: buildParams() // Intent mode
+    }
+  }, [upiId, payeeName, finalAmount, plan.name])
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size must be less than 5MB')
+        return
+    }
+
+    setUploading(true)
+    setIsScanning(true)
+
+    try {
+        // Run Upload and OCR in parallel
+        const uploadPromise = uploadFile(file)
+        
+        const ocrPromise = (async () => {
+            try {
+                const worker = await createWorker('eng')
+                const ret = await worker.recognize(file)
+                await worker.terminate()
+                return ret.data.text
+            } catch (err) {
+                console.error("OCR Failed", err)
+                return null
+            }
+        })()
+
+        const [url, text] = await Promise.all([uploadPromise, ocrPromise])
+
+        if (url) {
+            setProofUrl(url)
+            toast.success('Screenshot uploaded successfully')
+        }
+
+        if (text) {
+             const cleanText = text.toLowerCase().replace(/\s+/g, ' ')
+             const keywordPatterns = [
+                 /(?:upi\s*ref(?:erence)?\s*(?:id|no|num)?|utr|txn\s*id|transaction\s*id)[\s\:\-\.]*(\d{12})/i,
+                 /(\d{12})/
+             ]
+
+             let detectedId = null
+             for (const pattern of keywordPatterns) {
+                 const match = cleanText.match(pattern)
+                 if (match && match[1]) {
+                     detectedId = match[1]
+                     break
+                 } else if (match && match[0] && /^\d{12}$/.test(match[0])) {
+                    detectedId = match[0]
+                    break
+                 }
+             }
+             
+             if (!detectedId) {
+                 const twelveDigitRegex = /\b\d{12}\b/g
+                 const matches = text.match(twelveDigitRegex)
+                 if (matches && matches.length > 0) {
+                     detectedId = matches[0]
+                 }
+             }
+
+             if (detectedId) {
+                 if (!transactionId) {
+                     setTransactionId(detectedId)
+                     toast.success('Transaction ID detected!', { icon: '✨' })
+                 }
+             } else {
+                 toast('Could not auto-detect Transaction ID. Please enter manually.', { icon: '📝' })
+             }
+        }
+    } catch (error) {
+        toast.error('Failed to upload screenshot')
+        console.error(error)
+    } finally {
+        setUploading(false)
+        setIsScanning(false)
+        if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   const handleApplyCoupon = async () => {
     if (!couponCode) return
     
     const toastId = toast.loading('Validating coupon...')
     try {
-      // Validate coupon
-      // Note: validateCoupon usually checks if student has used it. 
-      // For public user (guest), we might fail if we don't pass studentId.
-      // But validateCoupon might handle undefined studentId?
-      // Let's assume generic validation for now.
       const result = await validateCoupon(
         couponCode, 
         subTotal, 
@@ -101,11 +227,18 @@ export default function PublicBookingPayment({
   }
 
   const handlePayment = async () => {
+    // Validation for Manual Payments
+    if (['upi_app', 'qr_code'].includes(paymentMethod)) {
+        if (!proofUrl) {
+            toast.error('Please upload a payment screenshot')
+            return
+        }
+    }
+
     setProcessing(true)
-    const amount = finalAmount // Use calculated final amount
+    const amount = finalAmount
 
     try {
-        // Call the Public Booking Action
         const result = await initiatePublicBooking({
             ...studentDetails,
             amount,
@@ -113,14 +246,26 @@ export default function PublicBookingPayment({
             seatId: seat?.id,
             fees: fees.map(f => String(f.id)),
             branchId,
-            gatewayProvider: paymentMethod as 'razorpay' | 'cashfree',
-            couponCode: appliedCoupon?.code
+            gatewayProvider: paymentMethod, // Now supports 'upi_app' and 'qr_code'
+            couponCode: appliedCoupon?.code,
+            manualPaymentData: ['upi_app', 'qr_code'].includes(paymentMethod) ? {
+                transactionId: transactionId || undefined,
+                proofUrl: proofUrl || undefined
+            } : undefined
         })
         
-        if (result.success && result.paymentData && result.paymentData.success) {
+        if (result.success && result.paymentData) {
             const paymentResult = result.paymentData
             const studentId = result.studentId
 
+            // Handle Manual Payment Success Immediately
+            if (['upi_app', 'qr_code'].includes(paymentMethod)) {
+                toast.success('Payment submitted for verification')
+                onSuccess(paymentResult.paymentId, 'pending_verification', studentId)
+                return
+            }
+
+            // Handle Gateways
             if (paymentMethod === 'razorpay') {
                 if (!window.Razorpay) {
                     toast.error('Razorpay SDK failed to load')
@@ -174,7 +319,7 @@ export default function PublicBookingPayment({
                 }
 
                 const cashfree = new window.Cashfree({
-                    mode: "sandbox" // Change to "production" in prod env
+                    mode: "sandbox" 
                 })
 
                 const checkoutOptions = {
@@ -188,8 +333,6 @@ export default function PublicBookingPayment({
                         setProcessing(false)
                     }
                     if(checkoutResult.paymentDetails){
-                        console.log("Payment completed, verifying...");
-                        
                         const verifyResult = await verifyPaymentSignature(
                             paymentResult.paymentId!,
                             'PENDING_FETCH', 
@@ -303,7 +446,9 @@ export default function PublicBookingPayment({
       <div className="grid grid-cols-2 gap-3 mb-6">
         {[
             { id: 'razorpay', label: 'Razorpay', icon: CreditCard, desc: 'Cards, UPI, Netbanking' },
-            { id: 'cashfree', label: 'Cashfree', icon: Banknote, desc: 'Secure Payment Gateway' }
+            { id: 'cashfree', label: 'Cashfree', icon: Banknote, desc: 'Secure Payment Gateway' },
+            { id: 'upi_app', label: 'UPI App', icon: Smartphone, desc: 'GPay, PhonePe, Paytm' },
+            { id: 'qr_code', label: 'Scan QR', icon: QrCode, desc: 'Scan & Pay' }
         ].map((method) => (
             <button
             key={method.id}
@@ -329,7 +474,6 @@ export default function PublicBookingPayment({
                     <p className="text-xs text-gray-500 mt-0.5 leading-tight">{method.desc}</p>
                 </div>
                 </div>
-                
                 {paymentMethod === method.id && (
                     <div className="absolute top-2 right-2 text-purple-600 dark:text-purple-400">
                         <div className="w-4 h-4 bg-purple-600 rounded-full flex items-center justify-center shadow-sm">
@@ -340,6 +484,135 @@ export default function PublicBookingPayment({
             </button>
         ))}
       </div>
+
+      {/* Manual Payment Verification UI */}
+      {['upi_app', 'qr_code'].includes(paymentMethod) && (
+        <div className="mb-6 p-4 rounded-xl border border-purple-100 dark:border-purple-900/30 bg-purple-50/50 dark:bg-purple-900/10 space-y-4">
+            <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <Shield className="w-4 h-4 text-purple-600" />
+                Complete Payment
+            </h3>
+
+            {/* QR Code Display */}
+            {paymentMethod === 'qr_code' && upiId && (
+                <div className="flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                    <div className="bg-white p-2 rounded-lg shadow-sm mb-2">
+                        <QRCodeSVG value={upiLinkQr} size={180} level="M" includeMargin={true} />
+                    </div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 text-center mb-1">
+                        Scan to pay <span className="text-gray-900 dark:text-white font-bold">₹{finalAmount}</span>
+                    </p>
+                    <p className="text-[10px] text-gray-400 text-center">
+                        {payeeName}
+                    </p>
+                </div>
+            )}
+
+            {/* UPI App Link (Mobile) */}
+            {paymentMethod === 'upi_app' && upiId && (
+                <div className="flex flex-col gap-2">
+                    <a 
+                        href={upiLinkIntent}
+                        className="flex items-center justify-center gap-2 w-full py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 rounded-xl transition-all shadow-sm group"
+                    >
+                        <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <Smartphone className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">Open UPI App</span>
+                    </a>
+                    <p className="text-xs text-center text-gray-500">
+                        Tap to open GPay, PhonePe, Paytm etc.
+                    </p>
+                </div>
+            )}
+
+            {/* Fallback if no UPI ID */}
+            {!upiId && (
+                 <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm rounded-lg flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>Payment details not configured for this branch.</span>
+                 </div>
+            )}
+
+            <div className="h-px bg-purple-200/50 dark:bg-purple-800/30" />
+
+            {/* Transaction Verification Form */}
+            <div className="space-y-3">
+                <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                        Payment Screenshot <span className="text-red-500">*</span>
+                    </label>
+                    <div 
+                        className={cn(
+                            "relative border-2 border-dashed rounded-xl p-4 transition-all text-center cursor-pointer hover:bg-white/50 dark:hover:bg-gray-800/50",
+                            proofUrl ? "border-emerald-500 bg-emerald-50/30" : "border-gray-300 dark:border-gray-700 hover:border-purple-400"
+                        )}
+                        onClick={() => fileInputRef.current?.click()}
+                    >
+                        <input 
+                            ref={fileInputRef}
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={handleFileUpload}
+                        />
+                        
+                        {uploading ? (
+                            <div className="flex flex-col items-center gap-2 py-2">
+                                <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
+                                <span className="text-xs text-gray-500">Scanning image...</span>
+                            </div>
+                        ) : proofUrl ? (
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 text-emerald-600 text-sm font-medium">
+                                    <Check className="w-4 h-4" />
+                                    <span>Screenshot Uploaded</span>
+                                </div>
+                                <button 
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setProofUrl(null)
+                                        setTransactionId('')
+                                    }}
+                                    className="p-1 hover:bg-red-100 rounded-full text-red-500"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center gap-1 py-1">
+                                <Upload className="w-5 h-5 text-gray-400" />
+                                <span className="text-xs text-gray-500">Click to upload screenshot</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                        Transaction ID (UTR)
+                    </label>
+                    <div className="relative">
+                        <input 
+                            type="text" 
+                            placeholder="Enter 12-digit UTR / Ref No."
+                            value={transactionId}
+                            onChange={(e) => setTransactionId(e.target.value)}
+                            className="w-full pl-3 pr-9 py-2.5 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none transition-all"
+                        />
+                        {transactionId && (
+                             <div className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-500">
+                                <Check className="w-4 h-4" />
+                             </div>
+                        )}
+                    </div>
+                    <p className="text-[10px] text-gray-500">
+                        Auto-detected from screenshot if visible.
+                    </p>
+                </div>
+            </div>
+        </div>
+      )}
 
       {/* Trust Signals */}
       <div className="flex items-center justify-center gap-6 mb-8 py-4 border-t border-b border-gray-100 dark:border-gray-700/50">
@@ -367,10 +640,19 @@ export default function PublicBookingPayment({
         </button>
         <button
           onClick={handlePayment}
-          disabled={processing}
+          disabled={processing || (['upi_app', 'qr_code'].includes(paymentMethod) && !proofUrl)}
           className="flex-[2] px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-purple-500/20 disabled:opacity-70 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
         >
-          {processing ? 'Processing...' : `Pay ₹${finalAmount}`}
+          {processing ? (
+             <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Processing...
+             </>
+          ) : (
+             <>
+                {['upi_app', 'qr_code'].includes(paymentMethod) ? 'Submit Payment' : `Pay ₹${finalAmount}`}
+             </>
+          )}
         </button>
       </div>
     </div>

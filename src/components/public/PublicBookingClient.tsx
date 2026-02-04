@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
 import { cn, formatSeatNumber } from '@/lib/utils'
+import { checkPublicStudentByEmail } from '@/actions/student'
 import { Branch, Seat, Plan, AdditionalFee } from '@prisma/client'
 import PublicBranchHeader, { PublicOffer } from './PublicBranchHeader'
 import PublicBookingPayment from './PublicBookingPayment'
@@ -45,6 +46,8 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
     const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0])
     
     // Student Details State
+    const [isCheckingEmail, setIsCheckingEmail] = useState(false)
+    const [isExistingUser, setIsExistingUser] = useState(false)
     const [studentDetails, setStudentDetails] = useState({
         name: '',
         email: '',
@@ -131,6 +134,37 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
         )
     }
 
+    const handleEmailBlur = async () => {
+        if (!studentDetails.email || !studentDetails.email.includes('@')) return
+        
+        setIsCheckingEmail(true)
+        try {
+            const result = await checkPublicStudentByEmail(studentDetails.email)
+            if (result.success && result.exists && result.student) {
+                setStudentDetails(prev => ({
+                    ...prev,
+                    name: result.student.name || '',
+                    phone: result.student.phone || '',
+                    dob: result.student.dob || ''
+                }))
+                setIsExistingUser(true)
+                toast.success('Welcome back! Details auto-filled.')
+            } else {
+                setIsExistingUser(false)
+                // Clear fields if they contain masked data from previous auto-fill
+                setStudentDetails(prev => ({
+                    ...prev,
+                    phone: prev.phone.includes('*') ? '' : prev.phone,
+                    dob: prev.dob.includes('*') ? '' : prev.dob
+                }))
+            }
+        } catch (error) {
+            console.error(error)
+        } finally {
+            setIsCheckingEmail(false)
+        }
+    }
+
     const handleDetailsSubmit = (e: React.FormEvent) => {
         e.preventDefault()
         if (!studentDetails.name || !studentDetails.email || !studentDetails.phone || !studentDetails.dob) {
@@ -205,8 +239,9 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                         exit={{ opacity: 0, y: -20 }}
                         className="space-y-8"
                     >
-                        {/* 1. Choose Plan */}
-                        <section className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm">
+                        <div className="grid lg:grid-cols-3 gap-6">
+                            {/* 1. Choose Plan */}
+                            <section className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm">
                             <div className="flex flex-col gap-3 mb-4">
                                 <div className="flex items-center justify-between gap-3">
                                     <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 whitespace-nowrap">
@@ -327,6 +362,58 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                 )}
                             </div>
                         </section>
+
+                        <div className="space-y-6 lg:col-span-1">
+                            {/* Fees */}
+                            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 h-fit">
+                                <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                    <Info className="w-5 h-5 text-blue-500" />
+                                    Add-ons
+                                </h3>
+                                <div className="space-y-3">
+                                    {branch.fees.map(fee => (
+                                        <label key={fee.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className={cn(
+                                                    "w-5 h-5 rounded border flex items-center justify-center transition-colors",
+                                                    selectedFees.includes(fee.id)
+                                                        ? "bg-blue-500 border-blue-500 text-white"
+                                                        : "border-gray-300 dark:border-gray-600"
+                                                )}>
+                                                    {selectedFees.includes(fee.id) && <Check className="w-3 h-3" />}
+                                                </div>
+                                                <input 
+                                                    type="checkbox" 
+                                                    className="hidden"
+                                                    checked={selectedFees.includes(fee.id)}
+                                                    onChange={() => toggleFee(fee.id)}
+                                                />
+                                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fee.name}</span>
+                                            </div>
+                                            <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
+                                        </label>
+                                    ))}
+                                    {branch.fees.length === 0 && (
+                                        <p className="text-sm text-gray-500">No additional fees.</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Start Date */}
+                            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 h-fit">
+                                <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                    <Calendar className="w-5 h-5 text-orange-500" />
+                                    Start Date
+                                </h3>
+                                <input
+                                    type="date"
+                                    value={bookingDate}
+                                    onChange={(e) => setBookingDate(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+                                />
+                            </div>
+                        </div>
+                    </div>
 
 
 
@@ -586,57 +673,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                             )}
                         </section>
 
-                        {/* 3. Additional Fees & Date */}
-                        <div className="grid md:grid-cols-2 gap-6">
-                            {/* Fees */}
-                            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
-                                <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                                    <Info className="w-5 h-5 text-blue-500" />
-                                    Add-ons
-                                </h3>
-                                <div className="space-y-3">
-                                    {branch.fees.map(fee => (
-                                        <label key={fee.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors">
-                                            <div className="flex items-center gap-3">
-                                                <div className={cn(
-                                                    "w-5 h-5 rounded border flex items-center justify-center transition-colors",
-                                                    selectedFees.includes(fee.id)
-                                                        ? "bg-blue-500 border-blue-500 text-white"
-                                                        : "border-gray-300 dark:border-gray-600"
-                                                )}>
-                                                    {selectedFees.includes(fee.id) && <Check className="w-3 h-3" />}
-                                                </div>
-                                                <input 
-                                                    type="checkbox" 
-                                                    className="hidden"
-                                                    checked={selectedFees.includes(fee.id)}
-                                                    onChange={() => toggleFee(fee.id)}
-                                                />
-                                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fee.name}</span>
-                                            </div>
-                                            <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
-                                        </label>
-                                    ))}
-                                    {branch.fees.length === 0 && (
-                                        <p className="text-sm text-gray-500">No additional fees.</p>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Start Date */}
-                            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
-                                <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                                    <Calendar className="w-5 h-5 text-orange-500" />
-                                    Start Date
-                                </h3>
-                                <input
-                          type="date"
-                          value={bookingDate}
-                          onChange={(e) => setBookingDate(e.target.value)}
-                          className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 outline-none focus:ring-2 focus:ring-purple-500 transition-all"
-                        />
-                            </div>
-                        </div>
+                        {/* Moved to top */}
 
                         {/* Action Bar */}
                         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-t border-gray-200 dark:border-gray-800 z-40">
@@ -734,24 +771,31 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                             className="bg-gray-50 dark:bg-gray-900/50"
                                         />
                                         <FormInput
-                                            label="Phone Number"
-                                            icon={Phone}
-                                            type="tel"
-                                            placeholder="9876543210"
-                                            value={studentDetails.phone}
-                                            onChange={(e) => setStudentDetails(prev => ({ ...prev, phone: e.target.value }))}
+                                            label="Email Address"
+                                            icon={Mail}
+                                            type="email"
+                                            placeholder="john@example.com"
+                                            value={studentDetails.email}
+                                            onChange={(e) => setStudentDetails(prev => ({ ...prev, email: e.target.value }))}
+                                            onBlur={handleEmailBlur}
+                                            helperText={isCheckingEmail ? 'Checking...' : undefined}
                                             required
                                             className="bg-gray-50 dark:bg-gray-900/50"
                                         />
                                     </div>
 
                                     <FormInput
-                                        label="Email Address"
-                                        icon={Mail}
-                                        type="email"
-                                        placeholder="john@example.com"
-                                        value={studentDetails.email}
-                                        onChange={(e) => setStudentDetails(prev => ({ ...prev, email: e.target.value }))}
+                                        label="Phone Number"
+                                        icon={Phone}
+                                        type="tel"
+                                        placeholder="9876543210"
+                                        value={studentDetails.phone}
+                                        onChange={(e) => setStudentDetails(prev => ({ ...prev, phone: e.target.value }))}
+                                        onFocus={() => {
+                                            if (studentDetails.phone.includes('*')) {
+                                                setStudentDetails(prev => ({ ...prev, phone: '' }))
+                                            }
+                                        }}
                                         required
                                         className="bg-gray-50 dark:bg-gray-900/50"
                                     />
@@ -759,9 +803,14 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                     <FormInput
                                         label="Date of Birth"
                                         icon={Cake}
-                                        type="date"
+                                        type={studentDetails.dob.includes('*') ? 'text' : 'date'}
                                         value={studentDetails.dob}
                                         onChange={(e) => setStudentDetails(prev => ({ ...prev, dob: e.target.value }))}
+                                        onFocus={() => {
+                                            if (studentDetails.dob.includes('*')) {
+                                                setStudentDetails(prev => ({ ...prev, dob: '' }))
+                                            }
+                                        }}
                                         required
                                         className="bg-gray-50 dark:bg-gray-900/50"
                                     />
@@ -798,11 +847,13 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
                     >
-                        <PublicBookingPayment
+                        <PublicBookingPayment 
                             plan={selectedPlan}
                             seat={selectedSeat}
                             fees={branch.fees.filter(f => selectedFees.includes(f.id))}
                             branchId={branch.id}
+                            upiId={branch.upiId || undefined}
+                            payeeName={branch.payeeName || undefined}
                             studentDetails={studentDetails}
                             onSuccess={handlePaymentSuccess}
                             onBack={() => setStep('details')}

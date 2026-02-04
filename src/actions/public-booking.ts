@@ -19,21 +19,47 @@ export async function initiatePublicBooking(data: {
     seatId?: string // Optional
     fees: string[] // Fee IDs
     branchId: string
-    gatewayProvider: 'razorpay' | 'cashfree'
+    gatewayProvider: string
     couponCode?: string
+    manualPaymentData?: {
+        transactionId?: string
+        proofUrl?: string
+    }
 }) {
     try {
-        const { name, email, phone, dob, amount, planId, seatId, fees, branchId, gatewayProvider, couponCode } = data
+        const { name, email, phone, dob, amount, planId, seatId, fees, branchId, gatewayProvider, couponCode, manualPaymentData } = data
 
         // 1. Find or Create Student
-        let student = await prisma.student.findFirst({
-            where: {
-                OR: [
-                    { email: { equals: email, mode: 'insensitive' } },
-                    { phone: phone }
-                ]
-            }
-        })
+        // Check for masked data
+        const isPhoneMasked = phone.includes('*')
+        const isDobMasked = dob.includes('*')
+
+        let student = null
+
+        if (isPhoneMasked) {
+             // If phone is masked, we MUST find by email
+             student = await prisma.student.findFirst({
+                 where: { email: { equals: email, mode: 'insensitive' } }
+             })
+             
+             if (!student) {
+                 return { success: false, error: 'Cannot create new account with masked phone number. Please enter full details.' }
+             }
+        } else {
+             // Normal search
+             student = await prisma.student.findFirst({
+                where: {
+                    OR: [
+                        { email: { equals: email, mode: 'insensitive' } },
+                        { phone: phone }
+                    ]
+                }
+            })
+        }
+
+        if (isDobMasked && !student) {
+             return { success: false, error: 'Cannot create new account with masked date of birth. Please enter full details.' }
+        }
 
         let isNewStudent = false
 
@@ -99,7 +125,8 @@ export async function initiatePublicBooking(data: {
             gatewayProvider,
             branchId,
             couponCode,
-            student.id // Pass the student ID
+            student.id, // Pass the student ID
+            manualPaymentData
         )
 
         if (!paymentResult.success) {

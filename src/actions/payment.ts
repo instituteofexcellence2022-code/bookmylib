@@ -218,10 +218,14 @@ export async function initiatePayment(
   type: string,
   relatedId?: string,
   description?: string,
-  gatewayProvider: 'razorpay' | 'cashfree' = 'razorpay',
+  gatewayProvider: string = 'razorpay',
   branchId?: string,
   couponCode?: string,
-  studentId?: string
+  studentId?: string,
+  manualPaymentData?: {
+    transactionId?: string
+    proofUrl?: string
+  }
 ) {
   let student
   if (studentId) {
@@ -235,7 +239,7 @@ export async function initiatePayment(
 
   if (!student) return { success: false, error: 'Unauthorized' }
 
-  // Check for Gateway Configuration
+  // Check for Gateway Configuration (only for online gateways)
   if (gatewayProvider === 'razorpay') {
       if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
           return { success: false, error: 'Gateway not connected yet', code: 'GATEWAY_NOT_CONFIGURED' }
@@ -330,6 +334,8 @@ export async function initiatePayment(
 
   try {
     // 1. Create Payment Record (Pending)
+    const isManual = ['upi_app', 'qr_code', 'front_desk'].includes(gatewayProvider)
+    
     const payment = await prisma.payment.create({
       data: {
         libraryId,
@@ -341,13 +347,25 @@ export async function initiatePayment(
         type,
         relatedId,
         description: updatedDescription,
-        gatewayProvider,
-        // We will update this with real Order ID shortly
-        gatewayOrderId: `temp_${Math.random().toString(36).substring(7)}`,
+        gatewayProvider: isManual ? null : gatewayProvider,
+        // We will update this with real Order ID shortly for gateways
+        gatewayOrderId: isManual ? null : `temp_${Math.random().toString(36).substring(7)}`,
         promotionId,
-        discountAmount
+        discountAmount,
+        transactionId: manualPaymentData?.transactionId,
+        proofUrl: manualPaymentData?.proofUrl
       }
     })
+
+    // If Manual, return immediately
+    if (isManual) {
+        return {
+            success: true,
+            paymentId: payment.id,
+            amount: finalAmount,
+            status: 'pending_verification'
+        }
+    }
 
     // 2. Initiate Gateway Order
     let gatewayOrderId = ''
