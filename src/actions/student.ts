@@ -125,12 +125,14 @@ export async function updateStudentProfile(formData: FormData) {
         }
 
         if (profileImage && profileImage.size > 0) {
-            const url = await uploadFile(profileImage, 'avatars')
+            // Fixed: uploadFile only accepts one argument
+            const url = await uploadFile(profileImage)
             data.imageUrl = url
         }
 
         if (idProofFile && idProofFile.size > 0) {
-            const url = await uploadFile(idProofFile, 'documents')
+            // Fixed: uploadFile only accepts one argument
+            const url = await uploadFile(idProofFile)
             data.idProofUrl = url
         }
 
@@ -147,6 +149,259 @@ export async function updateStudentProfile(formData: FormData) {
     }
 }
 
+export async function updateStudentProfileImage(formData: FormData) {
+    const cookieStore = await cookies()
+    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value  
+
+    if (!studentId) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    const imageFile = formData.get('imageFile') as File | null     
+
+    if (!imageFile || imageFile.size === 0) {
+        return { success: false, error: 'No image file provided' } 
+    }
+
+    try {
+        const uploadedUrl = await uploadFile(imageFile)
+
+        if (!uploadedUrl) {
+            return { success: false, error: 'Failed to upload image' }
+        }
+
+        await prisma.student.update({
+            where: { id: studentId },
+            data: {
+                image: uploadedUrl
+            }
+        })
+
+        revalidatePath('/student/profile')
+        return { success: true, imageUrl: uploadedUrl }
+    } catch (error) {
+        console.error('Error updating profile image:', error)      
+        return { success: false, error: 'Failed to update profile image' }
+    }
+}
+
+export async function uploadGovtId(formData: FormData) {
+    const cookieStore = await cookies()
+    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value  
+
+    if (!studentId) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    const file = formData.get('file') as File
+
+    if (!file) {
+        return { success: false, error: 'No file uploaded' }       
+    }
+
+    try {
+        const url = await uploadFile(file)
+
+        if (!url) {
+            return { success: false, error: 'Upload failed' }      
+        }
+
+        await prisma.student.update({
+            where: { id: studentId },
+            data: {
+                govtIdUrl: url,
+                govtIdStatus: 'pending'
+            }
+        })
+
+        revalidatePath('/student/profile')
+        return { success: true, url }
+    } catch (error) {
+        console.error('Error uploading Govt ID:', error)
+        return { success: false, error: error instanceof Error ? error.message : 'Upload failed' }
+    }
+}
+
+export async function changeStudentPassword(formData: FormData) {  
+    const cookieStore = await cookies()
+    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value  
+
+    if (!studentId) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    const currentPassword = formData.get('currentPassword') as string
+    const newPassword = formData.get('newPassword') as string      
+
+    if (!newPassword) {
+        return { success: false, error: 'New password is required' }
+    }
+
+    try {
+        const student = await prisma.student.findUnique({
+            where: { id: studentId }
+        })
+
+        if (!student) {
+            return { success: false, error: 'Student not found' }
+        }
+
+        // If user has a password, verify it
+        if (student.password) {
+            if (!currentPassword) {
+                return { success: false, error: 'Current password is required' }
+            }
+            const isValid = await bcrypt.compare(currentPassword, student.password)
+            if (!isValid) {
+                return { success: false, error: 'Invalid current password' }
+            }
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10)
+
+        await prisma.student.update({
+            where: { id: studentId },
+            data: {
+                password: hashedPassword
+            }
+        })
+
+        return { success: true }
+    } catch (error) {
+        console.error('Error changing password:', error)
+        return { success: false, error: 'Failed to change password' }
+    }
+}
+
+export async function updateStudentPreferences(preferences: any) { 
+    const cookieStore = await cookies()
+    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value  
+
+    if (!studentId) {
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    try {
+        await prisma.student.update({
+            where: { id: studentId },
+            data: { preferences }
+        })
+
+        revalidatePath('/student/settings')
+        return { success: true }
+    } catch (error) {
+        console.error('Error updating preferences:', error)        
+        return { success: false, error: 'Failed to update preferences' }
+    }
+}
+
+export async function getStudentReferralData() {
+    const cookieStore = await cookies()
+    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value  
+
+    if (!studentId) {
+        redirect('/student/login')
+    }
+
+    let student = await prisma.student.findUnique({
+        where: { id: studentId },
+        include: {
+            library: true,
+            branch: true,
+            referralsMade: {
+                include: {
+                    referee: true,
+                    rewardCoupon: {
+                        select: { code: true }
+                    }
+                },
+                orderBy: {
+                    createdAt: 'desc'
+                }
+            }
+        }
+    })
+
+    if (!student) {
+        redirect('/student/logout')
+    }
+
+    // Generate referral code if not exists
+    if (!student.referralCode) {
+        const namePrefix = (student.name || 'USER').replace(/[^a-zA-Z]/g, '').substring(0, 4).toUpperCase()
+
+        // Retry logic for referral code generation
+        let newCode = ''
+        let attempts = 0
+        const maxAttempts = 3
+
+        while (attempts < maxAttempts) {
+            const randomSuffix = Math.floor(1000 + Math.random() * 9000)
+            newCode = `${namePrefix}${randomSuffix}`
+
+            // Check if code exists
+            const existing = await prisma.student.findUnique({ where: { referralCode: newCode } })
+            if (!existing) break
+
+            attempts++
+        }
+
+        if (attempts >= maxAttempts) {
+             newCode = `${namePrefix}${Date.now().toString().slice(-6)}`
+        }
+
+        try {
+            student = await prisma.student.update({
+                where: { id: studentId },
+                data: { referralCode: newCode },
+                include: {
+                    library: true,
+                    branch: true,
+                    referralsMade: {
+                        include: {
+                            referee: true,
+                            rewardCoupon: {
+                                select: { code: true }
+                            }
+                        },
+                        orderBy: {
+                            createdAt: 'desc'
+                        }
+                    }
+                }
+            })
+        } catch (e) {
+            console.error('Referral code generation error', e)     
+        }
+    }
+
+    const settings = student.library?.referralSettings as any || {}
+
+    // Calculate stats
+    const totalReferrals = student.referralsMade.length
+    const totalCoupons = student.referralsMade.filter(r => r.rewardCoupon?.code).length
+    const coupons = student.referralsMade
+        .filter(r => r.rewardCoupon?.code && r.status === 'completed')
+        .map(r => ({
+            code: r.rewardCoupon?.code || '',
+            status: r.status,
+            createdAt: r.createdAt
+        }))
+
+    return {
+        referralCode: student.referralCode,
+        referrals: student.referralsMade,
+        libraryName: student.library?.name,
+        branchName: student.branch?.name,
+        settings,
+        stats: {
+            totalReferrals,
+            totalCoupons,
+            activeCoupons: coupons.length // Assuming completed = active coupon
+        }
+    }
+}
+
 export async function checkPublicStudentByEmail(email: string) {
     try {
         if (!email) return { success: false }
@@ -160,9 +415,10 @@ export async function checkPublicStudentByEmail(email: string) {
 
         // Masking
         // Phone: ******1234
-        const maskedPhone = student.phone.length > 4 
-            ? student.phone.replace(/.(?=.{4})/g, '*') 
-            : '******' + student.phone
+        const phone = student.phone || ''
+        const maskedPhone = phone.length > 4 
+            ? phone.replace(/.(?=.{4})/g, '*') 
+            : '******' + phone
 
         // Mask DOB: ****-**-**
         // We return a string that indicates it's set but hidden
