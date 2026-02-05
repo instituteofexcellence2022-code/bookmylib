@@ -97,7 +97,7 @@ export function BranchListItem({ branch, isActiveMember, theme = 'emerald', publ
 
           if (hours.staffAvailableStart && hours.staffAvailableEnd) {
               const formatTime = (time: string) => {
-                  const [h, m] = time.split(':')
+                  const [h] = time.split(':')
                   const hour = parseInt(h)
                   const ampm = hour >= 12 ? 'PM' : 'AM'
                   const hour12 = hour % 12 || 12
@@ -106,7 +106,7 @@ export function BranchListItem({ branch, isActiveMember, theme = 'emerald', publ
               staffAvailability = `${formatTime(hours.staffAvailableStart)} - ${formatTime(hours.staffAvailableEnd)}`
           }
       }
-  } catch (e) {
+  } catch {
       // Fallback to default
   }
   

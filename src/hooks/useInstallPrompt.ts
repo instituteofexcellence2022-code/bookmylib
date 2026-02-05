@@ -2,21 +2,31 @@
 
 import { useState, useEffect } from 'react'
 
+interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  readonly userChoice: Promise<{
+    outcome: 'accepted' | 'dismissed';
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
+}
+
 interface InstallPromptState {
-  deferredPrompt: any
+  deferredPrompt: BeforeInstallPromptEvent | null
   isIOS: boolean
   isStandalone: boolean
   installApp: () => Promise<void>
 }
 
 export function useInstallPrompt(): InstallPromptState {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isIOS, setIsIOS] = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
 
   useEffect(() => {
     // Check if already in standalone mode
     if (typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches) {
+      // eslint-disable-next-line
       setIsStandalone(true)
     }
 
@@ -28,7 +38,7 @@ export function useInstallPrompt(): InstallPromptState {
 
     const handler = (e: Event) => {
       e.preventDefault()
-      setDeferredPrompt(e)
+      setDeferredPrompt(e as BeforeInstallPromptEvent)
     }
 
     if (typeof window !== 'undefined') {

@@ -64,6 +64,7 @@ export function StaffVerifyPaymentList() {
 
     useEffect(() => {
         fetchPayments()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [studentId])
 
     const handleVerify = async (id: string, action: 'approve' | 'reject') => {

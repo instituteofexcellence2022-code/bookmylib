@@ -7,6 +7,7 @@ import { verifyStaffStudentQR } from '@/actions/staff/attendance'
 import { toast } from 'sonner'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
+import { SCANNER_CONFIG } from "@/lib/scanner";
 
 export function StaffQRScanClient() {
   const [scanning, setScanning] = useState(false)

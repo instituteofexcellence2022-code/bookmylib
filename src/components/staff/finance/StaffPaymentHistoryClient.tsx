@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { getStaffTransactions, updatePaymentRemarks } from '@/actions/staff/finance'
 import { format } from 'date-fns'
-import { Download, RefreshCw, FileText, Search, ChevronDown, ChevronUp, History, Eye, FileDown } from 'lucide-react'
+import { Download, RefreshCw, FileText, Search, ChevronDown, ChevronUp, History, Eye } from 'lucide-react'
 import { TransactionDetailsModal } from '@/components/owner/finance/TransactionDetailsModal'
 import { toast } from 'sonner'
 import { FormSelect } from '@/components/ui/FormSelect'
@@ -104,7 +104,7 @@ function TransactionRemarks({ transaction }: { transaction: Transaction }) {
             await updatePaymentRemarks(transaction.id, remarks)
             setIsEditing(false)
             toast.success('Remarks updated')
-        } catch (error) {
+        } catch {
             toast.error('Failed to update remarks')
         } finally {
             setIsSaving(false)
@@ -320,7 +320,7 @@ export function StaffPaymentHistoryClient() {
   const loadTransactions = useCallback(async () => {
     setLoading(true)
     try {
-      const filters: any = {
+      const filters: Record<string, unknown> = {
           scope: 'branch' // Strictly show branch transactions
       }
       if (statusFilter !== 'all') filters.status = statusFilter
@@ -433,6 +433,19 @@ export function StaffPaymentHistoryClient() {
             </div>
             
             <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+                <div className="w-36 flex-shrink-0">
+                    <FormSelect
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        options={[
+                            { value: 'all', label: 'All Status' },
+                            { value: 'completed', label: 'Completed' },
+                            { value: 'pending', label: 'Pending' },
+                            { value: 'failed', label: 'Failed' }
+                        ]}
+                        className="h-9 text-sm"
+                    />
+                </div>
                 <div className="w-32 flex-shrink-0">
                     <FormSelect
                         value={dateFilter}
@@ -615,7 +628,7 @@ export function StaffPaymentHistoryClient() {
       <TransactionDetailsModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        transaction={selectedTransaction as any}
+        transaction={selectedTransaction}
       />
     </div>
   )

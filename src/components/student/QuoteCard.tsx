@@ -22,7 +22,6 @@ export function QuoteCard({ quotes, className, initialLikedIds = [] }: QuoteCard
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMounted(true)
   }, [])
 
@@ -53,7 +52,7 @@ export function QuoteCard({ quotes, className, initialLikedIds = [] }: QuoteCard
       if (!result.success) {
         throw new Error(result.error || 'Failed to update like')
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to update favorite')
       // Revert if failed
       setLikedIds(prev => {

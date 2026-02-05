@@ -4,10 +4,10 @@ import React, { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { 
-  MapPin, Building2, Users, ChevronDown, ChevronLeft, ChevronRight,
+  MapPin, Building2, Users, ChevronLeft, ChevronRight,
   Wifi, Coffee, Wind, Zap, Car, Lock, Camera, BookOpen, ShieldCheck,
   Star, Clock, Info,
-  Book, Phone, Mail, Check, Copy
+  Book
 } from 'lucide-react'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { BranchDetailsModal } from './BranchDetailsModal'
@@ -84,8 +84,8 @@ export interface BranchCardProps {
     managerName?: string | null
     description?: string | null
     mapsLink?: string | null
-    wifiDetails?: any
-    operatingHours?: any
+    wifiDetails?: unknown
+    operatingHours?: unknown
     _count: {
       seats: number
     }
@@ -176,16 +176,25 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
   const currentImage = images.length > 0 ? images[currentImageIndex] : null
 
   // Parse operating hours
+  type OperatingHours = {
+    staffAvailableStart?: string
+    staffAvailableEnd?: string
+    is247?: boolean
+    start?: string
+    end?: string
+    openingTime?: string
+    closingTime?: string
+  }
   let staffAvailability = '9 AM - 9 PM'
   try {
       if (branch.operatingHours) {
-          const hours = typeof branch.operatingHours === 'string' 
+          const hours: OperatingHours = typeof branch.operatingHours === 'string' 
             ? JSON.parse(branch.operatingHours) 
-            : branch.operatingHours
+            : (branch.operatingHours as OperatingHours)
             
           if (hours.staffAvailableStart && hours.staffAvailableEnd) {
               const formatTime = (time: string) => {
-                  const [h, m] = time.split(':')
+                  const [h] = time.split(':')
                   const hour = parseInt(h)
                   const ampm = hour >= 12 ? 'PM' : 'AM'
                   const hour12 = hour % 12 || 12
@@ -194,7 +203,7 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
               staffAvailability = `${formatTime(hours.staffAvailableStart)} - ${formatTime(hours.staffAvailableEnd)}`
           }
       }
-  } catch (e) {
+  } catch {
       // Fallback to default
   }
 
@@ -215,9 +224,9 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
     try {
       if (!branch.operatingHours) return { isOpen: false, text: 'Closed' }
       
-      const hours = typeof branch.operatingHours === 'string' 
+      const hours: OperatingHours = typeof branch.operatingHours === 'string' 
           ? JSON.parse(branch.operatingHours) 
-          : branch.operatingHours
+          : (branch.operatingHours as OperatingHours)
       
       if (hours.is247) {
           return { isOpen: true, text: 'Open 24/7' }
@@ -272,7 +281,7 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
       }
       
       return { isOpen: false, text: 'Closed' }
-    } catch (e) {
+  } catch {
       return { isOpen: false, text: 'Closed' }
     }
   }

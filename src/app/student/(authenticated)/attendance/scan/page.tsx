@@ -8,6 +8,7 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { Html5Qrcode } from 'html5-qrcode'
 import { markAttendance, getStudentAttendanceStatus } from '@/actions/attendance'
 import { toast } from 'sonner'
+import { SCANNER_CONFIG } from '@/lib/scanner'
 
 export default function ScanPage() {
   const router = useRouter()
@@ -106,19 +107,8 @@ export default function ScanPage() {
         if (!scannerRef.current.isScanning) {
                 await scannerRef.current.start(
                 cameraId, 
-                {
-                    fps: 20,
-                    qrbox: { width: 250, height: 250 },
-                    aspectRatio: 1.0,
-                    videoConstraints: {
-                        width: { min: 640, ideal: 1280, max: 1920 },
-                        height: { min: 480, ideal: 720, max: 1080 },
-                        facingMode: "environment"
-                    }
-                },
-                (decodedText) => {
-                    handleScan(decodedText)
-                },
+                SCANNER_CONFIG,
+                (decodedText) => handleScan(decodedText),
                 (errorMessage) => {
                     // ignore
                 }

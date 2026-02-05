@@ -27,7 +27,7 @@ interface RazorpayResponse {
 
 interface RazorpayInstance {
   open: () => void;
-  on: (event: string, callback: (response: any) => void) => void;
+  on: (event: string, callback: (response: unknown) => void) => void;
 }
 
 interface CashfreeOptions {
@@ -40,7 +40,7 @@ interface CashfreeCheckoutOptions {
 }
 
 interface CashfreeInstance {
-  checkout: (options: CashfreeCheckoutOptions) => Promise<any>;
+  checkout: (options: CashfreeCheckoutOptions) => Promise<unknown>;
 }
 
 interface Window {

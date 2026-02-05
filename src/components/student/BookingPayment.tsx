@@ -7,7 +7,6 @@ import { createWorker } from 'tesseract.js'
 import { 
   CreditCard, Banknote, QrCode, Building, 
   AlertCircle, Check, Upload, X, Loader2,
-  Copy
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { uploadFile } from '@/actions/upload'
@@ -27,20 +26,20 @@ interface BookingPaymentProps {
     id: string
     name: string
     price: number
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    [key: string]: any
+    category?: string
+    duration?: number
+    durationUnit?: string | null
+    hoursPerDay?: number | null
+    shiftStart?: string | null
+    shiftEnd?: string | null
   }
   seat?: {
     number: string | number
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    [key: string]: any
   } | null
   fees: {
     id: string
     name: string
     amount: number
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    [key: string]: any
   }[]
   branchId: string
   branchName: string
@@ -54,7 +53,7 @@ interface BookingPaymentProps {
 }
 
 // Helper to format 24h time to 12h
-const formatTime = (timeStr?: string) => {
+const formatTime = (timeStr?: string | null) => {
     if (!timeStr) return '-'
     const [hours, minutes] = timeStr.split(':')
     const h = parseInt(hours)
@@ -313,7 +312,7 @@ export default function BookingPayment({
                   description: description,
                   image: "/logo.png", // Ensure you have a logo or remove this
                   order_id: result.gatewayOrderId || '', 
-                  handler: async function (response: any) {
+                  handler: async function (response: RazorpayResponse) {
                       const verifyResult = await verifyPaymentSignature(
                           result.paymentId!,
                           response.razorpay_payment_id,
@@ -337,8 +336,9 @@ export default function BookingPayment({
                   }
               }
               const rzp1 = new window.Razorpay(options)
-              rzp1.on('payment.failed', function (response: any){
-                  toast.error(response.error.description || 'Payment Failed')
+              rzp1.on('payment.failed', function (response: unknown){
+                  const description = (response as { error?: { description?: string } })?.error?.description
+                  toast.error(description || 'Payment Failed')
                   setProcessing(false)
               })
               rzp1.open()
@@ -359,17 +359,18 @@ export default function BookingPayment({
                   redirectTarget: "_modal" as const, // "_self", "_blank", or "_modal"
               }
 
-              cashfree.checkout(checkoutOptions).then(async (checkoutResult: any) => {
-                  if(checkoutResult.error){
+              cashfree.checkout(checkoutOptions).then(async (checkoutResult: unknown) => {
+                  const res = checkoutResult as { error?: unknown; redirect?: boolean; paymentDetails?: unknown }
+                  if(res.error){
                       // This will be true whenever user clicks on close icon inside the modal or any error happens during the payment
-                      console.log("User has closed the popup or there is some payment error", checkoutResult.error);
+                      console.log("User has closed the popup or there is some payment error", res.error);
                       setProcessing(false)
                   }
-                  if(checkoutResult.redirect){
+                  if(res.redirect){
                       // This will be true when the payment redirection page couldnt be opened in the same window
                       console.log("Payment will be redirected");
                   }
-                  if(checkoutResult.paymentDetails){
+                  if(res.paymentDetails){
                       // This will be called whenever the payment is completed irrespective of transaction status
                       console.log("Payment has been completed, verifying...");
                       
@@ -767,7 +768,7 @@ export default function BookingPayment({
                       <QrCode className="w-5 h-5" />
                       Pay ₹{finalAmount} via UPI App
                     </a>
-                    <p className="text-xs text-gray-500">Clicking this will open your installed UPI app (GPay, PhonePe, etc.) with the amount pre-filled.</p>
+                   <p className="text-xs text-gray-500">Clicking this will open your installed UPI app (GPay, PhonePe, etc.) with the amount pre-filled.</p>
                  </>
                )}
             </div>
@@ -783,7 +784,7 @@ export default function BookingPayment({
                 ) : (
                     <div className="space-y-1">
                         {!upiId && <p className="font-semibold">Scan QR Code available at the Library Desk</p>}
-                        <p>After payment, please click "I have made the Payment" to proceed with verification.</p>
+                        <p>After payment, please click &quot;I have made the Payment&quot; to proceed with verification.</p>
                     </div>
                 )}
                 </div>

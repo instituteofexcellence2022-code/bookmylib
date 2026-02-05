@@ -1,12 +1,8 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
 import { getStaffCashSummary, createHandoverRequest, getStaffKhatabook, getPendingCashTransactions } from '@/actions/staff/khatabook'
-import { AnimatedCard } from '@/components/ui/AnimatedCard'
-import { Button } from '@/components/ui/button'
-import { FormInput } from '@/components/ui/FormInput'
-import { FormTextarea } from '@/components/ui/FormTextarea'
-import { Wallet, ArrowRight, History, AlertCircle, CheckCircle, Clock, ArrowDownLeft, ArrowUpRight, Plus, FileText, User, Mail, Calendar, CheckSquare, Square, Paperclip, Filter, X } from 'lucide-react'
+import { Wallet, History, ArrowDownLeft, ArrowUpRight, CheckSquare, Square, Paperclip } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/utils'
 import { format } from 'date-fns'
@@ -19,7 +15,7 @@ interface CashSummary {
     currentMonthHandedOver: number
     carriedForward: number
     pendingHandoverAmount?: number
-    recentHandovers: any[]
+    recentHandovers: unknown[]
 }
 
 interface Transaction {
@@ -31,8 +27,15 @@ interface Transaction {
     status: string
     referenceId: string
     notes?: string | null
-    details?: any
+    details?: TransactionDetails
     attachmentUrl?: string | null
+}
+
+interface TransactionDetails {
+    method?: string
+    planName?: string
+    handoverStatus?: 'Pending' | 'Handed Over' | 'Rejected' | string
+    studentEmail?: string
 }
 
 interface PendingTransaction {
@@ -73,8 +76,8 @@ export function StaffKhatabookClient() {
             ])
             setSummary(summaryData)
             setTransactions(transactionsData)
-            setPendingTransactions(pendingData as any)
-        } catch (error) {
+            setPendingTransactions(pendingData as PendingTransaction[])
+        } catch {
             toast.error('Failed to load khatabook data')
         } finally {
             setLoading(false)

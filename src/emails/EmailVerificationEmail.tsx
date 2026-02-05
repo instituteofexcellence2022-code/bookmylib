@@ -12,18 +12,18 @@ import {
 } from "@react-email/components";
 import * as React from "react";
 
-interface ResetPasswordEmailProps {
+interface EmailVerificationEmailProps {
   userName: string;
   otp: string;
   libraryName?: string;
 }
 
-export const ResetPasswordEmail = ({
+export const EmailVerificationEmail = ({
   userName,
   otp,
   libraryName,
-}: ResetPasswordEmailProps) => {
-  const previewText = `Reset your password for ${libraryName || 'BookMyLib'}`;
+}: EmailVerificationEmailProps) => {
+  const previewText = `Verify your email for ${libraryName || 'BookMyLib'}`;
 
   return (
     <Html>
@@ -32,7 +32,6 @@ export const ResetPasswordEmail = ({
       <Tailwind>
         <Body className="bg-gray-100 my-auto mx-auto font-sans px-2">
           <Container className="bg-white border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[600px] w-full shadow-sm">
-            {/* Header */}
             <Section className="text-center mt-[20px] mb-[20px]">
               <Heading className="text-black text-[24px] font-bold p-0 my-0 mx-0 tracking-tight">
                 BookMyLib
@@ -44,20 +43,18 @@ export const ResetPasswordEmail = ({
             
             <Hr className="border-t border-gray-200 my-4" />
 
-            {/* Title */}
             <Section className="mt-[20px] text-center">
               <Heading className="text-gray-800 text-[22px] font-normal p-0 my-[10px] mx-0">
-                Reset Your Password
+                Verify Your Email
               </Heading>
               <Text className="text-gray-500 text-[14px]">
                 Hello <strong>{userName}</strong>,
               </Text>
             </Section>
 
-            {/* Main Content */}
             <Section className="mb-[32px] px-4 text-center">
               <Text className="text-gray-700 text-[15px] leading-[24px]">
-                We received a request to reset your password. Use the following OTP code to complete the process.
+                Use the OTP code below to verify your email and activate your account.
               </Text>
               
               <Section className="mt-[24px] mb-[24px]">
@@ -73,10 +70,9 @@ export const ResetPasswordEmail = ({
 
             <Hr className="border-t border-gray-200 my-6" />
             
-            {/* Footer */}
             <Section className="text-center mt-[20px]">
                 <Text className="text-gray-400 text-[12px] mb-1">
-                    Secure Password Reset
+                    Email Verification
                 </Text>
                  <Text className="text-gray-300 text-[10px] mt-4">
                     © {new Date().getFullYear()} BookMyLib. All rights reserved.
@@ -89,4 +85,4 @@ export const ResetPasswordEmail = ({
   );
 };
 
-export default ResetPasswordEmail;
+export default EmailVerificationEmail;

@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { randomBytes } from 'crypto'
-import { sendPasswordResetEmail, sendWelcomeEmail } from '@/actions/email'
+import { sendPasswordResetEmail, sendWelcomeEmail, sendEmailVerificationEmail } from '@/actions/email'
 import { verify } from 'otplib'
 import { redirect } from 'next/navigation'
 import { COOKIE_KEYS, COOKIE_OPTIONS } from '@/lib/auth/session'
@@ -246,6 +246,88 @@ export async function loginStaff(formData: FormData) {
 
 // --- Student Auth ---
 
+export async function initiateEmailVerification(email: string, name?: string) {
+    try {
+        // 1. Check if email is already registered by a student
+        const existingStudent = await prisma.student.findUnique({
+            where: { email }
+        })
+        if (existingStudent) {
+            return { success: false, error: 'Email already registered' }
+        }
+
+        // 2. Generate OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString()
+        const expiresAt = new Date(Date.now() + 15 * 60 * 1000) // 15 mins
+        const { randomUUID } = await import('crypto')
+        const id = randomUUID()
+
+        // 3. Upsert into EmailVerification using raw SQL
+        const updated = await prisma.$executeRaw`
+            UPDATE "email_verifications" 
+            SET "otp" = ${otp}, "expiresAt" = ${expiresAt}, "verified" = false, "updatedAt" = NOW()
+            WHERE "email" = ${email}
+        `
+        
+        if (Number(updated) === 0) {
+            await prisma.$executeRaw`
+                INSERT INTO "email_verifications" ("id", "email", "otp", "expiresAt", "verified", "createdAt", "updatedAt")
+                VALUES (${id}, ${email}, ${otp}, ${expiresAt}, false, NOW(), NOW())
+            `
+        }
+
+        // 4. Send Email
+        const emailResult = await sendEmailVerificationEmail({
+            email,
+            name: name || 'Guest',
+            otp,
+            libraryName: 'BookMyLib'
+        })
+
+        if (!emailResult.success) {
+            return { success: false, error: 'Failed to send verification email' }
+        }
+
+        return { success: true }
+    } catch (error) {
+        console.error('Initiate verification error:', error)
+        return { success: false, error: 'System error' }
+    }
+}
+
+export async function confirmEmailVerification(email: string, otp: string) {
+    try {
+        const records: any[] = await prisma.$queryRaw`
+            SELECT * FROM "email_verifications" WHERE "email" = ${email}
+        `
+        const record = records[0]
+
+        if (!record) {
+            return { success: false, error: 'Verification record not found' }
+        }
+
+        if (record.otp !== otp) {
+            return { success: false, error: 'Invalid OTP' }
+        }
+
+        if (new Date() > new Date(record.expiresAt)) {
+            return { success: false, error: 'OTP expired' }
+        }
+
+        // Mark as verified
+        await prisma.$executeRaw`
+            UPDATE "email_verifications" 
+            SET "verified" = true 
+            WHERE "email" = ${email}
+        `
+
+        return { success: true }
+    } catch (error) {
+        console.error('Confirm verification error:', error)
+        return { success: false, error: 'Verification failed' }
+    }
+}
+
 export async function registerStudent(formData: FormData) {
     const name = formData.get('name') as string
     const email = formData.get('email') as string
@@ -263,6 +345,16 @@ export async function registerStudent(formData: FormData) {
     }
 
     try {
+        // Check verification status
+        const records: any[] = await prisma.$queryRaw`
+            SELECT "verified" FROM "email_verifications" WHERE "email" = ${email}
+        `
+        const isVerified = records[0]?.verified
+
+        if (!isVerified) {
+             return { success: false, error: 'Email not verified. Please verify your email first.' }
+        }
+
         const existingStudent = await prisma.student.findFirst({
             where: {
                 OR: [
@@ -302,13 +394,29 @@ export async function registerStudent(formData: FormData) {
             }
         })
         
+        // Mark student as verified
+        await prisma.$executeRaw`
+            UPDATE "students" SET "emailVerifiedAt" = NOW() WHERE "id" = ${student.id}
+        `
+        
+        // Cleanup verification record
+        await prisma.$executeRaw`
+            DELETE FROM "email_verifications" WHERE "email" = ${email}
+        `
+
+        // Send Welcome Email
+        await sendWelcomeEmail({
+            studentName: name,
+            studentEmail: email,
+            libraryName: 'BookMyLib'
+        })
+
         if (referralCode) {
              const referrer = await prisma.student.findUnique({
                  where: { referralCode }
              })
              
              if (referrer && referrer.libraryId) {
-                 // Create Referral record only if referrer belongs to a library
                  await prisma.referral.create({
                      data: {
                          referrerId: referrer.id,
@@ -318,7 +426,6 @@ export async function registerStudent(formData: FormData) {
                      }
                  })
 
-                 // Associate student with the library immediately
                  await prisma.student.update({
                      where: { id: student.id },
                      data: { libraryId: referrer.libraryId }
@@ -326,30 +433,7 @@ export async function registerStudent(formData: FormData) {
              }
         }
 
-        // Auto-login after registration
-        const cookieStore = await cookies()
-        cookieStore.set(COOKIE_KEYS.STUDENT, student.id, COOKIE_OPTIONS)
-
-        // Send Welcome Email (Non-blocking with timeout)
-        try {
-            // We don't await the email sending to ensure the user isn't blocked
-            // but we do want to catch any synchronous errors
-            const emailPromise = sendWelcomeEmail({
-                studentName: student.name,
-                studentEmail: email,
-                libraryName: 'BookMyLib'
-            })
-            
-            // Allow 10 seconds max for email sending to prevent hanging
-            const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ success: false, error: 'Email timeout' }), 10000))
-            
-            // Race the email sending against the timeout
-            await Promise.race([emailPromise, timeoutPromise])
-        } catch (error) {
-            console.error('Welcome email sending error (non-fatal):', error)
-        }
-
-        return { success: true }
+        return { success: true, studentId: student.id, email }
     } catch (error) {
         console.error('Student registration error:', error)
         return { success: false, error: 'Registration failed' }

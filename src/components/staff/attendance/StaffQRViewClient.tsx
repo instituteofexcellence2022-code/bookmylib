@@ -15,7 +15,7 @@ import {
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { CompactCard } from '@/components/ui/AnimatedCard'
 import { getStaffBranchInfo } from '@/actions/staff/attendance'
-import QRCode from 'qrcode'
+import { generateHighQualityQR, generateBranchQRUrl } from '@/lib/qr'
 import { toast } from 'sonner'
 
 interface BranchInfo {
@@ -40,8 +40,7 @@ export function StaffQRViewClient() {
         try {
             const data = await getStaffBranchInfo()
             if (data) {
-                // @ts-ignore - Ignoring strict type check for now as we updated the action return type
-                setBranch(data)
+                setBranch(data as BranchInfo)
             }
         } catch {
             // ignore
@@ -49,27 +48,19 @@ export function StaffQRViewClient() {
     }, [])
 
     useEffect(() => {
-        fetchBranch()
+        Promise.resolve().then(() => fetchBranch())
     }, [fetchBranch])
 
     useEffect(() => {
-        if (branch?.qrCode) {
-             const baseUrl = window.location.origin
-             const qrPayload = `${baseUrl}/discover/${branch.id}?qr_code=${branch.qrCode}`
+        if (branch?.qrCode && branch.id) {
+             const origin = window.location.origin
+             const qrPayload = generateBranchQRUrl(branch.id, branch.qrCode, origin)
              
-             QRCode.toDataURL(qrPayload, {
-                width: 600,
-                margin: 2,
-                errorCorrectionLevel: 'H',
-                color: {
-                    dark: '#000000',
-                    light: '#ffffff'
-                }
-             })
+             generateHighQualityQR(qrPayload)
                 .then(url => setQrDataUrl(url))
                 .catch(err => console.error(err))
         } else {
-            setQrDataUrl(null)
+            Promise.resolve().then(() => setQrDataUrl(null))
         }
     }, [branch])
 

@@ -7,6 +7,7 @@ import SubscriptionExpiryEmail from '@/emails/SubscriptionExpiryEmail'
 import TicketUpdateEmail from '@/emails/TicketUpdateEmail'
 import ResetPasswordEmail from '@/emails/ResetPasswordEmail'
 import AnnouncementEmail from '@/emails/AnnouncementEmail'
+import EmailVerificationEmail from '@/emails/EmailVerificationEmail'
 import { ReactElement } from 'react'
 import { generateReceiptPDF, ReceiptData } from '@/lib/pdf-generator'
 import { format } from 'date-fns'
@@ -274,6 +275,36 @@ export async function sendPasswordResetEmail(data: {
     return { success: true, data: emailData }
   } catch (error) {
     console.error('Error sending password reset email:', error)
+    return { success: false, error: 'Internal server error' }
+  }
+}
+
+export async function sendEmailVerificationEmail(data: {
+  email: string;
+  name: string;
+  otp: string;
+  libraryName?: string;
+}) {
+  try {
+    if (!process.env.RESEND_API_KEY && !process.env.SMTP_USER) {
+      return { success: false, error: 'Email service not configured' }
+    }
+    const { data: emailData, error } = await sendEmail({
+      to: data.email,
+      subject: 'Verify Your Email - BookMyLib',
+      react: EmailVerificationEmail({
+        userName: data.name,
+        otp: data.otp,
+        libraryName: data.libraryName
+      }) as ReactElement
+    })
+    if (error) {
+      console.error('Failed to send verification email:', error)
+      return { success: false, error: error.message || 'Unknown error' }
+    }
+    return { success: true, data: emailData }
+  } catch (error) {
+    console.error('Error sending email verification:', error)
     return { success: false, error: 'Internal server error' }
   }
 }

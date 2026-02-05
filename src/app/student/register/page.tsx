@@ -1,16 +1,16 @@
 'use client'
 
-import React, { useState, Suspense } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { FormInput } from '@/components/ui/FormInput'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
-import { registerStudent } from '@/actions/auth'
+import { registerStudent, initiateEmailVerification, confirmEmailVerification } from '@/actions/auth'
 import { toast } from 'react-hot-toast'
 import { 
-    UserPlus, User, Lock, Mail, Eye, EyeOff, Phone, ArrowLeft, Gift, Calendar
+    UserPlus, User, Lock, Mail, Eye, EyeOff, Phone, ArrowLeft, Gift, Calendar, CheckCircle
 } from 'lucide-react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 
 function RegisterForm() {
     const router = useRouter()
@@ -18,6 +18,11 @@ function RegisterForm() {
     const referralCode = searchParams.get('ref')
     
     const [loading, setLoading] = useState(false)
+    const [emailVerified, setEmailVerified] = useState(false)
+    const [showEmailOtp, setShowEmailOtp] = useState(false)
+    const [verifyingEmail, setVerifyingEmail] = useState(false)
+    const [otp, setOtp] = useState('')
+    const [resendTimer, setResendTimer] = useState(0)
     const [showPassword, setShowPassword] = useState(false)
     const [authMethod, setAuthMethod] = useState<'password' | 'dob'>('password')
     
@@ -49,11 +54,98 @@ function RegisterForm() {
         'bg-green-500'
     ]
 
+    useEffect(() => {
+        let interval: NodeJS.Timeout
+        if (resendTimer > 0) {
+            interval = setInterval(() => {
+                setResendTimer((prev) => prev - 1)
+            }, 1000)
+        }
+        return () => {
+            if (interval) clearInterval(interval)
+        }
+    }, [resendTimer])
+
+    const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData(prev => ({ ...prev, email: e.target.value }))
+        if (emailVerified) {
+            setEmailVerified(false)
+        }
+    }
+
+    const handleVerifyEmail = async () => {
+        if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
+            toast.error('Please enter a valid email')
+            return
+        }
+        setVerifyingEmail(true)
+        try {
+            const res = await initiateEmailVerification(formData.email, formData.name)
+            if (res.success) {
+                setShowEmailOtp(true)
+                toast.success('OTP sent to your email')
+            } else {
+                toast.error(res.error || 'Failed to send OTP')
+            }
+        } catch (error) {
+            toast.error('Something went wrong')
+        } finally {
+            setVerifyingEmail(false)
+        }
+    }
+
+    const handleConfirmOtp = async () => {
+        if (!otp || otp.length !== 6) {
+            toast.error('Please enter a valid 6-digit OTP')
+            return
+        }
+        setVerifyingEmail(true)
+        try {
+            const res = await confirmEmailVerification(formData.email, otp)
+            if (res.success) {
+                setEmailVerified(true)
+                setShowEmailOtp(false)
+                setOtp('')
+                toast.success('Email verified successfully')
+            } else {
+                toast.error(res.error || 'Invalid OTP')
+            }
+        } catch (error) {
+            toast.error('Verification failed')
+        } finally {
+            setVerifyingEmail(false)
+        }
+    }
+
+    const handleResendOtp = async () => {
+        if (resendTimer > 0) return
+        
+        setVerifyingEmail(true)
+        try {
+            const res = await initiateEmailVerification(formData.email, formData.name)
+            if (res.success) {
+                setResendTimer(60)
+                toast.success('OTP resent successfully')
+            } else {
+                toast.error(res.error || 'Failed to resend OTP')
+            }
+        } catch (error) {
+            toast.error('Something went wrong')
+        } finally {
+            setVerifyingEmail(false)
+        }
+    }
+
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault()
 
         if (!formData.name || !formData.email) {
             toast.error('Please fill in all fields')
+            return
+        }
+
+        if (!emailVerified) {
+            toast.error('Please verify your email address first')
             return
         }
 
@@ -91,12 +183,10 @@ function RegisterForm() {
 
         try {
             const data = new FormData()
-            // Append all fields
             Object.entries(formData).forEach(([key, value]) => {
                 data.append(key, value.toString())
             })
             
-            // Append referral code if exists
             if (referralCode) {
                 data.append('referralCode', referralCode)
             }
@@ -104,8 +194,8 @@ function RegisterForm() {
             const result = await registerStudent(data)
 
             if (result.success) {
-                toast.success('Registration successful! Welcome.')
-                router.push('/student/home')
+                toast.success('Registration successful! Redirecting...')
+                router.push('/student/login')
             } else {
                 toast.error(result.error || 'Registration failed')
             }
@@ -148,7 +238,7 @@ function RegisterForm() {
             >
                 <div className="bg-white dark:bg-gray-900 py-6 px-4 shadow-xl sm:rounded-2xl sm:px-8 border border-gray-100 dark:border-gray-800">
                     {referralCode && (
-                        <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-500">
+                        <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg flex items-center gap-3">
                             <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-full text-blue-600 dark:text-blue-300">
                                 <Gift className="w-4 h-4" />
                             </div>
@@ -181,15 +271,86 @@ function RegisterForm() {
                             />
                         </div>
 
-                        <FormInput
-                            label="Email address"
-                            type="email"
-                            icon={Mail}
-                            required
-                            value={formData.email}
-                            onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                            placeholder="you@example.com"
-                        />
+                        <div className="space-y-2">
+                            <div className="flex gap-2 items-end">
+                                <div className="flex-1">
+                                    <FormInput
+                                        label="Email address"
+                                        type="email"
+                                        icon={Mail}
+                                        required
+                                        value={formData.email}
+                                        onChange={handleEmailChange}
+                                        placeholder="you@example.com"
+                                        className={emailVerified ? "border-green-500 focus:ring-green-500" : ""}
+                                    />
+                                </div>
+                                {!emailVerified && (
+                                    <AnimatedButton
+                                        type="button"
+                                        variant="outline"
+                                        onClick={handleVerifyEmail}
+                                        isLoading={verifyingEmail}
+                                        className="mb-[2px] h-[42px]"
+                                        disabled={!formData.email || verifyingEmail}
+                                    >
+                                        Verify
+                                    </AnimatedButton>
+                                )}
+                                {emailVerified && (
+                                    <div className="mb-[2px] h-[42px] flex items-center px-3 text-green-600 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                        <CheckCircle className="w-5 h-5 mr-2" />
+                                        <span className="text-sm font-medium">Verified</span>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            <AnimatePresence>
+                                {showEmailOtp && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border border-gray-200 dark:border-gray-700"
+                                    >
+                                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                                            Enter the 6-digit code sent to {formData.email}
+                                        </p>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                maxLength={6}
+                                                value={otp}
+                                                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                                                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 dark:bg-gray-800"
+                                                placeholder="000000"
+                                            />
+                                            <AnimatedButton
+                                                type="button"
+                                                variant="primary"
+                                                onClick={handleConfirmOtp}
+                                                isLoading={verifyingEmail}
+                                                disabled={otp.length !== 6}
+                                            >
+                                                Confirm
+                                            </AnimatedButton>
+                                        </div>
+                                        <div className="mt-3 text-right">
+                                            <button
+                                                type="button"
+                                                onClick={handleResendOtp}
+                                                disabled={resendTimer > 0 || verifyingEmail}
+                                                className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                                {resendTimer > 0 
+                                                    ? `Resend code in ${resendTimer}s` 
+                                                    : "Didn't receive code? Resend"}
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
 
                         <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-lg">
                             <button
@@ -239,7 +400,6 @@ function RegisterForm() {
                                         </button>
                                     </div>
                                     
-                                    {/* Password Strength Meter */}
                                     {formData.password && (
                                         <div className="mt-1">
                                             <div className="flex gap-1 h-1">
@@ -298,6 +458,7 @@ function RegisterForm() {
                             className="w-full justify-center bg-blue-600 hover:bg-blue-700 text-white py-2"
                             isLoading={loading}
                             icon="userPlus"
+                            disabled={!emailVerified}
                         >
                             Create Account
                         </AnimatedButton>

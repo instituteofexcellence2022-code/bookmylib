@@ -8,7 +8,7 @@ import { format } from 'date-fns'
 import { toPng } from 'html-to-image'
 import { useRef } from 'react'
 import { jsPDF } from 'jspdf'
-import { cn, formatSeatNumber } from '@/lib/utils'
+import { formatSeatNumber } from '@/lib/utils'
 import Image from 'next/image'
 import { toast } from 'react-hot-toast'
 
@@ -102,9 +102,6 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
 
             const pdfWidth = pdf.internal.pageSize.getWidth()
             const pdfHeight = pdf.internal.pageSize.getHeight()
-            const imgProps = pdf.getImageProperties(imgData)
-            const ratio = imgProps.width / imgProps.height
-            const pdfRatio = pdfWidth / pdfHeight
 
             // Force image to fill the PDF (85.6mm x 54mm) to avoid margins
             // Use 'NONE' compression for maximum quality
@@ -141,9 +138,6 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
 
             const pdfWidth = pdf.internal.pageSize.getWidth()
             const pdfHeight = pdf.internal.pageSize.getHeight()
-            const imgProps = pdf.getImageProperties(imgData)
-            const ratio = imgProps.width / imgProps.height
-            const pdfRatio = pdfWidth / pdfHeight
 
             // Force image to fill the PDF
             pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'NONE')

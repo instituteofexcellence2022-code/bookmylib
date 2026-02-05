@@ -5,7 +5,7 @@ import { QrCode } from 'lucide-react'
 import { FormSelect } from '@/components/ui/FormSelect'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { getOwnerBranches, generateBranchQR } from '@/actions/branch'
-import QRCode from 'qrcode'
+import { generateHighQualityQR, generateBranchQRUrl } from '@/lib/qr'
 import { toast } from 'react-hot-toast'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 
@@ -41,18 +41,10 @@ export function QRGenerationClient() {
         try {
             // Enhanced QR Code Standard: Use Full URL for multi-purpose scanning
             // Matches StaffQRViewClient and BranchDetailsPage logic
-            const baseUrl = window.location.origin
-            const qrPayload = `${baseUrl}/discover/${selectedBranchId}?qr_code=${code}`
+            const origin = window.location.origin
+            const qrPayload = generateBranchQRUrl(selectedBranchId, code, origin)
 
-            const url = await QRCode.toDataURL(qrPayload, { 
-                width: 600, 
-                margin: 2,
-                errorCorrectionLevel: 'H',
-                color: {
-                    dark: '#000000',
-                    light: '#ffffff'
-                }
-            })
+            const url = await generateHighQualityQR(qrPayload)
             setQrDataUrl(url)
         } catch {
             // ignore

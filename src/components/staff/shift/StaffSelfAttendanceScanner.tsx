@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { cn } from '@/lib/utils'
+import { SCANNER_CONFIG } from '@/lib/scanner'
 
 interface StaffSelfAttendanceScannerProps {
     isCheckedIn: boolean
@@ -53,16 +54,7 @@ export function StaffSelfAttendanceScanner({ isCheckedIn }: StaffSelfAttendanceS
                 if (!scannerRef.current.isScanning) {
                      await scannerRef.current.start(
                         backCamera.id, 
-                        {
-                            fps: 20,
-                            qrbox: { width: 250, height: 250 },
-                            aspectRatio: 1.0,
-                            videoConstraints: {
-                                width: { min: 640, ideal: 1280, max: 1920 },
-                                height: { min: 480, ideal: 720, max: 1080 },
-                                facingMode: "environment"
-                            }
-                        },
+                        SCANNER_CONFIG,
                         (decodedText) => {
                             handleScan(decodedText)
                         },

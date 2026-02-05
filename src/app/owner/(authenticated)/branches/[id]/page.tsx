@@ -46,7 +46,7 @@ import { CompactCard } from '@/components/ui/AnimatedCard'
 import { getBranchById, generateBranchQR } from '@/actions/branch'
 import { getBranchLogs, type ActivityLog } from '@/actions/logs'
 import Link from 'next/link'
-import QRCode from 'qrcode'
+import { generateHighQualityQR, generateBranchQRUrl } from '@/lib/qr'
 import { toast } from 'sonner'
 import { formatDistanceToNow, format } from 'date-fns'
 
@@ -191,20 +191,12 @@ const tabs = [
   }, [activeTab, branchId])
 
   useEffect(() => {
-    if (branch?.qrCode) {
+    if (branch?.qrCode && branch.id) {
       // Generate a URL that works for both public access and app scanning
-      const baseUrl = window.location.origin
-      const qrPayload = `${baseUrl}/discover/${branch.id}?qr_code=${branch.qrCode}`
+      const origin = window.location.origin
+      const qrPayload = generateBranchQRUrl(branch.id, branch.qrCode, origin)
       
-      QRCode.toDataURL(qrPayload, {
-        width: 600,
-        margin: 2,
-        errorCorrectionLevel: 'H',
-        color: {
-            dark: '#000000',
-            light: '#ffffff'
-        }
-      })
+      generateHighQualityQR(qrPayload)
         .then(url => setQrDataUrl(url))
         .catch(err => console.error(err))
     }

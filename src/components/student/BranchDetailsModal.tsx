@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { 
   X, Wifi, Clock, Phone, Mail, MapPin, Info, 
-  ExternalLink, Calendar, ShieldCheck, Monitor,
+  ExternalLink, ShieldCheck,
   Lock, Copy, Check, Coffee, Wind, Zap, Car, Camera, BookOpen, Users, Book
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -46,8 +46,8 @@ interface BranchDetailsModalProps {
     seatCount?: number
     description?: string | null
     mapsLink?: string | null
-    wifiDetails?: any
-    operatingHours?: any
+    wifiDetails?: unknown
+    operatingHours?: unknown
     amenities?: string | null
     images?: string | null
   }
@@ -82,7 +82,7 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember, th
           } else {
             toast.error("Active subscription required to view WiFi password")
           }
-        } catch (error) {
+        } catch {
           toast.error("Failed to verify subscription")
         } finally {
           setVerifying(prev => ({ ...prev, [idx]: false }))
@@ -109,7 +109,7 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember, th
 
   if (!mounted || !isOpen) return null
 
-  const parseJson = <T,>(input: any, fallback: T | null = null): T | null => {
+  const parseJson = <T,>(input: unknown, fallback: T | null = null): T | null => {
     if (!input) return fallback
     if (typeof input !== 'string') return input as T
     try {
@@ -120,7 +120,7 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember, th
   }
 
   const wifiDetails = parseJson<WifiDetail[]>(branch.wifiDetails, [])
-  const rawOperatingHours = parseJson<any>(branch.operatingHours)
+  const rawOperatingHours = parseJson<OperatingHours | string>(branch.operatingHours)
   
   // Validate operating hours structure
   let operatingHours: OperatingHours | string | null = null
