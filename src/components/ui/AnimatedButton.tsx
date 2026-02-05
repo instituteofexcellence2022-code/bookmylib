@@ -18,6 +18,8 @@ interface AnimatedButtonProps extends Omit<ButtonProps, 'variant' | 'size'> {
   iconPosition?: 'left' | 'right'
   /** Show loading state */
   isLoading?: boolean
+  /** Text to show when loading */
+  loadingText?: string
   /** Make button full width */
   fullWidth?: boolean
   /** Use compact styling */
@@ -37,6 +39,7 @@ export const AnimatedButton = ({
   icon,
   iconPosition = 'left',
   isLoading = false,
+  loadingText,
   disabled = false,
   children,
   className,
@@ -123,12 +126,16 @@ export const AnimatedButton = ({
             size={size === 'xl' ? 'lg' : size === 'lg' ? 'md' : 'sm'} 
             className={cn(
               {
-                'mr-2': iconPosition === 'left',
-                'ml-2': iconPosition === 'right',
+                'mr-2': iconPosition === 'left' || !!loadingText,
+                'ml-2': iconPosition === 'right' && !loadingText,
               }
             )}
           />
-          <span className="sr-only">Loading...</span>
+          {loadingText ? (
+            <span>{loadingText}</span>
+          ) : (
+            <span className="sr-only">Loading...</span>
+          )}
         </>
       ) : (
         <>

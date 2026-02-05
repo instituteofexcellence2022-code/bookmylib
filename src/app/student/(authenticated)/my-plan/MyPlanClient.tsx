@@ -129,6 +129,7 @@ export default function MyPlanClient() {
 
   const sub = bookingStatus?.lastSubscription
   const isActive = sub?.status === 'active'
+  const isPending = sub?.status === 'pending'
   const isExpired = sub?.status === 'expired' || sub?.status === 'cancelled'
   const daysRemaining = sub ? getDaysRemaining(sub.endDate) : 0
   const isUrgent = isActive && daysRemaining <= 7 && daysRemaining > 0
@@ -187,7 +188,9 @@ export default function MyPlanClient() {
       ) : (
         <div className="space-y-6">
           {/* Active Plan Card - Compact Version */}
-          <motion.div variants={item} className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-700 text-white shadow-lg shadow-purple-900/20">
+          <motion.div variants={item} className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${
+            isPending ? 'from-amber-500 via-orange-500 to-amber-600' : 'from-purple-600 via-indigo-600 to-blue-700'
+          } text-white shadow-lg shadow-purple-900/20`}>
             {/* Background Decorations */}
             <div className="absolute top-0 right-0 -mt-20 -mr-20 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
             <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-64 h-64 bg-black/10 rounded-full blur-3xl"></div>
@@ -199,8 +202,10 @@ export default function MyPlanClient() {
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-2xl font-bold text-white tracking-tight">{sub?.plan?.name}</h2>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/20 border border-white/20 backdrop-blur-md shadow-sm
-                      ${isActive ? 'text-green-300 border-green-300/30' : 'text-red-300 border-red-300/30'}`}>
-                      {sub?.status}
+                      ${isActive ? 'text-green-300 border-green-300/30' : 
+                        isPending ? 'text-amber-200 border-amber-200/30' : 
+                        'text-red-300 border-red-300/30'}`}>
+                      {isPending ? 'Approval Pending' : sub?.status}
                     </span>
                     {isActive && (
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center bg-white/10 border border-white/10 backdrop-blur-md

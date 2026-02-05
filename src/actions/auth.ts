@@ -259,21 +259,29 @@ export async function initiateEmailVerification(email: string, name?: string) {
         // 2. Generate OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString()
         const expiresAt = new Date(Date.now() + 15 * 60 * 1000) // 15 mins
-        const { randomUUID } = await import('crypto')
-        const id = randomUUID()
 
-        // 3. Upsert into EmailVerification using raw SQL
-        const updated = await prisma.$executeRaw`
-            UPDATE "email_verifications" 
-            SET "otp" = ${otp}, "expiresAt" = ${expiresAt}, "verified" = false, "updatedAt" = NOW()
-            WHERE "email" = ${email}
-        `
-        
-        if (Number(updated) === 0) {
-            await prisma.$executeRaw`
-                INSERT INTO "email_verifications" ("id", "email", "otp", "expiresAt", "verified", "createdAt", "updatedAt")
-                VALUES (${id}, ${email}, ${otp}, ${expiresAt}, false, NOW(), NOW())
-            `
+        // 3. Upsert into EmailVerification
+        const existingVerification = await prisma.emailVerification.findFirst({
+            where: { email }
+        })
+
+        if (existingVerification) {
+            await prisma.emailVerification.update({
+                where: { id: existingVerification.id },
+                data: {
+                    otp,
+                    expiresAt,
+                    verifiedAt: null
+                }
+            })
+        } else {
+            await prisma.emailVerification.create({
+                data: {
+                    email,
+                    otp,
+                    expiresAt
+                }
+            })
         }
 
         // 4. Send Email
@@ -295,12 +303,60 @@ export async function initiateEmailVerification(email: string, name?: string) {
     }
 }
 
+export async function initiatePublicBookingVerification(email: string, name?: string) {
+    try {
+        // 1. Generate OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString()
+        const expiresAt = new Date(Date.now() + 15 * 60 * 1000) // 15 mins
+
+        // 2. Upsert into EmailVerification
+        const existingVerification = await prisma.emailVerification.findFirst({
+            where: { email }
+        })
+
+        if (existingVerification) {
+            await prisma.emailVerification.update({
+                where: { id: existingVerification.id },
+                data: {
+                    otp,
+                    expiresAt,
+                    verifiedAt: null
+                }
+            })
+        } else {
+            await prisma.emailVerification.create({
+                data: {
+                    email,
+                    otp,
+                    expiresAt
+                }
+            })
+        }
+
+        // 3. Send Email
+        const emailResult = await sendEmailVerificationEmail({
+            email,
+            name: name || 'Guest',
+            otp,
+            libraryName: 'BookMyLib'
+        })
+
+        if (!emailResult.success) {
+            return { success: false, error: 'Failed to send verification email' }
+        }
+
+        return { success: true }
+    } catch (error) {
+        console.error('Initiate public verification error:', error)
+        return { success: false, error: 'System error' }
+    }
+}
+
 export async function confirmEmailVerification(email: string, otp: string) {
     try {
-        const records: any[] = await prisma.$queryRaw`
-            SELECT * FROM "email_verifications" WHERE "email" = ${email}
-        `
-        const record = records[0]
+        const record = await prisma.emailVerification.findFirst({
+            where: { email }
+        })
 
         if (!record) {
             return { success: false, error: 'Verification record not found' }
@@ -310,16 +366,15 @@ export async function confirmEmailVerification(email: string, otp: string) {
             return { success: false, error: 'Invalid OTP' }
         }
 
-        if (new Date() > new Date(record.expiresAt)) {
+        if (new Date() > record.expiresAt) {
             return { success: false, error: 'OTP expired' }
         }
 
         // Mark as verified
-        await prisma.$executeRaw`
-            UPDATE "email_verifications" 
-            SET "verified" = true 
-            WHERE "email" = ${email}
-        `
+        await prisma.emailVerification.update({
+            where: { id: record.id },
+            data: { verifiedAt: new Date() }
+        })
 
         return { success: true }
     } catch (error) {
@@ -346,12 +401,11 @@ export async function registerStudent(formData: FormData) {
 
     try {
         // Check verification status
-        const records: any[] = await prisma.$queryRaw`
-            SELECT "verified" FROM "email_verifications" WHERE "email" = ${email}
-        `
-        const isVerified = records[0]?.verified
+        const verificationRecord = await prisma.emailVerification.findFirst({
+            where: { email }
+        })
 
-        if (!isVerified) {
+        if (!verificationRecord || !verificationRecord.verifiedAt) {
              return { success: false, error: 'Email not verified. Please verify your email first.' }
         }
 
@@ -395,14 +449,15 @@ export async function registerStudent(formData: FormData) {
         })
         
         // Mark student as verified
-        await prisma.$executeRaw`
-            UPDATE "students" SET "emailVerifiedAt" = NOW() WHERE "id" = ${student.id}
-        `
+        await prisma.student.update({
+            where: { id: student.id },
+            data: { emailVerifiedAt: new Date() }
+        })
         
         // Cleanup verification record
-        await prisma.$executeRaw`
-            DELETE FROM "email_verifications" WHERE "email" = ${email}
-        `
+        await prisma.emailVerification.deleteMany({
+            where: { email }
+        })
 
         // Send Welcome Email
         await sendWelcomeEmail({

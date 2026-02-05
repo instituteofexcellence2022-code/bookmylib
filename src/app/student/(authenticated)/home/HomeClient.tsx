@@ -30,6 +30,7 @@ export default function HomeClient({ student, stats, todayAttendance, quotes, li
   const router = useRouter()
   const activeSubscription = student.subscriptions[0]
   const isCheckedIn = !!todayAttendance && !todayAttendance.checkOut
+  const isPending = activeSubscription?.status === 'pending'
   
   // Use pre-calculated daysLeft from server to avoid hydration mismatch
   const daysLeft = stats.daysLeft || 0
@@ -60,18 +61,22 @@ export default function HomeClient({ student, stats, todayAttendance, quotes, li
       <QuoteCard quotes={quotes} initialLikedIds={likedQuoteIds} />
 
       {/* Main Action Card (Check-in/Out) */}
-      <AnimatedCard variant="gradient" className={`bg-gradient-to-br ${isCheckedIn ? 'from-green-600 to-emerald-600' : 'from-blue-600 to-indigo-600'} text-white relative overflow-hidden border-none shadow-xl`}>
+      <AnimatedCard variant="gradient" className={`bg-gradient-to-br ${
+        isCheckedIn ? 'from-green-600 to-emerald-600' : 
+        isPending ? 'from-amber-500 to-orange-600' :
+        'from-blue-600 to-indigo-600'
+      } text-white relative overflow-hidden border-none shadow-xl`}>
         <div className="absolute top-0 right-0 p-4 opacity-10">
           <QrCode size={120} />
         </div>
         <div className="p-6 relative z-10">
           <div className="flex items-center gap-2 mb-4">
-            <div className={`w-2 h-2 ${isCheckedIn ? 'bg-white' : 'bg-red-400'} rounded-full animate-pulse`} />
+            <div className={`w-2 h-2 ${isCheckedIn ? 'bg-white' : isPending ? 'bg-amber-200' : 'bg-red-400'} rounded-full animate-pulse`} />
             <span className="text-white/90 text-sm font-medium">
               {isCheckedIn 
                 ? `Checked In • ${todayAttendance.branch.name}` 
                 : activeSubscription 
-                  ? (activeSubscription.status === 'pending' ? `Pending • ${activeSubscription.branch.name}` : `Not Checked In • ${activeSubscription.branch.name}`)
+                  ? (isPending ? `Pending Approval • ${activeSubscription.branch.name}` : `Not Checked In • ${activeSubscription.branch.name}`)
                   : 'No Active Plan'}
             </span>
           </div>
@@ -87,18 +92,22 @@ export default function HomeClient({ student, stats, todayAttendance, quotes, li
             <AnimatedButton 
               variant="secondary" 
               size="sm" 
-              className={`flex-1 bg-white ${isCheckedIn ? 'text-green-600 hover:bg-green-50' : 'text-blue-600 hover:bg-blue-50'} shadow-lg border-transparent`}
-              onClick={() => router.push('/student/attendance/scan')}
-              disabled={!activeSubscription}
+              className={`flex-1 bg-white ${
+                isCheckedIn ? 'text-green-600 hover:bg-green-50' : 
+                isPending ? 'text-amber-600 hover:bg-amber-50 cursor-not-allowed opacity-80' :
+                'text-blue-600 hover:bg-blue-50'
+              } shadow-lg border-transparent`}
+              onClick={() => !isPending && router.push('/student/attendance/scan')}
+              disabled={!activeSubscription || isPending}
             >
-              {isCheckedIn ? 'Check Out' : 'Check In'}
+              {isCheckedIn ? 'Check Out' : isPending ? 'Approval Pending' : 'Check In'}
             </AnimatedButton>
             <AnimatedButton 
               variant="ghost" 
               size="sm" 
               className="bg-white/20 hover:bg-white/30 text-white dark:backdrop-blur-md border-transparent px-4"
-              onClick={() => router.push('/student/attendance/scan')}
-              disabled={!activeSubscription}
+              onClick={() => !isPending && router.push('/student/attendance/scan')}
+              disabled={!activeSubscription || isPending}
             >
               <QrCode size={20} />
             </AnimatedButton>
@@ -125,15 +134,20 @@ export default function HomeClient({ student, stats, todayAttendance, quotes, li
 
         <CompactCard>
           <div className="flex flex-col gap-3">
-            <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-              <Clock size={16} />
+            <div className={`w-8 h-8 rounded-full ${isPending ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'} flex items-center justify-center`}>
+              {isPending ? <Clock size={16} /> : <Clock size={16} />}
             </div>
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Plan Expiry</p>
-              <p className="text-lg font-bold text-gray-900 dark:text-white">{daysLeft} Days</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Plan Status</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-white">
+                {isPending ? 'Under Review' : `${daysLeft} Days Left`}
+              </p>
             </div>
-            <div className={`text-xs font-medium ${daysLeft < 7 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}>
-              {daysLeft < 7 ? 'Renew Now' : 'Active'}
+            <div className={`text-xs font-medium ${
+              isPending ? 'text-amber-600 dark:text-amber-400' :
+              daysLeft < 7 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
+            }`}>
+              {isPending ? 'Waiting for staff' : daysLeft < 7 ? 'Renew Now' : 'Active'}
             </div>
           </div>
         </CompactCard>

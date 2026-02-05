@@ -799,6 +799,18 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+model EmailVerification {
+  id        String   @id @default(uuid())
+  email     String
+  otp       String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  verifiedAt DateTime?
+
+  @@map("email_verifications")
+  @@index([email])
+}
+
 model LikedQuote {
   id        String   @id @default(uuid())
   studentId String
@@ -809,16 +821,4 @@ model LikedQuote {
 
   @@unique([studentId, quoteId])
   @@map("liked_quotes")
-}
-
-model EmailVerification {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  otp       String
-  expiresAt DateTime
-  verified  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("email_verifications")
 }

@@ -658,7 +658,11 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
                     </div>
 
                     {/* Subscription Status */}
-                    <AnimatedCard variant="gradient" className="bg-gradient-to-br from-indigo-500 to-blue-600 text-white border-none">
+                    <AnimatedCard variant="gradient" className={`bg-gradient-to-br ${
+                        student.subscriptions && student.subscriptions.length > 0 && student.subscriptions[0].status === 'pending'
+                            ? 'from-amber-500 to-orange-600'
+                            : 'from-indigo-500 to-blue-600'
+                    } text-white border-none`}>
                         <h3 className="text-indigo-100 text-sm font-medium mb-1">Current Plan</h3>
                         
                         {student.subscriptions && student.subscriptions.length > 0 ? (
@@ -667,12 +671,19 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
                                     {student.subscriptions[0].plan.name}
                                 </div>
                                 <div className="text-indigo-100 text-sm mb-4">
-                                    Ends {mounted ? new Date(student.subscriptions[0].endDate).toLocaleDateString() : ''}
+                                    {student.subscriptions[0].status === 'pending' 
+                                        ? 'Pending Approval' 
+                                        : `Ends ${mounted ? new Date(student.subscriptions[0].endDate).toLocaleDateString() : ''}`
+                                    }
                                 </div>
                                 <div className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
                                     <div className="flex justify-between items-center text-sm mb-1">
                                         <span>Status</span>
-                                        <span className="font-bold text-green-300 uppercase text-xs tracking-wider">Active</span>
+                                        <span className={`font-bold uppercase text-xs tracking-wider ${
+                                            student.subscriptions[0].status === 'pending' ? 'text-amber-200' : 'text-green-300'
+                                        }`}>
+                                            {student.subscriptions[0].status}
+                                        </span>
                                     </div>
                                     <div className="flex justify-between items-center text-sm">
                                         <span>Branch</span>

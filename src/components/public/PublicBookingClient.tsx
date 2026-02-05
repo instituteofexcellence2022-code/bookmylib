@@ -14,6 +14,7 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
 import { cn, formatSeatNumber } from '@/lib/utils'
 import { checkPublicStudentByEmail } from '@/actions/student'
+import { initiatePublicBookingVerification, confirmEmailVerification } from '@/actions/auth'
 import { Branch, Seat, Plan, AdditionalFee } from '@prisma/client'
 import PublicBranchHeader, { PublicOffer } from './PublicBranchHeader'
 import PublicBookingPayment from './PublicBookingPayment'
@@ -32,13 +33,32 @@ interface PublicBookingClientProps {
     offers?: PublicOffer[]
 }
 
-type BookingStep = 'selection' | 'details' | 'payment'
+type BookingStep = 'selection' | 'details' | 'verification' | 'payment' | 'confirmation'
 
 export function PublicBookingClient({ branch, images = [], amenities = [], offers = [] }: PublicBookingClientProps) {
     const router = useRouter()
     const [step, setStep] = useState<BookingStep>('selection')
     const [showDetails, setShowDetails] = useState(false)
+    const [bookingResult, setBookingResult] = useState<{
+        status: 'completed' | 'pending_verification'
+        paymentId?: string
+        studentId?: string
+    } | null>(null)
     
+    // Verification State
+    const [verificationOtp, setVerificationOtp] = useState('')
+    const [isVerifying, setIsVerifying] = useState(false)
+    const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null)
+    const [resendCooldown, setResendCooldown] = useState(0)
+
+    // Cooldown timer
+    React.useEffect(() => {
+        if (resendCooldown > 0) {
+            const timer = setTimeout(() => setResendCooldown(prev => prev - 1), 1000)
+            return () => clearTimeout(timer)
+        }
+    }, [resendCooldown])
+
     // Selection State
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
     const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null)
@@ -107,14 +127,14 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
 
     // Sort seats naturally
     const sortedSeats = React.useMemo(() => {
-        return [...(branch.seats || [])].sort((a: any, b: any) => {
+        return [...(branch.seats || [])].sort((a, b) => {
             return a.number.localeCompare(b.number, undefined, { numeric: true, sensitivity: 'base' })
         })
     }, [branch.seats])
 
     // Group seats by section
     const seatsBySection = React.useMemo(() => {
-        return sortedSeats.reduce((acc: any, seat: any) => {
+        return sortedSeats.reduce<Record<string, typeof sortedSeats>>((acc, seat) => {
             const section = seat.section || 'General'
             if (!acc[section]) acc[section] = []
             acc[section].push(seat)
@@ -165,20 +185,83 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
         }
     }
 
-    const handleDetailsSubmit = (e: React.FormEvent) => {
+    const handleDetailsSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!studentDetails.name || !studentDetails.email || !studentDetails.phone || !studentDetails.dob) {
             toast.error('Please fill in all details')
             return
         }
-        setStep('payment')
+        
+        // Skip verification if email is already verified
+        if (verifiedEmail === studentDetails.email) {
+            setStep('payment')
+            return
+        }
+        
+        setIsVerifying(true)
+        try {
+            const result = await initiatePublicBookingVerification(studentDetails.email, studentDetails.name)
+            if (result.success) {
+                toast.success('Verification code sent to your email')
+                setStep('verification')
+                setResendCooldown(30) // 30 seconds cooldown
+            } else {
+                toast.error(result.error || 'Failed to send verification code')
+            }
+        } catch (error) {
+            toast.error('Something went wrong')
+        } finally {
+            setIsVerifying(false)
+        }
     }
 
-    const handlePaymentSuccess = (paymentId?: string, status?: 'completed' | 'pending_verification', studentId?: string) => {
-        toast.success('Booking Successful!')
-        // Redirect to a success page or show success state
-        // For now, redirect to discover page with success query
-        router.push(`/discover?booking=success&branch=${branch.name}`)
+    const handleResendOtp = async () => {
+        if (resendCooldown > 0) return
+
+        setIsVerifying(true)
+        try {
+            const result = await initiatePublicBookingVerification(studentDetails.email, studentDetails.name)
+            if (result.success) {
+                toast.success('Verification code resent')
+                setResendCooldown(30)
+            } else {
+                toast.error(result.error || 'Failed to resend code')
+            }
+        } catch (error) {
+            toast.error('Failed to resend code')
+        } finally {
+            setIsVerifying(false)
+        }
+    }
+
+    const handleVerifyOtp = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!verificationOtp || verificationOtp.length !== 6) {
+            toast.error('Please enter a valid 6-digit code')
+            return
+        }
+
+        setIsVerifying(true)
+        try {
+            const result = await confirmEmailVerification(studentDetails.email, verificationOtp)
+            if (result.success) {
+                toast.success('Email verified successfully')
+                setVerifiedEmail(studentDetails.email)
+                setStep('payment')
+            } else {
+                toast.error(result.error || 'Invalid verification code')
+            }
+        } catch (error) {
+            toast.error('Verification failed')
+        } finally {
+            setIsVerifying(false)
+        }
+    }
+
+    const handlePaymentSuccess = (paymentId?: string, status: 'completed' | 'pending_verification' = 'completed', studentId?: string) => {
+        setBookingResult({ status, paymentId, studentId })
+        setStep('confirmation')
+        window.scrollTo({ top: 0, behavior: 'smooth' })
     }
 
     // Calculate Total for display
@@ -189,46 +272,51 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
 
     return (
         <div className="max-w-4xl mx-auto pb-12">
-            <div className="mb-2">
-                <PublicBranchHeader 
-                    branch={branch} 
-                    images={images} 
-                    amenities={amenities} 
-                    showDetailsLink={true}
-                    offers={offers}
-                />
-            </div>
+            {step === 'selection' && (
+                <div className="mb-2">
+                    <PublicBranchHeader 
+                        branch={branch} 
+                        images={images} 
+                        amenities={amenities} 
+                        showDetailsLink={true}
+                        offers={offers}
+                    />
+                </div>
+            )}
 
             {/* Progress Steps */}
-            <div className="flex items-center justify-center mb-2">
-                <div className="flex items-center gap-2">
-                    {[
-                        { id: 'selection', label: '1. Select Plan' },
-                        { id: 'details', label: '2. Your Details' },
-                        { id: 'payment', label: '3. Payment' }
-                    ].map((s, idx) => (
-                        <React.Fragment key={s.id}>
-                            <div className={cn(
-                                "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
-                                step === s.id 
-                                    ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 ring-1 ring-purple-500/20" 
-                                    : idx < ['selection', 'details', 'payment'].indexOf(step)
-                                        ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/10"
-                                        : "text-gray-400 dark:text-gray-600"
-                            )}>
-                                {idx < ['selection', 'details', 'payment'].indexOf(step) ? (
-                                    <Check className="w-4 h-4" />
-                                ) : (
-                                    <span>{s.label}</span>
+            {step !== 'confirmation' && (
+                <div className="flex items-center justify-center mb-2">
+                    <div className="flex items-center gap-2">
+                        {[
+                            { id: 'selection', label: '1. Select Plan' },
+                            { id: 'details', label: '2. Your Details' },
+                            { id: 'verification', label: '3. Verify' },
+                            { id: 'payment', label: '4. Payment' }
+                        ].map((s, idx) => (
+                            <React.Fragment key={s.id}>
+                                <div className={cn(
+                                    "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                                    step === s.id 
+                                        ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 ring-1 ring-purple-500/20" 
+                                        : idx < ['selection', 'details', 'verification', 'payment'].indexOf(step)
+                                            ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/10"
+                                            : "text-gray-400 dark:text-gray-600"
+                                )}>
+                                    {idx < ['selection', 'details', 'verification', 'payment'].indexOf(step) ? (
+                                        <Check className="w-4 h-4" />
+                                    ) : (
+                                        <span>{s.label}</span>
+                                    )}
+                                </div>
+                                {idx < 3 && (
+                                    <div className="w-8 h-px bg-gray-200 dark:bg-gray-700" />
                                 )}
-                            </div>
-                            {idx < 2 && (
-                                <div className="w-8 h-px bg-gray-200 dark:bg-gray-700" />
-                            )}
-                        </React.Fragment>
-                    ))}
+                            </React.Fragment>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
 
             <AnimatePresence mode="wait">
                 {step === 'selection' && (
@@ -510,8 +598,8 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                             <div className="p-4 md:p-6 bg-white dark:bg-gray-800 min-h-[300px]">
                                 {viewMode === 'pagination' ? (
                                     <div className="space-y-8">
-                                        {Object.entries(seatsBySection).map(([section, seats]: [string, any]) => {
-                                            const sectionSeats = seats as any[]
+                                        {Object.entries(seatsBySection).map(([section, seats]) => {
+                                            const sectionSeats = seats
                                             const currentPage = pageBySection[section] || 0
                                             const totalPages = Math.ceil(sectionSeats.length / (columns * 4)) // 4 rows
                                             
@@ -561,7 +649,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                         className="grid gap-2 md:gap-3"
                                                         style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
                                                     >
-                                                        {currentSeats.map((seat: any) => (
+                                                        {currentSeats.map((seat) => (
                                                             <motion.button
                                                                 key={seat.id}
                                                                 whileHover={!seat.isOccupied ? { scale: 1.05 } : {}}
@@ -606,18 +694,18 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                     </div>
                                 ) : (
                                     <div className="space-y-8 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                                        {Object.entries(seatsBySection).map(([section, seats]: [string, any]) => (
+                                        {Object.entries(seatsBySection).map(([section, seats]) => (
                                             <div key={section} className="space-y-3">
                                                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2 sticky top-0 bg-white dark:bg-gray-800 z-10 py-2">
                                                     <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
                                                     {section} Section
-                                                    <span className="text-xs font-normal text-gray-400">({seats.filter((s: any) => !s.isOccupied).length} available)</span>
+                                                    <span className="text-xs font-normal text-gray-400">({seats.filter(s => !s.isOccupied).length} available)</span>
                                                 </h3>
                                                 <div 
                                                     className="grid gap-2 md:gap-3"
                                                     style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
                                                 >
-                                                    {(seats as any[]).map((seat: any) => (
+                                                    {seats.map((seat) => (
                                                         <motion.button
                                                             key={seat.id}
                                                             whileHover={!seat.isOccupied ? { scale: 1.05 } : {}}
@@ -703,54 +791,17 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
-                        className="grid md:grid-cols-3 gap-8"
+                        className="max-w-2xl mx-auto"
                     >
-                        {/* Summary Side Panel */}
+                        {/* Summary Side Panel - Hidden as per requirement */}
+                        {/* 
                         <div className="md:col-span-1 space-y-4 h-fit">
-                            <div className="bg-purple-50 dark:bg-purple-900/10 rounded-2xl p-6 border border-purple-100 dark:border-purple-800/30 sticky top-24">
-                                <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                                    <Info className="w-4 h-4 text-purple-500" />
-                                    Booking Summary
-                                </h3>
-                                
-                                <div className="space-y-4 text-sm">
-                                    <div>
-                                        <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">Selected Plan</p>
-                                        <div className="font-semibold text-gray-900 dark:text-white flex justify-between items-center">
-                                            <span>{selectedPlan?.name}</span>
-                                            <span>₹{selectedPlan?.price}</span>
-                                        </div>
-                                        <p className="text-xs text-gray-500">{selectedPlan?.duration} days</p>
-                                    </div>
-
-                                    {selectedSeat && (
-                                        <div className="pt-3 border-t border-purple-100 dark:border-purple-800/30">
-                                            <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">Seat</p>
-                                            <p className="font-semibold text-emerald-600 dark:text-emerald-400">
-                                                {formatSeatNumber(selectedSeat.number)}
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    <div className="pt-3 border-t border-purple-100 dark:border-purple-800/30">
-                                        <p className="text-gray-500 dark:text-gray-400 text-xs mb-1">Start Date</p>
-                                        <p className="font-semibold text-gray-900 dark:text-white">
-                                            {new Date(bookingDate).toLocaleDateString('en-IN', { 
-                                                day: 'numeric', month: 'short', year: 'numeric' 
-                                            })}
-                                        </p>
-                                    </div>
-
-                                    <div className="pt-3 border-t border-purple-100 dark:border-purple-800/30 flex justify-between items-center">
-                                        <span className="font-bold text-gray-900 dark:text-white">Total</span>
-                                        <span className="font-bold text-xl text-purple-600 dark:text-purple-400">₹{totalAmount}</span>
-                                    </div>
-                                </div>
-                            </div>
+                             ...
                         </div>
+                        */}
 
                         {/* Details Form */}
-                        <div className="md:col-span-2">
+                        <div className="w-full">
                             <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 border border-gray-100 dark:border-gray-700 shadow-sm">
                                 <div className="mb-6">
                                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Enter Your Details</h2>
@@ -840,6 +891,77 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                     </motion.div>
                 )}
 
+                {step === 'verification' && (
+                    <motion.div
+                        key="verification"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        className="max-w-md mx-auto"
+                    >
+                        <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 border border-gray-100 dark:border-gray-700 shadow-sm text-center">
+                            <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <Mail className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                            </div>
+                            
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Verify Email</h2>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
+                                We've sent a 6-digit verification code to <span className="font-medium text-gray-900 dark:text-white">{studentDetails.email}</span>
+                            </p>
+
+                            <form onSubmit={handleVerifyOtp} className="space-y-6">
+                                <div>
+                                    <input
+                                        type="text"
+                                        maxLength={6}
+                                        value={verificationOtp}
+                                        onChange={(e) => setVerificationOtp(e.target.value.replace(/\D/g, ''))}
+                                        placeholder="000000"
+                                        className="w-full text-center text-3xl font-bold tracking-[0.5em] py-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 transition-all outline-none"
+                                        autoFocus
+                                    />
+                                    <p className="text-xs text-gray-400 mt-2">Enter the 6-digit code</p>
+                                </div>
+
+                                <div className="flex flex-col gap-3">
+                                    <AnimatedButton
+                                        type="submit"
+                                        className="w-full bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-500/20"
+                                        isLoading={isVerifying}
+                                        loadingText="Verifying..."
+                                    >
+                                        Verify & Proceed
+                                    </AnimatedButton>
+                                    
+                                    <div className="flex items-center justify-between text-sm">
+                                        <button
+                                            type="button"
+                                            onClick={handleResendOtp}
+                                            disabled={resendCooldown > 0 || isVerifying}
+                                            className={cn(
+                                                "font-medium transition-colors",
+                                                resendCooldown > 0 || isVerifying
+                                                    ? "text-gray-400 cursor-not-allowed"
+                                                    : "text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
+                                            )}
+                                        >
+                                            {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend code"}
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => setStep('details')}
+                                            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                        >
+                                            Change Email
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </motion.div>
+                )}
+
                 {step === 'payment' && selectedPlan && (
                     <motion.div
                         key="payment"
@@ -852,12 +974,80 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                             seat={selectedSeat}
                             fees={branch.fees.filter(f => selectedFees.includes(f.id))}
                             branchId={branch.id}
+                            branchName={branch.name}
+                            startDate={bookingDate}
                             upiId={branch.upiId || undefined}
                             payeeName={branch.payeeName || undefined}
                             studentDetails={studentDetails}
                             onSuccess={handlePaymentSuccess}
                             onBack={() => setStep('details')}
                         />
+                    </motion.div>
+                )}
+
+                {step === 'confirmation' && bookingResult && (
+                    <motion.div
+                        key="confirmation"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="max-w-md mx-auto text-center pt-8"
+                    >
+                        <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 border border-gray-100 dark:border-gray-700 shadow-xl relative overflow-hidden">
+                            {/* Background Pattern */}
+                            <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] bg-[radial-gradient(#9333ea_1px,transparent_1px)] [background-size:16px_16px]" />
+                            
+                            <div className="relative">
+                                <div className={cn(
+                                    "w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-6 shadow-lg",
+                                    bookingResult.status === 'completed'
+                                        ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
+                                        : "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
+                                )}>
+                                    {bookingResult.status === 'completed' ? (
+                                        <Check className="w-10 h-10" strokeWidth={3} />
+                                    ) : (
+                                        <Clock className="w-10 h-10" strokeWidth={3} />
+                                    )}
+                                </div>
+
+                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                                    {bookingResult.status === 'completed' 
+                                        ? "Booking Confirmed!" 
+                                        : "Booking Under Review"
+                                    }
+                                </h2>
+
+                                <div className="space-y-4 mb-8">
+                                    <p className="text-gray-600 dark:text-gray-300">
+                                        {bookingResult.status === 'completed'
+                                            ? "Your seat has been successfully booked. You can now access the library."
+                                            : "Your payment is waiting for approval by the library front desk."
+                                        }
+                                    </p>
+                                    
+                                    {bookingResult.status === 'pending_verification' && (
+                                        <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 text-sm text-amber-800 dark:text-amber-300 border border-amber-100 dark:border-amber-800/30">
+                                            <p className="font-medium mb-1">Next Steps:</p>
+                                            <p>Please contact the library staff/owner or wait for confirmation.</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex flex-col gap-3">
+                                    <AnimatedButton
+                                        onClick={() => router.push(`/discover?branch=${branch.name}`)}
+                                        className={cn(
+                                            "w-full justify-center text-white shadow-lg",
+                                            bookingResult.status === 'completed'
+                                                ? "bg-green-600 hover:bg-green-700 shadow-green-500/20"
+                                                : "bg-amber-600 hover:bg-amber-700 shadow-amber-500/20"
+                                        )}
+                                    >
+                                        Back to Library
+                                    </AnimatedButton>
+                                </div>
+                            </div>
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>
