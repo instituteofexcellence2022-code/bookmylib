@@ -2,8 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
-import { COOKIE_KEYS } from '@/lib/auth/session'
+import { getAuthenticatedStudent } from '@/lib/auth/student'
 import { sendReceiptEmail } from '@/actions/email'
 import { formatSeatNumber } from '@/lib/utils'
 import { ReceiptData } from '@/lib/pdf-generator'
@@ -418,16 +417,15 @@ export async function checkStudentSubscription(studentId: string, branchId: stri
 
 export async function verifyBranchSubscription(branchId: string) {
     try {
-        const cookieStore = await cookies()
-        const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+        const student = await getAuthenticatedStudent()
 
-        if (!studentId) {
+        if (!student) {
             return { success: false, hasActiveSubscription: false, error: 'Not authenticated' }
         }
 
         const subscription = await prisma.studentSubscription.findFirst({
             where: {
-                studentId,
+                studentId: student.id,
                 branchId,
                 status: 'active',
                 endDate: { gt: new Date() }

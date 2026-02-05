@@ -16,25 +16,7 @@ export type StudentFilter = {
     limit?: number
 }
 
-// Helper to get authenticated staff
-import { COOKIE_KEYS } from '@/lib/auth/session'
-
-async function getAuthenticatedStaff() {
-  const cookieStore = await cookies()
-  const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
-
-    if (!staffId) return null
-
-    const staff = await prisma.staff.findUnique({
-        where: { id: staffId },
-        include: { 
-            library: true,
-            branch: true 
-        }
-    })
-
-    return staff
-}
+import { getAuthenticatedStaff } from '@/lib/auth/staff'
 
 export async function getStaffStudents(filters: StudentFilter = {}) {
     const staff = await getAuthenticatedStaff()
@@ -229,6 +211,10 @@ export async function getStudentDetailsForScanner(studentId: string) {
         })
 
         if (!student) return { success: false, error: 'Student not found' }
+
+        if (student.libraryId !== staff.libraryId) {
+            return { success: false, error: 'Student not found' }
+        }
 
         return {
             success: true,

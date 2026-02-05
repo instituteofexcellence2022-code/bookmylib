@@ -1,22 +1,20 @@
 import React from 'react'
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import StudentLayoutClient from './StudentLayoutClient'
 import { getStudentAnnouncements } from '@/actions/announcement'
-import { COOKIE_KEYS } from '@/lib/auth/session'
+import { getAuthenticatedStudent } from '@/lib/auth/student'
 
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
-  const cookieStore = await cookies()
-  const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+  const studentAuth = await getAuthenticatedStudent()
 
-  if (!studentId) {
+  if (!studentAuth) {
     redirect('/student/login')
   }
 
   const [student, announcements] = await Promise.all([
     prisma.student.findUnique({
-      where: { id: studentId },
+      where: { id: studentAuth.id },
       select: { name: true, image: true }
     }),
     getStudentAnnouncements()

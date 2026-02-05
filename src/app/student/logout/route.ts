@@ -1,12 +1,8 @@
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { COOKIE_KEYS } from '@/lib/auth/session'
+import { deleteSession } from '@/lib/auth/session'
 
 export async function GET() {
-  const cookieStore = await cookies()
-  
-  // Delete the session cookie
-  cookieStore.delete(COOKIE_KEYS.STUDENT)
+  await deleteSession('student')
   
   // Redirect to login page
   redirect('/student/login')

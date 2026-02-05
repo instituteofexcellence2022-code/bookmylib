@@ -1,13 +1,16 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getOwnerProfile } from './owner'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
+import { getAuthenticatedOwner } from '@/lib/auth/owner'
+import { getOwnerProfile } from '@/actions/owner'
+import { getStaffProfile } from '@/actions/staff'
+import { getAuthenticatedStudent } from '@/lib/auth/student'
+import { getAuthenticatedStaff } from '@/lib/auth/staff'
 import { sendAnnouncementEmail } from '@/actions/email'
 
 export async function getOwnerAnnouncements() {
-  const owner = await getOwnerProfile()
+  const owner = await getAuthenticatedOwner()
   if (!owner) return []
 
   try {
@@ -22,13 +25,11 @@ export async function getOwnerAnnouncements() {
   }
 }
 
-import { COOKIE_KEYS } from '@/lib/auth/session'
-
 export async function getStudentAnnouncements() {
-  const cookieStore = await cookies()
-  const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+  const student = await getAuthenticatedStudent()
   
-  if (!studentId) return []
+  if (!student) return []
+  const studentId = student.id
 
   try {
     const student = await prisma.student.findUnique({
@@ -69,8 +70,6 @@ export async function getStudentAnnouncements() {
   }
 }
 
-import { getStaffProfile } from './staff'
-
 export async function getStaffAnnouncements(
   context?: { libraryId: string; branchId: string | null }
 ) {
@@ -79,7 +78,7 @@ export async function getStaffAnnouncements(
     let branchId = context?.branchId
 
     if (!libraryId) {
-      const staff = await getStaffProfile()
+      const staff = await getAuthenticatedStaff()
       if (!staff || !staff.libraryId) return []
       libraryId = staff.libraryId
       branchId = staff.branchId
@@ -119,7 +118,7 @@ export async function createAnnouncement(data: {
   branchId?: string | null
   expiresAt?: Date | null
 }) {
-  const owner = await getOwnerProfile()
+  const owner = await getAuthenticatedOwner()
   if (!owner) return { success: false, error: 'Unauthorized' }
 
   try {

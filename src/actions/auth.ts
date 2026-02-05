@@ -1,21 +1,19 @@
 'use server'
 
-import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { randomBytes } from 'crypto'
 import { sendPasswordResetEmail, sendWelcomeEmail, sendEmailVerificationEmail } from '@/actions/email'
 import { verify } from 'otplib'
 import { redirect } from 'next/navigation'
-import { COOKIE_KEYS, COOKIE_OPTIONS } from '@/lib/auth/session'
+import { createSession, deleteSession } from '@/lib/auth/session'
 
 // --- Session Management ---
 
 export async function logout() {
-    const cookieStore = await cookies()
-    cookieStore.delete(COOKIE_KEYS.OWNER)
-    cookieStore.delete(COOKIE_KEYS.STAFF)
-    cookieStore.delete(COOKIE_KEYS.STUDENT)
+    await deleteSession('owner')
+    await deleteSession('staff')
+    await deleteSession('student')
     return { success: true }
 }
 
@@ -24,39 +22,31 @@ import { getAuthenticatedStaff } from '@/lib/auth/staff'
 import { getAuthenticatedStudent } from '@/lib/auth/student'
 
 export async function getCurrentUser() {
-    const cookieStore = await cookies()
-    
-    if (cookieStore.has(COOKIE_KEYS.OWNER)) {
-        const owner = await getAuthenticatedOwner()
-        if (owner) return { 
-            name: owner.name, 
-            image: null, 
-            initials: owner.name.substring(0, 2).toUpperCase(),
-            role: 'owner',
-            link: '/owner/dashboard'
-        }
+    const owner = await getAuthenticatedOwner()
+    if (owner) return { 
+        name: owner.name, 
+        image: null, 
+        initials: owner.name.substring(0, 2).toUpperCase(),
+        role: 'owner',
+        link: '/owner/dashboard'
     }
     
-    if (cookieStore.has(COOKIE_KEYS.STAFF)) {
-        const staff = await getAuthenticatedStaff()
-        if (staff) return { 
-            name: staff.name, 
-            image: staff.image, 
-            initials: staff.name.substring(0, 2).toUpperCase(),
-            role: 'staff',
-            link: '/staff/dashboard'
-        }
+    const staff = await getAuthenticatedStaff()
+    if (staff) return { 
+        name: staff.name, 
+        image: staff.image, 
+        initials: staff.name.substring(0, 2).toUpperCase(),
+        role: 'staff',
+        link: '/staff/dashboard'
     }
     
-    if (cookieStore.has(COOKIE_KEYS.STUDENT)) {
-        const student = await getAuthenticatedStudent()
-        if (student) return { 
-            name: student.name, 
-            image: student.image, 
-            initials: student.name.substring(0, 2).toUpperCase(),
-            role: 'student',
-            link: '/student/home'
-        }
+    const student = await getAuthenticatedStudent()
+    if (student) return { 
+        name: student.name, 
+        image: student.image, 
+        initials: student.name.substring(0, 2).toUpperCase(),
+        role: 'student',
+        link: '/student/home'
     }
     
     return null
@@ -122,8 +112,7 @@ export async function registerOwner(formData: FormData) {
         })
 
         // Set session
-        const cookieStore = await cookies()
-        cookieStore.set(COOKIE_KEYS.OWNER, result.id, COOKIE_OPTIONS)
+        await createSession(result.id, 'owner')
 
         return { success: true, ownerId: result.id }
     } catch (error) {
@@ -165,11 +154,7 @@ export async function loginOwner(formData: FormData) {
         }
 
         // Set session
-        const cookieStore = await cookies()
-        cookieStore.set(COOKIE_KEYS.OWNER, owner.id, {
-            ...COOKIE_OPTIONS,
-            maxAge: rememberMe ? 30 * 24 * 60 * 60 : COOKIE_OPTIONS.maxAge
-        })
+        await createSession(owner.id, 'owner')
 
         return { success: true }
 
@@ -196,8 +181,7 @@ export async function verifyOwnerTwoFactor(ownerId: string, code: string) {
         }
 
         // Set session
-        const cookieStore = await cookies()
-        cookieStore.set(COOKIE_KEYS.OWNER, owner.id, COOKIE_OPTIONS)
+        await createSession(owner.id, 'owner')
 
         return { success: true }
 
@@ -247,8 +231,7 @@ export async function loginStaff(formData: FormData) {
         }
 
         // Set session
-        const cookieStore = await cookies()
-        cookieStore.set(COOKIE_KEYS.STAFF, staff.id, COOKIE_OPTIONS)
+        await createSession(staff.id, 'staff')
 
         return { success: true }
 
@@ -622,8 +605,7 @@ export async function loginStudent(formData: FormData) {
         }
 
         // Set session
-        const cookieStore = await cookies()
-        cookieStore.set(COOKIE_KEYS.STUDENT, student.id, COOKIE_OPTIONS)
+        await createSession(student.id, 'student')
 
         return { success: true }
 
@@ -644,7 +626,7 @@ export async function forgotPassword(formData: FormData) {
 
     try {
         // Check if user exists in any table (Priority: Student -> Staff -> Owner)
-        let user: any = await prisma.student.findUnique({ 
+        let user: { id: string, email: string | null, name: string, library: { name: string } | null } | null = await prisma.student.findUnique({ 
             where: { email },
             include: { library: { select: { name: true } } }
         })

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { 
     QrCode as QrCodeIcon, 
     Printer, 
@@ -173,7 +174,9 @@ export function StaffQRViewClient() {
                             <div className="absolute -inset-1.5 bg-gradient-to-tr from-purple-600 via-pink-600 to-blue-600 rounded-2xl opacity-75 blur transition duration-1000 group-hover:duration-200 group-hover:opacity-100"></div>
                             <div className="relative p-6 bg-white rounded-xl shadow-xl">
                                 {qrDataUrl ? (
-                                    <img src={qrDataUrl} alt="Branch QR" className="w-64 h-64 object-contain" />
+                                    <div className="relative w-64 h-64 mx-auto">
+                                        <Image src={qrDataUrl} alt="Branch QR" fill className="object-contain" />
+                                    </div>
                                 ) : (
                                     <div className="w-64 h-64 flex items-center justify-center bg-gray-50 text-gray-400">
                                         <QrCodeIcon className="w-16 h-16" />

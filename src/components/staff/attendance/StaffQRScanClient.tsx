@@ -7,7 +7,6 @@ import { verifyStaffStudentQR } from '@/actions/staff/attendance'
 import { toast } from 'sonner'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
-import { SCANNER_CONFIG } from "@/lib/scanner";
 
 export function StaffQRScanClient() {
   const [scanning, setScanning] = useState(false)
@@ -47,6 +46,7 @@ export function StaffQRScanClient() {
   const playBeep = () => {
     if (!soundEnabled) return
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
       const oscillator = audioContext.createOscillator()
       const gainNode = audioContext.createGain()

@@ -1,24 +1,22 @@
 import React from 'react'
 import { getPublishedBranches } from '@/actions/booking'
 import { BookingPageClient } from './BookingPageClient'
-import { cookies } from 'next/headers'
-import { COOKIE_KEYS } from '@/lib/auth/session'
+import { getAuthenticatedStudent } from '@/lib/auth/student'
 import { prisma } from '@/lib/prisma'
 
 export default async function BookPage() {
   const { success, branches, error } = await getPublishedBranches()
   
   // Get current student session and active subscriptions
-  const cookieStore = await cookies()
-  const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+  const student = await getAuthenticatedStudent()
   
   let activeBranchIds: string[] = []
   
-  if (studentId) {
+  if (student) {
     try {
       const subscriptions = await prisma.studentSubscription.findMany({
         where: {
-          studentId,
+          studentId: student.id,
           status: 'active',
           endDate: { gt: new Date() }
         },

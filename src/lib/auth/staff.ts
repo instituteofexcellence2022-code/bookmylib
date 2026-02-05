@@ -1,12 +1,18 @@
 import { prisma } from '@/lib/prisma'
 import { cookies } from 'next/headers'
-import { COOKIE_KEYS } from './session'
+import { COOKIE_KEYS } from './constants'
+import { verifySessionToken } from './jwt'
 
 export async function getAuthenticatedStaff() {
     const cookieStore = await cookies()
-    const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
+    const token = cookieStore.get(COOKIE_KEYS.STAFF)?.value
 
-    if (!staffId) return null
+    if (!token) return null
+
+    const payload = await verifySessionToken(token)
+    if (!payload || !payload.userId) return null
+    
+    const staffId = payload.userId as string
 
     try {
         const staff = await prisma.staff.findUnique({

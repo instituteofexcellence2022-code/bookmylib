@@ -2,9 +2,8 @@
 
 import { quotes, Quote } from '@/lib/quotes'
 import { prisma } from '@/lib/prisma'
-import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
-import { COOKIE_KEYS } from '@/lib/auth/session'
+import { getAuthenticatedStudent } from '@/lib/auth/student'
 
 /**
  * Fetches the list of quotes.
@@ -31,10 +30,10 @@ export async function getRandomQuote(): Promise<Quote> {
  * Get liked quotes IDs for the current student
  */
 export async function getLikedQuoteIds(): Promise<number[]> {
-  const cookieStore = await cookies()
-  const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+  const student = await getAuthenticatedStudent()
 
-  if (!studentId) return []
+  if (!student) return []
+  const studentId = student.id
 
   try {
     const likedQuotes = await prisma.likedQuote.findMany({
@@ -52,12 +51,12 @@ export async function getLikedQuoteIds(): Promise<number[]> {
  * Toggle like status for a quote
  */
 export async function toggleQuoteLike(quoteId: number) {
-  const cookieStore = await cookies()
-  const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+  const student = await getAuthenticatedStudent()
 
-  if (!studentId) {
+  if (!student) {
     return { success: false, error: 'Unauthorized' }
   }
+  const studentId = student.id
 
   try {
     const existingLike = await prisma.likedQuote.findUnique({

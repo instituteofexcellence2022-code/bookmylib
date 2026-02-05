@@ -4,8 +4,8 @@ import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
     Check, Calendar, CreditCard, Info, 
-    User, Mail, Phone, Cake, MapPin,
-    Armchair, ArrowRight, ArrowLeft, BookOpen,
+    User, Mail, Phone, Cake,
+    Armchair,
     LayoutGrid, List, ChevronLeft, ChevronRight, Clock, Filter
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
@@ -38,7 +38,6 @@ type BookingStep = 'selection' | 'details' | 'verification' | 'payment' | 'confi
 export function PublicBookingClient({ branch, images = [], amenities = [], offers = [] }: PublicBookingClientProps) {
     const router = useRouter()
     const [step, setStep] = useState<BookingStep>('selection')
-    const [showDetails, setShowDetails] = useState(false)
     const [bookingResult, setBookingResult] = useState<{
         status: 'completed' | 'pending_verification'
         paymentId?: string
@@ -67,7 +66,6 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
     
     // Student Details State
     const [isCheckingEmail, setIsCheckingEmail] = useState(false)
-    const [isExistingUser, setIsExistingUser] = useState(false)
     const [studentDetails, setStudentDetails] = useState({
         name: '',
         email: '',
@@ -167,10 +165,8 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                     phone: result.student.phone || '',
                     dob: result.student.dob || ''
                 }))
-                setIsExistingUser(true)
                 toast.success('Welcome back! Details auto-filled.')
             } else {
-                setIsExistingUser(false)
                 // Clear fields if they contain masked data from previous auto-fill
                 setStudentDetails(prev => ({
                     ...prev,
@@ -178,8 +174,8 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                     dob: prev.dob.includes('*') ? '' : prev.dob
                 }))
             }
-        } catch (error) {
-            console.error(error)
+        } catch {
+            // error ignored
         } finally {
             setIsCheckingEmail(false)
         }
@@ -208,7 +204,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
             } else {
                 toast.error(result.error || 'Failed to send verification code')
             }
-        } catch (error) {
+        } catch {
             toast.error('Something went wrong')
         } finally {
             setIsVerifying(false)
@@ -227,7 +223,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
             } else {
                 toast.error(result.error || 'Failed to resend code')
             }
-        } catch (error) {
+        } catch {
             toast.error('Failed to resend code')
         } finally {
             setIsVerifying(false)
@@ -251,7 +247,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
             } else {
                 toast.error(result.error || 'Invalid verification code')
             }
-        } catch (error) {
+        } catch {
             toast.error('Verification failed')
         } finally {
             setIsVerifying(false)
@@ -274,10 +270,10 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
         <div className="max-w-4xl mx-auto pb-12">
             {step === 'selection' && (
                 <div className="mb-2">
-                    <PublicBranchHeader 
-                        branch={branch} 
-                        images={images} 
-                        amenities={amenities} 
+                    <PublicBranchHeader
+                        branch={{ ...branch, operatingHours: branch.operatingHours as unknown as Record<string, string | null> }}
+                        images={images}
+                        amenities={amenities}
                         showDetailsLink={true}
                         offers={offers}
                     />
@@ -906,7 +902,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                             
                             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Verify Email</h2>
                             <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
-                                We've sent a 6-digit verification code to <span className="font-medium text-gray-900 dark:text-white">{studentDetails.email}</span>
+                                We&apos;ve sent a 6-digit verification code to <span className="font-medium text-gray-900 dark:text-white">{studentDetails.email}</span>
                             </p>
 
                             <form onSubmit={handleVerifyOtp} className="space-y-6">

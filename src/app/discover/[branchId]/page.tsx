@@ -2,10 +2,10 @@ import { getBranchDetails } from '@/actions/booking'
 import { getBranchOffers } from '@/actions/promo'
 import { PublicBookingClient } from '@/components/public/PublicBookingClient'
 import { BackButton } from '@/components/ui/BackButton'
-import { cookies } from 'next/headers'
-import { COOKIE_KEYS } from '@/lib/auth/session'
+import { getAuthenticatedStudent } from '@/lib/auth/student'
+import { getAuthenticatedStaff } from '@/lib/auth/staff'
 import Link from 'next/link'
-import { QrCode, ShieldCheck, LogIn, Loader2 } from 'lucide-react'
+import { QrCode, LogIn } from 'lucide-react'
 import { redirect } from 'next/navigation'
 
 export default async function PublicBranchBookingPage({ params, searchParams }: { params: Promise<{ branchId: string }>, searchParams: Promise<{ qr_code?: string }> }) {
@@ -15,16 +15,15 @@ export default async function PublicBranchBookingPage({ params, searchParams }: 
     const offers = await getBranchOffers(branchId)
 
     // Check for authenticated sessions
-    const cookieStore = await cookies()
-    const studentSession = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
-    const staffSession = cookieStore.get(COOKIE_KEYS.STAFF)?.value
+    const student = await getAuthenticatedStudent()
+    const staff = await getAuthenticatedStaff()
 
     // Auto-redirect logic for minimal user click
     if (qr_code) {
-        if (studentSession) {
+        if (student) {
             redirect(`/student/attendance/scan?qr_code=${qr_code}`)
         }
-        if (staffSession) {
+        if (staff) {
             redirect(`/staff/scanner?code=${qr_code}`)
         }
     }

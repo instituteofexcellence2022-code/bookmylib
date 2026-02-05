@@ -2,28 +2,19 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
 import type { Prisma } from '@prisma/client'
 import { uploadFile } from './upload'
 
 import { cache } from 'react'
 
-import { COOKIE_KEYS } from '@/lib/auth/session'
+import { getAuthenticatedStaff } from '@/lib/auth/staff'
+import { getAuthenticatedOwner } from '@/lib/auth/owner'
 
 export const getStaffProfile = cache(async function getStaffProfile() {
   try {
-    const cookieStore = await cookies()
-    const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
-
-    if (!staffId) {
-      return null
-    }
-
-    const staff = await prisma.staff.findUnique({
-      where: { id: staffId }
-    })
-
+    const staff = await getAuthenticatedStaff()
+    if (!staff) return null
     return staff
   } catch (error) {
     // Re-throw Next.js dynamic server usage errors so the page can opt-out of static generation
@@ -37,13 +28,15 @@ export const getStaffProfile = cache(async function getStaffProfile() {
 
 export async function createStaff(formData: FormData) {
   try {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-    const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
+    const owner = await getAuthenticatedOwner()
+    const staff = await getAuthenticatedStaff()
 
-    if (!ownerId && !staffId) {
+    if (!owner && !staff) {
       return { success: false, error: 'Unauthorized: You must be logged in to create staff' }
     }
+    
+    const ownerId = owner?.id
+    const staffId = staff?.id
 
     const firstName = (formData.get('firstName') as string)?.trim()
     const lastName = (formData.get('lastName') as string)?.trim()
@@ -172,12 +165,12 @@ export async function createStaff(formData: FormData) {
 
 export async function updateStaffProfile(formData: FormData) {
   try {
-    const cookieStore = await cookies()
-    const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
-
-    if (!staffId) {
+    const staff = await getAuthenticatedStaff()
+    
+    if (!staff) {
         return { success: false, error: 'Unauthorized: No session found' }
     }
+    const staffId = staff.id
 
     const id = formData.get('id') as string
 
@@ -220,8 +213,8 @@ export async function updateStaffProfile(formData: FormData) {
         return { success: false, error: 'Please enter a valid 10-digit phone number' }
     }
 
-    const staff = await prisma.staff.findUnique({ where: { id } })
-    if (!staff) {
+    const existingStaff = await prisma.staff.findUnique({ where: { id } })
+    if (!existingStaff) {
         return { success: false, error: 'Staff member not found' }
     }
 
@@ -249,12 +242,12 @@ export async function updateStaffProfile(formData: FormData) {
 
 export async function changeStaffPassword(formData: FormData) {
   try {
-    const cookieStore = await cookies()
-    const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
-
-    if (!staffId) {
+    const staff = await getAuthenticatedStaff()
+    
+    if (!staff) {
         return { success: false, error: 'Unauthorized: No session found' }
     }
+    const staffId = staff.id
 
     const id = formData.get('id') as string
 
@@ -282,12 +275,12 @@ export async function changeStaffPassword(formData: FormData) {
         return { success: false, error: 'Password must be at least 8 characters' }
     }
 
-    const staff = await prisma.staff.findUnique({ where: { id } })
-    if (!staff || !staff.password) {
+    const existingStaff = await prisma.staff.findUnique({ where: { id } })
+    if (!existingStaff || !existingStaff.password) {
         return { success: false, error: 'Staff member not found' }
     }
 
-    const isValid = await bcrypt.compare(currentPassword, staff.password)
+    const isValid = await bcrypt.compare(currentPassword, existingStaff.password)
     if (!isValid) {
         return { success: false, error: 'Incorrect current password' }
     }
@@ -310,13 +303,15 @@ export async function changeStaffPassword(formData: FormData) {
 
 export async function updateStaff(id: string, formData: FormData) {
   try {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-    const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
+    const owner = await getAuthenticatedOwner()
+    const staff = await getAuthenticatedStaff()
 
-    if (!ownerId && !staffId) {
+    if (!owner && !staff) {
       return { success: false, error: 'Unauthorized: You must be logged in to update staff' }
     }
+    
+    const ownerId = owner?.id
+    const staffId = staff?.id
 
     const firstName = formData.get('firstName') as string
     const lastName = formData.get('lastName') as string
@@ -346,12 +341,17 @@ export async function updateStaff(id: string, formData: FormData) {
 
     // Get Library ID from Branch if branchId is changed (or just always get it to be safe)
     let libraryId = undefined;
+    const currentLibraryId = owner?.libraryId || staff?.libraryId
+
     if (branchId) {
       const branch = await prisma.branch.findUnique({
         where: { id: branchId },
         select: { libraryId: true }
       })
       if (branch) {
+        if (branch.libraryId !== currentLibraryId) {
+             return { success: false, error: 'Invalid branch: Does not belong to your library' }
+        }
         libraryId = branch.libraryId
       }
     }
@@ -473,10 +473,9 @@ export async function updateStaff(id: string, formData: FormData) {
 
 export async function deleteStaff(id: string) {
   try {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-
-    if (!ownerId) {
+    const owner = await getAuthenticatedOwner()
+    
+    if (!owner) {
       return { success: false, error: 'Unauthorized: Only owners can delete staff' }
     }
 
@@ -493,11 +492,13 @@ export async function deleteStaff(id: string) {
 
 export async function updateStaffImage(staffId: string, formData: FormData) {
   try {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-    const currentStaffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
+    const owner = await getAuthenticatedOwner()
+    const currentStaff = await getAuthenticatedStaff()
+    
+    const ownerId = owner?.id
+    const currentStaffId = currentStaff?.id
 
-    if (!ownerId && (!currentStaffId || currentStaffId !== staffId)) {
+    if (!owner && (!currentStaff || currentStaff.id !== staffId)) {
         return { success: false, error: 'Unauthorized' }
     }
 
@@ -562,13 +563,25 @@ export async function updateStaffImage(staffId: string, formData: FormData) {
 
 export async function getStaffDetails(id: string) {
   try {
-    const staff = await prisma.staff.findUnique({
+    const owner = await getAuthenticatedOwner()
+    const staff = await getAuthenticatedStaff()
+    
+    if (!owner && !staff) return null
+
+    const libraryId = owner?.libraryId || staff?.libraryId
+
+    const targetStaff = await prisma.staff.findUnique({
       where: { id },
       include: {
         branch: true,
       }
     })
-    return staff
+
+    if (!targetStaff || targetStaff.libraryId !== libraryId) {
+      return null
+    }
+
+    return targetStaff
   } catch (error) {
     console.error('Error fetching staff details:', error)
     return null
@@ -577,7 +590,15 @@ export async function getStaffDetails(id: string) {
 
 export async function getAllStaff() {
   try {
-    const staff = await prisma.staff.findMany({
+    const owner = await getAuthenticatedOwner()
+    const staff = await getAuthenticatedStaff()
+    
+    if (!owner && !staff) return []
+
+    const libraryId = owner?.libraryId || staff?.libraryId
+
+    const allStaff = await prisma.staff.findMany({
+      where: { libraryId },
       include: {
         branch: true
       },
@@ -585,7 +606,7 @@ export async function getAllStaff() {
         createdAt: 'desc'
       }
     })
-    return staff
+    return allStaff
   } catch (error) {
     console.error('Error fetching all staff:', error)
     return []
@@ -594,21 +615,8 @@ export async function getAllStaff() {
 
 export async function getGlobalStaffStats() {
   try {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
+    const owner = await getAuthenticatedOwner()
     
-    if (!ownerId) return {
-      totalStaff: 0,
-      presentToday: 0,
-      onLeave: 0,
-      inactive: 0
-    }
-
-    const owner = await prisma.owner.findUnique({
-      where: { id: ownerId },
-      select: { libraryId: true }
-    })
-
     if (!owner?.libraryId) return {
       totalStaff: 0,
       presentToday: 0,
@@ -707,16 +715,8 @@ export async function getStaffStats(id: string) {
 
 export async function getStaffManagementData() {
   try {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
+    const owner = await getAuthenticatedOwner()
     
-    if (!ownerId) return null
-
-    const owner = await prisma.owner.findUnique({
-      where: { id: ownerId },
-      select: { libraryId: true }
-    })
-
     if (!owner?.libraryId) return null
 
     const libraryId = owner.libraryId

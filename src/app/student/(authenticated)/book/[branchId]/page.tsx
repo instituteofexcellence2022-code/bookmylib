@@ -2,15 +2,13 @@ import { getStudentBookingStatus } from '@/actions/payment'
 import { getBranchDetails } from '@/actions/booking'
 import BookingClient from './BookingClient'
 import { BackButton } from '@/components/ui/BackButton'
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { COOKIE_KEYS } from '@/lib/auth/session'
+import { getAuthenticatedStudent } from '@/lib/auth/student'
 
 export default async function BranchBookingPage({ params }: { params: Promise<{ branchId: string }> }) {
-    const cookieStore = await cookies()
-    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+    const student = await getAuthenticatedStudent()
 
-    if (!studentId) {
+    if (!student) {
         redirect('/student/login')
     }
 
@@ -58,7 +56,7 @@ export default async function BranchBookingPage({ params }: { params: Promise<{ 
 
             <BookingClient 
                 branch={branch} 
-                studentId={studentId} 
+                studentId={student.id} 
                 currentSubscription={bookingStatus.lastSubscription}
                 images={images}
                 amenities={amenities}

@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
 import { sendWelcomeEmail } from '@/actions/email'
-import { COOKIE_KEYS } from '@/lib/auth/session'
+import { getAuthenticatedStaff } from '@/lib/auth/staff'
 
 export type LeadFilter = {
     page?: number
@@ -25,22 +25,7 @@ export type CreateLeadInput = {
 }
 
 // Helper to get authenticated staff
-async function getAuthenticatedStaff() {
-    const cookieStore = await cookies()
-    const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
-
-    if (!staffId) return null
-
-    const staff = await prisma.staff.findUnique({
-        where: { id: staffId },
-        include: { 
-            library: true,
-            branch: true 
-        }
-    })
-
-    return staff
-}
+// Removed local helper in favor of imported one
 
 export async function getLeads(filters: LeadFilter) {
     const staff = await getAuthenticatedStaff()

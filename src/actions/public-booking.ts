@@ -1,8 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { cookies } from 'next/headers'
-import { COOKIE_KEYS, COOKIE_OPTIONS } from '@/lib/auth/session'
+import { createSession } from '@/lib/auth/session'
 import { initiatePayment } from '@/actions/payment'
 import { sendWelcomeEmail } from '@/actions/email'
 
@@ -115,8 +114,7 @@ export async function initiatePublicBooking(data: {
         }
 
         // 2. Log them in (Set Cookie)
-        const cookieStore = await cookies()
-        cookieStore.set(COOKIE_KEYS.STUDENT, student.id, COOKIE_OPTIONS)
+        await createSession(student.id, 'student')
 
         // 3. Construct Description
         const plan = await prisma.plan.findUnique({ where: { id: planId } })

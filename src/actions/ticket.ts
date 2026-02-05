@@ -1,48 +1,26 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { cookies } from 'next/headers'
+import { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { after } from 'next/server'
-import { getOwnerProfile } from './owner'
-import { getStaffProfile } from './staff'
+import { getAuthenticatedOwner } from '@/lib/auth/owner'
+import { getAuthenticatedStaff } from '@/lib/auth/staff'
+import { getAuthenticatedStudent } from '@/lib/auth/student'
 import { uploadFile } from './upload'
 import { sendTicketUpdateEmail } from './email'
-import { COOKIE_KEYS } from '@/lib/auth/session'
 
 // Student Actions
 
 export async function createTicket(formData: FormData) {
-  const cookieStore = await cookies()
-  const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+  const student = await getAuthenticatedStudent()
 
-  if (!studentId) {
+  if (!student) {
     return { success: false, error: 'Unauthorized' }
   }
+  const studentId = student.id
 
   try {
-    const student = await prisma.student.findUnique({
-      where: { id: studentId },
-      select: { 
-        libraryId: true,
-        isBlocked: true,
-        branchId: true, // Auto-select branchId from student record
-        branch: {
-          select: {
-            libraryId: true
-          }
-        },
-        subscriptions: {
-          where: { status: 'active' },
-          take: 1,
-          orderBy: { createdAt: 'desc' },
-          select: {
-            libraryId: true,
-            branchId: true
-          }
-        }
-      }
-    })
 
     if (!student) {
       console.error('Student not found for ID:', studentId)
@@ -147,10 +125,10 @@ export async function createTicket(formData: FormData) {
 }
 
 export async function getStudentTickets() {
-  const cookieStore = await cookies()
-  const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+  const student = await getAuthenticatedStudent()
 
-  if (!studentId) return []
+  if (!student) return []
+  const studentId = student.id
 
   try {
     const tickets = await prisma.supportTicket.findMany({
@@ -168,15 +146,11 @@ export async function getStudentTickets() {
 }
 
 export async function createOwnerTicket(formData: FormData) {
-  const cookieStore = await cookies()
-  const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
+  const owner = await getAuthenticatedOwner()
 
-  if (!ownerId) {
+  if (!owner) {
     return { success: false, error: 'Unauthorized' }
   }
-
-  const owner = await getOwnerProfile()
-  if (!owner) return { success: false, error: 'Owner not found' }
 
   const studentId = formData.get('studentId') as string
   if (!studentId) {
@@ -257,7 +231,7 @@ export async function createOwnerTicket(formData: FormData) {
 // Owner Actions
 
 export async function getOwnerTickets(filters: { status?: string; category?: string } = {}) {
-  const owner = await getOwnerProfile()
+  const owner = await getAuthenticatedOwner()
   if (!owner || !owner.libraryId) return []
 
   try {
@@ -308,11 +282,11 @@ export async function getOwnerTickets(filters: { status?: string; category?: str
 }
 
 export async function getStaffTickets(filters: { status?: string; category?: string } = {}) {
-  const staff = await getStaffProfile()
+  const staff = await getAuthenticatedStaff()
   if (!staff || !staff.libraryId || !staff.branchId) return []
 
   try {
-    const whereClause: any = {
+    const whereClause: Prisma.SupportTicketWhereInput = {
       libraryId: staff.libraryId,
       student: {
         branchId: staff.branchId
@@ -357,8 +331,8 @@ export async function getStaffTickets(filters: { status?: string; category?: str
 }
 
 export async function updateTicketStatus(ticketId: string, status: string) {
-  const owner = await getOwnerProfile()
-  const staff = await getStaffProfile()
+  const owner = await getAuthenticatedOwner()
+  const staff = await getAuthenticatedStaff()
   
   const libraryId = owner?.libraryId || staff?.libraryId
   
@@ -427,8 +401,8 @@ export async function updateTicketStatus(ticketId: string, status: string) {
 }
 
 export async function getTicketDetails(ticketId: string) {
-    const owner = await getOwnerProfile()
-    const staff = await getStaffProfile()
+    const owner = await getAuthenticatedOwner()
+    const staff = await getAuthenticatedStaff()
     
     const libraryId = owner?.libraryId || staff?.libraryId
     
@@ -472,10 +446,10 @@ export async function getTicketDetails(ticketId: string) {
 }
 
 export async function getStudentTicketDetails(ticketId: string) {
-    const cookieStore = await cookies()
-    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+    const student = await getAuthenticatedStudent()
 
-    if (!studentId) return null
+    if (!student) return null
+    const studentId = student.id
 
     try {
         const ticket = await prisma.supportTicket.findUnique({
@@ -510,10 +484,10 @@ export async function addTicketComment(formData: FormData) {
     }
 
     // Determine user context (Owner, Staff, or Student)
-    const owner = await getOwnerProfile()
-    const staff = await getStaffProfile()
-    const cookieStore = await cookies()
-    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+    const owner = await getAuthenticatedOwner()
+    const staff = await getAuthenticatedStaff()
+    const student = await getAuthenticatedStudent()
+    const studentId = student?.id
 
     console.log('[addTicketComment] Context:', { 
         isOwner: !!owner, 
@@ -652,12 +626,12 @@ export async function addTicketComment(formData: FormData) {
 }
 
 export async function reopenTicket(ticketId: string) {
-    const cookieStore = await cookies()
-    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+    const student = await getAuthenticatedStudent()
 
-    if (!studentId) {
+    if (!student) {
         return { success: false, error: 'Unauthorized' }
     }
+    const studentId = student.id
 
     try {
         const ticket = await prisma.supportTicket.findUnique({

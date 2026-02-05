@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { COOKIE_KEYS } from '@/lib/auth/session'
+import { COOKIE_KEYS } from '@/lib/auth/constants'
 
 // Role-based configuration for route protection
 type Role = 'owner' | 'staff' | 'student'

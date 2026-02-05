@@ -4,23 +4,10 @@ import { prisma } from '@/lib/prisma'
 import { cookies } from 'next/headers'
 import { startOfMonth, endOfMonth, subMonths, format, startOfDay, endOfDay, addDays } from 'date-fns'
 import { formatRelativeTime } from '@/lib/utils'
-import { COOKIE_KEYS } from '@/lib/auth/session'
-
-async function getOwner() {
-  const cookieStore = await cookies()
-  const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-  if (!ownerId) return null
-  
-  // Verify owner exists
-  const owner = await prisma.owner.findUnique({
-    where: { id: ownerId },
-    include: { library: true }
-  })
-  return owner
-}
+import { getAuthenticatedOwner } from '@/lib/auth/owner'
 
 export async function getDashboardStats(branchId?: string) {
-  const owner = await getOwner()
+  const owner = await getAuthenticatedOwner()
   if (!owner) throw new Error('Unauthorized')
 
   const libraryId = owner.libraryId

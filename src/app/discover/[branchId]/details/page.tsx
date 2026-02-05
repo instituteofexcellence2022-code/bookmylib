@@ -1,10 +1,18 @@
 
 import { getBranchDetails } from '@/actions/booking'
 import { getBranchOffers } from '@/actions/promo'
-import PublicBranchHeader from '@/components/public/PublicBranchHeader'
+import PublicBranchHeader, { PublicOffer } from '@/components/public/PublicBranchHeader'
 import { BackButton } from '@/components/ui/BackButton'
 import { Clock, MapPin, Shield, Star, Info, Phone, Mail } from 'lucide-react'
 import WifiCard from '@/components/student/WifiCard'
+
+interface OperatingHours {
+    is247?: boolean
+    start?: string
+    end?: string
+    staffAvailableStart?: string
+    staffAvailableEnd?: string
+}
 
 export default async function PublicBranchDetailsPage({ params }: { params: Promise<{ branchId: string }> }) {
     const { branchId } = await params
@@ -90,7 +98,7 @@ export default async function PublicBranchDetailsPage({ params }: { params: Prom
             // Handle both string (if manually inserted) and object (Prisma Json)
             const details = branch.wifiDetails
             if (Array.isArray(details)) {
-                wifiDetails = details as any
+                wifiDetails = details as unknown as Array<{ ssid: string; password: string }>
             } else if (typeof details === 'string') {
                 const parsed = JSON.parse(details)
                 if (Array.isArray(parsed)) wifiDetails = parsed
@@ -102,14 +110,14 @@ export default async function PublicBranchDetailsPage({ params }: { params: Prom
     const description = branch.description
 
     // Parse operating hours
-    let operatingHours: any = null
+    let operatingHours: OperatingHours | null = null
     try {
         if (branch.operatingHours) {
             const op = branch.operatingHours
             if (typeof op === 'string') {
                 operatingHours = JSON.parse(op)
             } else {
-                operatingHours = op
+                operatingHours = op as unknown as OperatingHours
             }
         }
     } catch {}
@@ -163,12 +171,12 @@ export default async function PublicBranchDetailsPage({ params }: { params: Prom
                 <div className="space-y-1">
                     <BackButton href={`/discover/${branchId}`} />
                     <PublicBranchHeader 
-                        branch={branch} 
+                        branch={{ ...branch, operatingHours: branch.operatingHours as unknown as OperatingHours | string | null }} 
                         images={images} 
                         amenities={amenityIds} 
                         showDetailsLink={false} 
                         backLink={`/discover/${branchId}`} 
-                        offers={offers as any}
+                        offers={offers as PublicOffer[]}
                     />
                 </div>
 
@@ -205,7 +213,7 @@ export default async function PublicBranchDetailsPage({ params }: { params: Prom
                                 {operatingHours && (
                                     <div className="text-right">
                                         <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                            {operatingHours.is247 ? '24/7' : `${formatTime(operatingHours.start)} - ${formatTime(operatingHours.end)}`}
+                                            {operatingHours.is247 ? '24/7' : `${formatTime(operatingHours.start || '')} - ${formatTime(operatingHours.end || '')}`}
                                         </p>
                                         <p className="text-xs text-gray-500 dark:text-gray-400">Daily Timing</p>
                                     </div>
@@ -214,7 +222,7 @@ export default async function PublicBranchDetailsPage({ params }: { params: Prom
                             {operatingHours?.staffAvailableStart && (
                                  <div className="mt-4 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                                     <Info className="w-4 h-4 text-blue-500" />
-                                    <span>Staff available: {formatTime(operatingHours.staffAvailableStart)} - {formatTime(operatingHours.staffAvailableEnd)}</span>
+                                    <span>Staff available: {formatTime(operatingHours.staffAvailableStart)} - {formatTime(operatingHours.staffAvailableEnd || '')}</span>
                                  </div>
                             )}
                         </div>

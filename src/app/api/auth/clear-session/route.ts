@@ -1,23 +1,20 @@
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { NextRequest } from 'next/server'
-import { COOKIE_KEYS } from '@/lib/auth/session'
+import { deleteSession } from '@/lib/auth/session'
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const role = searchParams.get('role')
   const callbackUrl = searchParams.get('callbackUrl')
 
-  const cookieStore = await cookies()
-
   if (role === 'owner') {
-    cookieStore.delete(COOKIE_KEYS.OWNER)
+    await deleteSession('owner')
     redirect(callbackUrl || '/owner/login')
   } else if (role === 'staff') {
-    cookieStore.delete(COOKIE_KEYS.STAFF)
+    await deleteSession('staff')
     redirect(callbackUrl || '/staff/login')
   } else if (role === 'student') {
-    cookieStore.delete(COOKIE_KEYS.STUDENT)
+    await deleteSession('student')
     redirect(callbackUrl || '/student/login')
   }
 

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { MapPin, Building2, Clock, Star, Wifi, Zap, Wind, Droplets, Car, ChevronLeft, ChevronRight, Info, Coffee, Printer, Camera, Armchair, Fan, Thermometer, Utensils, BatteryCharging, Lightbulb, Bath, Lock, Newspaper, BookOpen, ShieldCheck, TicketPercent, X } from 'lucide-react'
+import { type LucideIcon, MapPin, Building2, Clock, Star, Wifi, Zap, Wind, Droplets, Car, ChevronLeft, ChevronRight, Info, Coffee, Printer, Camera, Armchair, Fan, Thermometer, Utensils, BatteryCharging, Lightbulb, Bath, Lock, Newspaper, BookOpen, ShieldCheck, TicketPercent, X } from 'lucide-react'
 
 export interface PublicOffer {
     id: string
@@ -19,6 +19,14 @@ export interface PublicOffer {
     maxDiscount: number | null
 }
 
+interface OperatingHours {
+    is247?: boolean
+    start?: string
+    end?: string
+    staffAvailableStart?: string
+    staffAvailableEnd?: string
+}
+
 interface PublicBranchHeaderProps {
     offers?: PublicOffer[]
     branch: {
@@ -26,7 +34,7 @@ interface PublicBranchHeaderProps {
         name: string
         address: string
         city: string
-        operatingHours?: any
+        operatingHours?: OperatingHours | string | null
     }
     images: string[]
     amenities?: string[]
@@ -35,7 +43,7 @@ interface PublicBranchHeaderProps {
     onShowDetails?: () => void
 }
 
-const AMENITY_ICONS: Record<string, any> = {
+const AMENITY_ICONS: Record<string, LucideIcon> = {
     'wifi': Wifi,
     'ac': Wind,
     'coffee': Coffee,
@@ -79,7 +87,7 @@ const AMENITY_LABELS: Record<string, string> = {
     'security': 'Security'
 }
 
-export default function PublicBranchHeader({ branch, images, amenities = [], showDetailsLink = false, backLink, onShowDetails, offers = [] }: PublicBranchHeaderProps) {
+export default function PublicBranchHeader({ branch, images, amenities = [], showDetailsLink = false, backLink, offers = [] }: PublicBranchHeaderProps) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0)
     const [showInfo, setShowInfo] = useState(false)
     const [showOffers, setShowOffers] = useState(false)
@@ -143,7 +151,7 @@ export default function PublicBranchHeader({ branch, images, amenities = [], sho
             }
             
             return { isOpen: false, text: 'Closed' }
-        } catch (e) {
+        } catch {
             return { isOpen: false, text: 'Closed' }
         }
     }
@@ -159,7 +167,7 @@ export default function PublicBranchHeader({ branch, images, amenities = [], sho
             
             if (hours.staffAvailableStart && hours.staffAvailableEnd) {
                 const formatTime = (time: string) => {
-                    const [h, m] = time.split(':')
+                    const [h] = time.split(':')
                     const hour = parseInt(h)
                     const ampm = hour >= 12 ? 'PM' : 'AM'
                     const hour12 = hour % 12 || 12
@@ -168,7 +176,7 @@ export default function PublicBranchHeader({ branch, images, amenities = [], sho
                 staffAvailability = `${formatTime(hours.staffAvailableStart)} - ${formatTime(hours.staffAvailableEnd)}`
             }
         }
-    } catch (e) {
+    } catch {
         // Fallback to default
     }
 

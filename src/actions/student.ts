@@ -1,20 +1,44 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { cookies } from 'next/headers'
+import { Prisma } from '@prisma/client'
 import { redirect } from 'next/navigation'
 import bcrypt from 'bcryptjs'
 import { revalidatePath } from 'next/cache'
 import { uploadFile } from './upload'
-import { COOKIE_KEYS } from '@/lib/auth/session'
+import { getAuthenticatedStudent } from '@/lib/auth/student'
+
+interface ReferralSettings {
+    all?: ReferralConfig;
+    refereeReward?: RewardConfig;
+    refereeDiscountValue?: number;
+    refereeDiscountType?: string;
+    referrerReward?: RewardConfig;
+    referrerDiscountValue?: number;
+    referrerDiscountType?: string;
+}
+
+interface ReferralConfig {
+    refereeReward?: RewardConfig;
+    refereeDiscountValue?: number;
+    refereeDiscountType?: string;
+    referrerReward?: RewardConfig;
+    referrerDiscountValue?: number;
+    referrerDiscountType?: string;
+}
+
+interface RewardConfig {
+    value: number;
+    type: string;
+}
 
 export async function getStudentProfile() {
-    const cookieStore = await cookies()
-    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+    const authStudent = await getAuthenticatedStudent()
 
-    if (!studentId) {
+    if (!authStudent) {
         redirect('/student/login')
     }
+    const studentId = authStudent.id
 
     const student = await prisma.student.findUnique({
         where: { id: studentId },
@@ -83,12 +107,12 @@ export async function getStudentProfile() {
 }
 
 export async function updateStudentProfile(formData: FormData) {
-    const cookieStore = await cookies()
-    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+    const student = await getAuthenticatedStudent()
 
-    if (!studentId) {
+    if (!student) {
         return { success: false, error: 'Unauthorized' }
     }
+    const studentId = student.id
 
     const name = formData.get('name') as string
     const phone = formData.get('phone') as string
@@ -108,7 +132,7 @@ export async function updateStudentProfile(formData: FormData) {
     const idProofFile = formData.get('idProofFile') as File
 
     try {
-        const data: any = {
+        const data: Prisma.StudentUpdateInput = {
             name,
             phone,
             gender: gender || null,
@@ -117,7 +141,7 @@ export async function updateStudentProfile(formData: FormData) {
             pincode: pincode || null,
             city: city || null,
             state: state || null,
-            idProofType: idProofType || null,
+            govtIdType: idProofType || null,
         }
 
         if (dob) {
@@ -127,13 +151,13 @@ export async function updateStudentProfile(formData: FormData) {
         if (profileImage && profileImage.size > 0) {
             // Fixed: uploadFile only accepts one argument
             const url = await uploadFile(profileImage)
-            data.imageUrl = url
+            data.image = url
         }
 
         if (idProofFile && idProofFile.size > 0) {
             // Fixed: uploadFile only accepts one argument
             const url = await uploadFile(idProofFile)
-            data.idProofUrl = url
+            data.govtIdUrl = url
         }
 
         await prisma.student.update({
@@ -150,12 +174,12 @@ export async function updateStudentProfile(formData: FormData) {
 }
 
 export async function updateStudentProfileImage(formData: FormData) {
-    const cookieStore = await cookies()
-    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value  
+    const student = await getAuthenticatedStudent()
 
-    if (!studentId) {
+    if (!student) {
         return { success: false, error: 'Unauthorized' }
     }
+    const studentId = student.id
 
     const imageFile = formData.get('imageFile') as File | null     
 
@@ -186,12 +210,12 @@ export async function updateStudentProfileImage(formData: FormData) {
 }
 
 export async function uploadGovtId(formData: FormData) {
-    const cookieStore = await cookies()
-    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value  
+    const student = await getAuthenticatedStudent()
 
-    if (!studentId) {
+    if (!student) {
         return { success: false, error: 'Unauthorized' }
     }
+    const studentId = student.id
 
     const file = formData.get('file') as File
 
@@ -223,12 +247,12 @@ export async function uploadGovtId(formData: FormData) {
 }
 
 export async function changeStudentPassword(formData: FormData) {  
-    const cookieStore = await cookies()
-    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value  
+    const student = await getAuthenticatedStudent()
 
-    if (!studentId) {
+    if (!student) {
         return { success: false, error: 'Unauthorized' }
     }
+    const studentId = student.id
 
     const currentPassword = formData.get('currentPassword') as string
     const newPassword = formData.get('newPassword') as string      
@@ -273,13 +297,13 @@ export async function changeStudentPassword(formData: FormData) {
     }
 }
 
-export async function updateStudentPreferences(preferences: any) { 
-    const cookieStore = await cookies()
-    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value  
+export async function updateStudentPreferences(preferences: Record<string, unknown>) { 
+    const student = await getAuthenticatedStudent()
 
-    if (!studentId) {
+    if (!student) {
         return { success: false, error: 'Unauthorized' }
     }
+    const studentId = student.id
 
     try {
         await prisma.student.update({
@@ -296,12 +320,12 @@ export async function updateStudentPreferences(preferences: any) {
 }
 
 export async function getStudentReferralData() {
-    const cookieStore = await cookies()
-    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value  
+    const authStudent = await getAuthenticatedStudent()
 
-    if (!studentId) {
+    if (!authStudent) {
         redirect('/student/login')
     }
+    const studentId = authStudent.id
 
     let student = await prisma.student.findUnique({
         where: { id: studentId },
@@ -375,7 +399,7 @@ export async function getStudentReferralData() {
         }
     }
 
-    const settings = student.library?.referralSettings as any || {}
+    const settings = (student.library?.referralSettings as unknown as ReferralSettings) || {}
 
     // Calculate stats
     const totalReferrals = student.referralsMade.length

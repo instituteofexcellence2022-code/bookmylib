@@ -4,11 +4,10 @@ import { Button } from '@/components/ui/button'
 import { FormInput } from '@/components/ui/FormInput'
 import { FormSelect } from '@/components/ui/FormSelect'
 import { FormTextarea } from '@/components/ui/FormTextarea'
-import { X, Wallet, Calendar, FileText, Link as LinkIcon, CreditCard, Banknote, Building2, Upload, Loader2, Coins, Calculator, Check, Image as ImageIcon } from 'lucide-react'
+import { X, Wallet, Calendar, FileText, CreditCard, Banknote, Building2, Upload, Loader2, Coins, Calculator, Image as ImageIcon } from 'lucide-react'
 import { format } from 'date-fns'
 import { uploadFile } from '@/actions/upload'
 import { toast } from 'sonner'
-import Image from 'next/image'
 
 interface HandoverModalProps {
     isOpen: boolean

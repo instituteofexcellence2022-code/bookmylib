@@ -1,8 +1,7 @@
 import React from 'react'
 import { getPublishedBranches } from '@/actions/booking'
 import { BookingPageClient } from '@/app/student/(authenticated)/book/BookingPageClient'
-import { cookies } from 'next/headers'
-import { COOKIE_KEYS } from '@/lib/auth/session'
+import { getAuthenticatedStudent } from '@/lib/auth/student'
 import { prisma } from '@/lib/prisma'
 import { Metadata } from 'next'
 
@@ -15,16 +14,15 @@ export default async function DiscoverPage() {
   const { success, branches, error } = await getPublishedBranches()
   
   // Optional: Check for session to show active status if user happens to be logged in
-  const cookieStore = await cookies()
-  const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
+  const student = await getAuthenticatedStudent()
   
   let activeBranchIds: string[] = []
   
-  if (studentId) {
+  if (student) {
     try {
       const subscriptions = await prisma.studentSubscription.findMany({
         where: {
-          studentId,
+          studentId: student.id,
           status: 'active',
           endDate: { gt: new Date() }
         },

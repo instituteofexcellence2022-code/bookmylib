@@ -3,24 +3,10 @@
 import { prisma } from '@/lib/prisma'
 import { cookies } from 'next/headers'
 
-import { COOKIE_KEYS } from '@/lib/auth/session'
+import { getAuthenticatedStaff } from '@/lib/auth/staff'
 
-async function getAuthenticatedStaff() {
-    const cookieStore = await cookies()
-    const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
-
-    if (!staffId) return null
-
-    const staff = await prisma.staff.findUnique({
-        where: { id: staffId },
-        include: { 
-            library: true,
-            branch: true 
-        }
-    })
-
-    return staff
-}
+// Helper to get authenticated staff
+// Removed local helper in favor of imported one
 
 export async function getStaffShifts() {
     const staff = await getAuthenticatedStaff()

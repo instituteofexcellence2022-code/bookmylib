@@ -1,7 +1,8 @@
 import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
-import { cookies } from "next/headers";
-import { COOKIE_KEYS } from "@/lib/auth/session";
+import { getAuthenticatedOwner } from "@/lib/auth/owner";
+import { getAuthenticatedStaff } from "@/lib/auth/staff";
+import { getAuthenticatedStudent } from "@/lib/auth/student";
  
 const f = createUploadthing();
  
@@ -9,15 +10,31 @@ const f = createUploadthing();
 export const ourFileRouter = {
   // Define as many FileRoutes as you like, each with a unique routeSlug
   imageUploader: f({ image: { maxFileSize: "8MB" }, pdf: { maxFileSize: "8MB" } })
-    .middleware(async ({ req }) => {
+    .middleware(async () => {
       // This code runs on your server before upload
-      const cookieStore = await cookies();
-      const ownerSession = cookieStore.get(COOKIE_KEYS.OWNER);
-      const staffSession = cookieStore.get(COOKIE_KEYS.STAFF);
-      const studentSession = cookieStore.get(COOKIE_KEYS.STUDENT);
+      let userId: string | null = null;
 
-      // Check if user is authenticated (Owner, Staff, or Student)
-      const userId = ownerSession?.value || staffSession?.value || studentSession?.value;
+      // Check Owner
+      const owner = await getAuthenticatedOwner();
+      if (owner) {
+        userId = owner.id;
+      }
+
+      // Check Staff
+      if (!userId) {
+        const staff = await getAuthenticatedStaff();
+        if (staff) {
+          userId = staff.id;
+        }
+      }
+
+      // Check Student
+      if (!userId) {
+        const student = await getAuthenticatedStudent();
+        if (student) {
+          userId = student.id;
+        }
+      }
 
       if (!userId) {
         throw new UploadThingError("Unauthorized");

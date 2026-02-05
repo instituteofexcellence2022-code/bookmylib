@@ -2,27 +2,13 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
 import { startOfMonth, endOfMonth, subMonths, format, startOfDay, endOfDay } from 'date-fns'
-import { COOKIE_KEYS } from '@/lib/auth/session'
 import { sendReceiptEmail } from '@/actions/email'
 import { formatSeatNumber } from '@/lib/utils'
-
-async function getOwner() {
-  const cookieStore = await cookies()
-  const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-  if (!ownerId) return null
-  
-  // Verify owner exists
-  const owner = await prisma.owner.findUnique({
-    where: { id: ownerId },
-    include: { library: true }
-  })
-  return owner
-}
+import { getAuthenticatedOwner } from '@/lib/auth/owner'
 
 export async function getFinanceStats() {
-  const owner = await getOwner()
+  const owner = await getAuthenticatedOwner()
   if (!owner) throw new Error('Unauthorized')
 
   const now = new Date()
@@ -103,7 +89,7 @@ interface TransactionFilters {
 }
 
 export async function getFilterOptions() {
-    const owner = await getOwner()
+    const owner = await getAuthenticatedOwner()
     if (!owner) throw new Error('Unauthorized')
 
     const [branches, plans, staff, owners] = await Promise.all([
@@ -129,7 +115,7 @@ export async function getFilterOptions() {
 }
 
 export async function getTransactions(filters: TransactionFilters = {}, limit = 50) {
-  const owner = await getOwner()
+  const owner = await getAuthenticatedOwner()
   if (!owner) throw new Error('Unauthorized')
 
   const whereClause: any = {
@@ -322,7 +308,7 @@ export async function getRecentTransactions(limit = 10) {
 }
 
 export async function getRevenueAnalytics(period: '6_months' | '12_months' = '6_months') {
-  const owner = await getOwner()
+  const owner = await getAuthenticatedOwner()
   if (!owner) throw new Error('Unauthorized')
 
   const monthsToFetch = period === '6_months' ? 6 : 12
@@ -368,7 +354,7 @@ export async function getRevenueAnalytics(period: '6_months' | '12_months' = '6_
 }
 
 export async function getRevenueDistribution() {
-    const owner = await getOwner()
+    const owner = await getAuthenticatedOwner()
     if (!owner) throw new Error('Unauthorized')
 
     // 1. By Method
@@ -417,7 +403,7 @@ export async function getRevenueDistribution() {
 }
 
 export async function getUpcomingExpiries(days = 7, branchId?: string) {
-    const owner = await getOwner()
+    const owner = await getAuthenticatedOwner()
     if (!owner) throw new Error('Unauthorized')
 
     const now = new Date()
@@ -462,7 +448,7 @@ export async function getUpcomingExpiries(days = 7, branchId?: string) {
 }
 
 export async function updatePaymentStatus(paymentId: string, status: 'completed' | 'failed') {
-    const owner = await getOwner()
+    const owner = await getAuthenticatedOwner()
     if (!owner) throw new Error('Unauthorized')
 
     const payment = await prisma.payment.findUnique({
@@ -509,7 +495,7 @@ export async function updatePaymentStatus(paymentId: string, status: 'completed'
 }
 
 export async function getOverdueSubscriptions(days = 30, branchId?: string) {
-    const owner = await getOwner()
+    const owner = await getAuthenticatedOwner()
     if (!owner) throw new Error('Unauthorized')
 
     const now = new Date()
@@ -565,7 +551,7 @@ export async function createManualPayment(data: {
     planId?: string
     feeId?: string
 }) {
-    const owner = await getOwner()
+    const owner = await getAuthenticatedOwner()
     if (!owner) throw new Error('Unauthorized')
 
     // Validate student belongs to library (optional but good practice)
@@ -610,7 +596,7 @@ export async function createManualPayment(data: {
 }
 
 export async function getPendingPayments() {
-    const owner = await getOwner()
+    const owner = await getAuthenticatedOwner()
     if (!owner) throw new Error('Unauthorized')
 
     const payments = await prisma.payment.findMany({
@@ -664,7 +650,7 @@ export async function getPendingPayments() {
 }
 
 export async function verifyPayment(paymentId: string, action: 'approve' | 'reject') {
-    const owner = await getOwner()
+    const owner = await getAuthenticatedOwner()
     if (!owner) throw new Error('Unauthorized')
 
     const status = action === 'approve' ? 'completed' : 'failed'
@@ -852,7 +838,7 @@ export async function verifyPayment(paymentId: string, action: 'approve' | 'reje
 }
 
 export async function getPendingHandovers() {
-    const owner = await getOwner()
+    const owner = await getAuthenticatedOwner()
     if (!owner) throw new Error('Unauthorized')
 
     const handovers = await prisma.cashHandover.findMany({
@@ -883,7 +869,7 @@ export async function getPendingHandovers() {
 }
 
 export async function verifyHandover(handoverId: string, status: 'verified' | 'rejected') {
-    const owner = await getOwner()
+    const owner = await getAuthenticatedOwner()
     if (!owner) throw new Error('Unauthorized')
 
     const handover = await prisma.cashHandover.update({
@@ -902,7 +888,7 @@ export async function verifyHandover(handoverId: string, status: 'verified' | 'r
 }
 
 export async function updatePaymentRemarks(paymentId: string, remarks: string) {
-    const owner = await getOwner()
+    const owner = await getAuthenticatedOwner()
     if (!owner) throw new Error('Unauthorized')
 
     const payment = await prisma.payment.findUnique({

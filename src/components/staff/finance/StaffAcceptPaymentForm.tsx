@@ -127,7 +127,7 @@ export function StaffAcceptPaymentForm() {
             }
         }
         fetchInitialStudent()
-    }, [initialStudentId])
+    }, [initialStudentId, selectedStudent])
 
     const [selectedFees, setSelectedFees] = useState<string[]>([])
     const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null)
@@ -150,16 +150,16 @@ export function StaffAcceptPaymentForm() {
     const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null)
 
     // Success Data
-    const [successData, setSuccessData] = useState<any>(null)
+    const [successData, setSuccessData] = useState<Record<string, unknown> | null>(null)
 
     // Data Loading
     useEffect(() => {
         async function loadData() {
             try {
                 const data = await getStaffBranchDetails()
-                setPlans(data.plans as any || []) 
-                setFees(data.fees as any || [])
-                setSeats(data.seats as any || [])
+                setPlans(data.plans || []) 
+                setFees(data.fees || [])
+                setSeats(data.seats || [])
                 setBranchDetails(data.branch)
             } catch (error) {
                 console.error(error)
@@ -291,7 +291,7 @@ export function StaffAcceptPaymentForm() {
                 toast.error(result.error || 'Invalid coupon')
                 setAppliedCoupon(null)
             }
-        } catch (error) {
+        } catch {
             toast.error('Failed to validate coupon')
         } finally {
             setIsValidatingCoupon(false)
@@ -400,7 +400,7 @@ export function StaffAcceptPaymentForm() {
         }
 
         return {
-            invoiceNo: successData?.invoiceNo || `INV-${Date.now()}`,
+            invoiceNo: (successData?.invoiceNo as string) || `INV-${Date.now()}`,
             date: new Date(),
             studentName: selectedStudent.name,
             studentEmail: selectedStudent.email,
@@ -483,7 +483,7 @@ export function StaffAcceptPaymentForm() {
             const ampm = h >= 12 ? 'PM' : 'AM'
             const h12 = h % 12 || 12
             return `${h12}:${minutes} ${ampm}`
-        } catch (e) {
+        } catch {
             return timeStr || '-'
         }
     }

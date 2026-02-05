@@ -2,9 +2,8 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
 import { startOfDay, endOfDay, subDays } from 'date-fns'
-import { COOKIE_KEYS } from '@/lib/auth/session'
+import { getAuthenticatedOwner } from '@/lib/auth/owner'
 
 export type AttendanceFilter = {
     page?: number
@@ -18,17 +17,8 @@ export type AttendanceFilter = {
 }
 
 export async function getOwnerAttendanceLogs(filters: AttendanceFilter) {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-
-    if (!ownerId) throw new Error('Unauthorized')
-
-    const owner = await prisma.owner.findUnique({
-        where: { id: ownerId },
-        select: { libraryId: true }
-    })
-
-    if (!owner) throw new Error('Owner not found')
+    const owner = await getAuthenticatedOwner()
+    if (!owner) throw new Error('Unauthorized')
 
     const page = filters.page || 1
     const limit = filters.limit || 10
@@ -114,17 +104,8 @@ export async function getOwnerAttendanceLogs(filters: AttendanceFilter) {
 }
 
 export async function getOwnerAttendanceStats(branchId?: string, date: Date = new Date()) {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-
-    if (!ownerId) throw new Error('Unauthorized')
-
-    const owner = await prisma.owner.findUnique({
-        where: { id: ownerId },
-        select: { libraryId: true }
-    })
-
-    if (!owner) throw new Error('Owner not found')
+    const owner = await getAuthenticatedOwner()
+    if (!owner) throw new Error('Unauthorized')
 
     const start = startOfDay(date)
     const end = endOfDay(date)
@@ -182,17 +163,8 @@ export async function getOwnerAttendanceStats(branchId?: string, date: Date = ne
 }
 
 export async function getAttendanceAnalytics(days: number = 7) {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-
-    if (!ownerId) throw new Error('Unauthorized')
-
-    const owner = await prisma.owner.findUnique({
-        where: { id: ownerId },
-        select: { libraryId: true }
-    })
-
-    if (!owner) throw new Error('Owner not found')
+    const owner = await getAuthenticatedOwner()
+    if (!owner) throw new Error('Unauthorized')
 
     const endDate = endOfDay(new Date())
     const startDate = startOfDay(subDays(new Date(), days - 1))
@@ -280,10 +252,8 @@ export async function getAttendanceAnalytics(days: number = 7) {
 }
 
 export async function updateAttendanceRecord(id: string, data: { checkIn?: Date, checkOut?: Date, status?: string }) {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-
-    if (!ownerId) return { success: false, error: 'Unauthorized' }
+    const owner = await getAuthenticatedOwner()
+    if (!owner) return { success: false, error: 'Unauthorized' }
 
     try {
         const existing = await prisma.attendance.findUnique({ where: { id } })
@@ -326,10 +296,8 @@ export async function updateAttendanceRecord(id: string, data: { checkIn?: Date,
 }
 
 export async function verifyStudentQR(studentId: string, branchId: string) {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-
-    if (!ownerId) return { success: false, error: 'Unauthorized' }
+    const owner = await getAuthenticatedOwner()
+    if (!owner) return { success: false, error: 'Unauthorized' }
 
     try {
         // 1. Verify Student Exists

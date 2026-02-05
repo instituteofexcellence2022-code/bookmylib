@@ -6,8 +6,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { createWorker } from 'tesseract.js'
 import { 
   CreditCard, Banknote, QrCode, Building, 
-  AlertCircle, Check, Upload, X, Loader2,
-  Shield, Smartphone
+  AlertCircle, Check, Upload, X, Loader2
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { uploadFile } from '@/actions/upload'
@@ -62,6 +61,38 @@ const formatTime = (timeStr?: string | null) => {
     const ampm = h >= 12 ? 'PM' : 'AM'
     const h12 = h % 12 || 12
     return `${h12}:${minutes} ${ampm}`
+}
+
+interface RazorpaySuccessHandlerArgs {
+  razorpay_payment_id: string
+  razorpay_order_id: string
+  razorpay_signature: string
+}
+
+interface RazorpayFailureResponse {
+    error: {
+        code: string
+        description: string
+        source: string
+        step: string
+        reason: string
+        metadata: {
+            order_id: string
+            payment_id: string
+        }
+    }
+}
+
+interface CashfreeCheckoutResult {
+    error?: {
+        message: string
+        code: string
+    }
+    paymentDetails?: {
+        paymentMessage: string
+        paymentStatus: string
+    }
+    redirect?: boolean
 }
 
 export default function PublicBookingPayment({ 
@@ -309,7 +340,7 @@ export default function PublicBookingPayment({
                     description: `Booking for ${studentDetails.name}`,
                     image: "/logo.png",
                     order_id: paymentResult.gatewayOrderId || '', 
-                    handler: async function (response: any) {
+                    handler: async function (response: RazorpaySuccessHandlerArgs) {
                         const verifyResult = await verifyPaymentSignature(
                             paymentResult.paymentId!,
                             response.razorpay_payment_id,
@@ -333,8 +364,10 @@ export default function PublicBookingPayment({
                     }
                 }
                 const rzp1 = new window.Razorpay(options)
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 rzp1.on('payment.failed', function (response: any){
-                    toast.error(response.error.description || 'Payment Failed')
+                    const failure = response as RazorpayFailureResponse
+                    toast.error(failure.error.description || 'Payment Failed')
                     setProcessing(false)
                 })
                 rzp1.open()
@@ -355,7 +388,8 @@ export default function PublicBookingPayment({
                     redirectTarget: "_modal" as const,
                 }
 
-                cashfree.checkout(checkoutOptions).then(async (checkoutResult: any) => {
+                cashfree.checkout(checkoutOptions).then(async (result: unknown) => {
+                    const checkoutResult = result as CashfreeCheckoutResult
                     if(checkoutResult.error){
                         console.log("User closed popup or error", checkoutResult.error);
                         setProcessing(false)

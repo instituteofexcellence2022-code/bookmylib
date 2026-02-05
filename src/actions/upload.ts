@@ -1,19 +1,19 @@
 'use server'
 
 import { UTApi } from "uploadthing/server";
-import { cookies } from "next/headers";
-import { COOKIE_KEYS } from "@/lib/auth/session";
+import { getAuthenticatedOwner } from "@/lib/auth/owner";
+import { getAuthenticatedStaff } from "@/lib/auth/staff";
+import { getAuthenticatedStudent } from "@/lib/auth/student";
 
 const utapi = new UTApi();
 
 export async function uploadFile(file: File) {
   // Check Authentication
-  const cookieStore = await cookies();
-  const ownerSession = cookieStore.get(COOKIE_KEYS.OWNER);
-  const staffSession = cookieStore.get(COOKIE_KEYS.STAFF);
-  const studentSession = cookieStore.get(COOKIE_KEYS.STUDENT);
+  const owner = await getAuthenticatedOwner();
+  const staff = await getAuthenticatedStaff();
+  const student = await getAuthenticatedStudent();
 
-  if (!ownerSession && !staffSession && !studentSession) {
+  if (!owner && !staff && !student) {
     throw new Error('Unauthorized: Login required to upload files');
   }
 

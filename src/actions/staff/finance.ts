@@ -5,27 +5,11 @@ import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { sendReceiptEmail } from '@/actions/email'
 import { startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns'
-import { COOKIE_KEYS } from '@/lib/auth/session'
 import { formatSeatNumber } from '@/lib/utils'
+import { getAuthenticatedStaff } from '@/lib/auth/staff'
 
 // Helper to get authenticated staff
-async function getAuthenticatedStaff() {
-    const cookieStore = await cookies()
-    const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
-
-    if (!staffId) return null
-
-    const staff = await prisma.staff.findUnique({
-        where: { id: staffId },
-        include: { 
-            library: true,
-            branch: true 
-        }
-    })
-    
-    if (!staff || staff.status !== 'active') return null
-    return staff
-}
+// Removed local helper in favor of imported one
 
 export async function getStaffFinanceStats() {
   const staff = await getAuthenticatedStaff()
@@ -530,6 +514,8 @@ export async function getStaffBranchDetails() {
     const seatsWithStatus = branch.seats.map(seat => ({
         ...seat,
         isOccupied: seat.subscriptions.length > 0,
+        row: null,
+        column: null,
         subscriptions: undefined // Remove detailed subscription info
     }))
 
@@ -540,8 +526,8 @@ export async function getStaffBranchDetails() {
     ]
 
     const allFees = [
-        ...branch.additionalFees,
-        ...(branch.library?.additionalFees || [])
+        ...branch.additionalFees.map(fee => ({ ...fee, type: 'fee' })),
+        ...(branch.library?.additionalFees.map(fee => ({ ...fee, type: 'fee' })) || [])
     ]
 
     return {

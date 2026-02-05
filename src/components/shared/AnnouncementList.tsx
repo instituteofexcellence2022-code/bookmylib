@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { AlertTriangle, AlertOctagon, Tag, Newspaper, CheckCircle, Info, Clock } from 'lucide-react'
+import { Info, Clock } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatDistanceToNow } from 'date-fns'
 

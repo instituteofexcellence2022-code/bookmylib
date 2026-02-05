@@ -1,12 +1,18 @@
 import { prisma } from '@/lib/prisma'
 import { cookies } from 'next/headers'
-import { COOKIE_KEYS } from './session'
+import { COOKIE_KEYS } from './constants'
+import { verifySessionToken } from './jwt'
 
 export async function getAuthenticatedOwner() {
     const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
+    const token = cookieStore.get(COOKIE_KEYS.OWNER)?.value
 
-    if (!ownerId) return null
+    if (!token) return null
+
+    const payload = await verifySessionToken(token)
+    if (!payload || !payload.userId) return null
+    
+    const ownerId = payload.userId as string
 
     try {
         const owner = await prisma.owner.findUnique({

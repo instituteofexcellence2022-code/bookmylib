@@ -7,9 +7,7 @@ import {
     Filter, 
     RefreshCw, 
     Clock,
-    UserCheck,
-    Users,
-    MapPin,
+    UserCheck,Users,
     Edit,
     ArrowRight
 } from 'lucide-react'

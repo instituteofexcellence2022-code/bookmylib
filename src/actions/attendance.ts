@@ -2,14 +2,12 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
 
-import { COOKIE_KEYS } from '@/lib/auth/session'
+import { getAuthenticatedStudent } from '@/lib/auth/student'
 
 async function getStudentSession() {
-    const cookieStore = await cookies()
-    const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
-    return studentId
+    const student = await getAuthenticatedStudent()
+    return student?.id
 }
 
 export async function getStudentAttendanceStatus() {

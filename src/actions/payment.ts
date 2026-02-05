@@ -1,7 +1,6 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { sendReceiptEmail } from '@/actions/email'
 import { formatSeatNumber } from '@/lib/utils'
@@ -10,17 +9,39 @@ import { razorpay } from '@/lib/payment/razorpay'
 import { cashfree } from '@/lib/payment/cashfree'
 import crypto from 'crypto'
 
-// Helper to get current student
-import { COOKIE_KEYS } from '@/lib/auth/session'
+import { getAuthenticatedStudent } from '@/lib/auth/student'
+import { getAuthenticatedOwner } from '@/lib/auth/owner'
+import { getAuthenticatedStaff } from '@/lib/auth/staff'
+
+interface ReferralSettings {
+    all?: ReferralConfig;
+    refereeReward?: RewardConfig;
+    refereeDiscountValue?: number;
+    refereeDiscountType?: string;
+    referrerReward?: RewardConfig;
+    referrerDiscountValue?: number;
+    referrerDiscountType?: string;
+    enabled?: boolean;
+}
+
+interface ReferralConfig {
+    refereeReward?: RewardConfig;
+    refereeDiscountValue?: number;
+    refereeDiscountType?: string;
+    referrerReward?: RewardConfig;
+    referrerDiscountValue?: number;
+    referrerDiscountType?: string;
+    enabled?: boolean;
+}
+
+interface RewardConfig {
+    value: number;
+    type: string;
+}
 
 export async function getStudent() {
-  const cookieStore = await cookies()
-  const studentId = cookieStore.get(COOKIE_KEYS.STUDENT)?.value
-  if (!studentId) return null
-  return prisma.student.findUnique({ 
-    where: { id: studentId },
-    include: { subscriptions: true }
-  })
+  const student = await getAuthenticatedStudent()
+  return student
 }
 
 export async function getPaymentHistory() {
@@ -310,7 +331,7 @@ export async function initiatePayment(
         
         if (referral) {
           const lib = await prisma.library.findUnique({ where: { id: libraryId } })
-          const settings = lib?.referralSettings as any || {}
+          const settings = (lib?.referralSettings as unknown as ReferralSettings) || {}
           
           // Support both new (nested) and old (flat) settings structure
           const s = settings.all || settings
@@ -459,7 +480,7 @@ async function processReferralRewards(paymentId: string) {
     return
   }
 
-  const settings = payment.library.referralSettings as any || {}
+  const settings = (payment.library.referralSettings as unknown as ReferralSettings) || {}
   
   // Check if referral program is enabled
   // Migration logic: if 'enabled' property exists in root, use it. If 'all' exists, check all.enabled.
@@ -805,7 +826,7 @@ export async function createManualPayment(formData: FormData) {
         
         if (referral) {
             const lib = await prisma.library.findUnique({ where: { id: libraryId } })
-            const settings = lib?.referralSettings as any || {}
+            const settings = (lib?.referralSettings as unknown as ReferralSettings) || {}
             
             if (settings.refereeDiscountValue) {
                 if (settings.refereeDiscountType === 'percentage') {
@@ -985,16 +1006,15 @@ export async function validateCoupon(code: string, amount: number, studentId?: s
 }
 
 export async function verifyPayment(paymentId: string, status: 'completed' | 'failed') {
-  const cookieStore = await cookies()
-  const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-  const staffId = cookieStore.get(COOKIE_KEYS.STAFF)?.value
+  const owner = await getAuthenticatedOwner()
+  const staff = await getAuthenticatedStaff()
   
-  if (!ownerId && !staffId) {
+  if (!owner && !staff) {
     return { success: false, error: 'Unauthorized' }
   }
 
-  const verifierId = ownerId || staffId
-  const verifierRole = ownerId ? 'owner' : 'staff'
+  const verifierId = (owner?.id || staff?.id) as string
+  const verifierRole = owner ? 'owner' : 'staff'
 
   try {
     const payment = await prisma.payment.findUnique({

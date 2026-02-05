@@ -306,6 +306,16 @@ export async function updateBranch(formData: FormData) {
 
   try {
     const id = formData.get('id') as string
+
+    // Verify ownership
+    const existingBranch = await prisma.branch.findUnique({
+      where: { id }
+    })
+
+    if (!existingBranch || existingBranch.libraryId !== owner.libraryId) {
+      return { success: false, error: 'Unauthorized' }
+    }
+
     const name = formData.get('name') as string
     const address = formData.get('address') as string
     const city = formData.get('city') as string
@@ -370,11 +380,9 @@ export async function updateBranch(formData: FormData) {
 
     const images = JSON.stringify([...existingImages, ...newUrls])
 
-    // Verify ownership
-    const existingBranch = await prisma.branch.findUnique({ where: { id } })
-    if (!existingBranch || existingBranch.libraryId !== owner.libraryId) {
-      return { success: false, error: 'Unauthorized: Branch does not belong to your library' }
-    }
+    // Verify ownership (already done at start of function)
+    // We proceed to update directly
+
 
     await prisma.branch.update({
       where: { id },
@@ -461,7 +469,7 @@ export async function generateBranchQR(branchId: string) {
 
         revalidatePath('/owner/branches')
         return { success: true, qrCode }
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('Error generating QR:', error)
         return { success: false, error: 'Failed to generate QR' }
     }

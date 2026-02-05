@@ -2,33 +2,25 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
 import { uploadFile } from '@/actions/upload'
 import { sendWelcomeEmail } from '@/actions/email'
 import { formatSeatNumber } from '@/lib/utils'
-import { COOKIE_KEYS } from '@/lib/auth/session'
-
+import { getAuthenticatedOwner } from '@/lib/auth/owner'
 import bcrypt from 'bcryptjs'
 
 export async function createStudent(formData: FormData) {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
+    const owner = await getAuthenticatedOwner()
+    if (!owner) throw new Error('Unauthorized')
 
-    if (!ownerId) throw new Error('Unauthorized')
-
-    const owner = await prisma.owner.findUnique({
-        where: { id: ownerId },
-        select: { 
-            libraryId: true,
-            library: {
-                select: { name: true }
-            }
-        }
-    })
-
-    if (!owner) throw new Error('Owner not found')
-
+    // Owner already has libraryId included from getAuthenticatedOwner logic (see src/lib/auth/owner.ts)
+    // But we need to make sure we have access to it.
+    // getAuthenticatedOwner includes library. Let's check type.
+    // It returns Owner & { library: Library }.
+    
+    // We can skip the manual DB lookup.
+    // However, the original code selected specific fields.
+    // We can just use owner.libraryId directly.
+    
     const name = formData.get('name') as string
     const email = formData.get('email') as string || null
     const phone = formData.get('phone') as string || null
@@ -137,21 +129,8 @@ export type StudentFilter = {
 }
 
 export async function getOwnerStudents(filters: StudentFilter = {}) {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-
-    if (!ownerId) {
-        throw new Error('Unauthorized')
-    }
-
-    const owner = await prisma.owner.findUnique({
-        where: { id: ownerId },
-        select: { libraryId: true }
-    })
-
-    if (!owner) {
-        throw new Error('Owner not found')
-    }
+    const owner = await getAuthenticatedOwner()
+    if (!owner) throw new Error('Unauthorized')
 
     const { search, branchId, status, page = 1, limit = 10 } = filters
     const skip = (page - 1) * limit
@@ -389,12 +368,19 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
 }
 
 export async function verifyStudentGovtId(studentId: string, status: 'verified' | 'rejected') {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-
-    if (!ownerId) throw new Error('Unauthorized')
+    const owner = await getAuthenticatedOwner()
+    if (!owner) throw new Error('Unauthorized')
 
     try {
+        const student = await prisma.student.findUnique({
+            where: { id: studentId },
+            select: { libraryId: true }
+        })
+
+        if (!student || student.libraryId !== owner.libraryId) {
+            return { success: false, error: 'Student not found' }
+        }
+
         await prisma.student.update({
             where: { id: studentId },
             data: { govtIdStatus: status }
@@ -408,17 +394,8 @@ export async function verifyStudentGovtId(studentId: string, status: 'verified' 
 }
 
 export async function getStudentDetails(studentId: string) {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-
-    if (!ownerId) throw new Error('Unauthorized')
-
-    const owner = await prisma.owner.findUnique({
-        where: { id: ownerId },
-        select: { libraryId: true }
-    })
-
-    if (!owner) throw new Error('Owner not found')
+    const owner = await getAuthenticatedOwner()
+    if (!owner) throw new Error('Unauthorized')
 
     try {
         const student = await prisma.student.findUnique({
@@ -499,10 +476,8 @@ export async function getStudentDetails(studentId: string) {
 }
 
 export async function toggleBlockStudent(studentId: string, isBlocked: boolean) {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-
-    if (!ownerId) return { success: false, error: 'Unauthorized' }
+    const owner = await getAuthenticatedOwner()
+    if (!owner) return { success: false, error: 'Unauthorized' }
 
     try {
         await prisma.student.update({
@@ -521,12 +496,19 @@ export async function toggleBlockStudent(studentId: string, isBlocked: boolean) 
 }
 
 export async function deleteStudent(studentId: string) {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-
-    if (!ownerId) return { success: false, error: 'Unauthorized' }
+    const owner = await getAuthenticatedOwner()
+    if (!owner) return { success: false, error: 'Unauthorized' }
 
     try {
+        const student = await prisma.student.findUnique({
+            where: { id: studentId },
+            select: { libraryId: true }
+        })
+
+        if (!student || student.libraryId !== owner.libraryId) {
+            return { success: false, error: 'Student not found' }
+        }
+
         await prisma.student.delete({
             where: { id: studentId }
         })
@@ -540,15 +522,8 @@ export async function deleteStudent(studentId: string) {
 }
 
 export async function getStudentDetailsForScanner(studentId: string) {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-    if (!ownerId) return { success: false, error: 'Unauthorized' }
-
-    const owner = await prisma.owner.findUnique({
-        where: { id: ownerId },
-        select: { libraryId: true }
-    })
-    if (!owner) return { success: false, error: 'Owner not found' }
+    const owner = await getAuthenticatedOwner()
+    if (!owner) return { success: false, error: 'Unauthorized' }
 
     try {
         const student = await prisma.student.findUnique({
@@ -620,10 +595,8 @@ export async function getStudentDetailsForScanner(studentId: string) {
 }
 
 export async function updateStudent(id: string, formData: FormData) {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-
-    if (!ownerId) return { success: false, error: 'Unauthorized' }
+    const owner = await getAuthenticatedOwner()
+    if (!owner) return { success: false, error: 'Unauthorized' }
     const name = formData.get('name') as string
     const email = formData.get('email') as string
     const phone = formData.get('phone') as string
@@ -679,18 +652,10 @@ export async function updateStudent(id: string, formData: FormData) {
 }
 
 export async function addStudentNote(studentId: string, content: string) {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-
-    if (!ownerId) return { success: false, error: 'Unauthorized' }
+    const owner = await getAuthenticatedOwner()
+    if (!owner) return { success: false, error: 'Unauthorized' }
 
     try {
-        const owner = await prisma.owner.findUnique({
-            where: { id: ownerId }
-        })
-
-        if (!owner) return { success: false, error: 'Owner not found' }
-
         await prisma.studentNote.create({
             data: {
                 studentId,
@@ -709,10 +674,8 @@ export async function addStudentNote(studentId: string, content: string) {
 }
 
 export async function deleteStudentNote(noteId: string, studentId: string) {
-    const cookieStore = await cookies()
-    const ownerId = cookieStore.get(COOKIE_KEYS.OWNER)?.value
-
-    if (!ownerId) return { success: false, error: 'Unauthorized' }
+    const owner = await getAuthenticatedOwner()
+    if (!owner) return { success: false, error: 'Unauthorized' }
 
     try {
         await prisma.studentNote.delete({
