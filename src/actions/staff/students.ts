@@ -24,26 +24,28 @@ export async function getStaffStudents(filters: StudentFilter = {}) {
     const { search, status, page = 1, limit = 10 } = filters
     const skip = (page - 1) * limit
 
-    const where: Prisma.StudentWhereInput = {
-        AND: [
-            {
-                OR: [
-                    { branchId: staff.branchId },
-                    {
-                        subscriptions: {
-                            some: {
-                                branchId: staff.branchId
-                            }
+    const andConditions: Prisma.StudentWhereInput[] = [
+        {
+            OR: [
+                { branchId: staff.branchId },
+                {
+                    subscriptions: {
+                        some: {
+                            branchId: staff.branchId
                         }
                     }
-                ]
-            }
-        ]
+                }
+            ]
+        }
+    ]
+
+    const where: Prisma.StudentWhereInput = {
+        AND: andConditions
     }
 
     // Search
     if (search) {
-        where.AND.push({
+        andConditions.push({
             OR: [
                 { name: { contains: search, mode: 'insensitive' } },
                 { email: { contains: search, mode: 'insensitive' } },
@@ -54,12 +56,12 @@ export async function getStaffStudents(filters: StudentFilter = {}) {
 
     // Status Filter
     if (status === 'expired') {
-        where.AND.push({
+        andConditions.push({
             subscriptions: {
                 some: { libraryId: staff.libraryId }
             }
         })
-        where.AND.push({
+        andConditions.push({
             subscriptions: {
                 none: {
                     libraryId: staff.libraryId,
@@ -68,7 +70,7 @@ export async function getStaffStudents(filters: StudentFilter = {}) {
             }
         })
     } else if (status === 'active') {
-        where.AND.push({
+        andConditions.push({
             subscriptions: {
                 some: {
                     libraryId: staff.libraryId,
@@ -79,7 +81,7 @@ export async function getStaffStudents(filters: StudentFilter = {}) {
         })
     } else if (status === 'new') {
         const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
-        where.AND.push({
+        andConditions.push({
             createdAt: { gte: oneDayAgo },
             subscriptions: {
                 none: { libraryId: staff.libraryId }
@@ -88,7 +90,7 @@ export async function getStaffStudents(filters: StudentFilter = {}) {
         })
     } else if (status === 'no_plan') {
         const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
-        where.AND.push({
+        andConditions.push({
             isBlocked: false,
             createdAt: { lt: oneDayAgo },
             subscriptions: {
@@ -96,7 +98,7 @@ export async function getStaffStudents(filters: StudentFilter = {}) {
             }
         })
     } else if (status === 'blocked') {
-        where.AND.push({ isBlocked: true })
+        andConditions.push({ isBlocked: true })
     }
 
     try {
