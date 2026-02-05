@@ -55,12 +55,14 @@ export function AnnouncementManager() {
 
   const loadData = async () => {
     try {
-      const [announcementsData, branchesData] = await Promise.all([
+      const [announcementsData, branchesResult] = await Promise.all([
         getOwnerAnnouncements(),
         getOwnerBranches()
       ])
       setAnnouncements(announcementsData as unknown as AnnouncementData[])
-      setBranches(branchesData as unknown as BranchData[])
+      if (branchesResult.success && branchesResult.data) {
+        setBranches(branchesResult.data as unknown as BranchData[])
+      }
     } catch {
       toast.error('Failed to load data')
     } finally {

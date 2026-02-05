@@ -98,10 +98,17 @@ export default function AddStaffPage() {
 
   useEffect(() => {
     const fetchBranches = async () => {
-      const branchData = await getOwnerBranches()
-      setBranches(branchData.map((b: { name: string, id: string }) => ({ label: b.name, value: b.id })))
-      if (branchData.length === 1) {
-        setFormData(prev => ({ ...prev, branchId: branchData[0].id }))
+      try {
+        const result = await getOwnerBranches()
+        if (result.success && result.data) {
+          const branchData = result.data
+          setBranches(branchData.map((b: { name: string, id: string }) => ({ label: b.name, value: b.id })))
+          if (branchData.length === 1) {
+            setFormData(prev => ({ ...prev, branchId: branchData[0].id }))
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load branches', error)
       }
     }
     fetchBranches()

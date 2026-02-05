@@ -10,7 +10,7 @@ import { CompactCard } from '@/components/ui/AnimatedCard'
 import { createPlan } from '@/actions/plan'
 import { getOwnerBranches } from '@/actions/branch'
 import { toast } from 'react-hot-toast'
-import { ArrowLeft, Calendar, IndianRupee, Layers, Clock, Settings, MapPin } from 'lucide-react'
+import { ArrowLeft, Calendar, IndianRupee, Clock, Settings, MapPin } from 'lucide-react'
 
 export default function CreateSubscriptionPage() {
   const router = useRouter()
@@ -34,8 +34,10 @@ export default function CreateSubscriptionPage() {
   useEffect(() => {
     const fetchBranches = async () => {
       try {
-        const data = await getOwnerBranches()
-        setBranches(data as {id: string, name: string}[])
+        const result = await getOwnerBranches()
+        if (result.success && result.data) {
+          setBranches(result.data as {id: string, name: string}[])
+        }
       } catch (error) {
         console.error('Failed to load branches', error)
       }

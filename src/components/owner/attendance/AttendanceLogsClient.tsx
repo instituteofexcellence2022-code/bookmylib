@@ -84,8 +84,10 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
 
     const fetchBranches = useCallback(async () => {
         try {
-            const data = await getOwnerBranches()
-            setBranches(data)
+            const result = await getOwnerBranches()
+            if (result.success && result.data) {
+                setBranches(result.data)
+            }
         } catch (error) {
             console.error('Failed to fetch branches', error)
         }

@@ -167,19 +167,22 @@ export function AcceptPaymentForm() {
     useEffect(() => {
         const loadBranches = async () => {
             try {
-                const res = await getOwnerBranches()
-                setBranches(res)
-                // Prefill from query if provided
-                const branchId = searchParams.get('branchId')
-                if (branchId) {
-                    const found = res.find(b => b.id === branchId)
-                    if (found) {
-                        setSelectedBranch(found)
+                const result = await getOwnerBranches()
+                if (result.success && result.data) {
+                    const res = result.data
+                    setBranches(res)
+                    // Prefill from query if provided
+                    const branchId = searchParams.get('branchId')
+                    if (branchId) {
+                        const found = res.find(b => b.id === branchId)
+                        if (found) {
+                            setSelectedBranch(found)
+                            setStep('student')
+                        }
+                    } else if (res.length === 1) {
+                        setSelectedBranch(res[0])
                         setStep('student')
                     }
-                } else if (res.length === 1) {
-                    setSelectedBranch(res[0])
-                    setStep('student')
                 }
             } catch {
                 toast.error('Failed to load branches')
@@ -383,7 +386,7 @@ export function AcceptPaymentForm() {
         }
     }
 
-    const getReceiptData = () => {
+    const getReceiptData = (): ReceiptData | null => {
         if (!selectedStudent || !selectedBranch || !selectedPlan) return null
         
         const feeItems = selectedFees.map(id => {

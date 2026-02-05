@@ -10,7 +10,9 @@ import { FormSelect } from '@/components/ui/FormSelect'
 import { getPlanById, updatePlan, deletePlan } from '@/actions/plan'
 import { getOwnerBranches } from '@/actions/branch'
 import { toast } from 'react-hot-toast'
-import { ArrowLeft, Calendar, IndianRupee, Layers, Loader2, Trash2, Clock, Settings, MapPin } from 'lucide-react'
+import { ArrowLeft, Calendar, IndianRupee, Loader2, Trash2, Clock, Settings, MapPin } from 'lucide-react'
+
+import { Plan } from '@prisma/client'
 
 interface PlanDetailsPageProps {
   params: Promise<{
@@ -24,7 +26,7 @@ export default function SubscriptionDetailsPage({ params }: PlanDetailsPageProps
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [branches, setBranches] = useState<{id: string, name: string}[]>([])
-  const [plan, setPlan] = useState<any | null>(null)
+  const [plan, setPlan] = useState<Plan | null>(null)
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -43,8 +45,10 @@ export default function SubscriptionDetailsPage({ params }: PlanDetailsPageProps
   useEffect(() => {
     const fetchBranches = async () => {
       try {
-        const data = await getOwnerBranches()
-        setBranches(data as {id: string, name: string}[])
+        const result = await getOwnerBranches()
+        if (result.success && result.data) {
+          setBranches(result.data as {id: string, name: string}[])
+        }
       } catch (error) {
         console.error('Failed to load branches', error)
       }

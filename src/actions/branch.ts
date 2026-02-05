@@ -18,7 +18,7 @@ const safeParse = <T>(jsonString: string | null, fallback: T): T => {
 
 export async function getOwnerBranches() {
   const owner = await getOwnerProfile()
-  if (!owner || !owner.libraryId) return []
+  if (!owner || !owner.libraryId) return { success: false, error: 'Unauthorized' }
 
   try {
     const branches = await prisma.branch.findMany({
@@ -43,7 +43,7 @@ export async function getOwnerBranches() {
       }
     })
     
-    return branches.map(branch => ({
+    const data = branches.map(branch => ({
       ...branch,
       seats: { 
         total: branch.seatCount, 
@@ -57,9 +57,11 @@ export async function getOwnerBranches() {
       status: branch.isActive ? 'active' : 'maintenance' // Map boolean to string status
     }))
 
+    return { success: true, data }
+
   } catch (error) {
     console.error('Error fetching branches:', error)
-    return []
+    return { success: false, error: 'Failed to fetch branches' }
   }
 }
 

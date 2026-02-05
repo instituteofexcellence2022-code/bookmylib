@@ -21,8 +21,6 @@ import {
   deletePromotion, 
   togglePromotionStatus 
 } from '@/actions/promo'
-import { getOwnerBranches } from '@/actions/branch'
-import { getOwnerPlans } from '@/actions/plan'
 
 interface Promotion {
   id: string
@@ -49,8 +47,6 @@ interface Promotion {
 export function PromotionsList() {
   // Data State
   const [promotions, setPromotions] = useState<Promotion[]>([])
-  const [branches, setBranches] = useState<{id: string, name: string}[]>([])
-  const [plans, setPlans] = useState<{id: string, name: string}[]>([])
   const [loading, setLoading] = useState(true)
 
   // Filters
@@ -77,15 +73,9 @@ export function PromotionsList() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [promosData, branchesData, plansData] = await Promise.all([
-        getOwnerPromotions(),
-        getOwnerBranches(),
-        getOwnerPlans()
-      ])
+      const promosData = await getOwnerPromotions()
       
       setPromotions(promosData as unknown as Promotion[] || [])
-      setBranches(branchesData as {id: string, name: string}[] || [])
-      setPlans(plansData || [])
     } catch (error) {
       console.error('Error loading data:', error)
       toast.error('Failed to load data')

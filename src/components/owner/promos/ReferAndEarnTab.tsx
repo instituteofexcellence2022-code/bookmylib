@@ -73,13 +73,15 @@ export function ReferAndEarnTab() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [refs, settings, branchList] = await Promise.all([
+        const [refs, settings, branchesResult] = await Promise.all([
           getOwnerReferrals(),
           getReferralSettings(),
           getOwnerBranches()
         ])
         setReferrals(refs as unknown as Referral[])
-        setBranches(branchList as Branch[])
+        if (branchesResult.success && branchesResult.data) {
+          setBranches(branchesResult.data as Branch[])
+        }
         
         // Handle migration/normalization of settings
         let normalizedSettings: ReferralSettings = (settings as unknown as ReferralSettings) || {}

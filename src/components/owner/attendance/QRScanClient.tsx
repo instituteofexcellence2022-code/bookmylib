@@ -34,7 +34,8 @@ export function QRScanClient() {
   const playBeep = useCallback(() => {
     if (!soundEnabled) return
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      const audioContext = new AudioContextClass()
       const oscillator = audioContext.createOscillator()
       const gainNode = audioContext.createGain()
 
@@ -61,10 +62,13 @@ export function QRScanClient() {
 
   const fetchBranches = useCallback(async () => {
     try {
-        const data = await getOwnerBranches()
-        setBranches(data)
-        if (data.length > 0 && !selectedBranchId) {
-            setSelectedBranchId(data[0].id)
+        const result = await getOwnerBranches()
+        if (result.success && result.data) {
+            const data = result.data
+            setBranches(data)
+            if (data.length > 0 && !selectedBranchId) {
+                setSelectedBranchId(data[0].id)
+            }
         }
     } catch (error) {
         console.error('Failed to fetch branches', error)
@@ -120,7 +124,7 @@ export function QRScanClient() {
                     cameraId, 
                     SCANNER_CONFIG,
                     (decodedText) => handleScan(decodedText),
-                    (errorMessage) => {
+                    () => {
                         // ignore
                     }
                 )

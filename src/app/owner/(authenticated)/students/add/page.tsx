@@ -8,11 +8,11 @@ import { FormInput } from '@/components/ui/FormInput'
 import { FormSelect } from '@/components/ui/FormSelect'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { toast } from 'react-hot-toast'
-import { User, Mail, Phone, Lock, Calendar, MapPin, ArrowLeft, Loader2, Shield, Upload, FileText, Building2 } from 'lucide-react'
+import { User, Mail, Phone, Lock, Calendar, MapPin, ArrowLeft, Loader2, Shield, Upload, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { z } from 'zod'
 
-const studentSchema = z.object({
+const baseStudentSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters'),
     email: z.string().email('Invalid email address').or(z.literal('')),
     phone: z.string().regex(/^\d{10}$/, 'Phone number must be exactly 10 digits').or(z.literal('')),
@@ -27,7 +27,9 @@ const studentSchema = z.object({
     state: z.string().optional(),
     guardianName: z.string().min(2, 'Guardian name must be at least 2 characters').or(z.literal('')),
     guardianPhone: z.string().regex(/^\d{10}$/, 'Guardian phone must be exactly 10 digits').or(z.literal(''))
-}).superRefine((data, ctx) => {
+})
+
+const studentSchema = baseStudentSchema.superRefine((data, ctx) => {
     if (!data.email && !data.phone) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -82,12 +84,15 @@ export default function AddStudentPage() {
     React.useEffect(() => {
         async function loadBranches() {
             try {
-                const branches = await getOwnerBranches()
-                setBranchOptions(branches.map(b => ({ label: b.name, value: b.id })))
-                if (branches.length === 1) {
-                    setFormData(prev => ({ ...prev, branchId: branches[0].id }))
+                const result = await getOwnerBranches()
+                if (result.success && result.data) {
+                    const branches = result.data
+                    setBranchOptions(branches.map(b => ({ label: b.name, value: b.id })))
+                    if (branches.length === 1) {
+                        setFormData(prev => ({ ...prev, branchId: branches[0].id }))
+                    }
                 }
-            } catch (error) {
+            } catch (_) {
                 console.error('Failed to load branches')
             }
         }
@@ -126,9 +131,9 @@ export default function AddStudentPage() {
         const { name, value } = e.target
         
         // Check if field exists in schema
-        if (name in studentSchema.shape) {
-            // @ts-ignore
-            const result = studentSchema.shape[name].safeParse(value)
+        const fieldName = name as keyof typeof baseStudentSchema.shape
+        if (fieldName in baseStudentSchema.shape) {
+            const result = baseStudentSchema.shape[fieldName].safeParse(value)
             
             if (result.success) {
                 // If successful, clear error
@@ -176,7 +181,7 @@ export default function AddStudentPage() {
                     const postOffices = data[0].PostOffice
                     const city = postOffices[0].District
                     const state = postOffices[0].State
-                    const areas = postOffices.map((po: any) => po.Name)
+                    const areas = postOffices.map((po: { Name: string }) => po.Name)
 
                     setFormData(prev => ({
                         ...prev,

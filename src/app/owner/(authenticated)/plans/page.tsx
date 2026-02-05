@@ -6,20 +6,29 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
 import { FormSelect } from '@/components/ui/FormSelect'
 import { CompactCard } from '@/components/ui/AnimatedCard'
-import { Loader2, PlusCircle, Search, SlidersHorizontal, CalendarClock, IndianRupee, Clock, Trash2, Layers, MapPin, Receipt, X, Edit } from 'lucide-react'
+import { Loader2, PlusCircle, Search, SlidersHorizontal, CalendarClock, IndianRupee, Clock, Trash2, Layers, MapPin, Receipt, X } from 'lucide-react'
 import { getOwnerPlans, updatePlan, deletePlan } from '@/actions/plan'
 import { getOwnerFees, createFee, deleteFee, updateFee } from '@/actions/fee'
 import { getOwnerBranches } from '@/actions/branch'
 import { toast } from 'react-hot-toast'
 import { FormTextarea } from '@/components/ui/FormTextarea'
+import { Plan, AdditionalFee } from '@prisma/client'
+
+interface PlanWithBranch extends Plan {
+  branch: { id: string, name: string } | null
+}
+
+interface FeeWithBranch extends AdditionalFee {
+  branch: { id: string, name: string } | null
+}
 
 export default function PlansAndFeesPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'plans' | 'fees'>('plans')
   
   // Data State
-  const [plans, setPlans] = useState<any[]>([])
-  const [fees, setFees] = useState<any[]>([])
+  const [plans, setPlans] = useState<PlanWithBranch[]>([])
+  const [fees, setFees] = useState<FeeWithBranch[]>([])
   const [branches, setBranches] = useState<{id: string, name: string}[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -31,7 +40,7 @@ export default function PlansAndFeesPage() {
 
   // Modal State
   const [isFeeModalOpen, setIsFeeModalOpen] = useState(false)
-  const [editingFee, setEditingFee] = useState<any>(null)
+  const [editingFee, setEditingFee] = useState<FeeWithBranch | null>(null)
   const [selectedFeeCategory, setSelectedFeeCategory] = useState('custom')
 
   useEffect(() => {
@@ -56,14 +65,16 @@ export default function PlansAndFeesPage() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [plansData, feesData, branchesData] = await Promise.all([
+      const [plansData, feesData, branchesResult] = await Promise.all([
         getOwnerPlans(),
         getOwnerFees(),
         getOwnerBranches()
       ])
       setPlans(plansData || [])
       setFees(feesData || [])
-      setBranches(branchesData as {id: string, name: string}[] || [])
+      if (branchesResult.success && branchesResult.data) {
+        setBranches(branchesResult.data as {id: string, name: string}[])
+      }
     } catch (error) {
       console.error('Error loading data:', error)
       toast.error('Failed to load data')
@@ -96,7 +107,7 @@ export default function PlansAndFeesPage() {
       })
   }, [plans, search, categoryFilter, statusFilter, branchFilter])
 
-  const handleTogglePlanStatus = async (plan: any) => {
+  const handleTogglePlanStatus = async (plan: PlanWithBranch) => {
     try {
       const formData = new FormData()
       formData.append('id', plan.id)
@@ -116,7 +127,7 @@ export default function PlansAndFeesPage() {
     }
   }
 
-  const handleDeletePlan = async (plan: any) => {
+  const handleDeletePlan = async (plan: PlanWithBranch) => {
     const confirmed = window.confirm(`Delete plan "${plan.name}"? This cannot be undone.`)
     if (!confirmed) return
 
@@ -154,7 +165,7 @@ export default function PlansAndFeesPage() {
       })
   }, [fees, search, branchFilter])
 
-  const handleToggleFeeStatus = async (fee: any) => {
+  const handleToggleFeeStatus = async (fee: FeeWithBranch) => {
     try {
       const formData = new FormData()
       formData.append('id', fee.id)
@@ -174,7 +185,7 @@ export default function PlansAndFeesPage() {
     }
   }
 
-  const handleDeleteFee = async (fee: any) => {
+  const handleDeleteFee = async (fee: FeeWithBranch) => {
     const confirmed = window.confirm(`Delete fee "${fee.name}"? This cannot be undone.`)
     if (!confirmed) return
 
@@ -628,7 +639,7 @@ export default function PlansAndFeesPage() {
                         name="description"
                         label="Description (Optional)"
                         placeholder="Explain what this fee covers..."
-                        defaultValue={editingFee?.description}
+                        defaultValue={editingFee?.description || ''}
                         rows={3}
                     />
 

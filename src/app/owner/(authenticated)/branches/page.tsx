@@ -10,7 +10,8 @@ import {
   Search, 
   ArrowUpRight,
   Edit,
-  Loader2
+  Loader2,
+  AlertCircle
 } from 'lucide-react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -18,10 +19,9 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { CompactCard } from '@/components/ui/AnimatedCard'
 import Link from 'next/link'
 import { getOwnerBranches } from '@/actions/branch'
+import { toast } from 'sonner'
 
 // Types
-type BranchStatus = 'active' | 'maintenance' | 'coming_soon' | 'archived'
-
 interface Branch {
   id: string
   name: string
@@ -49,14 +49,22 @@ export default function BranchesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [branches, setBranches] = useState<Branch[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchBranches = async () => {
       try {
-        const data = await getOwnerBranches()
-        setBranches(data as Branch[])
+        const result = await getOwnerBranches()
+        if (result.success && result.data) {
+          setBranches(result.data as Branch[])
+        } else {
+          const errorMessage = result.error || 'Failed to load branches'
+          setError(errorMessage)
+          toast.error(errorMessage)
+        }
       } catch (error) {
         console.error('Failed to load branches', error)
+        setError('Unexpected error')
       } finally {
         setIsLoading(false)
       }
@@ -95,6 +103,13 @@ export default function BranchesPage() {
           </AnimatedButton>
         </Link>
       </div>
+
+      {error && (
+        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 flex items-center gap-2">
+           <AlertCircle className="w-5 h-5" />
+           <span>{error}</span>
+        </div>
+      )}
 
       {/* Controls & Tabs */}
       <div className="flex flex-col gap-4">
@@ -169,7 +184,7 @@ export default function BranchesPage() {
                               imageUrl = parsed[0];
                             }
                           }
-                        } catch (e) {}
+                        } catch {}
                         
                         return imageUrl ? (
                           <Image

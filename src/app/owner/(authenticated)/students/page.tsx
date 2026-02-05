@@ -6,7 +6,6 @@ import {
     Plus, 
     Search, 
     Filter, 
-    MoreVertical, 
     Eye, 
     Edit, 
     Ban, 
@@ -24,13 +23,31 @@ import { getOwnerStudents, type StudentFilter } from '@/actions/owner/students'
 import { getOwnerBranches } from '@/actions/branch'
 import { toast } from 'react-hot-toast'
 import Link from 'next/link'
-import { format } from 'date-fns'
+import Image from 'next/image'
+
+interface Branch {
+    id: string
+    name: string
+}
+
+interface Student {
+    id: string
+    name: string
+    email: string | null
+    phone: string | null
+    image: string | null
+    currentPlan?: string
+    seatNumber?: string
+    currentBranch?: string
+    status: string
+    govtIdStatus?: string
+}
 
 export default function StudentsPage() {
     const router = useRouter()
     const [loading, setLoading] = useState(true)
-    const [students, setStudents] = useState<any[]>([])
-    const [branches, setBranches] = useState<any[]>([])
+    const [students, setStudents] = useState<Student[]>([])
+    const [branches, setBranches] = useState<Branch[]>([])
     const [total, setTotal] = useState(0)
     
     // Filters
@@ -53,7 +70,11 @@ export default function StudentsPage() {
 
     // Fetch Branches
     useEffect(() => {
-        getOwnerBranches().then(setBranches)
+        getOwnerBranches().then(result => {
+            if (result.success && result.data) {
+                setBranches(result.data)
+            }
+        })
     }, [])
 
     // Fetch Students
@@ -63,7 +84,7 @@ export default function StudentsPage() {
             const result = await getOwnerStudents(filters)
             setStudents(result.students)
             setTotal(result.total)
-        } catch (error) {
+        } catch (_) {
             toast.error('Failed to fetch students')
         } finally {
             setLoading(false)
@@ -179,7 +200,7 @@ export default function StudentsPage() {
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-sm overflow-hidden">
                                                     {student.image ? (
-                                                        <img src={student.image} alt={student.name} className="w-full h-full object-cover" />
+                                                        <Image src={student.image} alt={student.name} width={40} height={40} className="w-full h-full object-cover" />
                                                     ) : (
                                                         student.name.charAt(0).toUpperCase()
                                                     )}

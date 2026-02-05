@@ -4,18 +4,16 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   User, Mail, Phone, Calendar, 
-  Lock, ArrowLeft, Camera, MapPin, Briefcase,
+  Lock, ArrowLeft, MapPin, Briefcase,
   FileText, X, Upload
 } from 'lucide-react'
-import Image from 'next/image'
 import { toast } from 'react-hot-toast'
 import { Prisma } from '@prisma/client'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
 import { FormSelect } from '@/components/ui/FormSelect'
-import { FormTextarea } from '@/components/ui/FormTextarea'
 import { CompactCard } from '@/components/ui/AnimatedCard'
-import { getStaffDetails, updateStaff, deleteStaff, updateStaffImage, getStaffAttendance } from '@/actions/staff'
+import { getStaffDetails, updateStaff, deleteStaff, getStaffAttendance } from '@/actions/staff'
 import { getOwnerBranches } from '@/actions/branch'
 
 export default function EditStaffPage({ params }: { params: Promise<{ id: string }> }) {
@@ -23,11 +21,9 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
   const router = useRouter()
   const idProofInputRef = React.useRef<HTMLInputElement>(null)
   const resumeInputRef = React.useRef<HTMLInputElement>(null)
-  const imageInputRef = React.useRef<HTMLInputElement>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [branches, setBranches] = useState<{ label: string, value: string }[]>([])
   const [attendance, setAttendance] = useState<{ id: string; date: string; status: string }[]>([])
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
   
   const [pincodeLoading, setPincodeLoading] = useState(false)
   const [areaOptions, setAreaOptions] = useState<string[]>([])
@@ -72,34 +68,6 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
     if (type === 'resume' && resumeInputRef.current) resumeInputRef.current.value = ''
   }
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      
-      // Optimistic update
-      const objectUrl = URL.createObjectURL(file)
-      setImagePreview(objectUrl)
-
-      const formData = new FormData()
-      formData.append('image', file)
-
-      const toastId = toast.loading('Updating profile picture...')
-      
-      try {
-        const result = await updateStaffImage(id, formData)
-        
-        if (result.success && result.imageUrl) {
-          toast.success('Profile picture updated', { id: toastId })
-          setImagePreview(result.imageUrl)
-        } else {
-          toast.error(result.error || 'Failed to update image', { id: toastId })
-        }
-      } catch (error) {
-        toast.error('Failed to upload image', { id: toastId })
-      }
-    }
-  }
-
   // Fetch address details from pincode
   useEffect(() => {
     const fetchPincodeDetails = async () => {
@@ -111,7 +79,7 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
           
           if (data && data[0] && data[0].Status === 'Success') {
             const postOffices = data[0].PostOffice
-            const areas = postOffices.map((po: any) => po.Name)
+            const areas = postOffices.map((po: { Name: string }) => po.Name)
             const city = postOffices[0].District
             const state = postOffices[0].State
             
@@ -156,14 +124,16 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [staff, branchesData, attendanceData] = await Promise.all([
+        const [staff, branchesResult, attendanceData] = await Promise.all([
           getStaffDetails(id),
           getOwnerBranches(),
           getStaffAttendance(id)
         ])
 
-        setBranches(branchesData.map((b: { name: string, id: string }) => ({ label: b.name, value: b.id })))
-        setAttendance(attendanceData.map((a: Prisma.StaffAttendanceGetPayload<{}>) => ({ ...a, date: new Date(a.date).toISOString() })))
+        if (branchesResult.success && branchesResult.data) {
+          setBranches(branchesResult.data.map((b: { name: string, id: string }) => ({ label: b.name, value: b.id })))
+        }
+        setAttendance(attendanceData.map((a: Prisma.StaffAttendanceGetPayload<object>) => ({ ...a, date: new Date(a.date).toISOString() })))
 
         if (staff) {
           const [firstName, ...lastNameParts] = staff.name.split(' ')
@@ -193,7 +163,6 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
             }
           }
 
-          setImagePreview(staff.image || null)
           setFormData({
             firstName: firstName || '',
             lastName: lastName || '',

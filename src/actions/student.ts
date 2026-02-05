@@ -308,7 +308,7 @@ export async function updateStudentPreferences(preferences: Record<string, unkno
     try {
         await prisma.student.update({
             where: { id: studentId },
-            data: { preferences }
+            data: { preferences: preferences as Prisma.InputJsonValue }
         })
 
         revalidatePath('/student/settings')

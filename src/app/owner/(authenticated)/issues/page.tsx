@@ -6,19 +6,27 @@ import TicketListClient from './TicketListClient'
 export const dynamic = 'force-dynamic'
 
 export default async function IssuesPage() {
-  const [tickets, branches] = await Promise.all([
+  const [tickets, branchesResult] = await Promise.all([
     getOwnerTickets(),
     getOwnerBranches()
   ])
 
-  const serializedTickets = tickets.map((ticket: any) => ({
+  const branches = (branchesResult.success && branchesResult.data) ? branchesResult.data : []
+
+  const serializedTickets = tickets.map((ticket) => ({
     id: ticket.id,
     subject: ticket.subject,
     category: ticket.category,
     status: ticket.status,
     priority: ticket.priority,
     createdAt: ticket.createdAt.toISOString(),
-    student: ticket.student
+    student: ticket.student ? {
+      name: ticket.student.name,
+      email: ticket.student.email || '',
+      image: ticket.student.image,
+      branchId: ticket.student.branchId || '',
+      branch: ticket.student.branch || undefined
+    } : null
   }))
 
   return (
@@ -30,7 +38,7 @@ export default async function IssuesPage() {
         </div>
       </div>
       
-      <TicketListClient tickets={serializedTickets} branches={branches as any} />
+      <TicketListClient tickets={serializedTickets} branches={branches} />
     </div>
   )
 }

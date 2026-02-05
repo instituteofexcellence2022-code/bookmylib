@@ -23,10 +23,13 @@ export function QRGenerationClient() {
 
     const fetchBranches = useCallback(async () => {
         try {
-            const data = await getOwnerBranches()
-            setBranches(data)
-            if (data.length > 0 && !selectedBranchId) {
-                setSelectedBranchId(data[0].id)
+            const result = await getOwnerBranches()
+            if (result.success && result.data) {
+                const data = result.data
+                setBranches(data)
+                if (data.length > 0 && !selectedBranchId) {
+                    setSelectedBranchId(data[0].id)
+                }
             }
         } catch {
             // ignore

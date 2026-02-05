@@ -6,9 +6,8 @@ import {
   Users, 
   AlertCircle, 
   ArrowUpRight, 
-  ArrowDownRight,
+  ArrowDownRight, 
   Clock,
-  Download,
   FileText,
   Calendar,
   Building2,
@@ -22,7 +21,7 @@ import {
   CheckCircle2,
   History
 } from 'lucide-react'
-import { differenceInDays, differenceInCalendarDays } from 'date-fns'
+import { differenceInCalendarDays } from 'date-fns'
 import { FilterSelect } from '@/components/ui/FilterSelect'
 import { CompactCard } from '@/components/ui/AnimatedCard'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
@@ -140,8 +139,10 @@ export default function OwnerDashboard() {
     // Load branches first
     const loadBranches = async () => {
       try {
-        const branchList = await getOwnerBranches()
-        setBranches(branchList)
+        const result = await getOwnerBranches()
+        if (result.success && result.data) {
+          setBranches(result.data as {id: string, name: string}[])
+        }
       } catch (error) {
         console.error('Failed to load branches', error)
       }
