@@ -1,22 +1,33 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { FormInput } from '@/components/ui/FormInput'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
-import { registerOwner } from '@/actions/auth'
+import { registerOwner, initiateOwnerVerification, confirmEmailVerification } from '@/actions/auth'
 import { toast } from 'react-hot-toast'
 import { 
-    UserPlus, User, Lock, Mail, ArrowRight, Eye, EyeOff, Phone, ArrowLeft
+    UserPlus, User, Lock, Mail, ArrowRight, Eye, EyeOff, Phone, ArrowLeft, ShieldCheck, Timer
 } from 'lucide-react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export default function OwnerRegisterPage() {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
+    const [step, setStep] = useState<'register' | 'verification'>('register')
+    const [verificationOtp, setVerificationOtp] = useState('')
+    const [resendCooldown, setResendCooldown] = useState(0)
     
+    // Timer effect
+    useEffect(() => {
+        if (resendCooldown > 0) {
+            const timer = setTimeout(() => setResendCooldown(prev => prev - 1), 1000)
+            return () => clearTimeout(timer)
+        }
+    }, [resendCooldown])
+
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -68,28 +79,80 @@ export default function OwnerRegisterPage() {
             return
         }
 
-        console.log('[REGISTER] Submitting form...', formData.email)
         setLoading(true)
 
         try {
-            const data = new FormData()
-            // Append all fields
-            Object.entries(formData).forEach(([key, value]) => {
-                data.append(key, value.toString())
-            })
-
-            const result = await registerOwner(data)
-            console.log('[REGISTER] Result:', result)
-
+            const result = await initiateOwnerVerification(formData.email, formData.name)
+            
             if (result.success) {
-                toast.success('Registration successful!')
-                router.push('/owner/dashboard')
+                toast.success('Verification code sent to your email')
+                setStep('verification')
+                setResendCooldown(30)
             } else {
-                toast.error(result.error || 'Registration failed')
+                toast.error(result.error || 'Failed to send verification code')
             }
         } catch (error) {
             console.error('[REGISTER] Client error:', error)
             toast.error('An error occurred')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleVerifyOtp = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault()
+        if (!verificationOtp || verificationOtp.length !== 6) {
+            toast.error('Please enter a valid 6-digit code')
+            return
+        }
+
+        setLoading(true)
+        try {
+            // 1. Verify OTP
+            const verifyResult = await confirmEmailVerification(formData.email, verificationOtp)
+            
+            if (!verifyResult.success) {
+                toast.error(verifyResult.error || 'Invalid verification code')
+                setLoading(false)
+                return
+            }
+
+            // 2. Create Owner Account
+            const data = new FormData()
+            Object.entries(formData).forEach(([key, value]) => {
+                data.append(key, value.toString())
+            })
+
+            const registerResult = await registerOwner(data)
+
+            if (registerResult.success) {
+                toast.success('Registration successful!')
+                router.push('/owner/dashboard')
+            } else {
+                toast.error(registerResult.error || 'Registration failed')
+                setLoading(false) // Only stop loading if failed, otherwise we redirect
+            }
+        } catch (error) {
+            console.error('[VERIFY] Client error:', error)
+            toast.error('Verification failed')
+            setLoading(false)
+        }
+    }
+
+    const handleResendOtp = async () => {
+        if (resendCooldown > 0) return
+        
+        setLoading(true)
+        try {
+            const result = await initiateOwnerVerification(formData.email, formData.name)
+            if (result.success) {
+                toast.success('Verification code resent')
+                setResendCooldown(30)
+            } else {
+                toast.error(result.error || 'Failed to resend code')
+            }
+        } catch (error) {
+            toast.error('Failed to resend code')
         } finally {
             setLoading(false)
         }
@@ -119,17 +182,27 @@ export default function OwnerRegisterPage() {
             >
                 <div className="flex justify-center">
                     <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-xl shadow-amber-500/20">
-                        <UserPlus className="w-8 h-8 text-white" />
+                        {step === 'verification' ? (
+                            <ShieldCheck className="w-8 h-8 text-white" />
+                        ) : (
+                            <UserPlus className="w-8 h-8 text-white" />
+                        )}
                     </div>
                 </div>
                 <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-                    Create your account
+                    {step === 'verification' ? 'Verify Email' : 'Create your account'}
                 </h2>
                 <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-                    Already have an account?{' '}
-                    <Link href="/owner/login" className="font-medium text-amber-600 hover:text-amber-500 transition-colors">
-                        Sign in
-                    </Link>
+                    {step === 'verification' ? (
+                        <>We've sent a code to <span className="font-medium text-gray-900 dark:text-white">{formData.email}</span></>
+                    ) : (
+                        <>
+                            Already have an account?{' '}
+                            <Link href="/owner/login" className="font-medium text-amber-600 hover:text-amber-500 transition-colors">
+                                Sign in
+                            </Link>
+                        </>
+                    )}
                 </p>
             </motion.div>
 
@@ -140,131 +213,213 @@ export default function OwnerRegisterPage() {
                 className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10"
             >
                 <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl py-8 px-4 shadow-2xl ring-1 ring-gray-200 dark:ring-gray-800 sm:rounded-2xl sm:px-10">
-                    <form onSubmit={handleRegister} className="space-y-4">
-                        <FormInput
-                            label="Full Name"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            icon={User}
-                            placeholder="Enter your full name"
-                            required
-                            className="focus:ring-amber-500"
-                        />
-
-                        <FormInput
-                            label="Email Address"
-                            value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            icon={Mail}
-                            type="email"
-                            placeholder="Enter your email"
-                            required
-                            className="focus:ring-amber-500"
-                        />
-
-                        <FormInput
-                            label="Phone Number"
-                            value={formData.phone}
-                            onChange={(e) => {
-                                const value = e.target.value.replace(/\D/g, '').slice(0, 10)
-                                setFormData({ ...formData, phone: value })
-                            }}
-                            icon={Phone}
-                            type="tel"
-                            placeholder="10-digit phone number"
-                            required
-                            className="focus:ring-amber-500"
-                        />
-
-                        <div>
-                            <div className="relative">
-                                <FormInput
-                                    label="Password"
-                                    value={formData.password}
-                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                    icon={Lock}
-                                    type={showPassword ? "text" : "password"}
-                                    placeholder="Create a strong password"
-                                    required
-                                    className="focus:ring-amber-500 pr-10"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-[34px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                                >
-                                    {showPassword ? (
-                                        <EyeOff className="w-5 h-5" />
-                                    ) : (
-                                        <Eye className="w-5 h-5" />
-                                    )}
-                                </button>
-                            </div>
-                            
-                            {/* Password Strength Indicator */}
-                            {formData.password && (
-                                <div className="mt-2">
-                                    <div className="flex gap-1 h-1 mb-1">
-                                        {[1, 2, 3, 4].map((level) => (
-                                            <div
-                                                key={level}
-                                                className={`flex-1 rounded-full transition-colors duration-300 ${
-                                                    strength >= level ? strengthColor[strength] : 'bg-gray-200 dark:bg-gray-700'
-                                                }`}
-                                            />
-                                        ))}
+                    <AnimatePresence mode="wait">
+                        {step === 'verification' ? (
+                            <motion.form
+                                key="verification-form"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                onSubmit={handleVerifyOtp} 
+                                className="space-y-6"
+                            >
+                                <div>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            maxLength={6}
+                                            value={verificationOtp}
+                                            onChange={(e) => {
+                                                const val = e.target.value.replace(/\D/g, '')
+                                                setVerificationOtp(val)
+                                                if (val.length === 6) {
+                                                    // Optional: Auto-submit or just let user click
+                                                }
+                                            }}
+                                            placeholder="000000"
+                                            className="w-full text-center text-3xl font-bold tracking-[0.5em] py-5 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all outline-none"
+                                            autoFocus
+                                        />
                                     </div>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                                        {strength === 0 && 'Enter password'}
-                                        {strength === 1 && 'Weak password'}
-                                        {strength === 2 && 'Medium strength'}
-                                        {strength >= 3 && 'Strong password'}
+                                    <p className="text-sm text-center text-gray-500 mt-4">
+                                        Enter the 6-digit code sent to your email
                                     </p>
                                 </div>
-                            )}
-                        </div>
 
-                        <FormInput
-                            label="Confirm Password"
-                            value={formData.confirmPassword}
-                            onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                            icon={Lock}
-                            type="password"
-                            placeholder="Confirm your password"
-                            required
-                            className="focus:ring-amber-500"
-                        />
+                                <div className="flex flex-col gap-4">
+                                    <AnimatedButton
+                                        type="submit"
+                                        isLoading={loading}
+                                        loadingText="Verifying..."
+                                        className="w-full justify-center bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-500/25 border-transparent py-3"
+                                    >
+                                        Verify & Create Account
+                                    </AnimatedButton>
 
-                        <div className="flex items-center">
-                            <input
-                                id="terms"
-                                name="terms"
-                                type="checkbox"
-                                checked={formData.agreedToTerms}
-                                onChange={(e) => setFormData({ ...formData, agreedToTerms: e.target.checked })}
-                                className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded bg-white dark:bg-gray-800 dark:border-gray-700"
-                            />
-                            <label htmlFor="terms" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
-                                I agree to the{' '}
-                                <Link href="/terms" className="text-amber-600 hover:text-amber-500 font-medium">
-                                    Terms of Service
-                                </Link>
-                                {' '}and{' '}
-                                <Link href="/privacy" className="text-amber-600 hover:text-amber-500 font-medium">
-                                    Privacy Policy
-                                </Link>
-                            </label>
-                        </div>
+                                    <div className="flex items-center justify-between text-sm px-1">
+                                        <button
+                                            type="button"
+                                            onClick={handleResendOtp}
+                                            disabled={loading || resendCooldown > 0}
+                                            className="flex items-center gap-2 text-amber-600 hover:text-amber-500 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            {resendCooldown > 0 ? (
+                                                <>
+                                                    <Timer className="w-4 h-4 animate-pulse" />
+                                                    Resend in {resendCooldown}s
+                                                </>
+                                            ) : (
+                                                'Resend Code'
+                                            )}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setStep('register')
+                                                setVerificationOtp('')
+                                            }}
+                                            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                                        >
+                                            Change Email
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.form>
+                        ) : (
+                            <motion.form 
+                                key="register-form"
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 20 }}
+                                onSubmit={handleRegister} 
+                                className="space-y-4"
+                            >
+                                <FormInput
+                                    label="Full Name"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    icon={User}
+                                    placeholder="Enter your full name"
+                                    required
+                                    className="focus:ring-amber-500"
+                                />
 
-                        <AnimatedButton
-                            type="submit"
-                            isLoading={loading}
-                            className="w-full justify-center bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-500/25 border-transparent"
-                        >
-                            Create Account
-                            <ArrowRight className="w-4 h-4 ml-2" />
-                        </AnimatedButton>
-                    </form>
+                                <FormInput
+                                    label="Email Address"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                    icon={Mail}
+                                    type="email"
+                                    placeholder="Enter your email"
+                                    required
+                                    className="focus:ring-amber-500"
+                                />
+
+                                <FormInput
+                                    label="Phone Number"
+                                    value={formData.phone}
+                                    onChange={(e) => {
+                                        const value = e.target.value.replace(/\D/g, '').slice(0, 10)
+                                        setFormData({ ...formData, phone: value })
+                                    }}
+                                    icon={Phone}
+                                    type="tel"
+                                    placeholder="10-digit phone number"
+                                    required
+                                    className="focus:ring-amber-500"
+                                />
+
+                                <div>
+                                    <div className="relative">
+                                        <FormInput
+                                            label="Password"
+                                            value={formData.password}
+                                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                            icon={Lock}
+                                            type={showPassword ? "text" : "password"}
+                                            placeholder="Create a strong password"
+                                            required
+                                            className="focus:ring-amber-500 pr-10"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-3 top-[34px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                        >
+                                            {showPassword ? (
+                                                <EyeOff className="w-5 h-5" />
+                                            ) : (
+                                                <Eye className="w-5 h-5" />
+                                            )}
+                                        </button>
+                                    </div>
+                                    
+                                    {/* Password Strength Indicator */}
+                                    {formData.password && (
+                                        <div className="mt-2">
+                                            <div className="flex gap-1 h-1 mb-1">
+                                                {[1, 2, 3, 4].map((level) => (
+                                                    <div
+                                                        key={level}
+                                                        className={`flex-1 rounded-full transition-colors duration-300 ${
+                                                            strength >= level ? strengthColor[strength] : 'bg-gray-200 dark:bg-gray-700'
+                                                        }`}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                {strength === 0 && 'Enter password'}
+                                                {strength === 1 && 'Weak password'}
+                                                {strength === 2 && 'Medium strength'}
+                                                {strength >= 3 && 'Strong password'}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <FormInput
+                                    label="Confirm Password"
+                                    value={formData.confirmPassword}
+                                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                                    icon={Lock}
+                                    type="password"
+                                    placeholder="Confirm your password"
+                                    required
+                                    className="focus:ring-amber-500"
+                                />
+
+                                <div className="flex items-center">
+                                    <input
+                                        id="terms"
+                                        name="terms"
+                                        type="checkbox"
+                                        checked={formData.agreedToTerms}
+                                        onChange={(e) => setFormData({ ...formData, agreedToTerms: e.target.checked })}
+                                        className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded bg-white dark:bg-gray-800 dark:border-gray-700"
+                                    />
+                                    <label htmlFor="terms" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
+                                        I agree to the{' '}
+                                        <Link href="/terms" className="text-amber-600 hover:text-amber-500 font-medium">
+                                            Terms of Service
+                                        </Link>
+                                        {' '}and{' '}
+                                        <Link href="/privacy" className="text-amber-600 hover:text-amber-500 font-medium">
+                                            Privacy Policy
+                                        </Link>
+                                    </label>
+                                </div>
+
+                                <AnimatedButton
+                                    type="submit"
+                                    isLoading={loading}
+                                    className="w-full justify-center bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-500/25 border-transparent"
+                                >
+                                    Create Account
+                                    <ArrowRight className="w-4 h-4 ml-2" />
+                                </AnimatedButton>
+                            </motion.form>
+                        )}
+                    </AnimatePresence>
                 </div>
             </motion.div>
         </div>

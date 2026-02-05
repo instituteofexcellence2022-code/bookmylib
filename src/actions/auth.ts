@@ -75,6 +75,15 @@ export async function registerOwner(formData: FormData) {
     }
 
     try {
+        // Check verification status
+        const verificationRecord = await prisma.emailVerification.findFirst({
+            where: { email }
+        })
+
+        if (!verificationRecord || !verificationRecord.verifiedAt) {
+             return { success: false, error: 'Email not verified. Please verify your email first.' }
+        }
+
         const existingOwner = await prisma.owner.findUnique({
             where: { email }
         })
@@ -105,6 +114,11 @@ export async function registerOwner(formData: FormData) {
             })
             
             return owner
+        })
+
+        // Cleanup verification record
+        await prisma.emailVerification.deleteMany({
+            where: { email }
         })
 
         // Set session
@@ -348,6 +362,63 @@ export async function initiatePublicBookingVerification(email: string, name?: st
         return { success: true }
     } catch (error) {
         console.error('Initiate public verification error:', error)
+        return { success: false, error: 'System error' }
+    }
+}
+
+export async function initiateOwnerVerification(email: string, name?: string) {
+    try {
+        // 1. Check if email is already registered by an owner
+        const existingOwner = await prisma.owner.findUnique({
+            where: { email }
+        })
+        if (existingOwner) {
+            return { success: false, error: 'Email already registered' }
+        }
+
+        // 2. Generate OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString()
+        const expiresAt = new Date(Date.now() + 15 * 60 * 1000) // 15 mins
+
+        // 3. Upsert into EmailVerification
+        const existingVerification = await prisma.emailVerification.findFirst({
+            where: { email }
+        })
+
+        if (existingVerification) {
+            await prisma.emailVerification.update({
+                where: { id: existingVerification.id },
+                data: {
+                    otp,
+                    expiresAt,
+                    verifiedAt: null
+                }
+            })
+        } else {
+            await prisma.emailVerification.create({
+                data: {
+                    email,
+                    otp,
+                    expiresAt
+                }
+            })
+        }
+
+        // 4. Send Email
+        const emailResult = await sendEmailVerificationEmail({
+            email,
+            name: name || 'Owner',
+            otp,
+            libraryName: 'BookMyLib'
+        })
+
+        if (!emailResult.success) {
+            return { success: false, error: 'Failed to send verification email' }
+        }
+
+        return { success: true }
+    } catch (error) {
+        console.error('Initiate owner verification error:', error)
         return { success: false, error: 'System error' }
     }
 }
