@@ -18,29 +18,34 @@ interface RoleConfig {
 const ROLES: Record<Role, RoleConfig> = {
     owner: {
         loginPath: '/owner/login',
-        dashboardPath: '/owner',
+        dashboardPath: '/owner/dashboard',
         cookieKey: COOKIE_KEYS.OWNER,
         publicPaths: ['/owner/login', '/owner/register'],
-        publicPrefixes: ['/owner/forgot-password', '/owner/reset-password']
+        publicPrefixes: ['/owner/forgot-password', '/owner/reset-password', '/owner/verification']
     },
     staff: {
         loginPath: '/staff/login',
         dashboardPath: '/staff/dashboard',
         cookieKey: COOKIE_KEYS.STAFF,
         publicPaths: ['/staff/login'],
-        publicPrefixes: ['/staff/forgot-password', '/staff/reset-password']
+        publicPrefixes: ['/staff/forgot-password', '/staff/reset-password', '/staff/verification']
     },
     student: {
         loginPath: '/student/login',
         dashboardPath: '/student/home',
         cookieKey: COOKIE_KEYS.STUDENT,
-        publicPaths: ['/student/login', '/student/register'],
-        publicPrefixes: ['/student/forgot-password', '/student/reset-password']
+        publicPaths: ['/student/login', '/student/register', '/student/book'], // /student/book is public booking
+        publicPrefixes: ['/student/forgot-password', '/student/reset-password', '/student/verification']
     }
 }
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
+
+    // 0. Handle global public routes (e.g. /discover)
+    if (pathname.startsWith('/discover')) {
+        return NextResponse.next()
+    }
 
     // 1. Handle specific edge case redirects
     // Redirect /student to /student/home
@@ -63,7 +68,10 @@ export function proxy(request: NextRequest) {
         if (isPublicPath) {
             // If user is already logged in and tries to access login/register pages,
             // redirect them to their dashboard
-            if (isAuthenticated && (pathname === config.loginPath || pathname.endsWith('/register'))) {
+            // We only do this for login/register, not for other public pages like booking or verification
+            const isAuthPage = pathname === config.loginPath || pathname.endsWith('/register')
+            
+            if (isAuthenticated && isAuthPage) {
                 return NextResponse.redirect(new URL(config.dashboardPath, request.url))
             }
             // Allow access to public pages
@@ -73,8 +81,7 @@ export function proxy(request: NextRequest) {
         // For all other routes (protected), check authentication
         if (!isAuthenticated) {
             const loginUrl = new URL(config.loginPath, request.url)
-            // Optional: Append return URL logic here if needed
-            // loginUrl.searchParams.set('from', pathname)
+            loginUrl.searchParams.set('callbackUrl', pathname)
             return NextResponse.redirect(loginUrl)
         }
     }

@@ -29,6 +29,22 @@ export async function initiatePublicBooking(data: {
     try {
         const { name, email, phone, dob, amount, planId, seatId, fees, branchId, gatewayProvider, couponCode, manualPaymentData } = data
 
+        // 0. Verify Email Verification Status
+        // We strictly require email verification for public bookings to prevent spam and unauthorized usage
+        const verificationRecord = await prisma.emailVerification.findFirst({
+            where: { email }
+        })
+
+        if (!verificationRecord || !verificationRecord.verifiedAt) {
+             return { success: false, error: 'Email not verified. Please verify your email first.' }
+        }
+
+        // Check if verification is recent (within 1 hour)
+        const verificationAge = new Date().getTime() - new Date(verificationRecord.verifiedAt).getTime()
+        if (verificationAge > 60 * 60 * 1000) {
+            return { success: false, error: 'Verification expired. Please verify again.' }
+        }
+
         // 1. Find or Create Student
         // Check for masked data
         const isPhoneMasked = phone.includes('*')
@@ -132,6 +148,11 @@ export async function initiatePublicBooking(data: {
         if (!paymentResult.success) {
             return { success: false, error: paymentResult.error || 'Failed to initiate payment' }
         }
+
+        // Cleanup verification record
+        await prisma.emailVerification.deleteMany({
+            where: { email }
+        })
 
         return {
             success: true,

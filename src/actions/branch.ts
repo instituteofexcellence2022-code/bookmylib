@@ -160,7 +160,7 @@ export async function getBranchById(id: string) {
       status: branch.isActive ? 'active' : 'maintenance'
     }
   } catch (error) {
-    if ((error as any)?.digest === 'DYNAMIC_SERVER_USAGE') {
+    if ((error as { digest?: string })?.digest === 'DYNAMIC_SERVER_USAGE') {
       throw error
     }
     console.error('Error fetching branch:', error)
@@ -291,9 +291,10 @@ export async function createBranch(formData: FormData) {
     revalidatePath(`/student/book/${branch.id}`)
     revalidatePath('/student/book')
     return { success: true }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating branch:', error)
-    return { success: false, error: error.message || 'Failed to create branch' }
+    const message = error instanceof Error ? error.message : 'Failed to create branch'
+    return { success: false, error: message }
   }
 }
 
@@ -349,7 +350,7 @@ export async function updateBranch(formData: FormData) {
     let existingImages: string[] = []
     try {
       existingImages = existingImagesRaw ? JSON.parse(existingImagesRaw) : []
-    } catch (e) {
+    } catch {
       existingImages = []
     }
 
@@ -368,6 +369,12 @@ export async function updateBranch(formData: FormData) {
     }
 
     const images = JSON.stringify([...existingImages, ...newUrls])
+
+    // Verify ownership
+    const existingBranch = await prisma.branch.findUnique({ where: { id } })
+    if (!existingBranch || existingBranch.libraryId !== owner.libraryId) {
+      return { success: false, error: 'Unauthorized: Branch does not belong to your library' }
+    }
 
     await prisma.branch.update({
       where: { id },
@@ -404,25 +411,31 @@ export async function updateBranch(formData: FormData) {
     revalidatePath(`/student/book/${id}`)
     revalidatePath(`/student/book/${id}/details`)
     return { success: true }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error updating branch:', error)
-    return { success: false, error: error.message || 'Failed to update branch' }
+    const message = error instanceof Error ? error.message : 'Failed to update branch'
+    return { success: false, error: message }
   }
 }
 
 export async function deleteBranch(id: string) {
     const owner = await getOwnerProfile()
-    if (!owner) {
+    if (!owner || !owner.libraryId) {
         return { success: false, error: 'Unauthorized' }
     }
 
     try {
+        const branch = await prisma.branch.findUnique({ where: { id } })
+        if (!branch || branch.libraryId !== owner.libraryId) {
+            return { success: false, error: 'Unauthorized' }
+        }
+
         await prisma.branch.delete({
             where: { id }
         })
         revalidatePath('/owner/branches')
         return { success: true }
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('Error deleting branch:', error)
         return { success: false, error: 'Failed to delete branch' }
     }
@@ -435,6 +448,11 @@ export async function generateBranchQR(branchId: string) {
     }
 
     try {
+        const branch = await prisma.branch.findUnique({ where: { id: branchId } })
+        if (!branch || branch.libraryId !== owner.libraryId) {
+            return { success: false, error: 'Unauthorized' }
+        }
+
         const qrCode = randomUUID()
         await prisma.branch.update({
             where: { id: branchId },

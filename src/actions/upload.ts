@@ -1,10 +1,22 @@
 'use server'
 
 import { UTApi } from "uploadthing/server";
+import { cookies } from "next/headers";
+import { COOKIE_KEYS } from "@/lib/auth/session";
 
 const utapi = new UTApi();
 
 export async function uploadFile(file: File) {
+  // Check Authentication
+  const cookieStore = await cookies();
+  const ownerSession = cookieStore.get(COOKIE_KEYS.OWNER);
+  const staffSession = cookieStore.get(COOKIE_KEYS.STAFF);
+  const studentSession = cookieStore.get(COOKIE_KEYS.STUDENT);
+
+  if (!ownerSession && !staffSession && !studentSession) {
+    throw new Error('Unauthorized: Login required to upload files');
+  }
+
   // Check for either the new Token OR the legacy Secret+AppId
   const hasToken = !!process.env.UPLOADTHING_TOKEN;
   const hasLegacy = !!process.env.UPLOADTHING_SECRET && !!process.env.UPLOADTHING_APP_ID;

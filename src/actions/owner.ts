@@ -26,20 +26,11 @@ export async function getOwnerProfile() {
       })
     }
 
-    if (!owner && process.env.NODE_ENV !== 'production') {
-      owner = await prisma.owner.findFirst({
-        include: {
-          library: true
-        }
-      })
-    }
-
     if (owner) return owner
 
     return null
   } catch (error) {
-    // Re-throw Next.js dynamic server usage errors
-    if ((error as any)?.digest === 'DYNAMIC_SERVER_USAGE') {
+    if ((error as { digest?: string })?.digest === 'DYNAMIC_SERVER_USAGE') {
       throw error
     }
     console.error('Error fetching owner profile:', error)
