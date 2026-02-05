@@ -39,10 +39,20 @@ export function QRGenerationClient() {
 
     const generateQRImage = useCallback(async (code: string) => {
         try {
-            // The QR code content - this would be the URL or data the student app scans
-            // For now, using a JSON structure or simple ID that the app recognizes
-            const data = JSON.stringify({ type: 'check-in', branchId: selectedBranchId, code })
-            const url = await QRCode.toDataURL(data, { width: 300, margin: 2 })
+            // Enhanced QR Code Standard: Use Full URL for multi-purpose scanning
+            // Matches StaffQRViewClient and BranchDetailsPage logic
+            const baseUrl = window.location.origin
+            const qrPayload = `${baseUrl}/discover/${selectedBranchId}?qr_code=${code}`
+
+            const url = await QRCode.toDataURL(qrPayload, { 
+                width: 600, 
+                margin: 2,
+                errorCorrectionLevel: 'H',
+                color: {
+                    dark: '#000000',
+                    light: '#ffffff'
+                }
+            })
             setQrDataUrl(url)
         } catch {
             // ignore

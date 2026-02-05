@@ -64,9 +64,10 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
         // Generate QR Code with Full Details
         QRCode.toDataURL(JSON.stringify(qrData), {
             width: 1000, // High resolution for print quality
-            margin: 1,
+            margin: 2,
+            errorCorrectionLevel: 'H',
             color: {
-                dark: '#1e293b', // Slate-800
+                dark: '#000000', // Pure black for max contrast
                 light: '#ffffff'
             }
         }).then(url => {

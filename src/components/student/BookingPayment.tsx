@@ -736,7 +736,12 @@ export default function BookingPayment({
                {paymentMethod === 'qr_code' ? (
                   <>
                     <div className="bg-white p-3 rounded-lg border shadow-sm">
-                      <QRCodeSVG value={upiLinkQr} size={160} level="M" />
+                      <QRCodeSVG 
+                        value={upiLinkQr} 
+                        size={200} 
+                        level="H" 
+                        includeMargin={true}
+                      />
                     </div>
                     <div>
                       <p className="text-sm font-bold text-gray-900 dark:text-white">Scan to Pay ₹{finalAmount}</p>

@@ -196,7 +196,15 @@ const tabs = [
       const baseUrl = window.location.origin
       const qrPayload = `${baseUrl}/discover/${branch.id}?qr_code=${branch.qrCode}`
       
-      QRCode.toDataURL(qrPayload)
+      QRCode.toDataURL(qrPayload, {
+        width: 600,
+        margin: 2,
+        errorCorrectionLevel: 'H',
+        color: {
+            dark: '#000000',
+            light: '#ffffff'
+        }
+      })
         .then(url => setQrDataUrl(url))
         .catch(err => console.error(err))
     }

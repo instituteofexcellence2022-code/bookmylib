@@ -497,7 +497,12 @@ export default function PublicBookingPayment({
             {paymentMethod === 'qr_code' && upiId && (
                 <div className="flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                     <div className="bg-white p-2 rounded-lg shadow-sm mb-2">
-                        <QRCodeSVG value={upiLinkQr} size={180} level="M" includeMargin={true} />
+                        <QRCodeSVG 
+                            value={upiLinkQr} 
+                            size={200} 
+                            level="H" 
+                            includeMargin={true}
+                        />
                     </div>
                     <p className="text-xs font-medium text-gray-500 dark:text-gray-400 text-center mb-1">
                         Scan to pay <span className="text-gray-900 dark:text-white font-bold">₹{finalAmount}</span>
