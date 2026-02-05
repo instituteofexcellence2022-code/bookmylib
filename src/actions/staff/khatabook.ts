@@ -1,7 +1,6 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 
 import { getAuthenticatedStaff } from '@/lib/auth/staff'

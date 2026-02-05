@@ -574,7 +574,7 @@ async function activateSubscription(paymentId: string) {
     
     if (plan) {
       const startDate = new Date()
-      let endDate = new Date()
+      const endDate = new Date()
       
       if (plan.durationUnit === 'months') {
         endDate.setMonth(endDate.getMonth() + plan.duration)
@@ -1038,6 +1038,7 @@ export async function verifyPayment(paymentId: string, status: 'completed' | 'fa
     }
 
     // Update Payment
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateData: any = {
       status,
       verifiedBy: verifierId,
@@ -1087,7 +1088,7 @@ export async function verifyPayment(paymentId: string, status: 'completed' | 'fa
         if (enrichedPayment && enrichedPayment.student.email) {
           let planName = 'N/A'
           let duration = 'N/A'
-          let items: Array<{ description: string, amount: number }> = []
+          const items: Array<{ description: string, amount: number }> = []
           const subTotal = enrichedPayment.amount + (enrichedPayment.discountAmount || 0)
 
           if (enrichedPayment.subscription?.plan) {

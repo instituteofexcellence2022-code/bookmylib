@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
-import { Search, User, CreditCard, Banknote, Check, Loader2, ChevronRight, ChevronLeft, Percent, Armchair, FileText, Download, Calendar, Info, LayoutGrid, List, ShieldCheck, MapPin, CheckCircle2, Clock } from 'lucide-react'
+import { Search, User, CreditCard, Banknote, Check, Loader2, ChevronRight, ChevronLeft, Percent, Armchair, Calendar, Info, LayoutGrid, List, ShieldCheck, MapPin, CheckCircle2, Clock } from 'lucide-react'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'

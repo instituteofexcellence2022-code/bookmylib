@@ -3,7 +3,6 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import bcrypt from 'bcryptjs'
-import type { Prisma } from '@prisma/client'
 import { uploadFile } from './upload'
 
 import { cache } from 'react'
@@ -18,6 +17,7 @@ export const getStaffProfile = cache(async function getStaffProfile() {
     return staff
   } catch (error) {
     // Re-throw Next.js dynamic server usage errors so the page can opt-out of static generation
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if ((error as any)?.digest === 'DYNAMIC_SERVER_USAGE') {
       throw error
     }
@@ -649,6 +649,7 @@ export async function getGlobalStaffStats() {
       inactive: inactiveStaff
     }
   } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if ((error as any)?.digest === 'DYNAMIC_SERVER_USAGE') {
       throw error
     }
@@ -695,7 +696,7 @@ export async function getStaffStats(id: string) {
     // This is just a placeholder logic. Real logic would depend on total working days.
     // For now returning mock-like stats but derived if possible.
     // Use id to avoid linter warning
-    const _ = id 
+    void id
     return {
       attendance: '98%',
       performance: 'Excellent',
@@ -760,6 +761,7 @@ export async function getStaffManagementData() {
     }
 
   } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if ((error as any)?.digest === 'DYNAMIC_SERVER_USAGE') {
       throw error
     }

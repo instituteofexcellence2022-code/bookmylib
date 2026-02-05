@@ -235,7 +235,7 @@ export async function getOwnerTickets(filters: { status?: string; category?: str
   if (!owner || !owner.libraryId) return []
 
   try {
-    const whereClause: any = {
+    const whereClause: Prisma.SupportTicketWhereInput = {
       libraryId: owner.libraryId
     }
 

@@ -1,7 +1,6 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { sendReceiptEmail } from '@/actions/email'
 import { startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns'
@@ -89,6 +88,7 @@ export async function getStaffTransactions(filters: TransactionFilters = {}, lim
   const staff = await getAuthenticatedStaff()
   if (!staff) throw new Error('Unauthorized')
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const whereClause: any = {
       libraryId: staff.libraryId,
       branchId: staff.branchId
@@ -252,7 +252,7 @@ export async function createStaffPayment(data: {
         }
 
         // Handle Coupon/Promotion
-        let promotionId = undefined
+        // let promotionId = undefined
         if (data.promoCode) {
              // Logic to link promotion if needed, usually stored in Payment or Promotion usage table
              // For now, we assume validation was done on client/server before calling this, 
@@ -330,7 +330,7 @@ export async function createStaffPayment(data: {
         if (enrichedPayment && enrichedPayment.student.email) {
             let planName = 'N/A'
             let duration = 'N/A'
-            let items: Array<{ description: string, amount: number }> = []
+            const items: Array<{ description: string, amount: number }> = []
             const subTotal = enrichedPayment.amount + (enrichedPayment.discountAmount || 0)
 
             if (enrichedPayment.subscription?.plan) {

@@ -2,7 +2,6 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
 import { sendWelcomeEmail } from '@/actions/email'
 import { getAuthenticatedStaff } from '@/lib/auth/staff'
@@ -35,6 +34,7 @@ export async function getLeads(filters: LeadFilter) {
     const limit = filters.limit || 10
     const skip = (page - 1) * limit
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
         libraryId: staff.libraryId,
         branchId: staff.branchId, // Strictly scoped to staff's branch

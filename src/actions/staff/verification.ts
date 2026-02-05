@@ -1,7 +1,6 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { cookies } from 'next/headers'
 import { getAuthenticatedStaff } from '@/lib/auth/staff'
 
 // Helper to get authenticated staff
@@ -11,6 +10,7 @@ export async function getPendingPayments(studentId?: string) {
     const staff = await getAuthenticatedStaff()
     if (!staff) throw new Error('Unauthorized')
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const whereClause: any = {
         libraryId: staff.libraryId,
         branchId: staff.branchId,

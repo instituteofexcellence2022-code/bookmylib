@@ -1,8 +1,6 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { cookies } from 'next/headers'
-
 import { getAuthenticatedStaff } from '@/lib/auth/staff'
 
 // Helper to get authenticated staff

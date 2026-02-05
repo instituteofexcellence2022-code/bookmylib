@@ -96,6 +96,7 @@ export default async function BranchDetailsPage({ params }: { params: Promise<{ 
             // Handle both string (if manually inserted) and object (Prisma Json)
             const details = branch.wifiDetails
             if (Array.isArray(details)) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 wifiDetails = details as any
             } else if (typeof details === 'string') {
                 const parsed = JSON.parse(details)
@@ -108,6 +109,7 @@ export default async function BranchDetailsPage({ params }: { params: Promise<{ 
     const description = branch.description
 
     // Parse operating hours
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let operatingHours: any = null
     try {
         if (branch.operatingHours) {

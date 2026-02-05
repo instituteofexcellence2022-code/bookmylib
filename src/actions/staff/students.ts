@@ -2,12 +2,11 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
 import { uploadFile } from '@/actions/upload'
 import { sendWelcomeEmail } from '@/actions/email'
 import { formatSeatNumber } from '@/lib/utils'
 import bcrypt from 'bcryptjs'
+import { Prisma } from '@prisma/client'
 
 export type StudentFilter = {
     search?: string
@@ -25,7 +24,7 @@ export async function getStaffStudents(filters: StudentFilter = {}) {
     const { search, status, page = 1, limit = 10 } = filters
     const skip = (page - 1) * limit
 
-    const where: any = {
+    const where: Prisma.StudentWhereInput = {
         AND: [
             {
                 OR: [
@@ -126,6 +125,7 @@ export async function getStaffStudents(filters: StudentFilter = {}) {
 
     // Process students for UI
     const enhancedStudents = students.map(s => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const activeSub = s.subscriptions.find((sub: any) => sub.status === 'active')
         const latestSub = s.subscriptions[0]
         const displaySub = activeSub || latestSub
@@ -229,7 +229,9 @@ export async function getStudentDetailsForScanner(studentId: string) {
                 },
                 subscription: student.subscriptions[0] || null,
                 attendance: student.attendance[0] || null,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 pendingPayment: student.payments.find((p: any) => p.status === 'pending' || p.status === 'pending_verification') || null,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 lastPayment: student.payments.find((p: any) => p.status === 'completed') || null
             }
         }
@@ -458,6 +460,7 @@ export async function getStudentDetails(studentId: string) {
             }
         }
     } catch (error) {
+         // eslint-disable-next-line @typescript-eslint/no-explicit-any
          if ((error as any)?.digest === 'DYNAMIC_SERVER_USAGE') {
             throw error
         }
@@ -479,6 +482,10 @@ export async function getStaffBranchOptions() {
 export async function toggleBlockStudent(studentId: string, isBlocked: boolean) {
     const staff = await getAuthenticatedStaff()
     if (!staff) return { success: false, error: 'Unauthorized' }
+
+    // Use parameters to avoid unused variable warning
+    void studentId
+    void isBlocked
 
     // Explicitly deny block action for staff
     return { success: false, error: 'Staff are not authorized to block/unblock students' }
@@ -517,6 +524,9 @@ export async function deleteStudent(studentId: string) {
     const staff = await getAuthenticatedStaff()
     if (!staff) return { success: false, error: 'Unauthorized' }
     
+    // Use parameter to avoid unused variable warning
+    void studentId
+
     // Explicitly deny delete action for staff
     return { success: false, error: 'Staff are not authorized to delete students' }
     
@@ -555,7 +565,7 @@ export async function updateStudent(formData: FormData) {
     const id = formData.get('id') as string
     const name = formData.get('name') as string
     const email = formData.get('email') as string
-    let phone = formData.get('phone') as string
+    const phone = formData.get('phone') as string
 
     // Address Fields
     const address = formData.get('address') as string
@@ -565,8 +575,8 @@ export async function updateStudent(formData: FormData) {
     const pincode = formData.get('pincode') as string
 
     // Profile Fields
-    const gender = formData.get('gender') as string
-    let dob = formData.get('dob') as string
+    // const gender = formData.get('gender') as string
+    const dob = formData.get('dob') as string
 
     // Guardian Fields
     const guardianName = formData.get('guardianName') as string
@@ -580,20 +590,15 @@ export async function updateStudent(formData: FormData) {
         const existingStudent = await prisma.student.findUnique({ where: { id } })
         if (!existingStudent) return { success: false, error: 'Student not found' }
 
-        // Ignore masked phone update
-        if (phone && phone.includes('******')) {
-            phone = existingStudent.phone || phone
-        }
-
         // Ignore empty DOB update if existing has value (prevent accidental clearing due to masked view)
         // Only update DOB if it's provided and valid
-        let dobDate: Date | null | undefined = undefined
+        // let dobDate: Date | null | undefined = undefined
         if (dob) {
-            dobDate = new Date(dob)
+            // dobDate = new Date(dob)
         } else {
             // If empty, keep existing (since staff can't see it to clear it explicitly)
             // If they really want to clear it, they can't via this UI restriction.
-            dobDate = existingStudent.dob
+            // dobDate = existingStudent.dob
         }
 
     // Restrict staff from editing personal details
@@ -694,6 +699,10 @@ export async function deleteStudentNote(noteId: string, studentId: string) {
 export async function verifyStudentGovtId(studentId: string, status: 'verified' | 'rejected') {
     const staff = await getAuthenticatedStaff()
     if (!staff) return { success: false, error: 'Unauthorized' }
+
+    // Use parameters to avoid unused variable warning
+    void studentId
+    void status
 
     // Check if user is an Owner (Staff cannot verify)
     // Actually, getAuthenticatedStaff only returns Staff model. 
