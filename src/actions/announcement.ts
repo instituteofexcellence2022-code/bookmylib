@@ -188,15 +188,22 @@ export async function createAnnouncement(data: {
       )
 
       // Send in parallel (limit concurrency if needed, but for now simple Promise.all)
-      // Using Promise.allSettled to prevent one failure from stopping others
-      await Promise.allSettled(uniqueRecipients.map(recipient => 
+      // Fire-and-forget email sending to avoid blocking the UI
+      Promise.allSettled(uniqueRecipients.map(recipient => 
         sendAnnouncementEmail({
           email: recipient.email,
           title: data.title,
           content: data.content,
           libraryName: library.name
         })
-      ))
+      )).then(results => {
+        const failures = results.filter(r => r.status === 'rejected')
+        if (failures.length > 0) {
+          console.error(`Failed to send ${failures.length} announcement emails`)
+        } else {
+          console.log(`Successfully sent ${results.length} announcement emails`)
+        }
+      })
     }
     
     revalidatePath('/owner/marketing')

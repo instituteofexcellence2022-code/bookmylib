@@ -323,7 +323,12 @@ export function AnnouncementManager() {
               >
                 Cancel
               </button>
-              <AnimatedButton type="submit" isLoading={submitting} variant="primary">
+              <AnimatedButton 
+                type="submit" 
+                isLoading={submitting} 
+                loadingText={editingId ? 'Updating...' : 'Posting...'}
+                variant="primary"
+              >
                 {editingId ? 'Update Announcement' : 'Post Announcement'}
               </AnimatedButton>
             </div>
