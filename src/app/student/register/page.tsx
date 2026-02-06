@@ -260,7 +260,7 @@ function RegisterForm() {
                                 required
                                 value={formData.name}
                                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                                placeholder="John Doe"
+                                placeholder="Enter your full name"
                             />
 
                             <FormInput
@@ -283,7 +283,7 @@ function RegisterForm() {
                                         required
                                         value={formData.email}
                                         onChange={handleEmailChange}
-                                        placeholder="you@example.com"
+                                        placeholder="Enter your email id"
                                         className={emailVerified ? "border-green-500 focus:ring-green-500" : ""}
                                     />
                                 </div>
@@ -328,7 +328,7 @@ function RegisterForm() {
                                                 value={otp}
                                                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                                                 className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 dark:bg-gray-800"
-                                                placeholder="000000"
+                                                placeholder="Enter 6-digit code"
                                             />
                                             <Button
                                                 type="button"
@@ -396,7 +396,7 @@ function RegisterForm() {
                                             required
                                             value={formData.password}
                                             onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                                            placeholder="••••••••"
+                                            placeholder="Min 8 characters password"
                                         />
                                         <button
                                             type="button"
@@ -430,7 +430,7 @@ function RegisterForm() {
                                     required
                                     value={formData.confirmPassword}
                                     onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                                    placeholder="••••••••"
+                                    placeholder="Re-enter your password"
                                 />
                             </div>
                         ) : (
