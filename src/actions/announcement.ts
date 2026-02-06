@@ -1,5 +1,6 @@
 'use server'
 
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { getAuthenticatedOwner } from '@/lib/auth/owner'
@@ -10,10 +11,10 @@ import { getAuthenticatedStaff } from '@/lib/auth/staff'
 import { sendAnnouncementEmail } from '@/actions/email'
 
 export async function getOwnerAnnouncements() {
-  const owner = await getAuthenticatedOwner()
-  if (!owner) return []
-
   try {
+    const owner = await getAuthenticatedOwner()
+    if (!owner) return []
+
     const announcements = await prisma.announcement.findMany({
       where: { libraryId: owner.libraryId },
       orderBy: { createdAt: 'desc' }
@@ -26,13 +27,13 @@ export async function getOwnerAnnouncements() {
 }
 
 export async function getStudentAnnouncements() {
-  const student = await getAuthenticatedStudent()
-  
-  if (!student) return []
-  const studentId = student.id
-
   try {
-    const student = await prisma.student.findUnique({
+    const student = await getAuthenticatedStudent()
+    
+    if (!student) return []
+    const studentId = student.id
+
+    const studentData = await prisma.student.findUnique({
       where: { id: studentId },
       select: { 
         libraryId: true,
@@ -43,9 +44,9 @@ export async function getStudentAnnouncements() {
       }
     })
 
-    if (!student || !student.libraryId) return []
+    if (!studentData || !studentData.libraryId) return []
 
-    const isActive = student.subscriptions.length > 0
+    const isActive = studentData.subscriptions.length > 0
     const targetIn = ['all', 'students']
     if (isActive) {
       targetIn.push('active_students')
@@ -53,7 +54,7 @@ export async function getStudentAnnouncements() {
 
     const announcements = await prisma.announcement.findMany({
       where: { 
-        libraryId: student.libraryId,
+        libraryId: studentData.libraryId,
         target: { in: targetIn },
         isActive: true,
         OR: [
@@ -118,10 +119,10 @@ export async function createAnnouncement(data: {
   branchId?: string | null
   expiresAt?: Date | null
 }) {
-  const owner = await getAuthenticatedOwner()
-  if (!owner) return { success: false, error: 'Unauthorized' }
-
   try {
+    const owner = await getAuthenticatedOwner()
+    if (!owner) return { success: false, error: 'Unauthorized' }
+
     await prisma.announcement.create({
       data: {
         title: data.title,
@@ -147,7 +148,7 @@ export async function createAnnouncement(data: {
 
       // Fetch Students
       if (data.target === 'all' || data.target === 'students' || data.target === 'active_students') {
-        const studentWhere: any = { 
+        const studentWhere: Prisma.StudentWhereInput = { 
           libraryId: owner.libraryId,
           ...branchFilter
         }
@@ -204,7 +205,7 @@ export async function createAnnouncement(data: {
     return { success: true }
   } catch (error) {
     console.error('Error creating announcement:', error)
-    return { success: false, error: 'Failed to create announcement' }
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to create announcement' }
   }
 }
 
@@ -215,10 +216,10 @@ export async function updateAnnouncement(id: string, data: {
   branchId?: string | null
   expiresAt?: Date | null
 }) {
-  const owner = await getOwnerProfile()
-  if (!owner) return { success: false, error: 'Unauthorized' }
-
   try {
+    const owner = await getOwnerProfile()
+    if (!owner) return { success: false, error: 'Unauthorized' }
+
     await prisma.announcement.update({
       where: { id, libraryId: owner.libraryId },
       data: {
@@ -241,10 +242,10 @@ export async function updateAnnouncement(id: string, data: {
 }
 
 export async function deleteAnnouncement(id: string) {
-  const owner = await getOwnerProfile()
-  if (!owner) return { success: false, error: 'Unauthorized' }
-
   try {
+    const owner = await getOwnerProfile()
+    if (!owner) return { success: false, error: 'Unauthorized' }
+
     await prisma.announcement.delete({
       where: { id, libraryId: owner.libraryId }
     })
@@ -260,10 +261,10 @@ export async function deleteAnnouncement(id: string) {
 }
 
 export async function toggleAnnouncementStatus(id: string, isActive: boolean) {
-  const owner = await getOwnerProfile()
-  if (!owner) return { success: false, error: 'Unauthorized' }
-
   try {
+    const owner = await getOwnerProfile()
+    if (!owner) return { success: false, error: 'Unauthorized' }
+
     await prisma.announcement.update({
       where: { id, libraryId: owner.libraryId },
       data: { isActive }

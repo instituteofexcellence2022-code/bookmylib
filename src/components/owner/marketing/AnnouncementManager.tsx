@@ -114,8 +114,9 @@ export function AnnouncementManager() {
       } else {
         toast.error(res.error || 'Operation failed')
       }
-    } catch {
-      toast.error('Something went wrong')
+    } catch (error) {
+      console.error('Announcement operation failed:', error)
+      toast.error('Something went wrong. Please try again.')
     } finally {
       setSubmitting(false)
     }
