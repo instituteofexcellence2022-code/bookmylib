@@ -288,11 +288,44 @@ export default function ScanPage() {
         {permissionDenied && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 text-white z-20 p-6 text-center">
                 <Camera className="h-12 w-12 text-red-500 mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Camera Access Denied</h3>
-                <p className="text-sm text-zinc-400 mb-6">Please enable camera access in your browser settings to use the scanner.</p>
-                <Button onClick={() => window.location.reload()} variant="outline" className="text-black bg-white hover:bg-zinc-200">
-                    Retry
-                </Button>
+                <h3 className="text-lg font-semibold mb-2">Camera Access Required</h3>
+                <p className="text-sm text-zinc-400 mb-6 max-w-[250px]">
+                    We need camera access to scan QR codes.
+                </p>
+                
+                <div className="space-y-3 w-full max-w-xs">
+                    <Button 
+                        onClick={async () => {
+                            try {
+                                await navigator.mediaDevices.getUserMedia({ video: true })
+                                window.location.reload()
+                            } catch (e) {
+                                toast.error("Access still blocked. Please check browser settings.")
+                            }
+                        }} 
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                        Enable Camera Access
+                    </Button>
+
+                    <div className="bg-zinc-800/50 rounded-lg p-4 text-left text-xs text-zinc-400 space-y-2">
+                        <p className="font-medium text-zinc-300">If that doesn&apos;t work:</p>
+                        <ol className="list-decimal pl-4 space-y-1">
+                            <li>Tap the 🔒 or ⚙️ icon in your address bar</li>
+                            <li>Tap <strong>Permissions</strong> or <strong>Site Settings</strong></li>
+                            <li>Set <strong>Camera</strong> to <strong>Allow</strong></li>
+                            <li>Refresh this page</li>
+                        </ol>
+                    </div>
+                    
+                    <Button 
+                        onClick={() => window.location.reload()} 
+                        variant="outline" 
+                        className="w-full border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                    >
+                        I&apos;ve Enabled It, Refresh
+                    </Button>
+                </div>
             </div>
         )}
 
