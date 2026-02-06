@@ -252,8 +252,16 @@ export default function ScanPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-4rem)] max-w-md mx-auto p-4 space-y-4">
-      <div className="flex items-center justify-between mb-4">
+    <div className="flex flex-col h-[calc(100vh-6rem)] max-w-md mx-auto p-4 space-y-4">
+      <style jsx global>{`
+        #reader video {
+          object-fit: cover;
+          width: 100% !important;
+          height: 100% !important;
+          border-radius: 1.5rem;
+        }
+      `}</style>
+      <div className="flex items-center justify-between shrink-0">
         <Link href="/student/home">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-6 w-6" />
@@ -264,7 +272,7 @@ export default function ScanPage() {
       </div>
 
       {/* Main Scanner Area */}
-      <div className="relative overflow-hidden rounded-3xl bg-black aspect-square shadow-xl ring-4 ring-white/10">
+      <div className="flex-1 relative overflow-hidden rounded-3xl bg-black shadow-xl ring-4 ring-white/10 w-full">
         
         {/* Scanner Container */}
         <div id={scannerContainerId} className="w-full h-full" />
@@ -373,7 +381,7 @@ export default function ScanPage() {
         )}
       </div>
 
-      <div className="text-center space-y-2">
+      <div className="text-center space-y-2 shrink-0">
         <p className="text-sm text-muted-foreground">
           Align the QR code within the frame to check in or check out.
         </p>
