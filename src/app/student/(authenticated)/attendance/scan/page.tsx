@@ -23,9 +23,43 @@ export default function ScanPage() {
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [permissionDenied, setPermissionDenied] = useState(false)
   const [initializing, setInitializing] = useState(true)
+  const [isIOS, setIsIOS] = useState(false)
+  const [isAndroid, setIsAndroid] = useState(false)
 
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const scannerContainerId = "reader"
+
+  // Detect OS for specific instructions
+  useEffect(() => {
+    if (typeof navigator !== 'undefined') {
+        const ua = navigator.userAgent.toLowerCase()
+        setIsIOS(/iphone|ipad|ipod/.test(ua))
+        setIsAndroid(/android/.test(ua))
+    }
+  }, [])
+
+  const requestCameraPermission = async () => {
+    try {
+        // Try with ideal constraints first
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: "environment" } 
+        })
+        
+        // If successful, stop tracks and reload
+        stream.getTracks().forEach(track => track.stop())
+        window.location.reload()
+    } catch (err) {
+        // Retry with loose constraints
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+            stream.getTracks().forEach(track => track.stop())
+            window.location.reload()
+        } catch (e) {
+            console.error("Permission request failed", e)
+            toast.error("Access still blocked. Please check browser settings.")
+        }
+    }
+  }
 
   // Sound feedback
   const playBeep = useCallback(() => {
@@ -295,26 +329,39 @@ export default function ScanPage() {
                 
                 <div className="space-y-3 w-full max-w-xs">
                     <Button 
-                        onClick={async () => {
-                            try {
-                                await navigator.mediaDevices.getUserMedia({ video: true })
-                                window.location.reload()
-                            } catch (e) {
-                                toast.error("Access still blocked. Please check browser settings.")
-                            }
-                        }} 
+                        onClick={requestCameraPermission} 
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                     >
                         Enable Camera Access
                     </Button>
 
                     <div className="bg-zinc-800/50 rounded-lg p-4 text-left text-xs text-zinc-400 space-y-2">
-                        <p className="font-medium text-zinc-300">If that doesn&apos;t work:</p>
+                        <p className="font-medium text-zinc-300">
+                            {isIOS ? "On iPhone/iPad:" : isAndroid ? "On Android:" : "If that doesn't work:"}
+                        </p>
                         <ol className="list-decimal pl-4 space-y-1">
-                            <li>Tap the 🔒 or ⚙️ icon in your address bar</li>
-                            <li>Tap <strong>Permissions</strong> or <strong>Site Settings</strong></li>
-                            <li>Set <strong>Camera</strong> to <strong>Allow</strong></li>
-                            <li>Refresh this page</li>
+                            {isIOS ? (
+                                <>
+                                    <li>Tap the <strong>Aa</strong> icon in the address bar</li>
+                                    <li>Tap <strong>Website Settings</strong></li>
+                                    <li>Set <strong>Camera</strong> to <strong>Allow</strong></li>
+                                    <li>Refresh this page</li>
+                                </>
+                            ) : isAndroid ? (
+                                <>
+                                    <li>Tap the <strong>Lock</strong> or <strong>Settings</strong> icon in the address bar</li>
+                                    <li>Tap <strong>Permissions</strong></li>
+                                    <li>Turn on <strong>Camera</strong></li>
+                                    <li>Refresh this page</li>
+                                </>
+                            ) : (
+                                <>
+                                    <li>Tap the 🔒 or ⚙️ icon in the address bar</li>
+                                    <li>Tap <strong>Permissions</strong> or <strong>Site Settings</strong></li>
+                                    <li>Set <strong>Camera</strong> to <strong>Allow</strong></li>
+                                    <li>Refresh this page</li>
+                                </>
+                            )}
                         </ol>
                     </div>
                     
