@@ -549,6 +549,9 @@ export async function registerStudent(formData: FormData) {
             console.error('Failed to send welcome email:', emailError)
         }
 
+        // Auto login
+        await createSession(student.id, 'student')
+
         return { success: true, studentId: student.id, email }
     } catch (error) {
         console.error('Student registration error:', error)

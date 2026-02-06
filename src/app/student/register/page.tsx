@@ -197,7 +197,7 @@ function RegisterForm() {
             if (result.success) {
                 setIsRedirecting(true)
                 toast.success('Registration successful! Redirecting...')
-                router.push('/student/login')
+                router.push('/student/home')
             } else {
                 toast.error(result.error || 'Registration failed')
                 setLoading(false)
