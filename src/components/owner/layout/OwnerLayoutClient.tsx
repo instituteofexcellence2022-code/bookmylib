@@ -79,7 +79,7 @@ export function OwnerLayoutClient({ children, user }: OwnerLayoutClientProps) {
         onLogout={handleLogout}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 mb-20 md:mb-0 pb-safe">
+      <div className="flex-1 flex flex-col min-w-0 pb-safe">
         <TopBar
           user={user}
           title="Owner Dashboard"
@@ -87,7 +87,7 @@ export function OwnerLayoutClient({ children, user }: OwnerLayoutClientProps) {
           onLogout={handleLogout}
         />
         
-        <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+        <main className="flex-1 p-4 md:p-6 pb-28 md:pb-6 overflow-y-auto">
           {children}
         </main>
       </div>

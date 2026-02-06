@@ -63,7 +63,7 @@ export function InstallPrompt({ onOpenChange, role }: InstallPromptProps) {
 
   useEffect(() => {
     onOpenChange?.(showPrompt)
-  }, [showPrompt])
+  }, [showPrompt, onOpenChange])
 
   useEffect(() => {
     // Only show if:
@@ -103,10 +103,10 @@ export function InstallPrompt({ onOpenChange, role }: InstallPromptProps) {
     <AnimatePresence>
       {showPrompt && (
         <motion.div
-          initial={{ opacity: 0, y: -50 }}
+          initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -50 }}
-          className={`fixed top-20 right-4 z-50 flex items-center gap-3 p-3 pr-4 bg-white dark:bg-gray-900 border rounded-xl shadow-lg ${theme.border} ${theme.shadow}`}
+          exit={{ opacity: 0, y: 50 }}
+          className={`fixed bottom-[5.5rem] left-4 right-4 md:top-20 md:right-4 md:left-auto md:bottom-auto md:w-auto z-50 flex items-center gap-3 p-3 pr-4 bg-white dark:bg-gray-900 border rounded-xl shadow-lg ${theme.border} ${theme.shadow}`}
         >
           <div className={`flex items-center justify-center w-10 h-10 rounded-lg ${theme.bg}`}>
              {/* Using a generic app icon or the Lucide download icon */}

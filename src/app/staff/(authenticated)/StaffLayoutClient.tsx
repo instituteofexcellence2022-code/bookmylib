@@ -54,6 +54,7 @@ export default function StaffLayoutClient({ children, user, announcements }: {
     image?: string | null
     initials: string
   }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   announcements?: any[]
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -83,7 +84,7 @@ export default function StaffLayoutClient({ children, user, announcements }: {
         onLogout={handleLogout}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 mb-20 md:mb-0 pb-safe">
+      <div className="flex-1 flex flex-col min-w-0 pb-safe">
         <TopBar
           user={user}
           title="Staff Portal"
@@ -92,7 +93,7 @@ export default function StaffLayoutClient({ children, user, announcements }: {
           onLogout={handleLogout}
         />
         
-        <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+        <main className="flex-1 p-4 md:p-6 pb-28 md:pb-6 overflow-y-auto">
           {children}
         </main>
       </div>

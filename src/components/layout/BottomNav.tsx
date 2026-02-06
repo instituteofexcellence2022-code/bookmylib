@@ -43,20 +43,34 @@ export function BottomNav({ items, onMenuClick, themeColor = 'purple' }: BottomN
   const displayItems = items.slice(0, 4)
   const hasMore = items.length > 4
 
+  const handleHaptic = () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(10)
+    }
+  }
+
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-2 pb-safe z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-t border-gray-200 dark:border-gray-800 px-6 py-2 pb-safe z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] transition-all duration-300">
       <div className="flex justify-between items-center">
         {displayItems.map((item) => {
           const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
           return (
-            <Link key={item.href} href={item.href} className="relative py-2 px-1 flex-1">
-              <div className={cn(
-                "flex flex-col items-center gap-1 transition-colors duration-200",
-                isActive ? colors.activeText : "text-gray-400 dark:text-gray-500"
-              )}>
+            <Link 
+              key={item.href} 
+              href={item.href} 
+              className="relative py-2 px-1 flex-1"
+              onClick={handleHaptic}
+            >
+              <motion.div 
+                className={cn(
+                  "flex flex-col items-center gap-1 transition-colors duration-200",
+                  isActive ? colors.activeText : "text-gray-400 dark:text-gray-500"
+                )}
+                whileTap={{ scale: 0.9 }}
+              >
                 <item.icon size={24} strokeWidth={isActive ? 2.5 : 2} />
                 <span className="text-[10px] font-medium truncate max-w-[64px]">{item.label}</span>
-              </div>
+              </motion.div>
               {isActive && (
                 <motion.div
                   layoutId="mobileNavIndicator"
@@ -68,11 +82,20 @@ export function BottomNav({ items, onMenuClick, themeColor = 'purple' }: BottomN
         })}
         
         {hasMore && (
-           <button onClick={onMenuClick} className="relative py-2 px-1 flex-1">
-              <div className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+           <button 
+             onClick={() => {
+               handleHaptic()
+               onMenuClick()
+             }} 
+             className="relative py-2 px-1 flex-1"
+           >
+              <motion.div 
+                className="flex flex-col items-center gap-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                whileTap={{ scale: 0.9 }}
+              >
                 <MoreHorizontal size={24} />
                 <span className="text-[10px] font-medium">Menu</span>
-              </div>
+              </motion.div>
            </button>
         )}
       </div>
