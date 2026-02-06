@@ -348,12 +348,16 @@ export async function createStudent(formData: FormData) {
         })
 
         // Send Welcome Email
-        if (student.email) {
-            await sendWelcomeEmail({
-                studentName: student.name,
-                studentEmail: student.email,
-                libraryName: staff.library?.name
-            })
+        try {
+            if (student.email) {
+                await sendWelcomeEmail({
+                    studentName: student.name,
+                    studentEmail: student.email,
+                    libraryName: staff.library?.name
+                })
+            }
+        } catch (emailError) {
+            console.error('Failed to send welcome email:', emailError)
         }
         
         // Log activity
@@ -580,8 +584,8 @@ export async function updateStudent(formData: FormData) {
 
     const id = formData.get('id') as string
     const name = formData.get('name') as string
-    const email = formData.get('email') as string
-    const phone = formData.get('phone') as string
+    // const email = formData.get('email') as string
+    // const phone = formData.get('phone') as string
 
     // Address Fields
     const address = formData.get('address') as string

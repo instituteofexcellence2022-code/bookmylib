@@ -7,6 +7,7 @@ import { sendWelcomeEmail } from '@/actions/email'
 import { formatSeatNumber } from '@/lib/utils'
 import { getAuthenticatedOwner } from '@/lib/auth/owner'
 import bcrypt from 'bcryptjs'
+import { Prisma } from '@prisma/client'
 
 export async function createStudent(formData: FormData) {
     const owner = await getAuthenticatedOwner()
@@ -118,6 +119,18 @@ export async function createStudent(formData: FormData) {
             }
         })
 
+        try {
+            if (email) {
+                await sendWelcomeEmail({
+                    studentName: name,
+                    studentEmail: email,
+                    libraryName: owner.library.name
+                })
+            }
+        } catch (emailError) {
+            console.error('Failed to send welcome email:', emailError)
+        }
+
         revalidatePath('/owner/students')
         return { success: true, data: student }
     } catch (error) {
@@ -143,7 +156,7 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
 
     // Base query conditions
     // Use AND to ensure all conditions are met
-    const where: any = {
+    const where: Prisma.StudentWhereInput = {
         AND: [
             {
                 // Core scope: Student belongs to library OR has subscription in library
@@ -209,7 +222,7 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
     } else if (status === 'new') {
         // New means created within last 24h AND no subscriptions (active or inactive)
         const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
-        const newConditions: any = {
+        const newConditions: Prisma.StudentWhereInput = {
             createdAt: { gte: oneDayAgo },
             subscriptions: {
                 none: {
@@ -232,7 +245,7 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
         
         const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
         
-        const noPlanConditions: any = {
+        const noPlanConditions: Prisma.StudentWhereInput = {
             isBlocked: false,
             createdAt: { lt: oneDayAgo }, // If it's < 24h, it's "New", not "No Plan" (usually)
             subscriptions: {
@@ -300,11 +313,13 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
         // Process students to add "status" field for UI
         const enhancedStudents = students.map(s => {
             // Find active subscription if any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let activeSub = s.subscriptions.find((sub: any) => sub.status === 'active')
             
             // If branch filter is applied, status should be calculated relative to that branch
             if (branchId) {
                 // Active subscription in THIS branch?
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 activeSub = s.subscriptions.find((sub: any) => sub.status === 'active' && sub.branchId === branchId)
             }
 
@@ -315,6 +330,7 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
             let displaySub = activeSub || latestSub
 
             if (branchId) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const branchSub = s.subscriptions.find((sub: any) => sub.branchId === branchId)
                 if (branchSub) {
                     displaySub = branchSub
@@ -330,6 +346,7 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
             } else if (s.subscriptions.length > 0) {
                 // If filtered by branch, check if has ANY subscription in this branch
                 if (branchId) {
+                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                      const hasBranchHistory = s.subscriptions.some((sub: any) => sub.branchId === branchId)
                      if (hasBranchHistory) {
                          status = 'expired'
@@ -509,6 +526,7 @@ export async function getStudentDetails(studentId: string) {
             }
         }
     } catch (error) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         if ((error as any)?.digest === 'DYNAMIC_SERVER_USAGE') {
             throw error
         }
@@ -626,7 +644,9 @@ export async function getStudentDetailsForScanner(studentId: string) {
                 candidateBranchId: candidateBranch?.id || null,
                 registrationStatus,
                 attendance: student.attendance || [],
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 pendingPayment: student.payments.find((p: any) => p.status === 'pending' || p.status === 'pending_verification') || null,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 lastPayment: student.payments.find((p: any) => p.status === 'completed') || null
             }
         }

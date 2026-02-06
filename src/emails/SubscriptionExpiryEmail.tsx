@@ -35,9 +35,9 @@ export const SubscriptionExpiryEmail = ({
 
   return (
     <Html>
-      <Head />
-      <Preview>{previewText}</Preview>
       <Tailwind>
+        <Head />
+        <Preview>{previewText}</Preview>
         <Body className="bg-gray-100 my-auto mx-auto font-sans px-2">
           <Container className="bg-white border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[465px] w-full shadow-sm">
              {/* Header */}
