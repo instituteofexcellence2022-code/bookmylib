@@ -1,11 +1,10 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
+import { Prisma, Student, Staff, Owner } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-import { randomBytes } from 'crypto'
 import { sendPasswordResetEmail, sendWelcomeEmail, sendEmailVerificationEmail } from '@/actions/email'
 import { verify } from 'otplib'
-import { redirect } from 'next/navigation'
 import { createSession, deleteSession } from '@/lib/auth/session'
 
 // --- Session Management ---
@@ -124,7 +123,7 @@ export async function registerOwner(formData: FormData) {
 export async function loginOwner(formData: FormData) {
     const email = formData.get('email') as string
     const password = formData.get('password') as string
-    const rememberMe = formData.get('rememberMe') === 'true'
+    // const rememberMe = formData.get('rememberMe') === 'true'
 
     if (!email || !password) {
         return { success: false, error: 'Email and password are required' }
@@ -296,7 +295,7 @@ export async function initiateEmailVerification(email: string, name?: string) {
         return { success: true }
     } catch (error) {
         console.error('Initiate verification error:', error)
-        return { success: false, error: 'System error' }
+        return { success: false, error: 'An unexpected error occurred during verification. Please try again.' }
     }
 }
 
@@ -345,7 +344,7 @@ export async function initiatePublicBookingVerification(email: string, name?: st
         return { success: true }
     } catch (error) {
         console.error('Initiate public verification error:', error)
-        return { success: false, error: 'System error' }
+        return { success: false, error: 'An unexpected error occurred. Please try again.' }
     }
 }
 
@@ -402,7 +401,7 @@ export async function initiateOwnerVerification(email: string, name?: string) {
         return { success: true }
     } catch (error) {
         console.error('Initiate owner verification error:', error)
-        return { success: false, error: 'System error' }
+        return { success: false, error: 'An unexpected error occurred. Please try again.' }
     }
 }
 
@@ -491,61 +490,81 @@ export async function registerStudent(formData: FormData) {
         const randomSuffix = Math.floor(1000 + Math.random() * 9000).toString()
         const ownReferralCode = `${baseCode}${randomSuffix}`
 
-        const student = await prisma.student.create({
-            data: {
-                name,
-                email,
-                phone,
-                password: hashedPassword,
-                referralCode: ownReferralCode,
-                dob: dob ? new Date(dob) : null,
+        const student = await prisma.$transaction(async (tx) => {
+            let libraryId = null
+            let referrerId = null
+
+            if (referralCode) {
+                 const referrer = await tx.student.findUnique({
+                     where: { referralCode }
+                 })
+                 
+                 if (referrer && referrer.libraryId) {
+                     libraryId = referrer.libraryId
+                     referrerId = referrer.id
+                 }
             }
-        })
-        
-        // Mark student as verified
-        await prisma.student.update({
-            where: { id: student.id },
-            data: { emailVerifiedAt: new Date() }
-        })
-        
-        // Cleanup verification record
-        await prisma.emailVerification.deleteMany({
-            where: { email }
-        })
 
-        // Send Welcome Email
-        await sendWelcomeEmail({
-            studentName: name,
-            studentEmail: email,
-            libraryName: 'BookMyLib'
-        })
+            const newStudent = await tx.student.create({
+                data: {
+                    name,
+                    email,
+                    phone,
+                    password: hashedPassword,
+                    referralCode: ownReferralCode,
+                    dob: dob ? new Date(dob) : null,
+                    emailVerifiedAt: new Date(),
+                    libraryId
+                }
+            })
+            
+            // Cleanup verification record
+            await tx.emailVerification.deleteMany({
+                where: { email }
+            })
 
-        if (referralCode) {
-             const referrer = await prisma.student.findUnique({
-                 where: { referralCode }
-             })
-             
-             if (referrer && referrer.libraryId) {
-                 await prisma.referral.create({
+            if (referrerId && libraryId) {
+                 await tx.referral.create({
                      data: {
-                         referrerId: referrer.id,
-                         refereeId: student.id,
-                         libraryId: referrer.libraryId,
+                         referrerId: referrerId,
+                         refereeId: newStudent.id,
+                         libraryId: libraryId,
                          status: 'pending' 
                      }
                  })
+            }
 
-                 await prisma.student.update({
-                     where: { id: student.id },
-                     data: { libraryId: referrer.libraryId }
-                 })
-             }
+            return newStudent
+        })
+
+        // Send Welcome Email (Non-blocking)
+        try {
+            await sendWelcomeEmail({
+                studentName: name,
+                studentEmail: email,
+                libraryName: 'BookMyLib'
+            })
+        } catch (emailError) {
+            console.error('Failed to send welcome email:', emailError)
         }
 
         return { success: true, studentId: student.id, email }
     } catch (error) {
         console.error('Student registration error:', error)
-        return { success: false, error: 'Registration failed' }
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+            if (error.code === 'P2002') {
+                // Unique constraint violation
+                const target = error.meta?.target as string[]
+                if (target?.includes('email')) {
+                    return { success: false, error: 'Email already registered' }
+                }
+                if (target?.includes('phone')) {
+                    return { success: false, error: 'Phone number already registered' }
+                }
+                return { success: false, error: 'Account already exists with these details' }
+            }
+        }
+        return { success: false, error: 'Registration failed. Please try again.' }
     }
 }
 
@@ -708,7 +727,7 @@ export async function verifyOtp(formData: FormData) {
 
     try {
         const now = new Date()
-        let user: any = null
+        let user: Student | Staff | Owner | null = null
 
         if (userType === 'student') {
             user = await prisma.student.findFirst({
