@@ -58,6 +58,18 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
         }
     }, [resendCooldown])
 
+    // Remove qr_code from URL to prevent auto-redirect loop after booking/login
+    React.useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search)
+            if (params.has('qr_code')) {
+                params.delete('qr_code')
+                const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '')
+                window.history.replaceState({}, '', newUrl)
+            }
+        }
+    }, [])
+
     // Selection State
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
     const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null)
