@@ -16,7 +16,7 @@ export default async function Icon() {
   const cookieStore = await cookies()
   const theme = cookieStore.get('app-theme')?.value || 'discover'
 
-  let bgColor = '#0d9488' // discover (teal-600)
+  let bgColor = '#2563eb' // discover (blue-600) - Brand Color
 
   if (theme === 'student') {
     bgColor = '#2563eb' // student (blue-600)

@@ -2,38 +2,31 @@ import { ImageResponse } from 'next/og'
 
 export const runtime = 'edge'
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const theme = searchParams.get('theme') || 'discover'
+export const alt = 'BookMyLib'
+export const size = {
+  width: 1200,
+  height: 630,
+}
 
-  let bgColor = '#2563eb' // discover (blue-600) - Brand Color
+export const contentType = 'image/png'
 
-  if (theme === 'student') {
-    bgColor = '#2563eb' // student (blue-600)
-  } else if (theme === 'staff') {
-    bgColor = '#059669' // staff (emerald-600)
-  } else if (theme === 'owner') {
-    bgColor = '#d97706' // owner (amber-600)
-  }
-
+export default async function Image() {
   return new ImageResponse(
     (
       <div
         style={{
-          fontSize: 24,
-          background: bgColor,
+          background: '#2563eb',
           width: '100%',
           height: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          borderRadius: '20%',
         }}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          width="320"
-          height="320"
+          width="300"
+          height="300"
           viewBox="0 0 24 24"
           fill="none"
           stroke="white"
@@ -47,8 +40,7 @@ export async function GET(request: Request) {
       </div>
     ),
     {
-      width: 512,
-      height: 512,
+      ...size,
     }
   )
 }
