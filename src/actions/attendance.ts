@@ -78,9 +78,9 @@ export async function markAttendance(qrCode: string, location?: { lat: number, l
             }
         })
 
-        if (!subscription) {
-            return { success: false, error: 'No active subscription for this branch' }
-        }
+        // if (!subscription) {
+        //     return { success: false, error: 'No active subscription for this branch' }
+        // }
 
         // 3. Check for any open attendance (Check-in today without checkout)
         const today = new Date()
