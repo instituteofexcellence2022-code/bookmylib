@@ -1,12 +1,11 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef, forwardRef } from 'react'
 import QRCode from 'qrcode'
-import { motion } from 'framer-motion'
-import { Shield, User, Download, Share2, CheckCircle, BadgeCheck, Mail, Phone, BookOpen, Eye, EyeOff, Clock } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Shield, User, Download, Share2, CheckCircle, BadgeCheck, Mail, Phone, BookOpen, Eye, EyeOff, Clock, Maximize2, X, ZoomIn, ZoomOut, RotateCw } from 'lucide-react'
 import { format } from 'date-fns'
 import { toPng } from 'html-to-image'
-import { useRef } from 'react'
 import { jsPDF } from 'jspdf'
 import { formatSeatNumber } from '@/lib/utils'
 import Image from 'next/image'
@@ -17,6 +16,7 @@ interface DigitalIdCardProps {
         id: string
         name: string
         email: string
+        emailVerified?: Date | null
         image: string | null
         phone: string
         govtIdStatus?: string
@@ -38,10 +38,198 @@ interface DigitalIdCardProps {
     }
 }
 
+// Internal component for reusability in Zoom Modal
+const IdCardContent = forwardRef<HTMLDivElement, { 
+    student: DigitalIdCardProps['student'], 
+    activeSubscription: DigitalIdCardProps['activeSubscription'], 
+    qrCodeUrl: string,
+    id?: string 
+}>(({ student, activeSubscription, qrCodeUrl, id }, ref) => {
+    const [isPhoneMasked, setIsPhoneMasked] = useState(false)
+
+    return (
+        <div ref={ref} id={id} className="w-full max-w-[400px] bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700 relative flex flex-col select-none">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 p-3 text-white flex justify-between items-center relative overflow-hidden">
+                <div className="absolute inset-0 bg-white/10 opacity-20 transform -skew-x-12 translate-x-1/2" />
+                
+                <div className="flex items-center gap-2 relative z-10">
+                    <Shield className="w-5 h-5" />
+                    <span className="font-bold tracking-wide text-sm uppercase">Official Student ID</span>
+                </div>
+                <div className="text-xs font-mono opacity-80 relative z-10 bg-white/10 px-2 py-0.5 rounded">
+                    LIB-{student.id.slice(-6).toUpperCase()}
+                </div>
+            </div>
+
+            {/* Card Body */}
+            <div className="px-5 pb-2 pt-2 relative">
+                {/* Watermark */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
+                    <Shield size={200} />
+                </div>
+
+                <div className="flex flex-col gap-2 relative z-10">
+                    {/* 1st Half: Profile & Contact */}
+                    <div className="flex flex-row items-start gap-4 sm:gap-6">
+                        {/* Left: Photo */}
+                        <div className="relative shrink-0">
+                            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white dark:border-gray-700 shadow-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
+                                {student.image ? (
+                                    <Image 
+                                        src={student.image} 
+                                        alt={student.name} 
+                                        width={96}
+                                        height={96}
+                                        className="w-full h-full object-cover"
+                                        unoptimized // Ensure full resolution image is used
+                                    />
+                                ) : (
+                                    <User className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" />
+                                )}
+                            </div>
+                            {student.govtIdStatus === 'verified' && (
+                                <div className="absolute bottom-0 right-0 bg-blue-500 text-white p-1 rounded-full border-2 border-white dark:border-gray-800 shadow-sm" title="Verified Identity">
+                                    <CheckCircle size={14} />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Right: Name, Email, Phone */}
+                        <div className="flex-1 min-w-0 text-left pt-1">
+                            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white leading-tight flex items-center gap-1.5">
+                                {student.name}
+                                {student.govtIdStatus === 'verified' && (
+                                    <BadgeCheck className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" fill="currentColor" stroke="white" />
+                                )}
+                            </h3>
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                                <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{student.email}</p>
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-1 relative group/phone">
+                                <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                <p className="text-xs text-gray-400">
+                                    {isPhoneMasked 
+                                        ? `${'*'.repeat(student.phone.length - 4)}${student.phone.slice(-4)}`
+                                        : student.phone
+                                    }
+                                </p>
+                                {student.email && (
+                                    <button 
+                                        type="button"
+                                        onClick={() => setIsPhoneMasked(!isPhoneMasked)}
+                                        className="opacity-0 group-hover/phone:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded exclude-from-pdf"
+                                        title={isPhoneMasked ? "Show number" : "Mask number"}
+                                    >
+                                        {isPhoneMasked ? (
+                                            <Eye className="w-3 h-3 text-gray-400" />
+                                        ) : (
+                                            <EyeOff className="w-3 h-3 text-gray-400" />
+                                        )}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-dashed border-gray-200 dark:border-gray-700" />
+
+                    {/* 2nd Half: QR & Other Details */}
+                    <div className="flex flex-row gap-4 sm:gap-6">
+                        {/* Left: QR Code */}
+                        <div className="shrink-0 flex items-start">
+                            {qrCodeUrl && (
+                                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-lg shadow-sm border border-gray-100 flex items-center justify-center p-1">
+                                    <Image 
+                                        src={qrCodeUrl} 
+                                        alt="Student QR" 
+                                        width={96} 
+                                        height={96} 
+                                        className="w-full h-full mix-blend-multiply" 
+                                        style={{ imageRendering: 'pixelated' }} // Crisp QR for scanning
+                                        unoptimized 
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Right: Subscription Details */}
+                        <div className="flex-1 min-w-0 space-y-3 pt-1">
+                            {activeSubscription ? (
+                                activeSubscription.status === 'pending' ? (
+                                    <div className="bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 p-3 rounded-lg text-sm text-center font-medium border border-yellow-200 dark:border-yellow-900/30 flex flex-col gap-1 h-full justify-center">
+                                        <div className="flex items-center justify-center gap-2">
+                                            <Clock className="w-4 h-4 animate-pulse" />
+                                            <span className="font-bold">Pending Verification</span>
+                                        </div>
+                                        <span className="text-xs opacity-90">Payment submitted & under review</span>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5">
+                                        <div className="min-w-0">
+                                            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Current Plan</p>
+                                            <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 truncate">
+                                                {activeSubscription.plan.name}
+                                            </p>
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Seat Number</p>
+                                            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                                                {activeSubscription.seat ? formatSeatNumber(activeSubscription.seat.number) : 'General'}
+                                            </p>
+                                        </div>
+
+                                        <div className="min-w-0">
+                                            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Branch</p>
+                                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                                                {activeSubscription.branch.name}
+                                            </p>
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Valid Until</p>
+                                            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                                                {format(new Date(activeSubscription.endDate), 'MMM dd, yyyy')}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )
+                            ) : (
+                                <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm text-center font-medium border border-red-100 dark:border-red-900/30">
+                                    No Active Subscription
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="bg-gray-50 dark:bg-gray-700/50 p-1.5 flex justify-between items-center border-t border-gray-100 dark:border-gray-700">
+                <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold pl-2">
+                    Library Access Card
+                </p>
+                <div className="flex items-center gap-2 pr-2 opacity-90">
+                    <span className="text-[8px] text-gray-400 font-medium uppercase tracking-wider leading-none pt-px">Powered by</span>
+                    <div className="flex items-center gap-1.5">
+                        <div className="flex items-center justify-center bg-blue-600 dark:bg-blue-500 text-white p-0.5 rounded shadow-sm">
+                            <BookOpen size={10} strokeWidth={3} />
+                        </div>
+                        <span className="text-[10px] font-bold text-gray-700 dark:text-gray-200 tracking-wide font-sans leading-none pt-px">BookMyLib</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+})
+IdCardContent.displayName = "IdCardContent"
+
 export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProps) {
     const [qrCodeUrl, setQrCodeUrl] = useState<string>('')
-    const [isPhoneMasked, setIsPhoneMasked] = useState(false)
     const cardRef = useRef<HTMLDivElement>(null)
+    const [isZoomed, setIsZoomed] = useState(false)
+    const [zoomLevel, setZoomLevel] = useState(1.2)
+    const [rotation, setRotation] = useState(0)
 
     useEffect(() => {
         // Construct QR Data Payload
@@ -163,203 +351,131 @@ export function DigitalIdCard({ student, activeSubscription }: DigitalIdCardProp
         }
     }
 
+    const toggleZoom = () => {
+        setIsZoomed(!isZoomed)
+        setZoomLevel(1.2) // Reset zoom level
+        setRotation(0) // Reset rotation
+    }
+
     return (
-        <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-md mx-auto"
-        >
-            <div ref={cardRef} id="digital-id-card" className="w-full max-w-[400px] bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700 relative flex flex-col">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 p-3 text-white flex justify-between items-center relative overflow-hidden">
-                    <div className="absolute inset-0 bg-white/10 opacity-20 transform -skew-x-12 translate-x-1/2" />
-                    
-                    <div className="flex items-center gap-2 relative z-10">
-                        <Shield className="w-5 h-5" />
-                        <span className="font-bold tracking-wide text-sm uppercase">Official Student ID</span>
-                    </div>
-                    <div className="text-xs font-mono opacity-80 relative z-10 bg-white/10 px-2 py-0.5 rounded">
-                        LIB-{student.id.slice(-6).toUpperCase()}
-                    </div>
-                </div>
+        <>
+            <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="w-full max-w-md mx-auto"
+            >
+                <IdCardContent 
+                    ref={cardRef} 
+                    id="digital-id-card" 
+                    student={student} 
+                    activeSubscription={activeSubscription} 
+                    qrCodeUrl={qrCodeUrl} 
+                />
 
-                {/* Card Body */}
-                <div className="px-5 pb-2 pt-2 relative">
-                    {/* Watermark */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
-                        <Shield size={200} />
-                    </div>
+                {/* Action Buttons */}
+                <div className="mt-4 flex flex-wrap justify-center gap-3">
+                     <button 
+                        type="button"
+                        onClick={toggleZoom}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-all shadow-sm hover:shadow hover:scale-105"
+                    >
+                        <Maximize2 size={16} />
+                        Zoom ID
+                    </button>
 
-                    <div className="flex flex-col gap-2 relative z-10">
-                        {/* 1st Half: Profile & Contact */}
-                        <div className="flex flex-row items-start gap-4 sm:gap-6">
-                            {/* Left: Photo */}
-                            <div className="relative shrink-0">
-                                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white dark:border-gray-700 shadow-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
-                                    {student.image ? (
-                                        <Image 
-                                            src={student.image} 
-                                            alt={student.name} 
-                                            width={96}
-                                            height={96}
-                                            className="w-full h-full object-cover"
-                                            unoptimized // Ensure full resolution image is used
-                                        />
-                                    ) : (
-                                        <User className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400" />
-                                    )}
-                                </div>
-                                {student.govtIdStatus === 'verified' && (
-                                    <div className="absolute bottom-0 right-0 bg-blue-500 text-white p-1 rounded-full border-2 border-white dark:border-gray-800 shadow-sm" title="Verified Identity">
-                                        <CheckCircle size={14} />
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Right: Name, Email, Phone */}
-                            <div className="flex-1 min-w-0 text-left pt-1">
-                                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white leading-tight flex items-center gap-1.5">
-                                    {student.name}
-                                    {student.govtIdStatus === 'verified' && (
-                                        <BadgeCheck className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" fill="currentColor" stroke="white" />
-                                    )}
-                                </h3>
-                                <div className="flex items-center gap-1.5 mt-1.5">
-                                    <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{student.email}</p>
-                                </div>
-                                <div className="flex items-center gap-1.5 mt-1 relative group/phone">
-                                    <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                                    <p className="text-xs text-gray-400">
-                                        {isPhoneMasked 
-                                            ? `${'*'.repeat(student.phone.length - 4)}${student.phone.slice(-4)}`
-                                            : student.phone
-                                        }
-                                    </p>
-                                    {student.email && (
                     <button 
                         type="button"
-                        onClick={() => setIsPhoneMasked(!isPhoneMasked)}
-                        className="opacity-0 group-hover/phone:opacity-100 transition-opacity p-0.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded exclude-from-pdf"
-                        title={isPhoneMasked ? "Show number" : "Mask number"}
+                        onClick={handleShare}
+                        className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 transition-all shadow-sm hover:shadow"
                     >
-                                            {isPhoneMasked ? (
-                                                <Eye className="w-3 h-3 text-gray-400" />
-                                            ) : (
-                                                <EyeOff className="w-3 h-3 text-gray-400" />
-                                            )}
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="border-t border-dashed border-gray-200 dark:border-gray-700" />
-
-                        {/* 2nd Half: QR & Other Details */}
-                        <div className="flex flex-row gap-4 sm:gap-6">
-                            {/* Left: QR Code */}
-                            <div className="shrink-0 flex items-start">
-                                {qrCodeUrl && (
-                                    <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-lg shadow-sm border border-gray-100 flex items-center justify-center p-1">
-                                        <Image 
-                                            src={qrCodeUrl} 
-                                            alt="Student QR" 
-                                            width={96} 
-                                            height={96} 
-                                            className="w-full h-full mix-blend-multiply" 
-                                            unoptimized // Keep QR crisp
-                                        />
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Right: Subscription Details */}
-                            <div className="flex-1 min-w-0 space-y-3 pt-1">
-                                {activeSubscription ? (
-                                    activeSubscription.status === 'pending' ? (
-                                        <div className="bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 p-3 rounded-lg text-sm text-center font-medium border border-yellow-200 dark:border-yellow-900/30 flex flex-col gap-1 h-full justify-center">
-                                            <div className="flex items-center justify-center gap-2">
-                                                <Clock className="w-4 h-4 animate-pulse" />
-                                                <span className="font-bold">Pending Verification</span>
-                                            </div>
-                                            <span className="text-xs opacity-90">Payment submitted & under review</span>
-                                        </div>
-                                    ) : (
-                                        <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5">
-                                            <div className="min-w-0">
-                                                <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Current Plan</p>
-                                                <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 truncate">
-                                                    {activeSubscription.plan.name}
-                                                </p>
-                                            </div>
-                                            <div className="text-left">
-                                                <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Seat Number</p>
-                                                <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                                                    {activeSubscription.seat ? formatSeatNumber(activeSubscription.seat.number) : 'General'}
-                                                </p>
-                                            </div>
-
-                                            <div className="min-w-0">
-                                                <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Branch</p>
-                                                <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
-                                                    {activeSubscription.branch.name}
-                                                </p>
-                                            </div>
-                                            <div className="text-left">
-                                                <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Valid Until</p>
-                                                <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                                                    {format(new Date(activeSubscription.endDate), 'MMM dd, yyyy')}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    )
-                                ) : (
-                                    <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm text-center font-medium border border-red-100 dark:border-red-900/30">
-                                        No Active Subscription
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                        <Share2 size={16} />
+                        Share
+                    </button>
+                    <button 
+                        type="button"
+                        onClick={handleDownload}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all shadow-sm hover:shadow hover:scale-105"
+                    >
+                        <Download size={16} />
+                        Download PDF
+                    </button>
                 </div>
+            </motion.div>
 
-                {/* Footer Actions */}
-                <div className="bg-gray-50 dark:bg-gray-700/50 p-1.5 flex justify-between items-center border-t border-gray-100 dark:border-gray-700">
-                    <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold pl-2">
-                        Library Access Card
-                    </p>
-                    <div className="flex items-center gap-2 pr-2 opacity-90">
-                        <span className="text-[8px] text-gray-400 font-medium uppercase tracking-wider leading-none pt-px">Powered by</span>
-                        <div className="flex items-center gap-1.5">
-                            <div className="flex items-center justify-center bg-blue-600 dark:bg-blue-500 text-white p-0.5 rounded shadow-sm">
-                                <BookOpen size={10} strokeWidth={3} />
+            {/* Zoom Modal */}
+            <AnimatePresence>
+                {isZoomed && (
+                    <motion.div 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-4 backdrop-blur-sm"
+                        onClick={toggleZoom}
+                    >
+                        {/* Toolbar */}
+                        <div 
+                            className="absolute top-4 right-4 left-4 flex justify-between items-center text-white"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="bg-white/10 backdrop-blur rounded-full px-4 py-2 text-sm font-medium">
+                                Zoom Mode
                             </div>
-                            <span className="text-[10px] font-bold text-gray-700 dark:text-gray-200 tracking-wide font-sans leading-none pt-px">BookMyLib</span>
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => setRotation(r => r + 90)}
+                                    className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                                    title="Rotate"
+                                >
+                                    <RotateCw size={24} />
+                                </button>
+                                <button 
+                                    onClick={toggleZoom}
+                                    className="p-2 bg-white/10 hover:bg-red-500/20 rounded-full transition-colors"
+                                >
+                                    <X size={24} />
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                </div>
-            </div>
 
-            {/* Action Buttons */}
-            <div className="mt-4 flex justify-center gap-3">
-                <button 
-                    type="button"
-                    onClick={handleShare}
-                    className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 transition-all shadow-sm hover:shadow"
-                >
-                    <Share2 size={16} />
-                    Share Card
-                </button>
-                <button 
-                    type="button"
-                    onClick={handleDownload}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-all shadow-sm hover:shadow hover:scale-105"
-                >
-                    <Download size={16} />
-                    Download PDF
-                </button>
-            </div>
-        </motion.div>
+                        {/* Zoom Controls */}
+                        <div 
+                            className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-4 bg-white/10 backdrop-blur rounded-full px-4 py-2"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <button 
+                                onClick={() => setZoomLevel(z => Math.max(0.8, z - 0.2))}
+                                className="p-2 hover:bg-white/20 rounded-full text-white transition-colors"
+                            >
+                                <ZoomOut size={24} />
+                            </button>
+                            <span className="flex items-center text-white font-mono min-w-[3ch] justify-center">
+                                {Math.round(zoomLevel * 100)}%
+                            </span>
+                            <button 
+                                onClick={() => setZoomLevel(z => Math.min(3, z + 0.2))}
+                                className="p-2 hover:bg-white/20 rounded-full text-white transition-colors"
+                            >
+                                <ZoomIn size={24} />
+                            </button>
+                        </div>
+
+                        {/* Zoomed Content */}
+                        <div 
+                            onClick={e => e.stopPropagation()} 
+                            className="transition-transform duration-200 ease-out origin-center p-4"
+                            style={{ 
+                                transform: `scale(${zoomLevel}) rotate(${rotation}deg)`,
+                            }}
+                        >
+                            <IdCardContent 
+                                student={student} 
+                                activeSubscription={activeSubscription} 
+                                qrCodeUrl={qrCodeUrl} 
+                            />
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </>
     )
 }
