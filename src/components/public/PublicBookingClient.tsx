@@ -260,6 +260,20 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
         window.scrollTo({ top: 0, behavior: 'smooth' })
     }
 
+    const isSeatReservationFeeSelected = React.useMemo(() => {
+        return selectedFees.some(feeId => {
+            const fee = branch.fees.find(f => f.id === feeId)
+            return fee?.name.toLowerCase().includes('seat reservation')
+        })
+    }, [selectedFees, branch.fees])
+
+    // Clear seat selection if fee is deselected
+    React.useEffect(() => {
+        if (!isSeatReservationFeeSelected) {
+            setSelectedSeat(null)
+        }
+    }, [isSeatReservationFeeSelected])
+
     // Calculate Total for display
     const feesTotal = branch.fees
         .filter(f => selectedFees.includes(f.id))
@@ -503,6 +517,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
 
 
                         {/* 2. Select Seat (Optional) */}
+                        {isSeatReservationFeeSelected && (
                         <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col relative z-10">
                             
                             <div className="p-4 md:p-6 border-b border-gray-100 dark:border-gray-700 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50 dark:bg-gray-800/50">
@@ -756,6 +771,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                 </div>
                             )}
                         </section>
+                        )}
 
                         {/* Moved to top */}
 
