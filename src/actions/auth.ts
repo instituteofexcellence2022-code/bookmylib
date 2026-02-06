@@ -242,7 +242,8 @@ export async function loginStaff(formData: FormData) {
 
 // --- Student Auth ---
 
-export async function initiateEmailVerification(email: string, name?: string) {
+export async function initiateEmailVerification(emailRaw: string, name?: string) {
+    const email = emailRaw.toLowerCase()
     try {
         // 1. Check if email is already registered by a student
         const existingStudent = await prisma.student.findUnique({
@@ -405,7 +406,8 @@ export async function initiateOwnerVerification(email: string, name?: string) {
     }
 }
 
-export async function confirmEmailVerification(email: string, otp: string) {
+export async function confirmEmailVerification(emailRaw: string, otp: string) {
+    const email = emailRaw.toLowerCase()
     try {
         const record = await prisma.emailVerification.findFirst({
             where: { email }
