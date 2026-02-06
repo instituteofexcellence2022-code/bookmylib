@@ -185,27 +185,32 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
     openingTime?: string
     closingTime?: string
   }
-  let staffAvailability = '9 AM - 9 PM'
-  try {
-      if (branch.operatingHours) {
-          const hours: OperatingHours = typeof branch.operatingHours === 'string' 
+
+  const formatTime = (time: string) => {
+    const [h] = time.split(':')
+    const hour = parseInt(h)
+    const ampm = hour >= 12 ? 'PM' : 'AM'
+    const hour12 = hour % 12 || 12
+    return `${hour12} ${ampm}`
+  }
+
+  const parsedHours: OperatingHours | null = React.useMemo(() => {
+    try {
+        if (!branch.operatingHours) return null
+        return typeof branch.operatingHours === 'string' 
             ? JSON.parse(branch.operatingHours) 
             : (branch.operatingHours as OperatingHours)
-            
-          if (hours.staffAvailableStart && hours.staffAvailableEnd) {
-              const formatTime = (time: string) => {
-                  const [h] = time.split(':')
-                  const hour = parseInt(h)
-                  const ampm = hour >= 12 ? 'PM' : 'AM'
-                  const hour12 = hour % 12 || 12
-                  return `${hour12} ${ampm}`
-              }
-              staffAvailability = `${formatTime(hours.staffAvailableStart)} - ${formatTime(hours.staffAvailableEnd)}`
-          }
+    } catch {
+        return null
+    }
+  }, [branch.operatingHours])
+
+  const staffAvailability = React.useMemo(() => {
+      if (parsedHours?.staffAvailableStart && parsedHours?.staffAvailableEnd) {
+          return `${formatTime(parsedHours.staffAvailableStart)} - ${formatTime(parsedHours.staffAvailableEnd)}`
       }
-  } catch {
-      // Fallback to default
-  }
+      return '9 AM - 9 PM'
+  }, [parsedHours])
 
   const nextImage = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -219,74 +224,59 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
     setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length)
   }
 
-  // Calculate operating status
-  const getOperatingStatus = () => {
-    try {
-      if (!branch.operatingHours) return { isOpen: false, text: 'Closed' }
-      
-      const hours: OperatingHours = typeof branch.operatingHours === 'string' 
-          ? JSON.parse(branch.operatingHours) 
-          : (branch.operatingHours as OperatingHours)
-      
-      if (hours.is247) {
-          return { isOpen: true, text: 'Open 24/7' }
-      }
-      
-      if (hours.start && hours.end) {
-          const now = new Date()
-          const currentMinutes = now.getHours() * 60 + now.getMinutes()
-          
-          const [startH, startM] = hours.start.split(':').map(Number)
-          const [endH, endM] = hours.end.split(':').map(Number)
-          
-          const startTotal = startH * 60 + startM
-          const endTotal = endH * 60 + endM
-          
-          let isOpenNow = false
-          
-          if (endTotal < startTotal) {
-              // Overnight
-              isOpenNow = currentMinutes >= startTotal || currentMinutes < endTotal
-          } else {
-              isOpenNow = currentMinutes >= startTotal && currentMinutes < endTotal
-          }
-          
-          return { 
-              isOpen: isOpenNow, 
-              text: isOpenNow ? 'Open Now' : 'Closed' 
-          }
-      } else if (hours.openingTime && hours.closingTime) {
-          // Handle alternative format if exists
-          const now = new Date()
-          const currentMinutes = now.getHours() * 60 + now.getMinutes()
-          
-          const [startH, startM] = hours.openingTime.split(':').map(Number)
-          const [endH, endM] = hours.closingTime.split(':').map(Number)
-          
-          const startTotal = startH * 60 + startM
-          const endTotal = endH * 60 + endM
-          
-          let isOpenNow = false
-          
-          if (endTotal < startTotal) {
-              isOpenNow = currentMinutes >= startTotal || currentMinutes < endTotal
-          } else {
-              isOpenNow = currentMinutes >= startTotal && currentMinutes < endTotal
-          }
-          
-          return { 
-              isOpen: isOpenNow, 
-              text: isOpenNow ? 'Open Now' : 'Closed' 
-          }
-      }
-      
-      return { isOpen: false, text: 'Closed' }
-  } catch {
-      return { isOpen: false, text: 'Closed' }
-    }
-  }
+  // Calculate operating status and display texts
+  const { isOpen, text, hoursDisplay, fullHoursText } = React.useMemo(() => {
+      if (!parsedHours) return { isOpen: false, text: 'Closed', hoursDisplay: 'Closed', fullHoursText: 'Closed' }
 
-  const { isOpen, text } = getOperatingStatus()
+      let hoursDisplay = 'Closed'
+      let fullHoursText = 'Closed'
+      
+      if (parsedHours.is247) {
+          hoursDisplay = '24/7'
+          fullHoursText = 'Open 24/7 for members.'
+      } else {
+          const start = parsedHours.start || parsedHours.openingTime
+          const end = parsedHours.end || parsedHours.closingTime
+          
+          if (start && end) {
+              hoursDisplay = `${formatTime(start)} - ${formatTime(end)}`
+              fullHoursText = `Open: ${hoursDisplay}`
+          }
+      }
+
+      // Calculate Open/Closed status
+      let isOpen = false
+      let statusText = 'Closed'
+      
+      if (parsedHours.is247) {
+          isOpen = true
+          statusText = 'Open 24/7'
+      } else {
+          const start = parsedHours.start || parsedHours.openingTime
+          const end = parsedHours.end || parsedHours.closingTime
+          
+          if (start && end) {
+              const now = new Date()
+              const currentMinutes = now.getHours() * 60 + now.getMinutes()
+              
+              const [startH, startM] = start.split(':').map(Number)
+              const [endH, endM] = end.split(':').map(Number)
+              
+              const startTotal = startH * 60 + startM
+              const endTotal = endH * 60 + endM
+              
+              if (endTotal < startTotal) {
+                  // Overnight
+                  isOpen = currentMinutes >= startTotal || currentMinutes < endTotal
+              } else {
+                  isOpen = currentMinutes >= startTotal && currentMinutes < endTotal
+              }
+              statusText = isOpen ? 'Open Now' : 'Closed'
+          }
+      }
+      
+      return { isOpen, text: statusText, hoursDisplay, fullHoursText }
+  }, [parsedHours])
 
   return (
     <div className={`group bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col h-full ${(showHours || showAmenities) ? 'relative z-20' : ''}`}>
@@ -312,15 +302,15 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
           <>
             <button 
               onClick={prevImage}
-              className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-sm opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 z-20"
+              className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-transparent hover:bg-black/40 active:bg-black/40 text-white hover:backdrop-blur-sm active:backdrop-blur-sm opacity-100 sm:opacity-0 sm:group-hover/image:opacity-100 transition-all duration-300 z-20"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-5 h-5 drop-shadow-md" />
             </button>
             <button 
               onClick={nextImage}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-sm opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 z-20"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-transparent hover:bg-black/40 active:bg-black/40 text-white hover:backdrop-blur-sm active:backdrop-blur-sm opacity-100 sm:opacity-0 sm:group-hover/image:opacity-100 transition-all duration-300 z-20"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-5 h-5 drop-shadow-md" />
             </button>
             
             {/* Image Dots Indicator */}
@@ -391,7 +381,7 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
                 </span>
              </div>
              
-             <div className="flex items-center gap-2 flex-wrap">
+             <div className="flex items-center gap-2">
                  {distance != null && (
                     <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 px-2.5 py-1.5 rounded-full border border-gray-100 dark:border-gray-800 shrink-0">
                         <MapPin className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
@@ -416,7 +406,7 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
                         }`}
                     >
                         <Clock className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
-                        <span>24/7</span>
+                        <span>{hoursDisplay}</span>
                     </button>
                     {showHours && (
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-gray-900/95 backdrop-blur-md border border-gray-700/50 rounded-xl shadow-xl text-xs text-gray-300 z-50 animate-in fade-in zoom-in-95 duration-200">
@@ -425,7 +415,7 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
                                 Operating Hours
                             </div>
                             <p className="leading-relaxed">
-                                Open 24/7 for members. 
+                                {fullHoursText}
                                 <span className={`block mt-1 ${themeClasses.text} opacity-80`}>Staff available: {staffAvailability}</span>
                             </p>
                             <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900/95 border-r border-b border-gray-700/50 rotate-45"></div>
@@ -446,7 +436,7 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
                          }`}
                      >
                         <Coffee className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
-                        <span>Amenities</span>
+                        <span className="hidden sm:inline">Amenities</span>
                     </button>
                     {showAmenities && (
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900/95 backdrop-blur-md border border-gray-700/50 rounded-xl shadow-xl text-xs text-gray-300 z-50 animate-in fade-in zoom-in-95 duration-200">
@@ -466,18 +456,7 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
                         </div>
                     )}
                  </div>
-                 <button 
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        setShowDetails(true)
-                      }}
-                      className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-all duration-200 shrink-0 hover:scale-105 active:scale-95 cursor-pointer hover:shadow-sm ${themeClasses.toggleInactive.replace('[color]', theme)}`}
-                      title="More"
-                   >
-                      <Info className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
-                      <span className="hidden sm:inline">More</span>
-                  </button>
+{/* More button removed */}
              </div>
           </div>
         </div>
@@ -502,7 +481,7 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
               iconPosition="right"
               className={`${themeClasses.button} shadow-lg hover:shadow-xl translate-y-0`}
             >
-              Book
+              Book Now
             </AnimatedButton>
           </Link>
         </div>

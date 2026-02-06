@@ -133,3 +133,11 @@
 @utility min-h-safe {
   min-height: -webkit-fill-available;
 }
+
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

@@ -88,27 +88,62 @@ export function BranchListItem({ branch, isActiveMember, theme = 'emerald', publ
   const amenities = getAmenities(branch.amenities)
   
   // Parse operating hours
-  let staffAvailability = '9 AM - 9 PM'
-  try {
-      if (branch.operatingHours) {
-          const hours = typeof branch.operatingHours === 'string'
-            ? JSON.parse(branch.operatingHours)
-            : branch.operatingHours
+  type OperatingHours = {
+    staffAvailableStart?: string
+    staffAvailableEnd?: string
+    is247?: boolean
+    start?: string
+    end?: string
+    openingTime?: string
+    closingTime?: string
+  }
 
-          if (hours.staffAvailableStart && hours.staffAvailableEnd) {
-              const formatTime = (time: string) => {
-                  const [h] = time.split(':')
-                  const hour = parseInt(h)
-                  const ampm = hour >= 12 ? 'PM' : 'AM'
-                  const hour12 = hour % 12 || 12
-                  return `${hour12} ${ampm}`
-              }
-              staffAvailability = `${formatTime(hours.staffAvailableStart)} - ${formatTime(hours.staffAvailableEnd)}`
+  const formatTime = (time: string) => {
+    const [h] = time.split(':')
+    const hour = parseInt(h)
+    const ampm = hour >= 12 ? 'PM' : 'AM'
+    const hour12 = hour % 12 || 12
+    return `${hour12} ${ampm}`
+  }
+
+  const parsedHours: OperatingHours | null = React.useMemo(() => {
+    try {
+        if (!branch.operatingHours) return null
+        return typeof branch.operatingHours === 'string' 
+            ? JSON.parse(branch.operatingHours) 
+            : (branch.operatingHours as OperatingHours)
+    } catch {
+        return null
+    }
+  }, [branch.operatingHours])
+
+  const staffAvailability = React.useMemo(() => {
+      if (parsedHours?.staffAvailableStart && parsedHours?.staffAvailableEnd) {
+          return `${formatTime(parsedHours.staffAvailableStart)} - ${formatTime(parsedHours.staffAvailableEnd)}`
+      }
+      return '9 AM - 9 PM'
+  }, [parsedHours])
+
+  const { hoursDisplay, fullHoursText } = React.useMemo(() => {
+      if (!parsedHours) return { hoursDisplay: 'Closed', fullHoursText: 'Closed' }
+
+      let hoursDisplay = 'Closed'
+      let fullHoursText = 'Closed'
+      
+      if (parsedHours.is247) {
+          hoursDisplay = '24/7'
+          fullHoursText = 'Open 24/7 for members.'
+      } else {
+          const start = parsedHours.start || parsedHours.openingTime
+          const end = parsedHours.end || parsedHours.closingTime
+          
+          if (start && end) {
+              hoursDisplay = `${formatTime(start)} - ${formatTime(end)}`
+              fullHoursText = `Open: ${hoursDisplay}`
           }
       }
-  } catch {
-      // Fallback to default
-  }
+      return { hoursDisplay, fullHoursText }
+  }, [parsedHours])
   
   // Prioritize branch-specific plans. Only use global plans if no branch plans exist.
   const relevantPlans = (branch.plans && branch.plans.length > 0)
@@ -248,41 +283,41 @@ export function BranchListItem({ branch, isActiveMember, theme = 'emerald', publ
                     <span>{distance.toFixed(1)} km</span>
                 </div>
              )}
-             <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 px-2.5 py-1.5 rounded-full border border-gray-100 dark:border-gray-800 shrink-0">
-                <Users className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
-                <span>{branch._count.seats} Seats</span>
-             </div>
-             
-             <div className="relative" ref={hoursRef}>
-                <button 
-                    onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        setShowHours(!showHours)
-                    }}
-                    className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-all duration-200 shrink-0 hover:scale-105 active:scale-95 cursor-pointer hover:shadow-sm ${
-                        showHours
-                        ? themeClasses.toggleActive
-                        : themeClasses.toggleInactive
-                    }`}
-                >
-                    <Clock className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
-                    <span>24/7</span>
-                </button>
-                {showHours && (
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-gray-900/95 backdrop-blur-md border border-gray-700/50 rounded-xl shadow-xl text-xs text-gray-300 z-50 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="font-semibold text-white mb-1 flex items-center gap-1.5">
-                            <Clock className={`w-3 h-3 ${themeClasses.textOnDark}`} />
-                            Operating Hours
+                 <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 px-2.5 py-1.5 rounded-full border border-gray-100 dark:border-gray-800 shrink-0">
+                    <Users className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
+                    <span>{branch._count.seats} Seats</span>
+                 </div>
+                 
+                 <div className="relative" ref={hoursRef}>
+                    <button 
+                        onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setShowHours(!showHours)
+                        }}
+                        className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-full border transition-all duration-200 shrink-0 hover:scale-105 active:scale-95 cursor-pointer hover:shadow-sm ${
+                            showHours
+                            ? themeClasses.toggleActive
+                            : themeClasses.toggleInactive
+                        }`}
+                    >
+                        <Clock className={`w-3.5 h-3.5 ${themeClasses.icon}`} />
+                        <span className="hidden sm:inline">{hoursDisplay}</span>
+                    </button>
+                    {showHours && (
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-gray-900/95 backdrop-blur-md border border-gray-700/50 rounded-xl shadow-xl text-xs text-gray-300 z-50 animate-in fade-in zoom-in-95 duration-200">
+                            <div className="font-semibold text-white mb-1 flex items-center gap-1.5">
+                                <Clock className={`w-3 h-3 ${themeClasses.textOnDark}`} />
+                                Operating Hours
+                            </div>
+                            <p className="leading-relaxed">
+                                {fullHoursText}
+                                <span className={`block mt-1 ${themeClasses.textOnDark} opacity-80`}>Staff available: {staffAvailability}</span>
+                            </p>
+                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900/95 border-r border-b border-gray-700/50 rotate-45"></div>
                         </div>
-                        <p className="leading-relaxed">
-                            Open 24/7 for members. 
-                            <span className={`block mt-1 ${themeClasses.textOnDark} opacity-80`}>Staff available: {staffAvailability}</span>
-                        </p>
-                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900/95 border-r border-b border-gray-700/50 rotate-45"></div>
-                    </div>
-                )}
-             </div>
+                    )}
+                 </div>
 
              <div className="relative hidden sm:block" ref={amenitiesRef}>
                 <button 
