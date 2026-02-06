@@ -11,7 +11,6 @@ import { toast } from 'sonner'
 import { SCANNER_CONFIG } from '@/lib/scanner'
 
 export default function ScanPage() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const initialQrCode = searchParams.get('qr_code')
 
