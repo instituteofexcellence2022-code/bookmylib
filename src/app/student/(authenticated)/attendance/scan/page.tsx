@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Camera, X, RefreshCw, CheckCircle, AlertCircle, Loader2, Volume2, VolumeX, LogOut } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { Button } from '@/components/ui/button'
 import { Html5Qrcode } from 'html5-qrcode'
 import { markAttendance, getStudentAttendanceStatus } from '@/actions/attendance'
 import { toast } from 'sonner'
@@ -283,20 +283,19 @@ export default function ScanPage() {
                 </p>
             </div>
             <div className="flex space-x-3 w-full">
-              <AnimatedButton 
+              <Button 
                 onClick={() => router.push('/student/attendance')}
                 variant="secondary"
                 className="flex-1 bg-gray-100 text-gray-700 hover:bg-gray-200"
               >
                 Done
-              </AnimatedButton>
-              <AnimatedButton 
+              </Button>
+              <Button 
                 onClick={handleReset}
-                variant="primary"
                 className="flex-1"
               >
                 Scan Again
-              </AnimatedButton>
+              </Button>
             </div>
           </div>
         )}
@@ -309,9 +308,9 @@ export default function ScanPage() {
              </div>
              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Scan Failed</h3>
              <p className="text-gray-500 dark:text-gray-400 text-center mb-6">{error}</p>
-             <AnimatedButton onClick={handleReset} variant="primary" className="w-full">
+             <Button onClick={handleReset} className="w-full">
                 Try Again
-             </AnimatedButton>
+             </Button>
           </div>
         )}
       </div>

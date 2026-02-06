@@ -13,7 +13,7 @@ import {
 import { AnimatedCard, CompactCard } from '@/components/ui/AnimatedCard'
 import { QuoteCard } from '@/components/student/QuoteCard'
 import { DigitalIdCard } from '@/components/student/DigitalIdCard'
-import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 
 interface HomeClientProps {
@@ -89,28 +89,20 @@ export default function HomeClient({ student, stats, todayAttendance, quotes, li
           </p>
           
           <div className="flex gap-3">
-            <AnimatedButton 
+            <Button 
               variant="secondary" 
               size="sm" 
               className={`flex-1 bg-white ${
                 isCheckedIn ? 'text-green-600 hover:bg-green-50' : 
-                isPending ? 'text-amber-600 hover:bg-amber-50 cursor-not-allowed opacity-80' :
+                isPending ? 'text-amber-600 hover:bg-amber-50 cursor-not-allowed opacity-80' : 
                 'text-blue-600 hover:bg-blue-50'
               } shadow-lg border-transparent`}
               onClick={() => !isPending && router.push('/student/attendance/scan')}
               disabled={!activeSubscription || isPending}
             >
-              {isCheckedIn ? 'Check Out' : isPending ? 'Approval Pending' : 'Check In'}
-            </AnimatedButton>
-            <AnimatedButton 
-              variant="ghost" 
-              size="sm" 
-              className="bg-white/20 hover:bg-white/30 text-white dark:backdrop-blur-md border-transparent px-4"
-              onClick={() => !isPending && router.push('/student/attendance/scan')}
-              disabled={!activeSubscription || isPending}
-            >
-              <QrCode size={20} />
-            </AnimatedButton>
+              <QrCode className="mr-2 h-4 w-4" />
+              {isCheckedIn ? 'Check Out' : isPending ? 'Approval Pending' : 'Scan QR to Check In'}
+            </Button>
           </div>
         </div>
       </AnimatedCard>

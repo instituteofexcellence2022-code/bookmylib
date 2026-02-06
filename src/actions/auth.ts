@@ -289,13 +289,13 @@ export async function initiateEmailVerification(email: string, name?: string) {
         })
 
         if (!emailResult.success) {
-            return { success: false, error: 'Failed to send verification email' }
+            return { success: false, error: emailResult.error || 'Failed to send verification email' }
         }
 
         return { success: true }
     } catch (error) {
         console.error('Initiate verification error:', error)
-        return { success: false, error: 'An unexpected error occurred during verification. Please try again.' }
+        return { success: false, error: `Error: ${error instanceof Error ? error.message : String(error)}` }
     }
 }
 
@@ -338,13 +338,13 @@ export async function initiatePublicBookingVerification(email: string, name?: st
         })
 
         if (!emailResult.success) {
-            return { success: false, error: 'Failed to send verification email' }
+            return { success: false, error: emailResult.error || 'Failed to send verification email' }
         }
 
         return { success: true }
     } catch (error) {
         console.error('Initiate public verification error:', error)
-        return { success: false, error: 'An unexpected error occurred. Please try again.' }
+        return { success: false, error: error instanceof Error ? error.message : 'An unexpected error occurred.' }
     }
 }
 
@@ -395,13 +395,13 @@ export async function initiateOwnerVerification(email: string, name?: string) {
         })
 
         if (!emailResult.success) {
-            return { success: false, error: 'Failed to send verification email' }
+            return { success: false, error: emailResult.error || 'Failed to send verification email' }
         }
 
         return { success: true }
     } catch (error) {
         console.error('Initiate owner verification error:', error)
-        return { success: false, error: 'An unexpected error occurred. Please try again.' }
+        return { success: false, error: error instanceof Error ? error.message : 'An unexpected error occurred.' }
     }
 }
 
@@ -438,8 +438,9 @@ export async function confirmEmailVerification(email: string, otp: string) {
 
 export async function registerStudent(formData: FormData) {
     const name = formData.get('name') as string
-    const email = formData.get('email') as string
-    const phone = (formData.get('phone') as string) || null
+    const email = (formData.get('email') as string).toLowerCase()
+    const phoneRaw = formData.get('phone') as string
+    const phone = phoneRaw ? phoneRaw.replace(/\D/g, '').slice(0, 10) : null
     const password = formData.get('password') as string
     const referralCode = formData.get('referralCode') as string
     const dob = formData.get('dob') as string
@@ -583,12 +584,22 @@ export async function loginStudent(formData: FormData) {
     }
 
     try {
+        const phoneCandidate = identifier.replace(/\D/g, '')
+        
+        const orConditions: Prisma.StudentWhereInput[] = [
+            { email: { equals: identifier, mode: 'insensitive' } }
+        ]
+
+        if (phoneCandidate.length >= 10) {
+            orConditions.push({ phone: phoneCandidate })
+        } else if (phoneCandidate.length > 0 && !identifier.includes('@')) {
+            // If it has numbers but not full 10 digits and not an email, try matching exact phone just in case
+            orConditions.push({ phone: identifier })
+        }
+
         const student = await prisma.student.findFirst({
             where: {
-                OR: [
-                    { email: { equals: identifier, mode: 'insensitive' } },
-                    { phone: identifier }
-                ]
+                OR: orConditions
             }
         })
 

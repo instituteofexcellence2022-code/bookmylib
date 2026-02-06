@@ -4,13 +4,13 @@ import React, { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { 
-    Check, X, Armchair, Calendar, 
+    Check, Armchair, Calendar, 
     CreditCard, Clock, MapPin, Info,
-    ChevronRight, ChevronLeft, ShieldCheck,
-    LayoutGrid, List, Library as LibraryIcon
+    ChevronRight, ChevronLeft,
+    LayoutGrid, List, Loader2, Library as LibraryIcon
 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { Button } from '@/components/ui/button'
 import { createBooking } from '@/actions/booking'
 import { cn, formatSeatNumber } from '@/lib/utils'
 
@@ -270,12 +270,12 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                     )}
 
                     <div className="pt-4 space-y-3">
-                        <AnimatedButton
+                        <Button
                             onClick={() => router.push('/student/home')}
                             className="w-full"
                         >
                             Go to Dashboard
-                        </AnimatedButton>
+                        </Button>
                         <button
                             onClick={() => router.push('/student/payments?tab=history')}
                             className="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-gray-300 transition-colors"
@@ -693,17 +693,16 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                 </div>
 
                 {/* Action Button */}
-                <AnimatedButton
-                    fullWidth
+                <Button
                     size="lg"
                     onClick={handleProceedToPayment}
-                    isLoading={isLoading}
-                    disabled={!selectedPlan}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20"
-                    icon="creditCard"
+                    disabled={isLoading || !selectedPlan}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20 w-full"
                 >
+                    {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    <CreditCard className="w-4 h-4 mr-2" />
                     {selectedPlan ? `Pay ₹${totalAmount} & Book` : 'Select a Plan First'}
-                </AnimatedButton>
+                </Button>
             </div>
         </div>
     )

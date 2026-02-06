@@ -12,7 +12,7 @@ import { verifyBranchSubscription } from '@/actions/booking'
 import { getThemeClasses } from '@/lib/utils'
 import type { ThemeColor } from '@/lib/utils'
 import Link from 'next/link'
-import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { Button } from '@/components/ui/button'
 
 interface WifiDetail {
   ssid: string
@@ -462,13 +462,11 @@ export function BranchDetailsModal({ isOpen, onClose, branch, isActiveMember, th
         {/* Footer Action */}
         <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 sticky bottom-0 z-10">
           <Link href={publicMode ? `/discover/${branch.id}` : `/student/book/${branch.id}`} className="block w-full">
-            <AnimatedButton 
-              fullWidth 
-              variant="primary"
-              className={`${themeClasses.button} shadow-lg`}
+            <Button 
+              className={`w-full ${themeClasses.button} shadow-lg`}
             >
               Book Now
-            </AnimatedButton>
+            </Button>
           </Link>
         </div>
       </div>

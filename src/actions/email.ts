@@ -36,11 +36,11 @@ async function sendEmail({
     })
   } else {
     console.log('Sending email via Nodemailer (SMTP) to:', to)
-    // Render React component to HTML
-    const html = await render(react)
-    
     // Send via Nodemailer
     try {
+      // Render React component to HTML
+      const html = await render(react)
+
       const info = await transporter.sendMail({
         from: EMAIL_SENDER,
         to,
@@ -54,7 +54,7 @@ async function sendEmail({
       console.log('Email sent successfully:', info.messageId)
       return { data: info, error: null }
     } catch (error: any) {
-      console.error('Nodemailer error:', error)
+      console.error('Email sending error (Nodemailer/Render):', error)
       return { data: null, error: error }
     }
   }

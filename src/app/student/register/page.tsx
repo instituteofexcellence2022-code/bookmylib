@@ -3,11 +3,11 @@
 import React, { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { FormInput } from '@/components/ui/FormInput'
-import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { Button } from '@/components/ui/button'
 import { registerStudent, initiateEmailVerification, confirmEmailVerification } from '@/actions/auth'
 import { toast } from 'react-hot-toast'
 import { 
-    UserPlus, User, Lock, Mail, Eye, EyeOff, Phone, ArrowLeft, Gift, Calendar, CheckCircle
+    UserPlus, User, Lock, Mail, Eye, EyeOff, Phone, ArrowLeft, Gift, Calendar, CheckCircle, Loader2
 } from 'lucide-react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -286,16 +286,19 @@ function RegisterForm() {
                                     />
                                 </div>
                                 {!emailVerified && (
-                                    <AnimatedButton
+                                    <Button
                                         type="button"
                                         variant="outline"
                                         onClick={handleVerifyEmail}
-                                        isLoading={verifyingEmail}
                                         className="mb-[2px] h-[42px]"
                                         disabled={!formData.email || verifyingEmail}
                                     >
-                                        Verify
-                                    </AnimatedButton>
+                                        {verifyingEmail ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            'Verify'
+                                        )}
+                                    </Button>
                                 )}
                                 {emailVerified && (
                                     <div className="mb-[2px] h-[42px] flex items-center px-3 text-green-600 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
@@ -325,15 +328,17 @@ function RegisterForm() {
                                                 className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 dark:bg-gray-800"
                                                 placeholder="000000"
                                             />
-                                            <AnimatedButton
+                                            <Button
                                                 type="button"
-                                                variant="primary"
                                                 onClick={handleConfirmOtp}
-                                                isLoading={verifyingEmail}
-                                                disabled={otp.length !== 6}
+                                                disabled={otp.length !== 6 || verifyingEmail}
                                             >
-                                                Confirm
-                                            </AnimatedButton>
+                                                {verifyingEmail ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    'Confirm'
+                                                )}
+                                            </Button>
                                         </div>
                                         <div className="mt-3 text-right">
                                             <button
@@ -452,16 +457,23 @@ function RegisterForm() {
                             </label>
                         </div>
 
-                        <AnimatedButton
+                        <Button
                             type="submit"
-                            variant="primary"
                             className="w-full justify-center bg-blue-600 hover:bg-blue-700 text-white py-2"
-                            isLoading={loading}
-                            icon="userPlus"
-                            disabled={!emailVerified}
+                            disabled={!emailVerified || loading}
                         >
-                            Create Account
-                        </AnimatedButton>
+                            {loading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Creating Account...
+                                </>
+                            ) : (
+                                <>
+                                    <UserPlus className="mr-2 h-4 w-4" />
+                                    Create Account
+                                </>
+                            )}
+                        </Button>
                     </form>
                 </div>
             </motion.div>

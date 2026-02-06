@@ -40,7 +40,7 @@ export async function getStudentProfile() {
         // But for consistency in "actions", usually we return unauth. 
         // However, this is used in page.tsx, so redirect is fine. 
         // Let's keep redirect for now but wrap the rest.
-        redirect('/student/login')
+        redirect('/student/logout')
     }
     const studentId = authStudent.id
 

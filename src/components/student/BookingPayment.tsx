@@ -17,7 +17,7 @@ import {
   verifyPaymentSignature
 } from '@/actions/payment'
 import Script from 'next/script'
-import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { Button } from '@/components/ui/button'
 import { FormInput } from '@/components/ui/FormInput'
 import { formatSeatNumber, cn } from '@/lib/utils'
 
@@ -711,13 +711,13 @@ export default function BookingPayment({
             onChange={(e) => setCouponCode(e.target.value)}
             className="flex-1"
             />
-            <AnimatedButton 
+            <Button 
             variant="secondary" 
             onClick={handleApplyCoupon}
             disabled={!couponCode || !!appliedCoupon}
             >
             Apply
-            </AnimatedButton>
+            </Button>
         </div>
       )}
 
@@ -865,7 +865,7 @@ export default function BookingPayment({
       )}
 
       <div className="flex gap-4">
-        <AnimatedButton
+        <Button
           variant="secondary"
           className="flex-1"
           onClick={() => {
@@ -878,27 +878,25 @@ export default function BookingPayment({
           disabled={processing}
         >
           Back
-        </AnimatedButton>
+        </Button>
         
         {['upi_app', 'qr_code'].includes(paymentMethod) && !showVerification ? (
-             <AnimatedButton
-               variant="primary"
+             <Button
                className="flex-1"
                onClick={() => setShowVerification(true)}
                disabled={processing}
              >
                I have made the Payment
-             </AnimatedButton>
+             </Button>
         ) : (
-            <AnimatedButton
-            variant="primary"
+            <Button
             className="flex-1"
             onClick={handlePayment}
             disabled={processing}
-            isLoading={processing}
             >
+            {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {showVerification ? 'Submit Verification' : 'Pay & Book'}
-            </AnimatedButton>
+            </Button>
         )}
       </div>
       {/* Load Payment Gateways */}

@@ -14,13 +14,14 @@ import {
   Mail, 
   MessageSquare,
   LogOut,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { useTheme } from 'next-themes'
 
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
-import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { Button } from '@/components/ui/button'
 import { FormInput } from '@/components/ui/FormInput'
 import { changeStudentPassword, updateStudentPreferences } from '@/actions/student'
 import { logout } from '@/actions/auth'
@@ -251,13 +252,14 @@ export default function SettingsClient({ student }: SettingsClientProps) {
                         />
                       </div>
                       <div className="flex justify-end pt-2">
-                        <AnimatedButton 
+                        <Button 
                           type="submit" 
-                          isLoading={loading}
+                          disabled={loading}
                           className="bg-blue-600 hover:bg-blue-700 text-white min-w-[120px]"
                         >
+                          {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                           Update Password
-                        </AnimatedButton>
+                        </Button>
                       </div>
                     </form>
                   </AnimatedCard>

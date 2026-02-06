@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react'
 import { Calendar, ChevronLeft, Download, Filter, ChevronDown, ChevronUp, Clock, LogIn, LogOut, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
-import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { Button } from '@/components/ui/button'
 import { format, isSameDay } from 'date-fns'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -76,9 +76,9 @@ export default function HistoryClient({ history, stats, embedded = false }: Hist
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Attendance History</h1>
         </div>
-        <AnimatedButton variant="ghost" size="sm" className="rounded-full w-9 h-9 p-0 text-gray-600 dark:text-gray-300">
+        <Button variant="ghost" size="sm" className="rounded-full w-9 h-9 p-0 text-gray-600 dark:text-gray-300">
           <Download className="w-5 h-5" />
-        </AnimatedButton>
+        </Button>
       </div>
       )}
 

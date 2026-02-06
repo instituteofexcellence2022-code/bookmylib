@@ -1,9 +1,9 @@
 'use client'
 
 import React, { useRef, useState, useEffect } from 'react'
-import { ChevronLeft, Send, User, CheckCircle, Clock, AlertTriangle } from 'lucide-react'
+import { ChevronLeft, Send, User, CheckCircle, Clock, AlertTriangle, Loader2 } from 'lucide-react'
 import Link from 'next/link'
-import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
 import { addTicketComment, reopenTicket } from '@/actions/ticket'
 import { toast } from 'react-hot-toast'
@@ -218,15 +218,15 @@ export default function TicketDetailClient({ ticket, student }: TicketDetailClie
                         This ticket is marked as <span className="font-medium text-gray-900 dark:text-white">{ticket.status}</span>. 
                         If you still have issues, you can request to reopen it.
                     </p>
-                    <AnimatedButton
+                    <Button
                         onClick={handleReopen}
                         variant="outline"
-                        isLoading={isReopening}
+                        disabled={isReopening}
                         className="w-full max-w-xs flex items-center justify-center gap-2 border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/20"
                     >
-                        <RefreshCw className="w-4 h-4" />
+                        {isReopening ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                         Request to Reopen
-                    </AnimatedButton>
+                    </Button>
                 </div>
             </div>
         </div>
@@ -270,15 +270,13 @@ export default function TicketDetailClient({ ticket, student }: TicketDetailClie
                 }}
               />
             </div>
-            <AnimatedButton
+            <Button
               type="submit"
-              variant="primary"
               className="rounded-full w-12 h-12 p-0 flex items-center justify-center shrink-0 self-end mb-0.5"
-              isLoading={isSubmitting}
               disabled={!content.trim() || isSubmitting}
             >
-              <Send className="w-5 h-5" />
-            </AnimatedButton>
+              {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+            </Button>
           </form>
         </div>
       )}

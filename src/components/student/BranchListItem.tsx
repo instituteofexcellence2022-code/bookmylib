@@ -8,7 +8,7 @@ import {
   Phone, Info,
   Wifi, Coffee, Wind, Zap, Car, Lock, Camera, BookOpen, ShieldCheck, Book
 } from 'lucide-react'
-import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { Button } from '@/components/ui/button'
 import { BranchCardProps } from './BranchCard'
 import { BranchDetailsModal } from './BranchDetailsModal'
 import { getThemeClasses } from '@/lib/utils'
@@ -382,24 +382,23 @@ export function BranchListItem({ branch, isActiveMember, theme = 'emerald', publ
             )}
           </div>
 
-          <AnimatedButton
+          <Button
             variant="outline"
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
               setShowDetails(true)
             }}
-            className="hidden sm:inline-flex flex-none text-xs py-1.5 px-3 h-auto whitespace-nowrap border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+            className="hidden sm:inline-flex flex-none text-xs py-1.5 px-3 h-8 whitespace-nowrap border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
           >
             Details
-          </AnimatedButton>
+          </Button>
           <Link href={publicMode ? `/discover/${branch.id}` : `/student/book/${branch.id}`} className="flex-none">
-            <AnimatedButton 
-              variant="primary"
-              className={`${themeClasses.button} text-xs py-1.5 px-3 h-auto whitespace-nowrap`}
+            <Button 
+              className={`${themeClasses.button} text-xs py-1.5 px-3 h-8 whitespace-nowrap`}
             >
               Book Now
-            </AnimatedButton>
+            </Button>
           </Link>
         </div>
       </div>

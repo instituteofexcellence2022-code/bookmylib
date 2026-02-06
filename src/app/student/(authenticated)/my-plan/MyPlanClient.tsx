@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { getStudentBookingStatus } from '@/actions/payment'
-import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { Button } from '@/components/ui/button'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { motion } from 'framer-motion'
 import { generateReceiptPDF } from '@/lib/pdf-generator'
@@ -179,9 +179,9 @@ export default function MyPlanClient() {
               </p>
             </div>
             <div className="pt-4">
-              <AnimatedButton onClick={handleBookNew} size="lg" className="min-w-[240px] shadow-lg shadow-purple-500/20 text-lg py-6">
+              <Button onClick={handleBookNew} size="lg" className="min-w-[240px] shadow-lg shadow-purple-500/20 text-lg py-6 bg-purple-600 hover:bg-purple-700 text-white">
                 Book New Seat <ArrowRight className="w-6 h-6 ml-2" />
-              </AnimatedButton>
+              </Button>
             </div>
           </AnimatedCard>
         </motion.div>

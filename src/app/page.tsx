@@ -25,12 +25,13 @@ import {
   Compass
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { cn } from '@/lib/utils'
+import { buttonVariants } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
-import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { InstallButton } from '@/components/ui/InstallButton'
 import { getCurrentUser, logout } from '@/actions/auth'
 import { getPublishedBranches } from '@/actions/booking'
-import { BookingPageClient } from '@/app/student/(authenticated)/book/BookingPageClient'
+import { BookingPageClient } from '@/app/student/book/BookingPageClient'
 import { InstallPrompt } from '@/components/layout/InstallPrompt'
 
 type Role = 'discover' | 'student' | 'staff' | 'owner'
@@ -96,7 +97,7 @@ const roleConfig = {
     ],
     cta: {
       primary: { text: 'Student Login', href: '/student/login' },
-      secondary: null
+      secondary: { text: 'Student Register', href: '/student/register' }
     }
   }
 }
@@ -456,29 +457,33 @@ export default function Home() {
 
               <div className="flex items-center gap-4">
                 {currentRole.cta.primary && (
-                  <AnimatedButton
-                    variant="primary"
-                    onClick={() => router.push(currentRole.cta.primary!.href)}
-                    className={`h-10 px-6 shadow-xl shadow-current/20 border-transparent
+                  <Link
+                    href={currentRole.cta.primary!.href}
+                    className={cn(
+                      buttonVariants({ variant: 'default', size: 'default' }),
+                      `h-10 px-6 shadow-xl shadow-current/20 border-transparent text-white
                         ${activeRole === 'owner' 
                           ? 'bg-amber-600 hover:bg-amber-700' 
                           : activeRole === 'staff'
                           ? 'bg-emerald-600 hover:bg-emerald-700'
-                          : 'bg-blue-600 hover:bg-blue-700'}`}
+                          : 'bg-blue-600 hover:bg-blue-700'}`
+                    )}
                   >
                     {currentRole.cta.primary!.text}
                     <ArrowRight className="ml-2 w-4 h-4" />
-                  </AnimatedButton>
+                  </Link>
                 )}
                 
                 {currentRole.cta.secondary && (
-                  <AnimatedButton
-                    variant="outline"
-                    onClick={() => currentRole.cta.secondary && router.push(currentRole.cta.secondary.href)}
-                    className="h-10 px-6 text-sm bg-transparent border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-900"
+                  <Link
+                    href={currentRole.cta.secondary.href}
+                    className={cn(
+                      buttonVariants({ variant: 'outline', size: 'default' }),
+                      "h-10 px-6 text-sm bg-transparent border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-900"
+                    )}
                   >
                     {currentRole.cta.secondary.text}
-                  </AnimatedButton>
+                  </Link>
                 )}
               </div>
             </motion.div>

@@ -7,13 +7,13 @@ import {
     Shield, CreditCard, Calendar, 
     CheckCircle2, AlertCircle, Save,
     MapPin, Users, Camera, Upload, Home, Heart,
-    FileText, Clock
+    FileText, Clock, Loader2
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { motion } from 'framer-motion'
 
 import { FormInput } from '@/components/ui/FormInput'
-import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { Button } from '@/components/ui/button'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { QuoteCard } from '@/components/student/QuoteCard'
 import { DigitalIdCard } from '@/components/student/DigitalIdCard'
@@ -342,14 +342,14 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
                     </div>
                 </div>
                 
-                <AnimatedButton 
+                <Button 
                     variant="outline" 
                     className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-900/30 dark:hover:bg-red-900/20"
                     onClick={handleLogout}
-                    icon="logOut"
                 >
+                    <LogOut className="w-4 h-4 mr-2" />
                     Sign Out
-                </AnimatedButton>
+                </Button>
             </div>
 
             {/* Liked Quotes Section */}
@@ -635,14 +635,15 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
                     
                     {/* Submit Button Area */}
                     <div className="flex justify-end pt-4">
-                        <AnimatedButton 
+                        <Button 
                             type="submit" 
-                            isLoading={loading}
+                            disabled={loading}
                             className="bg-blue-600 hover:bg-blue-700 text-white w-full md:w-auto"
-                            icon="save"
                         >
+                            {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            <Save className="w-4 h-4 mr-2" />
                             Save All Changes
-                        </AnimatedButton>
+                        </Button>
                     </div>
 
                 </form>
@@ -694,14 +695,14 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
                         ) : (
                             <div className="text-center py-4">
                                 <p className="text-lg font-medium mb-2">No Active Plan</p>
-                                <AnimatedButton 
+                                <Button 
                                     variant="secondary" 
                                     size="sm" 
                                     className="bg-white text-indigo-600 hover:bg-indigo-50"
                                     onClick={() => router.push('/student/my-plan')}
                                 >
                                     Browse Plans
-                                </AnimatedButton>
+                                </Button>
                             </div>
                         )}
                     </AnimatedCard>
@@ -770,14 +771,15 @@ export default function ProfileClient({ initialData, likedQuotes = [] }: Profile
                             </div>
                             
                             <div className="flex justify-end pt-2">
-                                <AnimatedButton 
+                                <Button 
                                     onClick={handleChangePassword}
-                                    isLoading={loading}
+                                    disabled={loading}
                                     variant="outline"
                                     className="border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 w-full"
                                 >
+                                    {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                                     {hasPassword ? 'Update Password' : 'Set Password'}
-                                </AnimatedButton>
+                                </Button>
                             </div>
                         </div>
                     </AnimatedCard>

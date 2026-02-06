@@ -9,7 +9,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
   const studentAuth = await getAuthenticatedStudent()
 
   if (!studentAuth) {
-    redirect('/student/login')
+    redirect('/student/logout')
   }
 
   const [student, announcements] = await Promise.all([

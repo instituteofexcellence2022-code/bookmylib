@@ -3,10 +3,10 @@
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { FormInput } from '@/components/ui/FormInput'
-import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { Button } from '@/components/ui/button'
 import { loginStudent } from '@/actions/auth'
 import { toast } from 'react-hot-toast'
-import { Mail, ArrowLeft, BookOpen, Calendar, Lock } from 'lucide-react'
+import { Mail, ArrowLeft, BookOpen, Calendar, Lock, LogIn, ArrowRight, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 
@@ -178,15 +178,23 @@ export default function StudentLoginPage() {
                             </div>
                         </div>
 
-                        <AnimatedButton
+                        <Button
                             type="submit"
-                            variant="primary"
                             className="w-full justify-center bg-blue-600 hover:bg-blue-700 text-white h-10"
-                            isLoading={loading}
-                            icon="logIn"
+                            disabled={loading}
                         >
-                            Sign in
-                        </AnimatedButton>
+                            {loading ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Signing in...
+                                </>
+                            ) : (
+                                <>
+                                    <LogIn className="mr-2 h-4 w-4" />
+                                    Sign in
+                                </>
+                            )}
+                        </Button>
                     </form>
 
                     <div className="mt-4">
@@ -202,14 +210,15 @@ export default function StudentLoginPage() {
                         </div>
 
                         <div className="mt-6">
-                            <AnimatedButton
-                                variant="outline"
-                                className="w-full justify-center"
-                                icon="arrowRight"
-                                onClick={() => router.push('/student/register')}
-                            >
-                                Create an account
-                            </AnimatedButton>
+                            <Link href="/student/register" className="w-full">
+                                <Button
+                                    variant="outline"
+                                    className="w-full justify-center"
+                                >
+                                    Create an account
+                                    <ArrowRight className="ml-2 h-4 w-4" />
+                                </Button>
+                            </Link>
                         </div>
                     </div>
                 </div>

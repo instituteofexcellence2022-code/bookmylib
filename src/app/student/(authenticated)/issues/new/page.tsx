@@ -1,10 +1,10 @@
 'use client'
 
 import React, { useState } from 'react'
-import { ChevronLeft, Wifi, CreditCard, User, HelpCircle, Upload, Check, ChevronRight } from 'lucide-react'
+import { ChevronLeft, Wifi, CreditCard, User, HelpCircle, Upload, Check, ChevronRight, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { Button } from '@/components/ui/button'
 import { createTicket } from '@/actions/ticket'
 import { toast } from 'react-hot-toast'
 
@@ -226,14 +226,15 @@ export default function NewIssuePage() {
             </div>
           </div>
 
-          <AnimatedButton
+          <Button
             type="submit"
             size="lg"
             className="w-full touch-device:min-h-11 touch-device:min-w-11"
-            isLoading={isSubmitting}
+            disabled={isSubmitting}
           >
+            {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Submit Report
-          </AnimatedButton>
+          </Button>
         </form>
       )}
 
@@ -247,23 +248,22 @@ export default function NewIssuePage() {
             Your ticket regarding &quot;{subcategory}&quot; has been received (ID: #T-1024). We will look into it shortly.
           </p>
           <div className="flex space-x-3">
-            <AnimatedButton
+            <Button
               onClick={() => router.push('/student/issues')}
               variant="secondary"
             >
               Back to Issues
-            </AnimatedButton>
-            <AnimatedButton
+            </Button>
+            <Button
               onClick={() => {
                 setStep(1)
                 setCategory('')
                 setSubcategory('')
                 setDetails({ subject: '', description: '' })
               }}
-              variant="primary"
             >
               Report Another
-            </AnimatedButton>
+            </Button>
           </div>
         </div>
       )}

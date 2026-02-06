@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { ChevronLeft, Filter, Search, AlertTriangle, CheckCircle, Clock } from 'lucide-react'
 import Link from 'next/link'
-import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
 
 interface Ticket {
@@ -49,14 +49,14 @@ export default function TicketHistoryClient({ tickets }: { tickets: Ticket[] }) 
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <AnimatedButton 
+        <Button 
           variant="outline" 
           className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
           onClick={() => setFilter(filter === 'all' ? 'open' : filter === 'open' ? 'resolved' : 'all')}
         >
           <Filter className="w-4 h-4 mr-2 text-gray-500" />
           {filter === 'all' ? 'All' : filter === 'open' ? 'Open' : 'Resolved'}
-        </AnimatedButton>
+        </Button>
       </div>
 
       {/* Ticket List */}

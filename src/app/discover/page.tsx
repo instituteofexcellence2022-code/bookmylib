@@ -1,6 +1,6 @@
 import React from 'react'
 import { getPublishedBranches } from '@/actions/booking'
-import { BookingPageClient } from '@/app/student/(authenticated)/book/BookingPageClient'
+import { BookingPageClient } from '@/app/student/book/BookingPageClient'
 import { getAuthenticatedStudent } from '@/lib/auth/student'
 import { prisma } from '@/lib/prisma'
 import { Metadata } from 'next'

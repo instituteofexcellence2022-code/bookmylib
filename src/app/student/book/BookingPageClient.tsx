@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { LayoutGrid, List, Building2, Search, MapPin } from 'lucide-react'
+import { LayoutGrid, List, Building2, Search } from 'lucide-react'
 import { BranchCard, BranchCardProps } from '@/components/student/BranchCard'
 import { BranchListItem } from '@/components/student/BranchListItem'
 import { getThemeClasses } from '@/lib/utils'

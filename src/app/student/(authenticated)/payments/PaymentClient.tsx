@@ -16,7 +16,7 @@ import {
 } from '@/actions/payment'
 import { generateReceiptPDF } from '@/lib/pdf-generator'
 import { formatSeatNumber } from '@/lib/utils'
-import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { Button } from '@/components/ui/button'
 import { FormInput } from '@/components/ui/FormInput'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 
@@ -173,14 +173,14 @@ export default function PaymentClient() {
             </div>
 
             <div className="flex justify-center">
-              <AnimatedButton
+              <Button
                 onClick={handleManageSubscription}
                 size="lg"
                 className="min-w-[200px]"
               >
                 {bookingStatus?.isNew ? 'Book New Seat' : 'Renew / Upgrade Plan'}
                 <ArrowRight className="w-4 h-4 ml-2" />
-              </AnimatedButton>
+              </Button>
             </div>
           </AnimatedCard>
         </div>

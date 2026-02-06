@@ -10,7 +10,10 @@ export async function getAuthenticatedStudent() {
     if (!token) return null
 
     const payload = await verifySessionToken(token)
-    if (!payload || !payload.userId) return null
+    if (!payload || !payload.userId) {
+        console.log('Student auth failed: Invalid token payload', payload)
+        return null
+    }
     
     const studentId = payload.userId as string
 
@@ -26,6 +29,11 @@ export async function getAuthenticatedStudent() {
                 }
             }
         })
+        
+        if (!student) {
+            console.log('Student auth failed: Student not found in DB', studentId)
+        }
+        
         return student
     } catch (error) {
         console.error('Error fetching authenticated student:', error)

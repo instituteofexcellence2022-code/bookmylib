@@ -7,9 +7,10 @@ import {
   MapPin, Building2, Users, ChevronLeft, ChevronRight,
   Wifi, Coffee, Wind, Zap, Car, Lock, Camera, BookOpen, ShieldCheck,
   Star, Clock, Info,
-  Book
+  Book,
+  ArrowRight
 } from 'lucide-react'
-import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { Button } from '@/components/ui/button'
 import { BranchDetailsModal } from './BranchDetailsModal'
 import { getThemeClasses } from '@/lib/utils'
 import type { ThemeColor } from '@/lib/utils'
@@ -462,7 +463,7 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
         </div>
 
         <div className="mt-6 flex gap-3">
-          <AnimatedButton
+          <Button
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
@@ -472,17 +473,14 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
             className="flex-1 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
           >
             Details
-          </AnimatedButton>
+          </Button>
           <Link href={publicMode ? `/discover/${branch.id}` : `/student/book/${branch.id}`} className="flex-1 block">
-            <AnimatedButton 
-              fullWidth 
-              variant="primary"
-              icon="arrowRight"
-              iconPosition="right"
-              className={`${themeClasses.button} shadow-lg hover:shadow-xl translate-y-0`}
+            <Button 
+              className={`w-full ${themeClasses.button} shadow-lg hover:shadow-xl translate-y-0`}
             >
               Book Now
-            </AnimatedButton>
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
           </Link>
         </div>
       </div>
