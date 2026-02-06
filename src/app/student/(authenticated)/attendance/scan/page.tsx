@@ -1,12 +1,12 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Camera, X, RefreshCw, CheckCircle, AlertCircle, Loader2, Volume2, VolumeX, LogOut } from 'lucide-react'
+import { Camera, CheckCircle, Loader2, ArrowLeft, AlertCircle, Volume2, VolumeX, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Html5Qrcode } from 'html5-qrcode'
-import { markAttendance, getStudentAttendanceStatus } from '@/actions/attendance'
+import { markAttendance } from '@/actions/attendance'
 import { toast } from 'sonner'
 import { SCANNER_CONFIG } from '@/lib/scanner'
 
@@ -22,29 +22,17 @@ export default function ScanPage() {
   const [cameras, setCameras] = useState<Array<{ id: string; label: string }>>([])
   const [currentCameraId, setCurrentCameraId] = useState<string | null>(null)
   const [soundEnabled, setSoundEnabled] = useState(true)
-  const [currentStatus, setCurrentStatus] = useState<'loading' | 'checked-in' | 'checked-out'>('loading')
+  const [permissionDenied, setPermissionDenied] = useState(false)
+  const [initializing, setInitializing] = useState(true)
 
   const scannerRef = useRef<Html5Qrcode | null>(null)
-  const mountedRef = useRef(false)
-
-  // Fetch current status on mount
-  useEffect(() => {
-      getStudentAttendanceStatus().then(res => {
-          if (res.success) {
-              setCurrentStatus(res.status as any)
-          }
-      })
-
-      // Handle initial QR code if present
-      if (initialQrCode) {
-        handleScan(initialQrCode)
-      }
-  }, [initialQrCode])
+  const scannerContainerId = "reader"
 
   // Sound feedback
   const playBeep = useCallback(() => {
     if (!soundEnabled) return
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
       const oscillator = audioContext.createOscillator()
       const gainNode = audioContext.createGain()
@@ -64,98 +52,22 @@ export default function ScanPage() {
   }, [soundEnabled])
 
   // Vibration feedback
-  const vibrate = useCallback(() => {
-    if (navigator.vibrate) {
-      navigator.vibrate(200)
+  const vibrate = useCallback((pattern: number | number[] = 200) => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(pattern)
     }
   }, [])
 
-  useEffect(() => {
-    mountedRef.current = true
-    
-    // Get available cameras
-    Html5Qrcode.getCameras().then(devices => {
-      if (devices && devices.length) {
-        setCameras(devices)
-        // Prefer back camera
-        const backCamera = devices.find(d => d.label.toLowerCase().includes('back')) || devices[0]
-        setCurrentCameraId(backCamera.id)
-      }
-    }).catch(err => {
-      console.error("Error getting cameras", err)
-    })
-
-    return () => {
-        mountedRef.current = false
-        if (scannerRef.current && scannerRef.current.isScanning) {
-            scannerRef.current.stop().catch(err => console.error("Error stopping scanner cleanup", err))
-        }
-    }
-  }, [])
-
-  const startScannerWithId = async (cameraId: string) => {
-    if (!scanning || processing || result || error) return
-    
-    try {
-        const element = document.getElementById('reader')
-        if (!element) return
-
-        if (!scannerRef.current) {
-            scannerRef.current = new Html5Qrcode("reader")
-        }
-
-        if (!scannerRef.current.isScanning) {
-                await scannerRef.current.start(
-                cameraId, 
-                SCANNER_CONFIG,
-                (decodedText) => handleScan(decodedText),
-                (errorMessage) => {
-                    // ignore
-                }
-            )
-        }
-    } catch (err) {
-        console.error("Scanner init error", err)
-        setError("Failed to start camera. Please ensure camera permissions are granted.")
-    }
-  }
-
-  useEffect(() => {
-    if (currentCameraId && scanning && !processing && !result && !error) {
-        const timer = setTimeout(() => startScannerWithId(currentCameraId), 500)
-        return () => clearTimeout(timer)
-    }
-  }, [currentCameraId, scanning, processing, result, error])
-
-  const switchCamera = async () => {
-    if (cameras.length <= 1) return
-    
-    const currentIndex = cameras.findIndex(c => c.id === currentCameraId)
-    const nextIndex = (currentIndex + 1) % cameras.length
-    const nextCameraId = cameras[nextIndex].id
-    
-    setCurrentCameraId(nextCameraId)
-    
-    if (scanning && scannerRef.current && scannerRef.current.isScanning) {
-      await scannerRef.current.stop()
-      setTimeout(() => {
-        startScannerWithId(nextCameraId)
-      }, 200)
-    }
-  }
-
-  const handleScan = async (qrCode: string) => {
-      if (processing || !mountedRef.current) return
+  const handleScan = useCallback(async (qrCode: string) => {
+      if (processing) return
       
-      // Play sound and vibrate
-      playBeep()
-      vibrate()
-
       setProcessing(true)
-      
-      // Stop scanning
+      playBeep()
+      vibrate(50) // Short vibration on detection
+
+      // Stop scanning temporarily
       if (scannerRef.current && scannerRef.current.isScanning) {
-          await scannerRef.current.stop().catch(e => console.error(e))
+          await scannerRef.current.stop().catch(console.error)
       }
 
       // Extract token from URL if present
@@ -166,7 +78,7 @@ export default function ScanPage() {
             const token = url.searchParams.get('qr_code')
             if (token) payload = token
         }
-      } catch (e) {
+      } catch {
         // Not a valid URL, treat as raw code
       }
 
@@ -181,16 +93,156 @@ export default function ScanPage() {
                   message: res.message
               })
               toast.success(`${res.type === 'check-in' ? 'Check-in' : 'Check-out'} Successful`)
+              vibrate([100, 50, 100]) // Success pattern: short-pause-short
+              setScanning(false)
           } else {
               setError(res.error || 'Failed to mark attendance')
               toast.error(res.error || 'Failed to mark attendance')
+              vibrate([300]) // Error pattern: long vibration
+              // Keep scanning state true to allow retry, but processing false
+              // Actually, maybe we should show error screen and let user retry?
+              // Let's show error state
+              setScanning(false)
           }
-      } catch (err) {
+      } catch {
           setError('System error. Please try again.')
+          vibrate([300]) // Error pattern: long vibration
+          setScanning(false)
       } finally {
           setProcessing(false)
-          setScanning(false)
       }
+  }, [processing, playBeep, vibrate])
+
+  // Fetch current status on mount
+  useEffect(() => {
+    // Handle initial QR code if present
+    if (initialQrCode) {
+      handleScan(initialQrCode)
+    }
+  }, [initialQrCode, handleScan])
+
+  // Initialize cameras
+  useEffect(() => {
+    let mounted = true;
+
+    const initCameras = async () => {
+      try {
+        // Check for permissions first
+        try {
+            await navigator.mediaDevices.getUserMedia({ video: true })
+        } catch (err) {
+            if (mounted) {
+                setPermissionDenied(true)
+                setError("Camera permission denied. Please enable camera access in your browser settings.")
+                setInitializing(false)
+                return
+            }
+        }
+
+        const devices = await Html5Qrcode.getCameras()
+        if (mounted) {
+          if (devices && devices.length) {
+            setCameras(devices)
+            // Prefer back camera
+            const backCamera = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('environment')) || devices[0]
+            setCurrentCameraId(backCamera.id)
+          } else {
+            setError("No cameras found on this device.")
+          }
+          setInitializing(false)
+        }
+      } catch (err) {
+        console.error("Error getting cameras", err)
+        if (mounted) {
+            setError("Failed to access camera info.")
+            setInitializing(false)
+        }
+      }
+    }
+
+    initCameras()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  // Start/Stop scanner logic
+  useEffect(() => {
+    let ignore = false;
+
+    const startScanner = async () => {
+        if (!currentCameraId || !scanning || result || processing || permissionDenied || error) return
+
+        try {
+            // If instance exists but is not scanning, or if we need to recreate it
+            if (!scannerRef.current) {
+                scannerRef.current = new Html5Qrcode(scannerContainerId)
+            }
+
+            if (scannerRef.current.isScanning) {
+                 // Already scanning, do nothing or restart if camera changed (handled by dependency)
+                 // For simplicity, we assume we stop before start if camera changes
+                 return
+            }
+            
+            await scannerRef.current.start(
+                currentCameraId,
+                SCANNER_CONFIG,
+                (decodedText) => {
+                    if (!ignore) handleScan(decodedText)
+                },
+                (errorMessage) => {
+                    // ignore frame errors
+                }
+            )
+        } catch (err) {
+            console.error("Scanner start error", err)
+            if (!ignore) {
+                 // Only set error if we really can't start (sometimes it fails transiently)
+                 // setError("Failed to start camera stream")
+            }
+        }
+    }
+
+    // Cleanup function
+    const stopScanner = async () => {
+        if (scannerRef.current && scannerRef.current.isScanning) {
+            try {
+                await scannerRef.current.stop()
+            } catch (err) {
+                console.error("Scanner stop error", err)
+            }
+        }
+    }
+
+    // If we have a camera and should be scanning, start it
+    if (currentCameraId && scanning && !result && !processing && !permissionDenied && !error) {
+        // Small delay to ensure DOM is ready
+        setTimeout(() => {
+            if (!ignore) startScanner()
+        }, 100)
+    }
+
+    return () => {
+        ignore = true
+        stopScanner()
+    }
+  }, [currentCameraId, scanning, result, processing, permissionDenied, error])
+
+
+  const switchCamera = async () => {
+    if (cameras.length <= 1) return
+    
+    // Stop current scanner first
+    if (scannerRef.current && scannerRef.current.isScanning) {
+        await scannerRef.current.stop().catch(console.error)
+    }
+
+    const currentIndex = cameras.findIndex(c => c.id === currentCameraId)
+    const nextIndex = (currentIndex + 1) % cameras.length
+    setCurrentCameraId(cameras[nextIndex].id)
+    // The useEffect will trigger restart
   }
 
   const handleReset = () => {
@@ -201,127 +253,132 @@ export default function ScanPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)] bg-black rounded-xl overflow-hidden relative">
-      {/* Header */}
-      <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-10 bg-gradient-to-b from-black/80 to-transparent">
-        <Link href="/student/attendance" className="p-2 bg-black/40 backdrop-blur-sm rounded-full text-white hover:bg-black/60 transition-colors">
-          <X className="w-6 h-6" />
+    <div className="flex flex-col min-h-[calc(100vh-4rem)] max-w-md mx-auto p-4 space-y-4">
+      <div className="flex items-center justify-between mb-4">
+        <Link href="/student/home">
+          <Button variant="ghost" size="icon">
+            <ArrowLeft className="h-6 w-6" />
+          </Button>
         </Link>
-        <span className="text-white font-medium">
-            {currentStatus === 'checked-in' ? 'Scan to Check Out' : currentStatus === 'checked-out' ? 'Scan to Check In' : 'Scan QR Code'}
-        </span>
-        <div className="flex gap-2">
-            <button
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className="p-2 bg-black/40 backdrop-blur-sm rounded-full text-white hover:bg-black/60 transition-colors"
-                title={soundEnabled ? "Mute" : "Unmute"}
-            >
-                {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-            </button>
-            {cameras.length > 1 && (
-                <button
-                    onClick={switchCamera}
-                    className="p-2 bg-black/40 backdrop-blur-sm rounded-full text-white hover:bg-black/60 transition-colors"
-                    title="Switch Camera"
-                >
-                    <RefreshCw className="w-5 h-5" />
-                </button>
-            )}
-        </div>
+        <h1 className="text-xl font-bold">Scan QR Code</h1>
+        <div className="w-10" /> {/* Spacer */}
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center relative bg-gray-900">
+      {/* Main Scanner Area */}
+      <div className="relative overflow-hidden rounded-3xl bg-black aspect-square shadow-xl ring-4 ring-white/10">
         
-        {/* Scanner View */}
-        {scanning && !result && !error && (
-            <div className="w-full h-full relative flex items-center justify-center">
-                 <div id="reader" className="w-full h-full object-cover"></div>
-                 {/* Overlay */}
-                 <div className="absolute inset-0 pointer-events-none border-[50px] border-black/50 flex items-center justify-center">
-                    <div className="w-64 h-64 border-2 border-white/50 rounded-lg relative">
-                        <div className="absolute inset-0 border-2 border-purple-500/50 rounded-lg animate-pulse" />
-                        <div className="absolute top-1/2 left-2 right-2 h-0.5 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-[scan_2s_ease-in-out_infinite]" />
+        {/* Scanner Container */}
+        <div id={scannerContainerId} className="w-full h-full" />
+
+        {/* Overlays */}
+        {initializing && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 text-white z-20">
+                <Loader2 className="h-10 w-10 animate-spin text-blue-500 mb-4" />
+                <p className="text-sm text-zinc-400">Starting camera...</p>
+            </div>
+        )}
+
+        {permissionDenied && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900 text-white z-20 p-6 text-center">
+                <Camera className="h-12 w-12 text-red-500 mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Camera Access Denied</h3>
+                <p className="text-sm text-zinc-400 mb-6">Please enable camera access in your browser settings to use the scanner.</p>
+                <Button onClick={() => window.location.reload()} variant="outline" className="text-black bg-white hover:bg-zinc-200">
+                    Retry
+                </Button>
+            </div>
+        )}
+
+        {!scanning && !permissionDenied && !initializing && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900/95 backdrop-blur-sm z-20 p-6 text-center">
+                {processing ? (
+                    <>
+                        <Loader2 className="h-12 w-12 animate-spin text-blue-500 mb-4" />
+                        <p className="text-lg font-medium text-white">Processing...</p>
+                    </>
+                ) : result ? (
+                    <>
+                        <div className="h-20 w-20 rounded-full bg-green-500/20 flex items-center justify-center mb-6 ring-4 ring-green-500/20">
+                            <CheckCircle className="h-10 w-10 text-green-500" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-white mb-2">{result.type}</h2>
+                        <p className="text-zinc-400 mb-1">{result.branchName}</p>
+                        <p className="text-sm text-zinc-500 mb-6">
+                            {result.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        
+                        {result.message && (
+                            <div className="bg-white/10 rounded-lg p-3 mb-6 w-full">
+                                <p className="text-sm text-white">{result.message}</p>
+                            </div>
+                        )}
+
+                        <Button onClick={handleReset} className="w-full bg-blue-600 hover:bg-blue-700 text-white h-12 rounded-xl">
+                            Scan Again
+                        </Button>
+                    </>
+                ) : error ? (
+                    <>
+                        <div className="h-20 w-20 rounded-full bg-red-500/20 flex items-center justify-center mb-6 ring-4 ring-red-500/20">
+                            <AlertCircle className="h-10 w-10 text-red-500" />
+                        </div>
+                        <h2 className="text-xl font-bold text-white mb-2">Scan Failed</h2>
+                        <p className="text-sm text-zinc-400 mb-6">{error}</p>
+                        <Button onClick={handleReset} className="w-full bg-white text-black hover:bg-zinc-200 h-12 rounded-xl">
+                            Try Again
+                        </Button>
+                    </>
+                ) : (
+                    <Button onClick={handleReset} className="w-full bg-blue-600 hover:bg-blue-700">
+                        Start Scanning
+                    </Button>
+                )}
+            </div>
+        )}
+
+        {/* Scanning Overlay (only visible when scanning) */}
+        {scanning && !initializing && !permissionDenied && (
+            <>
+                <div className="absolute inset-0 border-[40px] border-black/50 z-10 pointer-events-none">
+                    <div className="w-full h-full border-2 border-blue-500/50 relative">
+                        <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-blue-500 -mt-1 -ml-1" />
+                        <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-blue-500 -mt-1 -mr-1" />
+                        <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-blue-500 -mb-1 -ml-1" />
+                        <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-blue-500 -mb-1 -mr-1" />
                     </div>
-                 </div>
-                 <p className="absolute bottom-24 text-white/90 text-sm font-medium bg-black/40 px-4 py-2 rounded-full backdrop-blur-md">
-                    {currentStatus === 'checked-in' ? 'Align QR code to Check Out' : currentStatus === 'checked-out' ? 'Align QR code to Check In' : 'Align QR code within the frame'}
-                 </p>
-            </div>
-        )}
-
-        {/* Processing State */}
-        {processing && (
-            <div className="absolute inset-0 z-20 bg-black/80 flex flex-col items-center justify-center">
-                <Loader2 className="w-12 h-12 text-purple-500 animate-spin mb-4" />
-                <p className="text-white font-medium">Verifying...</p>
-            </div>
-        )}
-
-        {/* Success Result */}
-        {result && (
-          <div className="flex flex-col items-center p-8 bg-white dark:bg-gray-900 rounded-2xl mx-4 animate-in zoom-in duration-300 max-w-sm w-full shadow-2xl">
-            <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 ${
-                result.type === 'Check-in' 
-                ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' 
-                : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
-            }`}>
-              {result.type === 'Check-in' ? <CheckCircle className="w-10 h-10" /> : <LogOut className="w-10 h-10" />}
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{result.type} Successful!</h3>
-            <p className="text-gray-500 dark:text-gray-400 text-center mb-6">
-                {result.message ? (
-                   <span className="block text-amber-600 dark:text-amber-500 mb-1 font-medium">{result.message}</span>
-                ) : null}
-                You have successfully {result.type === 'Check-in' ? 'checked in' : 'checked out'} at <span className="font-semibold text-gray-900 dark:text-white">{result.branchName}</span>
-                {result.duration ? ` (Duration: ${Math.floor(result.duration / 60)}h ${result.duration % 60}m)` : ''}
-            </p>
-            <div className="w-full text-center mb-6 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
-                <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Time</p>
-                <p className="text-lg font-mono font-medium text-gray-900 dark:text-white">
-                    {result.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </p>
-            </div>
-            <div className="flex space-x-3 w-full">
-              <Button 
-                onClick={() => router.push('/student/attendance')}
-                variant="secondary"
-                className="flex-1 bg-gray-100 text-gray-700 hover:bg-gray-200"
-              >
-                Done
-              </Button>
-              <Button 
-                onClick={handleReset}
-                className="flex-1"
-              >
-                Scan Again
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Error State */}
-        {error && (
-          <div className="flex flex-col items-center p-8 bg-white rounded-2xl mx-4 animate-in zoom-in duration-300 max-w-sm w-full">
-             <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-6">
-                <AlertCircle className="w-10 h-10 text-red-600" />
-             </div>
-             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Scan Failed</h3>
-             <p className="text-gray-500 dark:text-gray-400 text-center mb-6">{error}</p>
-             <Button onClick={handleReset} className="w-full">
-                Try Again
-             </Button>
-          </div>
+                </div>
+                
+                {/* Scanner Controls */}
+                <div className="absolute bottom-6 left-0 right-0 flex justify-center items-center gap-4 z-20">
+                    <Button
+                        variant="secondary"
+                        size="icon"
+                        className="rounded-full h-12 w-12 bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border-0"
+                        onClick={() => setSoundEnabled(!soundEnabled)}
+                    >
+                        {soundEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+                    </Button>
+                    
+                    {cameras.length > 1 && (
+                        <Button
+                            variant="secondary"
+                            size="icon"
+                            className="rounded-full h-12 w-12 bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border-0"
+                            onClick={switchCamera}
+                        >
+                            <RefreshCw className="h-5 w-5" />
+                        </Button>
+                    )}
+                </div>
+            </>
         )}
       </div>
 
-      <style jsx>{`
-        @keyframes scan {
-          0% { top: 10%; opacity: 0; }
-          50% { opacity: 1; }
-          100% { top: 90%; opacity: 0; }
-        }
-      `}</style>
+      <div className="text-center space-y-2">
+        <p className="text-sm text-muted-foreground">
+          Align the QR code within the frame to check in or check out.
+        </p>
+      </div>
     </div>
   )
 }
