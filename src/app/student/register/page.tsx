@@ -198,11 +198,11 @@ function RegisterForm() {
                 router.push('/student/login')
             } else {
                 toast.error(result.error || 'Registration failed')
+                setLoading(false)
             }
         } catch (error) {
             console.error('[REGISTER] Client error:', error)
             toast.error('An error occurred')
-        } finally {
             setLoading(false)
         }
     }
