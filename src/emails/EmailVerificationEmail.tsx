@@ -27,9 +27,9 @@ export const EmailVerificationEmail = ({
 
   return (
     <Html>
-      <Head />
-      <Preview>{previewText}</Preview>
       <Tailwind>
+        <Head />
+        <Preview>{previewText}</Preview>
         <Body className="bg-gray-100 my-auto mx-auto font-sans px-2">
           <Container className="bg-white border border-solid border-[#eaeaea] rounded my-[40px] mx-auto p-[20px] max-w-[600px] w-full shadow-sm">
             <Section className="text-center mt-[20px] mb-[20px]">
