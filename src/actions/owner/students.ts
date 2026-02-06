@@ -156,30 +156,28 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
 
     // Base query conditions
     // Use AND to ensure all conditions are met
-    const where: Prisma.StudentWhereInput = {
-        AND: [
-            {
-                // Core scope: Student belongs to library OR has subscription in library
-                OR: [
-                    { libraryId: owner.libraryId },
-                    {
-                        subscriptions: {
-                            some: {
-                                libraryId: owner.libraryId
-                            }
+    const andConditions: Prisma.StudentWhereInput[] = [
+        {
+            // Core scope: Student belongs to library OR has subscription in library
+            OR: [
+                { libraryId: owner.libraryId },
+                {
+                    subscriptions: {
+                        some: {
+                            libraryId: owner.libraryId
                         }
                     }
-                ]
-            }
-        ]
-    }
+                }
+            ]
+        }
+    ]
 
     // Search
     if (search) {
-        where.AND.push({
+        andConditions.push({
             OR: [
-                { name: { contains: search } },
-                { email: { contains: search } },
+                { name: { contains: search, mode: 'insensitive' } },
+                { email: { contains: search, mode: 'insensitive' } },
                 { phone: { contains: search } }
             ]
         })
@@ -190,7 +188,7 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
         // Expired means:
         // 1. Has subscriptions (filtered by branch if provided)
         // 2. BUT has NO active subscriptions (globally in this library)
-        where.AND.push({
+        andConditions.push({
             subscriptions: {
                 some: {
                     libraryId: owner.libraryId,
@@ -198,7 +196,7 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
                 }
             }
         })
-        where.AND.push({
+        andConditions.push({
             subscriptions: {
                 none: {
                     libraryId: owner.libraryId,
@@ -209,7 +207,7 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
         })
     } else if (status === 'active') {
         // Active means has at least one active subscription
-        where.AND.push({
+        andConditions.push({
             subscriptions: {
                 some: {
                     libraryId: owner.libraryId,
@@ -236,7 +234,7 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
             newConditions.branchId = branchId
         }
         
-        where.AND.push(newConditions)
+        andConditions.push(newConditions)
     } else if (status === 'no_plan') {
         // No Plan means:
         // 1. Not blocked
@@ -261,16 +259,16 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
             noPlanConditions.branchId = branchId
         }
 
-        where.AND.push(noPlanConditions)
+        andConditions.push(noPlanConditions)
 
     } else if (status === 'blocked') {
-        where.AND.push({ isBlocked: true })
+        andConditions.push({ isBlocked: true })
     } else {
         // All Status (Active, Expired, No Plan)
         // If branch filter is applied, we want students who belong to this branch
         // OR have a subscription in this branch (for backward compatibility)
         if (branchId) {
-            where.AND.push({
+            andConditions.push({
                 OR: [
                     { branchId: branchId },
                     { 
@@ -284,6 +282,10 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
                 ]
             })
         }
+    }
+
+    const where: Prisma.StudentWhereInput = {
+        AND: andConditions
     }
 
     try {
