@@ -6,15 +6,17 @@ import { StudentDetailClient } from '@/components/owner/students/StudentDetailCl
 export default async function StudentProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   
-  const data = await getStudentDetails(id)
+  const result = await getStudentDetails(id)
 
-  if (!data) {
+  if (!result.success || !result.data) {
     notFound()
   }
 
+  const { student, stats } = result.data
+
   return (
     <div className="max-w-6xl mx-auto pb-10">
-      <StudentDetailClient student={data.student} stats={data.stats} />
+      <StudentDetailClient student={student} stats={stats} />
     </div>
   )
 }

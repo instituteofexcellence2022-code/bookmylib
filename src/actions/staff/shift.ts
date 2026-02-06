@@ -8,7 +8,7 @@ import { getAuthenticatedStaff } from '@/lib/auth/staff'
 
 export async function getStaffShifts() {
     const staff = await getAuthenticatedStaff()
-    if (!staff) throw new Error('Unauthorized')
+    if (!staff) return { success: false, error: 'Unauthorized' }
 
     try {
         const shifts = await prisma.staffShift.findMany({
@@ -20,9 +20,9 @@ export async function getStaffShifts() {
                 dayOfWeek: 'asc'
             }
         })
-        return shifts
+        return { success: true, data: shifts }
     } catch (error) {
         console.error('Error fetching staff shifts:', error)
-        return []
+        return { success: false, error: 'Failed to fetch shifts' }
     }
 }

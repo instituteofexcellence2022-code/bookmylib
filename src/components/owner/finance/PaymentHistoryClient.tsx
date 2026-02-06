@@ -347,7 +347,11 @@ export function PaymentHistoryClient() {
   }, [searchQuery])
 
   useEffect(() => {
-    getFilterOptions().then(setFilterOptions).catch(console.error)
+    getFilterOptions().then(result => {
+        if (result.success && result.data) {
+            setFilterOptions(result.data)
+        }
+    }).catch(console.error)
   }, [])
 
   const loadTransactions = useCallback(async () => {
@@ -374,8 +378,12 @@ export function PaymentHistoryClient() {
           filters.endDate = new Date(customEndDate)
       }
 
-      const data = await getTransactions(filters, 50)
-      setTransactions(data as unknown as Transaction[])
+      const result = await getTransactions(filters, 50)
+      if (result.success && result.data) {
+          setTransactions(result.data as unknown as Transaction[])
+      } else {
+          toast.error(result.error || 'Failed to load transactions')
+      }
     } catch {
       toast.error('Failed to load transactions')
     } finally {

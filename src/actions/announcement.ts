@@ -286,8 +286,8 @@ export async function getUserAnnouncements() {
     if (owner) return getOwnerAnnouncements()
 
     // Check Staff
-    const staff = await getStaffProfile()
-    if (staff) return getStaffAnnouncements()
+    const staffRes = await getStaffProfile()
+    if (staffRes.success && staffRes.data) return getStaffAnnouncements()
 
     // Check Student
     // getStudentAnnouncements checks cookies internally

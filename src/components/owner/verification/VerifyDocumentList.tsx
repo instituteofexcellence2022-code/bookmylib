@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { getPendingVerifications, verifyStudentGovtId } from '@/actions/owner'
+import { getPendingVerifications, verifyStudentGovtId } from '@/actions/owner/students'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { Check, X, ExternalLink, Loader2, FileText, Maximize2 } from 'lucide-react'
@@ -26,10 +26,14 @@ export function VerifyDocumentList() {
 
     const fetchDocuments = async () => {
         try {
-            const data = await getPendingVerifications()
-            // The action returns objects with date strings or Date objects depending on serialization
-            // But here we just need to display them
-            setDocuments(data as unknown as StudentVerification[]) 
+            const result = await getPendingVerifications()
+            if (result.success && result.data) {
+                // The action returns objects with date strings or Date objects depending on serialization
+                // But here we just need to display them
+                setDocuments(result.data as unknown as StudentVerification[]) 
+            } else {
+                toast.error(result.error || 'Failed to fetch pending documents')
+            }
         } catch (error) {
             console.error(error)
             toast.error('Failed to fetch pending documents')
@@ -45,9 +49,13 @@ export function VerifyDocumentList() {
     const handleVerify = async (studentId: string, status: 'verified' | 'rejected') => {
         setProcessingId(studentId)
         try {
-            await verifyStudentGovtId(studentId, status)
-            toast.success(status === 'verified' ? 'Document verified successfully' : 'Document rejected')
-            fetchDocuments() // Refresh list
+            const result = await verifyStudentGovtId(studentId, status)
+            if (result.success) {
+                toast.success(status === 'verified' ? 'Document verified successfully' : 'Document rejected')
+                fetchDocuments() // Refresh list
+            } else {
+                toast.error(result.error || 'Operation failed')
+            }
         } catch (error) {
             console.error(error)
             toast.error('Operation failed')

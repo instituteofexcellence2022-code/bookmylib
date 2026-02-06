@@ -66,10 +66,12 @@ export function HandoverModal({
 
         setUploading(true)
         try {
-            const url = await uploadFile(file)
-            if (url) {
-                setAttachmentUrl(url)
+            const result = await uploadFile(file)
+            if (result.success && result.data) {
+                setAttachmentUrl(result.data)
                 toast.success('Proof uploaded successfully')
+            } else {
+                toast.error(result.error || 'Failed to upload proof')
             }
         } catch (error) {
             toast.error('Failed to upload proof')

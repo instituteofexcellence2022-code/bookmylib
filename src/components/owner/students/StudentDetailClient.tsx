@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -140,28 +140,29 @@ interface StudentDetailClientProps {
 export function StudentDetailClient({ student, stats }: StudentDetailClientProps) {
     const router = useRouter()
     const searchParams = useSearchParams()
-    const [activeTab, setActiveTab] = useState('profile')
-    const [showEditModal, setShowEditModal] = useState(false)
-    const [isDeleting, setIsDeleting] = useState(false)
-    const [isBlocking, setIsBlocking] = useState(false)
-
-    const activeSub = student.subscriptions.find(s => s.status === 'active')
-
-    const tabs = [
+    
+    const tabs = useMemo(() => [
         { id: 'profile', label: 'Profile', icon: User },
         { id: 'attendance', label: 'Attendance', icon: Clock },
         { id: 'subscriptions', label: 'Subscriptions', icon: Calendar },
         { id: 'payments', label: 'Payments', icon: CreditCard },
         { id: 'issues', label: 'Issues', icon: MessageSquare },
         { id: 'notes', label: 'Notes', icon: StickyNote },
-    ]
+    ], [])
 
-    useEffect(() => {
-        const tab = searchParams.get('tab')
-        if (tab && tabs.some(t => t.id === tab)) {
-            setActiveTab(tab)
+    const tabParam = searchParams.get('tab')
+    const [activeTab, setActiveTab] = useState(() => {
+        if (tabParam && tabs.some(t => t.id === tabParam)) {
+            return tabParam
         }
-    }, [searchParams])
+        return 'profile'
+    })
+    
+    const [showEditModal, setShowEditModal] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
+    const [isBlocking, setIsBlocking] = useState(false)
+
+    const activeSub = student.subscriptions.find(s => s.status === 'active')
 
     const handleBlockToggle = async () => {
         const action = student.isBlocked ? 'unblock' : 'block'

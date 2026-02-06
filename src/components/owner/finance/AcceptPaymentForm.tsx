@@ -150,7 +150,11 @@ export function AcceptPaymentForm() {
                 setSearching(true)
                 try {
                     const result = await getOwnerStudents({ search: searchQuery, limit: 5 })
-                    setStudents(result.students)
+                    if (result.success && result.data) {
+                        setStudents(result.data.students)
+                    } else {
+                        setStudents([])
+                    }
                 } catch {
                     // ignore
                 } finally {
@@ -220,8 +224,8 @@ export function AcceptPaymentForm() {
             ;(async () => {
                 try {
                     const res = await getStudentDetails(studentId)
-                    if (res && res.student) {
-                        const s = res.student
+                    if (res.success && res.data && res.data.student) {
+                        const s = res.data.student
                         setSelectedStudent({
                             id: s.id,
                             name: s.name,

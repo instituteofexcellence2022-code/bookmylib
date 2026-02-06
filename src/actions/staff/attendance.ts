@@ -21,51 +21,51 @@ import { getAuthenticatedStaff } from '@/lib/auth/staff'
 // Removed local helper in favor of imported one
 
 export async function getStaffAttendanceLogs(filters: AttendanceFilter) {
-    const staff = await getAuthenticatedStaff()
-    if (!staff) throw new Error('Unauthorized')
+    try {
+        const staff = await getAuthenticatedStaff()
+        if (!staff) return { success: false, error: 'Unauthorized' }
 
-    const page = filters.page || 1
-    const limit = filters.limit || 10
-    const skip = (page - 1) * limit
+        const page = filters.page || 1
+        const limit = filters.limit || 10
+        const skip = (page - 1) * limit
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {
-        libraryId: staff.libraryId,
-        branchId: staff.branchId, // Strictly scoped to staff's branch
-    }
-
-    // Date Filter (Single Date)
-    if (filters.date) {
-        const start = startOfDay(filters.date)
-        const end = endOfDay(filters.date)
-        where.checkIn = {
-            gte: start,
-            lte: end
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const where: any = {
+            libraryId: staff.libraryId,
+            branchId: staff.branchId, // Strictly scoped to staff's branch
         }
-    }
-    // Date Range Filter
-    else if (filters.startDate || filters.endDate) {
-        where.checkIn = {}
-        if (filters.startDate) where.checkIn.gte = startOfDay(filters.startDate)
-        if (filters.endDate) where.checkIn.lte = endOfDay(filters.endDate)
-    }
 
-    // Status Filter
-    if (filters.status && filters.status !== 'all') {
-        where.status = filters.status
-    }
-
-    // Search (Student Name)
-    if (filters.search) {
-        where.student = {
-            name: {
-                contains: filters.search,
-                mode: 'insensitive'
+        // Date Filter (Single Date)
+        if (filters.date) {
+            const start = startOfDay(filters.date)
+            const end = endOfDay(filters.date)
+            where.checkIn = {
+                gte: start,
+                lte: end
             }
         }
-    }
+        // Date Range Filter
+        else if (filters.startDate || filters.endDate) {
+            where.checkIn = {}
+            if (filters.startDate) where.checkIn.gte = startOfDay(filters.startDate)
+            if (filters.endDate) where.checkIn.lte = endOfDay(filters.endDate)
+        }
 
-    try {
+        // Status Filter
+        if (filters.status && filters.status !== 'all') {
+            where.status = filters.status
+        }
+
+        // Search (Student Name)
+        if (filters.search) {
+            where.student = {
+                name: {
+                    contains: filters.search,
+                    mode: 'insensitive'
+                }
+            }
+        }
+
         const [logs, total] = await Promise.all([
             prisma.attendance.findMany({
                 where,
@@ -95,13 +95,16 @@ export async function getStaffAttendanceLogs(filters: AttendanceFilter) {
         ])
 
         return {
-            logs,
-            total,
-            pages: Math.ceil(total / limit)
+            success: true,
+            data: {
+                logs,
+                total,
+                pages: Math.ceil(total / limit)
+            }
         }
     } catch (error) {
         console.error('Error fetching staff attendance logs:', error)
-        throw new Error('Failed to fetch logs')
+        return { success: false, error: 'Failed to fetch logs' }
     }
 }
 
@@ -181,7 +184,7 @@ export async function markStudentAttendance(studentId: string, action: 'check-in
 
 export async function getStaffAttendanceStats(date: Date = new Date()) {
     const staff = await getAuthenticatedStaff()
-    if (!staff) throw new Error('Unauthorized')
+    if (!staff) return { success: false, error: 'Unauthorized' }
 
     const start = startOfDay(date)
     const end = endOfDay(date)
@@ -225,20 +228,23 @@ export async function getStaffAttendanceStats(date: Date = new Date()) {
         const peakHour = `${peakHourIndex}:00 - ${peakHourIndex + 1}:00`
 
         return {
-            totalPresent,
-            currentlyCheckedIn,
-            avgDuration, // in minutes
-            peakHour
+            success: true,
+            data: {
+                totalPresent,
+                currentlyCheckedIn,
+                avgDuration, // in minutes
+                peakHour
+            }
         }
     } catch (error) {
         console.error('Error fetching attendance stats:', error)
-        throw new Error('Failed to fetch attendance stats')
+        return { success: false, error: 'Failed to fetch attendance stats' }
     }
 }
 
 export async function getStaffAttendanceAnalytics(days: number = 7) {
     const staff = await getAuthenticatedStaff()
-    if (!staff) throw new Error('Unauthorized')
+    if (!staff) return { success: false, error: 'Unauthorized' }
 
     const endDate = endOfDay(new Date())
     const startDate = startOfDay(subDays(new Date(), days - 1))
@@ -299,18 +305,21 @@ export async function getStaffAttendanceAnalytics(days: number = 7) {
             : 0
 
         return {
-            dailyTrends,
-            hourlyDistribution,
-            summary: {
-                totalVisits,
-                uniqueStudents,
-                avgDuration,
-                attendanceRate: totalVisits > 0 ? Math.round((totalVisits / days) * 10) / 10 : 0
+            success: true,
+            data: {
+                dailyTrends,
+                hourlyDistribution,
+                summary: {
+                    totalVisits,
+                    uniqueStudents,
+                    avgDuration,
+                    attendanceRate: totalVisits > 0 ? Math.round((totalVisits / days) * 10) / 10 : 0
+                }
             }
         }
     } catch (error) {
         console.error('Error fetching analytics:', error)
-        throw new Error('Failed to fetch analytics')
+        return { success: false, error: 'Failed to fetch analytics' }
     }
 }
 
@@ -487,49 +496,62 @@ export async function verifyStaffStudentQR(studentId: string) {
 
 export async function getStaffBranchInfo() {
     const staff = await getAuthenticatedStaff()
-    if (!staff) return null
+    if (!staff) return { success: false, error: 'Unauthorized' }
     
-    const branch = await prisma.branch.findUnique({
-        where: { id: staff.branch.id },
-        include: { owner: true }
-    })
+    try {
+        const branch = await prisma.branch.findUnique({
+            where: { id: staff.branch.id },
+            include: { owner: true }
+        })
 
-    if (!branch) return null
+        if (!branch) return { success: false, error: 'Branch not found' }
 
-    return {
-        id: branch.id,
-        name: branch.name,
-        qrCode: branch.qrCode,
-        address: branch.address,
-        city: branch.city,
-        state: branch.state,
-        phone: branch.contactPhone,
-        email: branch.contactEmail,
-        owner: branch.owner ? {
-            name: branch.owner.name
-        } : null
+        return {
+            success: true,
+            data: {
+                id: branch.id,
+                name: branch.name,
+                qrCode: branch.qrCode,
+                address: branch.address,
+                city: branch.city,
+                state: branch.state,
+                phone: branch.contactPhone,
+                email: branch.contactEmail,
+                owner: branch.owner ? {
+                    name: branch.owner.name
+                } : null
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching branch info:', error)
+        return { success: false, error: 'Failed to fetch branch info' }
     }
 }
 
 export async function getStaffSelfAttendanceToday() {
     const staff = await getAuthenticatedStaff()
-    if (!staff) return null
+    if (!staff) return { success: false, error: 'Unauthorized' }
 
-    const today = startOfDay(new Date())
-    const end = endOfDay(new Date())
+    try {
+        const today = startOfDay(new Date())
+        const end = endOfDay(new Date())
 
-    const record = await prisma.staffAttendance.findFirst({
-        where: {
-            staffId: staff.id,
-            checkIn: {
-                gte: today,
-                lte: end
-            }
-        },
-        orderBy: { checkIn: 'desc' }
-    })
+        const record = await prisma.staffAttendance.findFirst({
+            where: {
+                staffId: staff.id,
+                checkIn: {
+                    gte: today,
+                    lte: end
+                }
+            },
+            orderBy: { checkIn: 'desc' }
+        })
 
-    return record
+        return { success: true, data: record }
+    } catch (error) {
+        console.error('Error fetching staff self attendance today:', error)
+        return { success: false, error: 'Failed to fetch attendance' }
+    }
 }
 
 export async function markStaffSelfAttendance(qrContent: string) {
@@ -644,7 +666,7 @@ export async function markStaffSelfAttendance(qrContent: string) {
 
 export async function getStaffSelfAttendanceHistory(limit: number = 30) {
     const staff = await getAuthenticatedStaff()
-    if (!staff) return []
+    if (!staff) return { success: false, error: 'Unauthorized' }
 
     try {
         const history = await prisma.staffAttendance.findMany({
@@ -657,16 +679,16 @@ export async function getStaffSelfAttendanceHistory(limit: number = 30) {
             take: limit
         })
 
-        return history
+        return { success: true, data: history }
     } catch (error) {
         console.error('Error fetching staff self attendance history:', error)
-        return []
+        return { success: false, error: 'Failed to fetch history' }
     }
 }
 
 export async function getStaffSelfAttendanceStats() {
     const staff = await getAuthenticatedStaff()
-    if (!staff) return null
+    if (!staff) return { success: false, error: 'Unauthorized' }
 
     try {
         const now = new Date()
@@ -700,13 +722,16 @@ export async function getStaffSelfAttendanceStats() {
         const fullDays = monthlyLogs.filter(l => (l.duration || 0) > 240).length // > 4 hours
 
         return {
-            totalSessions,
-            totalHours,
-            avgDurationHours,
-            fullDays
+            success: true,
+            data: {
+                totalSessions,
+                totalHours,
+                avgDurationHours,
+                fullDays
+            }
         }
     } catch (error) {
         console.error('Error fetching staff self stats:', error)
-        return null
+        return { success: false, error: 'Failed to fetch stats' }
     }
 }

@@ -5,7 +5,7 @@ import { getQuotes, getLikedQuoteIds } from '@/actions/quotes'
 import HomeClient from './HomeClient'
 
 export default async function StudentHome() {
-  const [profile, todayAttendance, attendanceStats, quotes, likedQuoteIds] = await Promise.all([
+  const [profileResult, todayAttendance, attendanceStats, quotes, likedQuoteIds] = await Promise.all([
     getStudentProfile(),
     getTodayAttendance(),
     getAttendanceStats(),
@@ -13,10 +13,14 @@ export default async function StudentHome() {
     getLikedQuoteIds()
   ])
 
-  const { student, stats: profileStats } = profile
+  if (!profileResult.success || !profileResult.data) {
+    throw new Error(profileResult.error || 'Failed to load profile')
+  }
+
+  const { student, stats: profileStats } = profileResult.data
 
   // Calculate days left in active subscription (Server Side to avoid Hydration Mismatch)
-  const activeSubscription = student.subscriptions.find((s: any) => s.status === 'active')
+  const activeSubscription = student.subscriptions.find((s) => s.status === 'active')
   const daysLeft = activeSubscription 
     ? Math.ceil((new Date(activeSubscription.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
     : 0

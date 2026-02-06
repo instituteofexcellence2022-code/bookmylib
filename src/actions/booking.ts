@@ -152,7 +152,22 @@ export async function createBooking(data: {
         const branch = await prisma.branch.findUnique({ where: { id: branchId } })
         if (!branch) return { success: false as const, error: 'Branch not found' }
 
-        // 4. Calculate Dates (Chain if active subscription exists)
+        // 4. Validate Seat (if provided) - Check existence early
+        let seatNumber: string | undefined
+        if (seatId) {
+            const seat = await prisma.seat.findUnique({ where: { id: seatId } })
+            if (!seat) return { success: false as const, error: 'Seat not found' }
+            seatNumber = seat.number
+        }
+
+        // 5. Validate Payment (if provided) - Check existence early
+        let existingPayment = null
+        if (paymentId) {
+            existingPayment = await prisma.payment.findUnique({ where: { id: paymentId } })
+            if (!existingPayment) return { success: false as const, error: 'Payment record not found' }
+        }
+
+        // 6. Calculate Dates (Chain if active subscription exists)
         // Find latest active or pending subscription for this student & branch
         const lastSubscription = await prisma.studentSubscription.findFirst({
             where: {
@@ -181,29 +196,30 @@ export async function createBooking(data: {
             end.setMonth(end.getMonth() + plan.duration)
         }
 
-        const result = await prisma.$transaction(async (tx) => {
-            // Validate Seat (if provided) - Check inside transaction for safety
-            let seatNumber: string | undefined
-            if (seatId) {
-                const seat = await tx.seat.findUnique({ where: { id: seatId } })
-                if (!seat) throw new Error('Seat not found')
-                seatNumber = seat.number
-
-                // Check for overlapping subscriptions on this seat
-                const conflictingSub = await tx.studentSubscription.findFirst({
-                    where: {
-                        seatId,
-                        status: { in: ['active', 'pending'] },
-                        startDate: { lt: end },
-                        endDate: { gt: start }
-                    }
-                })
-
-                if (conflictingSub) {
-                    throw new Error('Seat is already occupied for the selected dates')
+        // Check for overlapping subscriptions on this seat (Outside transaction)
+        if (seatId) {
+            const conflictingSub = await prisma.studentSubscription.findFirst({
+                where: {
+                    seatId,
+                    status: { in: ['active', 'pending'] },
+                    startDate: { lt: end },
+                    endDate: { gt: start }
                 }
-            }
+            })
 
+            if (conflictingSub) {
+                return { success: false, error: 'Seat is already occupied for the selected dates' }
+            }
+        }
+
+        // Validate Existing Payment Status (Outside transaction)
+        if (existingPayment) {
+             if (existingPayment.status !== 'completed' && existingPayment.status !== 'pending_verification' && existingPayment.status !== 'pending') {
+                 return { success: false, error: 'Payment failed, cannot book' }
+             }
+        }
+
+        const result = await prisma.$transaction(async (tx) => {
             let paymentIdToUse = paymentId
             let invoiceNoToUse: string | null = null
             let subscriptionStatus = 'active' // Default for legacy/admin calls
@@ -211,31 +227,27 @@ export async function createBooking(data: {
             let paymentStatus = 'pending'
             let discount = 0
             let finalAmount = 0
+            let feeDescription = '' // Initialize variable
 
-            if (paymentId) {
-                // Validate existing payment
-                const payment = await tx.payment.findUnique({ where: { id: paymentId } })
-                if (!payment) throw new Error('Payment record not found')
-                
-                invoiceNoToUse = payment.invoiceNo
-                amountPaid = payment.amount
-                discount = payment.discountAmount || 0
+            if (existingPayment) {
+                // Use pre-fetched payment
+                invoiceNoToUse = existingPayment.invoiceNo
+                amountPaid = existingPayment.amount
+                discount = existingPayment.discountAmount || 0
                 finalAmount = amountPaid
 
                 // Set status based on payment
-                if (payment.status === 'completed') {
+                if (existingPayment.status === 'completed') {
                     subscriptionStatus = 'active'
                     paymentStatus = 'paid'
-                } else if (payment.status === 'pending_verification' || payment.status === 'pending') {
+                } else if (existingPayment.status === 'pending_verification' || existingPayment.status === 'pending') {
                     subscriptionStatus = 'pending'
                     paymentStatus = 'pending'
-                } else {
-                    throw new Error('Payment failed, cannot book')
                 }
             } else {
                 // 5. Calculate Total Amount & Validate Fees (Only needed if creating new payment)
                 let totalAmount = plan.price
-                let feeDescription = `Plan: ${plan.name}`
+                feeDescription = `Plan: ${plan.name}`
 
                 if (additionalFeeIds.length > 0) {
                     const fees = await tx.additionalFee.findMany({

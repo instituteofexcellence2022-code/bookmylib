@@ -36,8 +36,13 @@ export function VerifyPaymentList() {
 
     const fetchPayments = async () => {
         try {
-            const data = await getPendingPayments()
-            setPayments(data)
+            const result = await getPendingPayments()
+            if (result.success && result.data) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                setPayments(result.data as any)
+            } else {
+                toast.error(result.error || 'Failed to fetch pending payments')
+            }
         } catch (error) {
             console.error(error)
             toast.error('Failed to fetch pending payments')

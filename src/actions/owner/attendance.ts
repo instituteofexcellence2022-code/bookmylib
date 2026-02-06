@@ -18,7 +18,7 @@ export type AttendanceFilter = {
 
 export async function getOwnerAttendanceLogs(filters: AttendanceFilter) {
     const owner = await getAuthenticatedOwner()
-    if (!owner) throw new Error('Unauthorized')
+    if (!owner) return { success: false, error: 'Unauthorized' }
 
     const page = filters.page || 1
     const limit = filters.limit || 10
@@ -93,19 +93,22 @@ export async function getOwnerAttendanceLogs(filters: AttendanceFilter) {
         ])
 
         return {
-            logs,
-            total,
-            pages: Math.ceil(total / limit)
+            success: true,
+            data: {
+                logs,
+                total,
+                pages: Math.ceil(total / limit)
+            }
         }
     } catch (error) {
         console.error('Error fetching attendance logs:', error)
-        throw new Error('Failed to fetch attendance logs')
+        return { success: false, error: 'Failed to fetch attendance logs' }
     }
 }
 
 export async function getOwnerAttendanceStats(branchId?: string, date: Date = new Date()) {
     const owner = await getAuthenticatedOwner()
-    if (!owner) throw new Error('Unauthorized')
+    if (!owner) return { success: false, error: 'Unauthorized' }
 
     const start = startOfDay(date)
     const end = endOfDay(date)
@@ -151,20 +154,23 @@ export async function getOwnerAttendanceStats(branchId?: string, date: Date = ne
         const peakHour = `${peakHourIndex}:00 - ${peakHourIndex + 1}:00`
 
         return {
-            totalPresent,
-            currentlyCheckedIn,
-            avgDuration, // in minutes
-            peakHour
+            success: true,
+            data: {
+                totalPresent,
+                currentlyCheckedIn,
+                avgDuration, // in minutes
+                peakHour
+            }
         }
     } catch (error) {
         console.error('Error fetching attendance stats:', error)
-        throw new Error('Failed to fetch attendance stats')
+        return { success: false, error: 'Failed to fetch attendance stats' }
     }
 }
 
 export async function getAttendanceAnalytics(days: number = 7) {
     const owner = await getAuthenticatedOwner()
-    if (!owner) throw new Error('Unauthorized')
+    if (!owner) return { success: false, error: 'Unauthorized' }
 
     const endDate = endOfDay(new Date())
     const startDate = startOfDay(subDays(new Date(), days - 1))
@@ -235,19 +241,22 @@ export async function getAttendanceAnalytics(days: number = 7) {
             : 0
 
         return {
-            dailyTrends,
-            hourlyDistribution,
-            branchComparison,
-            summary: {
-                totalVisits,
-                uniqueStudents,
-                avgDuration,
-                attendanceRate: totalVisits > 0 ? Math.round((totalVisits / days) * 10) / 10 : 0 // Avg visits per day
+            success: true,
+            data: {
+                dailyTrends,
+                hourlyDistribution,
+                branchComparison,
+                summary: {
+                    totalVisits,
+                    uniqueStudents,
+                    avgDuration,
+                    attendanceRate: totalVisits > 0 ? Math.round((totalVisits / days) * 10) / 10 : 0 // Avg visits per day
+                }
             }
         }
     } catch (error) {
         console.error('Error fetching analytics:', error)
-        throw new Error('Failed to fetch analytics')
+        return { success: false, error: 'Failed to fetch analytics' }
     }
 }
 

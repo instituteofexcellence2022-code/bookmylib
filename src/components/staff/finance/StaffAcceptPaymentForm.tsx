@@ -110,8 +110,8 @@ export function StaffAcceptPaymentForm() {
             if (initialStudentId && !selectedStudent) {
                 try {
                     const result = await getStudentDetails(initialStudentId)
-                    if (result && result.student) {
-                        const s = result.student
+                    if (result.success && result.data && result.data.student) {
+                        const s = result.data.student
                         setSelectedStudent({
                             id: s.id,
                             name: s.name,
@@ -156,11 +156,13 @@ export function StaffAcceptPaymentForm() {
     useEffect(() => {
         async function loadData() {
             try {
-                const data = await getStaffBranchDetails()
-                setPlans(data.plans || []) 
-                setFees(data.fees || [])
-                setSeats(data.seats || [])
-                setBranchDetails(data.branch)
+                const res = await getStaffBranchDetails()
+                if (res.success && res.data) {
+                    setPlans(res.data.plans || [])
+                    setFees(res.data.fees || [])
+                    setSeats(res.data.seats || [])
+                    setBranchDetails(res.data.branch)
+                }
             } catch (error) {
                 console.error(error)
                 toast.error('Failed to load branch details')
@@ -190,7 +192,9 @@ export function StaffAcceptPaymentForm() {
                 setSearching(true)
                 try {
                     const result = await getStaffStudents({ search: searchQuery, limit: 5 })
-                    setStudents(result.students)
+                    if (result.success && result.data) {
+                        setStudents(result.data.students)
+                    }
                 } catch (error) {
                     console.error('Search error:', error)
                 } finally {
@@ -337,7 +341,7 @@ export function StaffAcceptPaymentForm() {
 
         try {
             setSubmitting(true)
-            const payment = await createStaffPayment({
+            const result = await createStaffPayment({
                 studentId: selectedStudent.id,
                 amount: parseFloat(amount),
                 method,
@@ -349,16 +353,20 @@ export function StaffAcceptPaymentForm() {
                 discount: (appliedCoupon?.discount || 0) + (parseFloat(additionalDiscount) || 0)
             })
             
-            setSuccessData({
-                ...payment,
-                studentName: selectedStudent.name,
-                planName: selectedPlan.name,
-                invoiceNo: `INV-${Date.now()}` // Fallback
-            })
-            setStep('success')
-            toast.success('Payment collected successfully')
+            if (result.success && result.data) {
+                setSuccessData({
+                    ...result.data,
+                    studentName: selectedStudent.name,
+                    planName: selectedPlan.name,
+                    invoiceNo: result.data.invoiceNo || `INV-${Date.now()}`
+                })
+                setStep('success')
+                toast.success('Payment collected successfully')
+            } else {
+                toast.error(result.error || 'Failed to process payment')
+            }
         } catch (error) {
-            toast.error((error as Error)?.message || 'Failed to process payment')
+            toast.error('An unexpected error occurred')
             console.error(error)
         } finally {
             setSubmitting(false)

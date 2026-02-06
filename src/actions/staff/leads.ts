@@ -27,36 +27,36 @@ export type CreateLeadInput = {
 // Removed local helper in favor of imported one
 
 export async function getLeads(filters: LeadFilter) {
-    const staff = await getAuthenticatedStaff()
-    if (!staff) throw new Error('Unauthorized')
-
-    const page = filters.page || 1
-    const limit = filters.limit || 10
-    const skip = (page - 1) * limit
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {
-        libraryId: staff.libraryId,
-        branchId: staff.branchId, // Strictly scoped to staff's branch
-    }
-
-    if (filters.status && filters.status !== 'all') {
-        where.status = filters.status
-    }
-
-    if (filters.source && filters.source !== 'all') {
-        where.source = filters.source
-    }
-
-    if (filters.search) {
-        where.OR = [
-            { name: { contains: filters.search, mode: 'insensitive' } },
-            { phone: { contains: filters.search, mode: 'insensitive' } },
-            { email: { contains: filters.search, mode: 'insensitive' } },
-        ]
-    }
-
     try {
+        const staff = await getAuthenticatedStaff()
+        if (!staff) return { success: false, error: 'Unauthorized' }
+
+        const page = filters.page || 1
+        const limit = filters.limit || 10
+        const skip = (page - 1) * limit
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const where: any = {
+            libraryId: staff.libraryId,
+            branchId: staff.branchId, // Strictly scoped to staff's branch
+        }
+
+        if (filters.status && filters.status !== 'all') {
+            where.status = filters.status
+        }
+
+        if (filters.source && filters.source !== 'all') {
+            where.source = filters.source
+        }
+
+        if (filters.search) {
+            where.OR = [
+                { name: { contains: filters.search, mode: 'insensitive' } },
+                { phone: { contains: filters.search, mode: 'insensitive' } },
+                { email: { contains: filters.search, mode: 'insensitive' } },
+            ]
+        }
+
         const [leads, total] = await Promise.all([
             prisma.lead.findMany({
                 where,
@@ -77,29 +77,32 @@ export async function getLeads(filters: LeadFilter) {
         ])
 
         return {
-            leads,
-            metadata: {
-                total,
-                page,
-                limit,
-                totalPages: Math.ceil(total / limit)
+            success: true,
+            data: {
+                leads,
+                metadata: {
+                    total,
+                    page,
+                    limit,
+                    totalPages: Math.ceil(total / limit)
+                }
             }
         }
     } catch (error) {
         console.error('Error fetching leads:', error)
-        throw new Error('Failed to fetch leads')
+        return { success: false, error: 'Failed to fetch leads' }
     }
 }
 
 export async function createLead(data: CreateLeadInput) {
-    const staff = await getAuthenticatedStaff()
-    if (!staff) throw new Error('Unauthorized')
-
-    if (!/^\d{10}$/.test(data.phone)) {
-        throw new Error('Phone number must be exactly 10 digits')
-    }
-
     try {
+        const staff = await getAuthenticatedStaff()
+        if (!staff) return { success: false, error: 'Unauthorized' }
+
+        if (!/^\d{10}$/.test(data.phone)) {
+            return { success: false, error: 'Phone number must be exactly 10 digits' }
+        }
+
         const lead = await prisma.lead.create({
             data: {
                 libraryId: staff.libraryId,
@@ -125,18 +128,18 @@ export async function createLead(data: CreateLeadInput) {
         }
 
         revalidatePath('/staff/leads')
-        return { success: true, lead }
+        return { success: true, data: lead }
     } catch (error) {
         console.error('Error creating lead:', error)
-        throw new Error('Failed to create lead')
+        return { success: false, error: 'Failed to create lead' }
     }
 }
 
 export async function updateLeadStatus(leadId: string, status: string) {
-    const staff = await getAuthenticatedStaff()
-    if (!staff) throw new Error('Unauthorized')
-
     try {
+        const staff = await getAuthenticatedStaff()
+        if (!staff) return { success: false, error: 'Unauthorized' }
+
         const lead = await prisma.lead.update({
             where: { 
                 id: leadId,
@@ -156,18 +159,18 @@ export async function updateLeadStatus(leadId: string, status: string) {
         })
 
         revalidatePath('/staff/leads')
-        return { success: true, lead }
+        return { success: true, data: lead }
     } catch (error) {
         console.error('Error updating lead status:', error)
-        throw new Error('Failed to update lead status')
+        return { success: false, error: 'Failed to update lead status' }
     }
 }
 
 export async function addLeadInteraction(leadId: string, type: string, notes: string) {
-    const staff = await getAuthenticatedStaff()
-    if (!staff) throw new Error('Unauthorized')
-
     try {
+        const staff = await getAuthenticatedStaff()
+        if (!staff) return { success: false, error: 'Unauthorized' }
+
         // Verify lead ownership
         const lead = await prisma.lead.findFirst({
             where: {
@@ -176,7 +179,7 @@ export async function addLeadInteraction(leadId: string, type: string, notes: st
             }
         })
 
-        if (!lead) throw new Error('Lead not found')
+        if (!lead) return { success: false, error: 'Lead not found' }
 
         const interaction = await prisma.leadInteraction.create({
             data: {
@@ -194,18 +197,18 @@ export async function addLeadInteraction(leadId: string, type: string, notes: st
         })
 
         revalidatePath('/staff/leads')
-        return { success: true, interaction }
+        return { success: true, data: interaction }
     } catch (error) {
         console.error('Error adding interaction:', error)
-        throw new Error('Failed to add interaction')
+        return { success: false, error: 'Failed to add interaction' }
     }
 }
 
 export async function convertLeadToStudent(leadId: string, data: { password: string, email?: string }) {
-    const staff = await getAuthenticatedStaff()
-    if (!staff) throw new Error('Unauthorized')
-
     try {
+        const staff = await getAuthenticatedStaff()
+        if (!staff) return { success: false, error: 'Unauthorized' }
+
         const lead = await prisma.lead.findFirst({
             where: {
                 id: leadId,
@@ -213,18 +216,18 @@ export async function convertLeadToStudent(leadId: string, data: { password: str
             }
         })
 
-        if (!lead) throw new Error('Lead not found')
+        if (!lead) return { success: false, error: 'Lead not found' }
 
         // Use provided email or lead email
         const email = data.email || lead.email
-        if (!email) throw new Error('Email is required for student conversion')
+        if (!email) return { success: false, error: 'Email is required for student conversion' }
 
         // Check if student exists
         const existingStudent = await prisma.student.findUnique({
             where: { email }
         })
 
-        if (existingStudent) throw new Error('Student with this email already exists')
+        if (existingStudent) return { success: false, error: 'Student with this email already exists' }
 
         // Hash password
         const hashedPassword = await bcrypt.hash(data.password, 10)
@@ -284,18 +287,18 @@ export async function convertLeadToStudent(leadId: string, data: { password: str
         revalidatePath('/staff/leads')
         revalidatePath('/staff/students')
         
-        return { success: true, studentId: student.id }
+        return { success: true, data: { studentId: student.id } }
     } catch (error) {
         console.error('Error converting lead:', error)
-        throw error
+        return { success: false, error: error instanceof Error ? error.message : 'Failed to convert lead' }
     }
 }
 
 export async function getLeadDetails(leadId: string) {
-    const staff = await getAuthenticatedStaff()
-    if (!staff) throw new Error('Unauthorized')
-
     try {
+        const staff = await getAuthenticatedStaff()
+        if (!staff) return { success: false, error: 'Unauthorized' }
+
         const lead = await prisma.lead.findFirst({
             where: {
                 id: leadId,
@@ -313,9 +316,9 @@ export async function getLeadDetails(leadId: string) {
             }
         })
 
-        return lead
+        return { success: true, data: lead }
     } catch (error) {
         console.error('Error fetching lead details:', error)
-        throw new Error('Failed to fetch lead details')
+        return { success: false, error: 'Failed to fetch lead details' }
     }
 }

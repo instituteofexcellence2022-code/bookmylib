@@ -82,8 +82,12 @@ export default function StudentsPage() {
         setLoading(true)
         try {
             const result = await getOwnerStudents(filters)
-            setStudents(result.students)
-            setTotal(result.total)
+            if (result.success && result.data) {
+                setStudents(result.data.students)
+                setTotal(result.data.total)
+            } else {
+                toast.error(result.error || 'Failed to fetch students')
+            }
         } catch (_) {
             toast.error('Failed to fetch students')
         } finally {

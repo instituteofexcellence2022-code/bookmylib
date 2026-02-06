@@ -19,7 +19,7 @@ import { getAuthenticatedStaff } from '@/lib/auth/staff'
 
 export async function getStaffStudents(filters: StudentFilter = {}) {
     const staff = await getAuthenticatedStaff()
-    if (!staff) throw new Error('Unauthorized')
+    if (!staff) return { success: false, error: 'Unauthorized' }
 
     const { search, status, page = 1, limit = 10 } = filters
     const skip = (page - 1) * limit
@@ -161,15 +161,18 @@ export async function getStaffStudents(filters: StudentFilter = {}) {
     })
 
     return {
-        students: enhancedStudents,
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit)
+        success: true,
+        data: {
+            students: enhancedStudents,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        }
     }
     } catch (error) {
         console.error('Error fetching students:', error)
-        throw new Error('Failed to fetch students')
+        return { success: false, error: 'Failed to fetch students' }
     }
 }
 
@@ -245,7 +248,7 @@ export async function getStudentDetailsForScanner(studentId: string) {
 
 export async function createStudent(formData: FormData) {
     const staff = await getAuthenticatedStaff()
-    if (!staff) throw new Error('Unauthorized')
+    if (!staff) return { success: false, error: 'Unauthorized' }
 
     const name = formData.get('name') as string
     const email = formData.get('email') as string || null
@@ -305,12 +308,20 @@ export async function createStudent(formData: FormData) {
 
         let imagePath = null
         if (imageFile && imageFile.size > 0) {
-            imagePath = await uploadFile(imageFile)
+            const uploadRes = await uploadFile(imageFile)
+            if (!uploadRes.success) {
+                return { success: false, error: uploadRes.error || 'Failed to upload profile image' }
+            }
+            imagePath = uploadRes.data
         }
 
         let govtIdPath = null
         if (govtIdFile && govtIdFile.size > 0) {
-            govtIdPath = await uploadFile(govtIdFile)
+            const uploadRes = await uploadFile(govtIdFile)
+            if (!uploadRes.success) {
+                return { success: false, error: uploadRes.error || 'Failed to upload government ID' }
+            }
+            govtIdPath = uploadRes.data
         }
 
         const student = await prisma.student.create({
@@ -368,7 +379,7 @@ export async function createStudent(formData: FormData) {
 
 export async function getStudentDetails(studentId: string) {
     const staff = await getAuthenticatedStaff()
-    if (!staff) throw new Error('Unauthorized')
+    if (!staff) return { success: false, error: 'Unauthorized' }
 
     try {
         // STRICT BRANCH CHECK: Use findFirst with branch filters instead of findUnique
@@ -429,7 +440,7 @@ export async function getStudentDetails(studentId: string) {
             }
         })
 
-        if (!student) return null
+        if (!student) return { success: false, error: 'Student not found or access denied' }
 
         const totalAttendance = await prisma.attendance.count({
             where: { 
@@ -453,12 +464,15 @@ export async function getStudentDetails(studentId: string) {
         }
 
         return {
-            student: maskedStudent,
-            stats: {
-                totalAttendance,
-                totalSpent,
-                activePlan: activeSubscription?.plan?.name || 'None',
-                lastActive: student.attendance[0]?.date || null
+            success: true,
+            data: {
+                student: maskedStudent,
+                stats: {
+                    totalAttendance,
+                    totalSpent,
+                    activePlan: activeSubscription?.plan?.name || 'None',
+                    lastActive: student.attendance[0]?.date || null
+                }
             }
         }
     } catch (error) {
@@ -467,7 +481,7 @@ export async function getStudentDetails(studentId: string) {
             throw error
         }
         console.error('Error fetching student details:', error)
-        return null
+        return { success: false, error: 'Failed to fetch student details' }
     }
 }
 
@@ -841,7 +855,11 @@ export async function uploadStudentGovtId(formData: FormData) {
             return { success: false, error: 'Student not found or unauthorized' }
         }
 
-        const path = await uploadFile(file)
+        const uploadRes = await uploadFile(file)
+        if (!uploadRes.success) {
+            return { success: false, error: uploadRes.error || 'Failed to upload document' }
+        }
+        const path = uploadRes.data
         
         await prisma.student.update({
             where: { id: studentId },

@@ -229,8 +229,12 @@ export async function createBranch(formData: FormData) {
     for (const file of imageFiles) {
       if (file && file.size > 0) {
         try {
-          const url = await uploadFile(file)
-          if (url) uploadedUrls.push(url)
+          const uploadRes = await uploadFile(file)
+          if (uploadRes.success && uploadRes.data) {
+            uploadedUrls.push(uploadRes.data)
+          } else {
+             console.error('Failed to upload branch image:', uploadRes.error)
+          }
         } catch (e) {
           console.error('Failed to upload branch image:', e)
         }
@@ -372,8 +376,12 @@ export async function updateBranch(formData: FormData) {
     for (const file of imageFiles) {
       if (file && file.size > 0) {
         try {
-          const url = await uploadFile(file)
-          if (url) newUrls.push(url)
+          const uploadRes = await uploadFile(file)
+          if (uploadRes.success && uploadRes.data) {
+            newUrls.push(uploadRes.data)
+          } else {
+            console.error('Failed to upload branch image:', uploadRes.error)
+          }
         } catch (e) {
           console.error('Failed to upload branch image:', e)
         }

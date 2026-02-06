@@ -42,8 +42,10 @@ export function StaffLeadDetailsModal({ leadId, onClose, onUpdate }: StaffLeadDe
 
     const fetchLead = async () => {
         try {
-            const data = await getLeadDetails(leadId)
-            setLead(data)
+            const res = await getLeadDetails(leadId)
+            if (res.success && res.data) {
+                setLead(res.data)
+            }
         } catch (error) {
             console.error(error)
             toast.error('Failed to load lead details')

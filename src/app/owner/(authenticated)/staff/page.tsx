@@ -54,14 +54,15 @@ export default function StaffPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const data = await getStaffManagementData()
+        const response = await getStaffManagementData()
         
-        if (data) {
+        if (response.success && response.data) {
+          const data = response.data
           setStaffList(data.staff as unknown as StaffWithBranch[])
           setStats(data.stats)
           setBranches(data.branches.map((b: { name: string, id: string }) => ({ label: b.name, value: b.name })))
         } else {
-            toast.error('Failed to load staff data')
+            toast.error(response.error || 'Failed to load staff data')
         }
         
       } catch (error) {

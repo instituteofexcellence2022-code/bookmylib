@@ -124,7 +124,7 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [staff, branchesResult, attendanceData] = await Promise.all([
+        const [staffRes, branchesResult, attendanceRes] = await Promise.all([
           getStaffDetails(id),
           getOwnerBranches(),
           getStaffAttendance(id)
@@ -133,9 +133,13 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
         if (branchesResult.success && branchesResult.data) {
           setBranches(branchesResult.data.map((b: { name: string, id: string }) => ({ label: b.name, value: b.id })))
         }
-        setAttendance(attendanceData.map((a: Prisma.StaffAttendanceGetPayload<object>) => ({ ...a, date: new Date(a.date).toISOString() })))
+        
+        if (attendanceRes.success && attendanceRes.data) {
+            setAttendance(attendanceRes.data.map((a: Prisma.StaffAttendanceGetPayload<object>) => ({ ...a, date: new Date(a.date).toISOString() })))
+        }
 
-        if (staff) {
+        if (staffRes.success && staffRes.data) {
+          const staff = staffRes.data
           const [firstName, ...lastNameParts] = staff.name.split(' ')
           const lastName = lastNameParts.join(' ')
           
@@ -186,7 +190,7 @@ export default function EditStaffPage({ params }: { params: Promise<{ id: string
             status: staff.status || 'active'
           })
         } else {
-            toast.error('Staff not found')
+            toast.error(staffRes.error || 'Staff not found')
             router.push('/owner/staff')
         }
       } catch (error) {

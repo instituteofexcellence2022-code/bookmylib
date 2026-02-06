@@ -69,14 +69,25 @@ export function StaffKhatabookClient() {
 
     const fetchData = async () => {
         try {
-            const [summaryData, transactionsData, pendingData] = await Promise.all([
+            const [summaryRes, transactionsRes, pendingRes] = await Promise.all([
                 getStaffCashSummary(),
                 getStaffKhatabook(),
                 getPendingCashTransactions()
             ])
-            setSummary(summaryData)
-            setTransactions(transactionsData)
-            setPendingTransactions(pendingData as PendingTransaction[])
+
+            if (summaryRes.success && summaryRes.data) {
+                setSummary(summaryRes.data)
+            } else {
+                toast.error(summaryRes.error || 'Failed to fetch summary')
+            }
+
+            if (transactionsRes.success && transactionsRes.data) {
+                setTransactions(transactionsRes.data)
+            }
+
+            if (pendingRes.success && pendingRes.data) {
+                setPendingTransactions(pendingRes.data as PendingTransaction[])
+            }
         } catch {
             toast.error('Failed to load khatabook data')
         } finally {
@@ -137,25 +148,30 @@ export function StaffKhatabookClient() {
 
         setSubmitting(true)
         try {
-            await createHandoverRequest({
+            const result = await createHandoverRequest({
                 amount: numAmount,
                 notes,
                 method,
                 attachmentUrl,
                 paymentIds: Array.from(selectedTxIds)
             })
-            toast.success('Handover request submitted successfully')
             
-            // Reset form
-            setAmount('')
-            setNotes('')
-            setMethod('CASH')
-            setSelectedTxIds(new Set())
-            setShowHandoverForm(false)
-            
-            fetchData() // Refresh data
+            if (result.success) {
+                toast.success('Handover request submitted successfully')
+                
+                // Reset form
+                setAmount('')
+                setNotes('')
+                setMethod('CASH')
+                setSelectedTxIds(new Set())
+                setShowHandoverForm(false)
+                
+                fetchData() // Refresh data
+            } else {
+                toast.error(result.error || 'Failed to submit handover request')
+            }
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : 'Failed to submit handover request')
+            toast.error('Failed to submit handover request')
         } finally {
             setSubmitting(false)
         }

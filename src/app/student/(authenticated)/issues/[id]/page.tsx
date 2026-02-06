@@ -9,9 +9,9 @@ export const dynamic = 'force-dynamic'
 export default async function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const ticket = await getStudentTicketDetails(id)
-  const profile = await getStudentProfile()
+  const profileResult = await getStudentProfile()
 
-  if (!ticket || !profile) {
+  if (!ticket || !profileResult.success || !profileResult.data) {
     notFound()
   }
 
@@ -27,7 +27,7 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
   }
 
   // Serialize student dates (basic serialization for profile use)
-  const serializedStudent = JSON.parse(JSON.stringify(profile.student))
+  const serializedStudent = JSON.parse(JSON.stringify(profileResult.data.student))
 
   return <TicketDetailClient ticket={serializedTicket} student={serializedStudent} />
 }

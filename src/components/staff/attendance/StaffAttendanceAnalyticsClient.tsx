@@ -45,7 +45,11 @@ export function StaffAttendanceAnalyticsClient() {
       setLoading(true)
       try {
         const result = await getStaffAttendanceAnalytics(days)
-        setData(result)
+        if (result.success && result.data) {
+            setData(result.data)
+        } else {
+            toast.error(result.error || 'Failed to load analytics')
+        }
       } catch {
         toast.error('Failed to load analytics')
       } finally {

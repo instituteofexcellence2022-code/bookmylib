@@ -102,8 +102,12 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                 startDate: viewMode === 'range' ? new Date(filters.startDate) : undefined,
                 endDate: viewMode === 'range' ? new Date(filters.endDate) : undefined,
             })
-            setLogs(result.logs as unknown as AttendanceLog[])
-            setTotal(result.total)
+            if (result.success && result.data) {
+                setLogs(result.data.logs as unknown as AttendanceLog[])
+                setTotal(result.data.total)
+            } else {
+                toast.error(result.error || 'Failed to load attendance logs')
+            }
         } catch {
             toast.error('Failed to load attendance logs')
         } finally {
@@ -120,9 +124,14 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                 filters.branchId || undefined, 
                 dateToFetch
             )
-            setStats(result)
+            if (result.success && result.data) {
+                setStats(result.data)
+            } else {
+                toast.error(result.error || 'Failed to load stats')
+            }
         } catch (error) {
             console.error('Failed to load stats', error)
+            toast.error('Failed to load stats')
         } finally {
             setStatsLoading(false)
         }

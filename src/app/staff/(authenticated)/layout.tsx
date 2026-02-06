@@ -5,14 +5,16 @@ import StaffLayoutClient from './StaffLayoutClient'
 import { redirect } from 'next/navigation'
 
 export default async function StaffLayout({ children }: { children: React.ReactNode }) {
-  const staff = await getStaffProfile()
+  const staffRes = await getStaffProfile()
 
-  if (!staff) {
+  if (!staffRes.success || !staffRes.data) {
       redirect('/api/auth/clear-session?role=staff')
   }
 
+  const staff = staffRes.data
+
   const announcements = await getStaffAnnouncements(
-    staff ? { libraryId: staff.libraryId, branchId: staff.branchId } : undefined
+    { libraryId: staff.libraryId, branchId: staff.branchId }
   )
   const serializedAnnouncements = JSON.parse(JSON.stringify(announcements))
 

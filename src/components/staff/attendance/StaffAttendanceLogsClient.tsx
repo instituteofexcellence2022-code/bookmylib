@@ -86,10 +86,19 @@ export function StaffAttendanceLogsClient({ defaultView = 'day' }: StaffAttendan
                 startDate: viewMode === 'range' ? new Date(filters.startDate) : undefined,
                 endDate: viewMode === 'range' ? new Date(filters.endDate) : undefined,
             })
-            setLogs(result.logs as unknown as AttendanceLog[])
-            setTotal(result.total)
+            
+            if (result.success && result.data) {
+                setLogs(result.data.logs as unknown as AttendanceLog[])
+                setTotal(result.data.total)
+            } else {
+                toast.error(result.error || 'Failed to load attendance logs')
+                setLogs([])
+                setTotal(0)
+            }
         } catch {
             toast.error('Failed to load attendance logs')
+            setLogs([])
+            setTotal(0)
         } finally {
             setLoading(false)
         }
@@ -101,7 +110,11 @@ export function StaffAttendanceLogsClient({ defaultView = 'day' }: StaffAttendan
         try {
             const dateToFetch = viewMode === 'day' ? new Date(filters.date) : new Date()
             const result = await getStaffAttendanceStats(dateToFetch)
-            setStats(result)
+            if (result.success && result.data) {
+                setStats(result.data)
+            } else {
+                console.error('Failed to load stats', result.error)
+            }
         } catch (error) {
             console.error('Failed to load stats', error)
         } finally {

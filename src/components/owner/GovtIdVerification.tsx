@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { AlertCircle, Maximize2, X } from 'lucide-react'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
-import { verifyStudentGovtId } from '@/actions/owner'
+import { verifyStudentGovtId } from '@/actions/owner/students'
 import { toast } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'

@@ -63,9 +63,11 @@ export function StaffDuesClient() {
         try {
             setLoading(true)
             const days = selectedDays === 'custom' ? (parseInt(customDays) || 7) : parseInt(selectedDays)
-            const { expiries, overdue: overdueData } = await getBranchDues(days)
-            setUpcoming(expiries)
-            setOverdue(overdueData)
+            const res = await getBranchDues(days)
+            if (res.success && res.data) {
+                setUpcoming(res.data.expiries)
+                setOverdue(res.data.overdue)
+            }
         } catch {
             toast.error('Failed to fetch dues')
         } finally {

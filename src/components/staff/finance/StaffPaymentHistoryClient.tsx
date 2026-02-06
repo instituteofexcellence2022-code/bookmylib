@@ -182,12 +182,14 @@ function StudentTransactionHistory({
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        getStaffTransactions({ studentId }, 6).then((data) => {
-            // Filter out current transaction and limit to 5
-            const filtered = (data as unknown as Transaction[])
-                .filter(t => t.id !== currentTxId)
-                .slice(0, 5)
-            setHistory(filtered)
+        getStaffTransactions({ studentId }, 6).then((result) => {
+            if (result.success && result.data) {
+                // Filter out current transaction and limit to 5
+                const filtered = (result.data as unknown as Transaction[])
+                    .filter(t => t.id !== currentTxId)
+                    .slice(0, 5)
+                setHistory(filtered)
+            }
             setLoading(false)
         })
     }, [studentId, currentTxId])
@@ -336,8 +338,12 @@ export function StaffPaymentHistoryClient() {
           filters.endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0)
       }
 
-      const data = await getStaffTransactions(filters, 50)
-      setTransactions(data as unknown as Transaction[])
+      const result = await getStaffTransactions(filters, 50)
+      if (result.success && result.data) {
+        setTransactions(result.data as unknown as Transaction[])
+      } else {
+        toast.error(result.error || 'Failed to load transactions')
+      }
     } catch {
       toast.error('Failed to load transactions')
     } finally {

@@ -51,7 +51,11 @@ export function AttendanceAnalyticsClient() {
       setLoading(true)
       try {
         const result = await getAttendanceAnalytics(days)
-        setData(result)
+        if (result.success && result.data) {
+          setData(result.data)
+        } else {
+          toast.error(result.error || 'Failed to load analytics')
+        }
       } catch {
         toast.error('Failed to load analytics')
       } finally {

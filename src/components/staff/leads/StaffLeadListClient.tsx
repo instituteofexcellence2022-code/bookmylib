@@ -50,8 +50,10 @@ export function StaffLeadListClient() {
         setLoading(true)
         try {
             const result = await getLeads(filters)
-            setLeads(result.leads)
-            setMetadata(result.metadata)
+            if (result.success && result.data) {
+                setLeads(result.data.leads)
+                setMetadata(result.data.metadata)
+            }
         } catch (error) {
             console.error(error)
         } finally {

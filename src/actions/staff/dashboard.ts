@@ -6,7 +6,7 @@ import { getStaffSelfAttendanceToday } from './attendance'
 
 export async function getStaffDashboardStats() {
   const staff = await getAuthenticatedStaff()
-  if (!staff) return null
+  if (!staff) return { success: false, error: 'Unauthorized' }
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -65,7 +65,8 @@ export async function getStaffDashboardStats() {
     })
 
     // 4. Staff Shift Status
-    const attendance = await getStaffSelfAttendanceToday()
+    const attendanceRes = await getStaffSelfAttendanceToday()
+    const attendance = (attendanceRes.success && attendanceRes.data) ? attendanceRes.data : null
     
     // 5. Recent Activity (Last 5 payments/registrations mixed - simplified to just payments for now)
     const recentPayments = await prisma.payment.findMany({
@@ -87,18 +88,21 @@ export async function getStaffDashboardStats() {
     })
 
     return {
-      stats: {
-        occupancyRate,
-        occupiedSeats,
-        totalSeats,
-        collectedToday,
-        dueRenewals
-      },
-      attendance,
-      recentActivity: recentPayments
+      success: true,
+      data: {
+        stats: {
+          occupancyRate,
+          occupiedSeats,
+          totalSeats,
+          collectedToday,
+          dueRenewals
+        },
+        attendance,
+        recentActivity: recentPayments
+      }
     }
   } catch (error) {
     console.error('Error fetching staff dashboard stats:', error)
-    return null
+    return { success: false, error: 'Failed to fetch dashboard stats' }
   }
 }

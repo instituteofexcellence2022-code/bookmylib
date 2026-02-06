@@ -123,8 +123,12 @@ export default function OwnerDashboard() {
     try {
       setIsLoading(true)
       const branchId = branches.find(b => b.name === selectedBranch)?.id
-      const stats = await getDashboardStats(branchId)
-      setData(stats)
+      const result = await getDashboardStats(branchId)
+      if (result.success && result.data) {
+        setData(result.data)
+      } else {
+        toast.error(result.error || 'Failed to load dashboard data')
+      }
     } catch (error) {
       console.error(error)
       toast.error('Failed to load dashboard data')

@@ -66,12 +66,22 @@ export function DuesAndExpiriesClient() {
         try {
             setLoading(true)
             const days = selectedDays === 'custom' ? (parseInt(customDays) || 7) : parseInt(selectedDays)
-            const [upcomingData, overdueData] = await Promise.all([
+            const [upcomingRes, overdueRes] = await Promise.all([
                 getUpcomingExpiries(days, selectedBranchId),
                 getOverdueSubscriptions(days, selectedBranchId)
             ])
-            setUpcoming(upcomingData)
-            setOverdue(overdueData)
+            
+            if (upcomingRes.success && upcomingRes.data) {
+                setUpcoming(upcomingRes.data)
+            } else {
+                toast.error(upcomingRes.error || 'Failed to fetch upcoming expiries')
+            }
+
+            if (overdueRes.success && overdueRes.data) {
+                setOverdue(overdueRes.data)
+            } else {
+                toast.error(overdueRes.error || 'Failed to fetch overdue subscriptions')
+            }
         } catch {
             toast.error('Failed to fetch dues and expiries')
         } finally {

@@ -13,6 +13,8 @@ import { getAuthenticatedStudent } from '@/lib/auth/student'
 import { getAuthenticatedOwner } from '@/lib/auth/owner'
 import { getAuthenticatedStaff } from '@/lib/auth/staff'
 
+import { calculateDiscount } from '@/lib/payment-utils'
+
 interface ReferralSettings {
     all?: ReferralConfig;
     refereeReward?: RewardConfig;
@@ -300,9 +302,10 @@ export async function initiatePayment(
   let finalAmount = amount
   let promotionId = null
   let discountAmount = 0
-  let updatedDescription = description
+  let updatedDescription: string | null | undefined = description
 
-  // 1. Coupon Logic
+  // 1. Prepare Coupon Config
+  let couponConfig = null
   if (couponCode) {
     const promo = await prisma.promotion.findUnique({
       where: { code: couponCode }
@@ -310,20 +313,17 @@ export async function initiatePayment(
     
     if (promo && promo.isActive) {
       promotionId = promo.id
-      if (promo.type === 'percentage' && promo.value !== null) {
-        discountAmount = (amount * promo.value) / 100
-        if (promo.maxDiscount && discountAmount > promo.maxDiscount) {
-          discountAmount = promo.maxDiscount
-        }
-      } else if (promo.type === 'fixed' && promo.value !== null) {
-        discountAmount = promo.value
+      couponConfig = {
+        type: promo.type,
+        value: promo.value || 0,
+        maxDiscount: promo.maxDiscount
       }
-      finalAmount = Math.round(Math.max(0, amount - discountAmount))
-      updatedDescription += ` (Coupon: ${couponCode})`
     }
   } 
-  // 2. Referral Logic (if no coupon)
-  else {
+
+  // 2. Prepare Referral Config
+  let referralConfig = null
+  if (!couponConfig) { // Only check referral if no coupon
     try {
         const referral = await prisma.referral.findFirst({
             where: { refereeId: student.id, status: 'pending' }
@@ -333,25 +333,34 @@ export async function initiatePayment(
           const lib = await prisma.library.findUnique({ where: { id: libraryId } })
           const settings = (lib?.referralSettings as unknown as ReferralSettings) || {}
           
-          // Support both new (nested) and old (flat) settings structure
           const s = settings.all || settings
           const refereeDiscountValue = s.refereeReward?.value || s.refereeDiscountValue
           const refereeDiscountType = s.refereeReward?.type || s.refereeDiscountType || 'fixed'
           
           if (refereeDiscountValue) {
-            if (refereeDiscountType === 'percentage') {
-              discountAmount = (amount * refereeDiscountValue) / 100
-            } else {
-              discountAmount = refereeDiscountValue
+            referralConfig = {
+              value: refereeDiscountValue,
+              type: refereeDiscountType
             }
-            finalAmount = Math.round(Math.max(0, amount - discountAmount))
-            updatedDescription = updatedDescription ? `${updatedDescription} (Referral Discount)` : `Referral Discount Applied`
           }
         }
     } catch (err) {
         console.error('Error checking referral discount:', err)
     }
   }
+
+  // 3. Calculate
+  const calculation = calculateDiscount(
+    amount, 
+    description || null, 
+    couponConfig, 
+    couponCode || null, 
+    referralConfig
+  )
+
+  finalAmount = calculation.finalAmount
+  discountAmount = calculation.discountAmount
+  updatedDescription = calculation.updatedDescription
 
   try {
     // 1. Create Payment Record (Pending)

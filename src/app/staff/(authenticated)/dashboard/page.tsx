@@ -4,10 +4,11 @@ import { getStaffDashboardStats } from '@/actions/staff/dashboard'
 import DashboardClient from './DashboardClient'
 
 export default async function StaffDashboard() {
-  const staff = await getStaffProfile()
-  const dashboardData = await getStaffDashboardStats()
+  const staffRes = await getStaffProfile()
+  const dashboardRes = await getStaffDashboardStats()
   
-  const staffName = staff ? staff.name : 'Staff'
+  const staffName = (staffRes.success && staffRes.data) ? staffRes.data.name : 'Staff'
+  const dashboardData = (dashboardRes.success && dashboardRes.data) ? dashboardRes.data : null
 
   return (
     <DashboardClient 

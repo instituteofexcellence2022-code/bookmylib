@@ -5,161 +5,179 @@ import { getOwnerProfile } from '@/actions/owner'
 import { revalidatePath } from 'next/cache'
 
 export async function getStaffBalances() {
-    const owner = await getOwnerProfile()
-    if (!owner) throw new Error('Unauthorized')
+    try {
+        const owner = await getOwnerProfile()
+        if (!owner) return { success: false, error: 'Unauthorized' }
 
-    // Get all staff in owner's branches
-    const staffMembers = await prisma.staff.findMany({
-        where: {
-            libraryId: owner.libraryId,
-            branch: {
-                // If owner is assigned to specific branches (not handled in schema yet explicitly for Owner-Branch many-to-many, but assuming owner sees all for now or linked via Library)
-                // Actually Owner has libraryId, so they see all staff in that library.
-                // But if branches have ownerId, maybe filter? 
-                // Let's stick to Library scope for now as per schema.
-            },
-            status: 'active'
-        },
-        include: {
-            branch: { select: { name: true } }
-        }
-    })
-
-    const balances = await Promise.all(staffMembers.map(async (staff) => {
-        // 1. Total Collected (CASH)
-        const totalCollected = await prisma.payment.aggregate({
+        // Get all staff in owner's branches
+        const staffMembers = await prisma.staff.findMany({
             where: {
-                collectedBy: staff.id,
-                status: 'completed',
-                method: 'CASH'
+                libraryId: owner.libraryId,
+                branch: {
+                    // If owner is assigned to specific branches (not handled in schema yet explicitly for Owner-Branch many-to-many, but assuming owner sees all for now or linked via Library)
+                    // Actually Owner has libraryId, so they see all staff in that library.
+                    // But if branches have ownerId, maybe filter? 
+                    // Let's stick to Library scope for now as per schema.
+                },
+                status: 'active'
             },
-            _sum: { amount: true }
+            include: {
+                branch: { select: { name: true } }
+            }
         })
 
-        // 2. Total Handed Over (VERIFIED only)
-        // Owner only sees confirmed cash receipt
-        const totalHandedOver = await prisma.cashHandover.aggregate({
-            where: {
-                staffId: staff.id,
-                status: 'verified'
-            },
-            _sum: { amount: true }
-        })
+        const balances = await Promise.all(staffMembers.map(async (staff) => {
+            // 1. Total Collected (CASH)
+            const totalCollected = await prisma.payment.aggregate({
+                where: {
+                    collectedBy: staff.id,
+                    status: 'completed',
+                    method: 'CASH'
+                },
+                _sum: { amount: true }
+            })
 
-        const collected = totalCollected._sum.amount || 0
-        const handedOver = totalHandedOver._sum.amount || 0
-        
-        // Also get last handover date
-        const lastHandover = await prisma.cashHandover.findFirst({
-            where: { 
-                staffId: staff.id,
-                status: 'verified'
-            },
-            orderBy: { createdAt: 'desc' }
-        })
+            // 2. Total Handed Over (VERIFIED only)
+            // Owner only sees confirmed cash receipt
+            const totalHandedOver = await prisma.cashHandover.aggregate({
+                where: {
+                    staffId: staff.id,
+                    status: 'verified'
+                },
+                _sum: { amount: true }
+            })
 
-        // Count pending handovers and amount
-        const pendingHandovers = await prisma.cashHandover.aggregate({
-            where: {
-                staffId: staff.id,
-                status: 'pending'
-            },
-            _count: { id: true },
-            _sum: { amount: true }
-        })
+            const collected = totalCollected._sum.amount || 0
+            const handedOver = totalHandedOver._sum.amount || 0
+            
+            // Also get last handover date
+            const lastHandover = await prisma.cashHandover.findFirst({
+                where: { 
+                    staffId: staff.id,
+                    status: 'verified'
+                },
+                orderBy: { createdAt: 'desc' }
+            })
 
-        const pendingHandoverCount = pendingHandovers._count.id
-        const pendingHandoverAmount = pendingHandovers._sum.amount || 0
+            // Count pending handovers and amount
+            const pendingHandovers = await prisma.cashHandover.aggregate({
+                where: {
+                    staffId: staff.id,
+                    status: 'pending'
+                },
+                _count: { id: true },
+                _sum: { amount: true }
+            })
 
-        return {
-            id: staff.id,
-            name: staff.name,
-            branchName: staff.branch.name,
-            image: staff.image,
-            totalCollected: collected,
-            totalHandedOver: handedOver,
-            balance: collected - handedOver,
-            lastHandoverAt: lastHandover?.createdAt || null,
-            pendingHandoverCount,
-            pendingHandoverAmount
-        }
-    }))
+            const pendingHandoverCount = pendingHandovers._count.id
+            const pendingHandoverAmount = pendingHandovers._sum.amount || 0
 
-    // Sort by balance desc (highest cash holder first)
-    return balances.sort((a, b) => b.balance - a.balance)
+            return {
+                id: staff.id,
+                name: staff.name,
+                branchName: staff.branch.name,
+                image: staff.image,
+                totalCollected: collected,
+                totalHandedOver: handedOver,
+                balance: collected - handedOver,
+                lastHandoverAt: lastHandover?.createdAt || null,
+                pendingHandoverCount,
+                pendingHandoverAmount
+            }
+        }))
+
+        // Sort by balance desc (highest cash holder first)
+        return { success: true, data: balances.sort((a, b) => b.balance - a.balance) }
+    } catch (error) {
+        console.error('Error fetching staff balances:', error)
+        return { success: false, error: 'Failed to fetch staff balances' }
+    }
 }
 
 export async function verifyHandover(handoverId: string) {
     const owner = await getOwnerProfile()
-    if (!owner) throw new Error('Unauthorized')
+    if (!owner) return { success: false, error: 'Unauthorized' }
 
-    const handover = await prisma.cashHandover.findUnique({
-        where: { id: handoverId }
-    })
+    try {
+        const handover = await prisma.cashHandover.findUnique({
+            where: { id: handoverId }
+        })
 
-    if (!handover) throw new Error('Handover not found')
+        if (!handover) return { success: false, error: 'Handover not found' }
 
-    // Verify it belongs to owner's library
-    if (handover.libraryId !== owner.libraryId) throw new Error('Unauthorized')
+        // Verify it belongs to owner's library
+        if (handover.libraryId !== owner.libraryId) return { success: false, error: 'Unauthorized' }
 
-    await prisma.cashHandover.update({
-        where: { id: handoverId },
-        data: {
-            status: 'verified',
-            verifiedBy: owner.id,
-            verifiedAt: new Date()
-        }
-    })
+        await prisma.cashHandover.update({
+            where: { id: handoverId },
+            data: {
+                status: 'verified',
+                verifiedBy: owner.id,
+                verifiedAt: new Date()
+            }
+        })
 
-    revalidatePath('/owner/khatabook')
-    revalidatePath(`/owner/khatabook/${handover.staffId}`)
+        revalidatePath('/owner/khatabook')
+        revalidatePath(`/owner/khatabook/${handover.staffId}`)
+        return { success: true }
+    } catch (error) {
+        console.error('Error verifying handover:', error)
+        return { success: false, error: 'Failed to verify handover' }
+    }
 }
 
 export async function rejectHandover(handoverId: string) {
     const owner = await getOwnerProfile()
-    if (!owner) throw new Error('Unauthorized')
+    if (!owner) return { success: false, error: 'Unauthorized' }
 
-    const handover = await prisma.cashHandover.findUnique({
-        where: { id: handoverId }
-    })
+    try {
+        const handover = await prisma.cashHandover.findUnique({
+            where: { id: handoverId }
+        })
 
-    if (!handover) throw new Error('Handover not found')
+        if (!handover) return { success: false, error: 'Handover not found' }
 
-    if (handover.libraryId !== owner.libraryId) throw new Error('Unauthorized')
+        if (handover.libraryId !== owner.libraryId) return { success: false, error: 'Unauthorized' }
 
-    await prisma.cashHandover.update({
-        where: { id: handoverId },
-        data: {
-            status: 'rejected',
-            verifiedBy: owner.id,
-            verifiedAt: new Date()
-        }
-    })
+        await prisma.cashHandover.update({
+            where: { id: handoverId },
+            data: {
+                status: 'rejected',
+                verifiedBy: owner.id,
+                verifiedAt: new Date()
+            }
+        })
 
-    revalidatePath('/owner/khatabook')
-    revalidatePath(`/owner/khatabook/${handover.staffId}`)
+        revalidatePath('/owner/khatabook')
+        revalidatePath(`/owner/khatabook/${handover.staffId}`)
+        return { success: true }
+    } catch (error) {
+        console.error('Error rejecting handover:', error)
+        return { success: false, error: 'Failed to reject handover' }
+    }
 }
 
 export async function getStaffLedgerForOwner(staffId: string, limit = 50, dateRange?: { from: Date; to: Date }) {
     const owner = await getOwnerProfile()
-    if (!owner) throw new Error('Unauthorized')
+    if (!owner) return { success: false, error: 'Unauthorized' }
 
-    // Verify staff belongs to owner's library
-    const staff = await prisma.staff.findUnique({
-        where: { 
-            id: staffId,
-            libraryId: owner.libraryId
-        }
-    })
+    try {
+        // Verify staff belongs to owner's library
+        const staff = await prisma.staff.findUnique({
+            where: { 
+                id: staffId,
+                libraryId: owner.libraryId
+            }
+        })
 
-    if (!staff) throw new Error('Staff not found')
+        if (!staff) return { success: false, error: 'Staff not found' }
 
-    const dateFilter = dateRange ? {
-        gte: dateRange.from,
-        lte: dateRange.to
-    } : undefined
+        const dateFilter = dateRange ? {
+            gte: dateRange.from,
+            lte: dateRange.to
+        } : undefined
 
-    // 1. Fetch Collections (Cash In)
+        // 1. Fetch Collections (Cash In)
     const collections = await prisma.payment.findMany({
         where: {
             collectedBy: staffId,
@@ -262,19 +280,26 @@ export async function getStaffLedgerForOwner(staffId: string, limit = 50, dateRa
      .slice(0, limit)
 
     return {
-        staff: {
-            name: staff.name,
-            image: staff.image,
-            role: staff.role
-        },
-        summary: {
-            totalCollected: collected,
-            totalHandedOver: handedOver,
-            balance: collected - handedOver,
-            // Add period stats
-            periodCollected: dateRange ? periodCollected : collected,
-            periodHandedOver: dateRange ? periodHandedOver : handedOver
-        },
-        transactions
+        success: true,
+        data: {
+            staff: {
+                name: staff.name,
+                image: staff.image,
+                role: staff.role
+            },
+            summary: {
+                totalCollected: collected,
+                totalHandedOver: handedOver,
+                balance: collected - handedOver,
+                // Add period stats
+                periodCollected: dateRange ? periodCollected : collected,
+                periodHandedOver: dateRange ? periodHandedOver : handedOver
+            },
+            transactions
+        }
+    }
+    } catch (error) {
+        console.error('Error fetching staff ledger:', error)
+        return { success: false, error: 'Failed to fetch staff ledger' }
     }
 }

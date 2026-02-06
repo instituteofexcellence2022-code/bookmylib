@@ -8,10 +8,15 @@ import { StaffAttendanceStats } from '@/components/staff/shift/StaffAttendanceSt
 import { Clock, MapPin, CheckCircle, XCircle } from 'lucide-react'
 
 export default async function ShiftPage() {
-  const shifts = await getStaffShifts()
-  const todayAttendance = await getStaffSelfAttendanceToday()
-  const history = await getStaffSelfAttendanceHistory()
-  const stats = await getStaffSelfAttendanceStats()
+  const shiftsResult = await getStaffShifts()
+  const todayResult = await getStaffSelfAttendanceToday()
+  const historyResult = await getStaffSelfAttendanceHistory()
+  const statsResult = await getStaffSelfAttendanceStats()
+
+  const shifts = (shiftsResult.success && shiftsResult.data) ? shiftsResult.data : []
+  const todayAttendance = (todayResult.success && todayResult.data) ? todayResult.data : null
+  const history = (historyResult.success && historyResult.data) ? historyResult.data : []
+  const stats = (statsResult.success && statsResult.data) ? statsResult.data : null
 
   const isCheckedIn = todayAttendance && !todayAttendance.checkOut
 

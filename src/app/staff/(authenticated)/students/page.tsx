@@ -57,8 +57,12 @@ export default function StudentsPage() {
         try {
             const result = await getStaffStudents(filters)
             console.log('[CLIENT DEBUG] fetchStudents result:', result)
-            setStudents(result.students)
-            setTotal(result.total)
+            if (result.success && result.data) {
+                setStudents(result.data.students)
+                setTotal(result.data.total)
+            } else {
+                toast.error(result.error || 'Failed to fetch students')
+            }
         } catch (error) {
             console.error('[CLIENT DEBUG] fetchStudents error:', error)
             toast.error('Failed to fetch students')

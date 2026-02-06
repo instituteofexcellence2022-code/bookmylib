@@ -70,7 +70,12 @@ export async function updateOwnerImage(formData: FormData) {
         return { success: false, error: 'Invalid file type' }
     }
 
-    const imageUrl = await uploadFile(file)
+    const uploadRes = await uploadFile(file)
+    
+    if (!uploadRes.success) {
+        return { success: false, error: uploadRes.error || 'Failed to upload image' }
+    }
+    const imageUrl = uploadRes.data
     
     if (!imageUrl) {
         return { success: false, error: 'Failed to upload image' }
@@ -175,7 +180,12 @@ export async function updateLibraryLogo(formData: FormData) {
             return { success: false, error: 'Invalid file type' }
         }
 
-        const logoUrl = await uploadFile(file)
+        const uploadRes = await uploadFile(file)
+        
+        if (!uploadRes.success) {
+            return { success: false, error: uploadRes.error || 'Failed to upload logo' }
+        }
+        const logoUrl = uploadRes.data
         
         if (!logoUrl) {
             return { success: false, error: 'Failed to upload logo' }
@@ -294,50 +304,4 @@ export async function disableTwoFactor(formData: FormData) {
         console.error('Error disabling 2FA:', error)
         return { success: false, error: 'Failed to disable 2FA' }
     }
-}
-
-export async function verifyStudentGovtId(studentId: string, status: 'verified' | 'rejected') {
-  try {
-    await prisma.student.update({
-      where: { id: studentId },
-      data: { govtIdStatus: status }
-    })
-    
-    revalidatePath(`/owner/students/${studentId}`)
-    revalidatePath('/owner/verification')
-    return { success: true }
-  } catch (error) {
-    console.error('Error verifying govt ID:', error)
-    return { success: false, error: 'Verification failed' }
-  }
-}
-
-export async function getPendingVerifications() {
-  try {
-    const owner = await getAuthenticatedOwner()
-    if (!owner) throw new Error('Unauthorized')
-
-    const students = await prisma.student.findMany({
-      where: {
-        libraryId: owner.libraryId,
-        govtIdStatus: 'pending',
-        govtIdUrl: { not: null }
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        govtIdUrl: true,
-        govtIdStatus: true,
-        createdAt: true
-      },
-      orderBy: { createdAt: 'desc' }
-    })
-
-    return students
-  } catch (error) {
-    console.error('Error fetching pending verifications:', error)
-    return []
-  }
 }

@@ -153,21 +153,27 @@ export default function StaffDetailsPage({ params }: { params: Promise<{ id: str
   useEffect(() => {
     async function fetchData() {
       try {
-        const [staff, attendance, activities] = await Promise.all([
+        const [staffRes, attendanceRes, activitiesRes] = await Promise.all([
           getStaffDetails(id),
           getStaffAttendance(id),
           getStaffActivities(id)
         ])
         
-        if (!staff) {
-          toast.error('Staff member not found')
+        if (!staffRes.success || !staffRes.data) {
+          toast.error(staffRes.error || 'Staff member not found')
           router.push('/owner/staff')
           return
         }
 
-        setStaffData(staff as unknown as StaffData) // Type assertion due to Prisma types vs Interface mismatch
-        setAttendanceData(attendance as unknown as AttendanceRecord[])
-        setActivityData(activities as unknown as ActivityRecord[])
+        setStaffData(staffRes.data as unknown as StaffData) // Type assertion due to Prisma types vs Interface mismatch
+        
+        if (attendanceRes.success && attendanceRes.data) {
+          setAttendanceData(attendanceRes.data as unknown as AttendanceRecord[])
+        }
+
+        if (activitiesRes.success && activitiesRes.data) {
+          setActivityData(activitiesRes.data as unknown as ActivityRecord[])
+        }
       } catch (err) {
         console.error(err)
         toast.error('Failed to load staff details')

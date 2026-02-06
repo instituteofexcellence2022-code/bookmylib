@@ -80,7 +80,12 @@ export async function createTicket(formData: FormData) {
     let attachmentUrl = null
     if (attachment && attachment.size > 0) {
       try {
-        attachmentUrl = await uploadFile(attachment)
+        const uploadRes = await uploadFile(attachment)
+        if (uploadRes.success) {
+           attachmentUrl = uploadRes.data
+        } else {
+           console.error('Attachment upload failed:', uploadRes.error)
+        }
       } catch (e) {
         console.error('Attachment upload failed:', e)
       }
@@ -183,7 +188,12 @@ export async function createOwnerTicket(formData: FormData) {
   let attachmentUrl = null
   if (attachment && attachment.size > 0) {
     try {
-      attachmentUrl = await uploadFile(attachment)
+      const uploadRes = await uploadFile(attachment)
+      if (uploadRes.success) {
+          attachmentUrl = uploadRes.data
+      } else {
+          console.error('Attachment upload failed:', uploadRes.error)
+      }
     } catch (e) {
       console.error('Attachment upload failed:', e)
     }

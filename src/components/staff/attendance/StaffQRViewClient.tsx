@@ -39,9 +39,9 @@ export function StaffQRViewClient() {
 
     const fetchBranch = useCallback(async () => {
         try {
-            const data = await getStaffBranchInfo()
-            if (data) {
-                setBranch(data as BranchInfo)
+            const result = await getStaffBranchInfo()
+            if (result.success && result.data) {
+                setBranch(result.data as BranchInfo)
             }
         } catch {
             // ignore

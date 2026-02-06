@@ -26,7 +26,9 @@ export function RevenueChartClient() {
     async function load() {
       try {
         const result = await getRevenueAnalytics('6_months')
-        setData(result)
+        if (result.success && result.data) {
+          setData(result.data)
+        }
       } catch {
         // console.error(e)
       } finally {

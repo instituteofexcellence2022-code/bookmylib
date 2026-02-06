@@ -24,10 +24,10 @@ export default function CreateTicketForm() {
       setFetchingStudent(true)
       getStudentDetails(studentId)
         .then((res) => {
-          if (res && res.student) {
-            setStudentName(res.student.name)
+          if (res.success && res.data && res.data.student) {
+            setStudentName(res.data.student.name)
           } else {
-            toast.error('Student not found')
+            toast.error(res.error || 'Student not found')
           }
         })
         .catch(() => toast.error('Failed to fetch student details'))

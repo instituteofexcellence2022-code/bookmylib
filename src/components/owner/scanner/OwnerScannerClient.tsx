@@ -5,7 +5,7 @@ import { Html5Qrcode } from 'html5-qrcode'
 import { X, Camera, RefreshCw, User, CheckCircle, AlertTriangle, CreditCard, FileText, ArrowLeft, ArrowRight, ShieldCheck, LogIn, LogOut, ExternalLink, Store, Clock, Calendar, Zap, ZapOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
-import { getStudentDetailsForScanner } from '@/actions/owner/students'
+import { getStudentDetailsForScanner, verifyStudentGovtId } from '@/actions/owner/students'
 import { verifyStudentQR } from '@/actions/owner/attendance'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
@@ -13,7 +13,6 @@ import Image from 'next/image'
 import { format, differenceInCalendarDays, formatDistanceToNow } from 'date-fns'
 import { formatSeatNumber } from '@/lib/utils'
 import { verifyPayment } from '@/actions/owner/finance'
-import { verifyStudentGovtId } from '@/actions/owner'
 import { SCANNER_CONFIG } from '@/lib/scanner'
 
 export function OwnerScannerClient() {
@@ -272,10 +271,14 @@ export function OwnerScannerClient() {
     const handleGovtIdVerify = async (status: 'verified' | 'rejected') => {
         if (!studentData?.student?.id) return
         try {
-            await verifyStudentGovtId(studentData.student.id, status)
-            toast.success(status === 'verified' ? 'Document verified' : 'Document rejected')
-            const updatedRes = await getStudentDetailsForScanner(studentData.student.id)
-            if (updatedRes.success) setStudentData(updatedRes.data)
+            const result = await verifyStudentGovtId(studentData.student.id, status)
+            if (result.success) {
+                toast.success(status === 'verified' ? 'Document verified' : 'Document rejected')
+                const updatedRes = await getStudentDetailsForScanner(studentData.student.id)
+                if (updatedRes.success) setStudentData(updatedRes.data)
+            } else {
+                toast.error(result.error || 'Failed to update document status')
+            }
         } catch (e) {
             console.error(e)
             toast.error('Failed to update document status')

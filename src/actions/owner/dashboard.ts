@@ -8,7 +8,7 @@ import { getAuthenticatedOwner } from '@/lib/auth/owner'
 
 export async function getDashboardStats(branchId?: string) {
   const owner = await getAuthenticatedOwner()
-  if (!owner) throw new Error('Unauthorized')
+  if (!owner) return { success: false, error: 'Unauthorized' }
 
   const libraryId = owner.libraryId
   const whereBranch = branchId && branchId !== 'All Branches' ? { branchId } : {}
@@ -346,44 +346,47 @@ export async function getDashboardStats(branchId?: string) {
     }
 
     return {
-        kpi: {
-            revenue: { value: currentRevenue, trend: revenueTrend },
-            students: { value: activeStudents, trend: studentTrend },
-            occupancy: { value: occupancyRate, trend: occupancyTrend },
-            issues: { value: openIssues, pending: pendingIssues }
-        },
-        recentActivity: activities.map(a => ({
-            ...a,
-            time: formatTimeAgo(new Date(a.time))
-        })),
-        revenueChart: revenueChartData,
-        upcomingExpirations: upcomingExpirations.map(sub => ({
-            id: sub.id,
-            studentName: sub.student.name,
-            studentImage: sub.student.image,
-            planName: sub.plan.name,
-            endDate: sub.endDate
-        })),
-        recentlyExpired: recentlyExpired.map(sub => ({
-            id: sub.id,
-            studentName: sub.student.name,
-            studentImage: sub.student.image,
-            planName: sub.plan.name,
-            endDate: sub.endDate,
-            phone: sub.student.phone
-        })),
-        attendance: {
-            today: todayAttendanceCount,
-            totalActive: activeStudents,
-            percentage: activeStudents > 0 ? Math.round((todayAttendanceCount / activeStudents) * 100) : 0
-        },
-        revenueByMethod,
-        alerts
+        success: true,
+        data: {
+            kpi: {
+                revenue: { value: currentRevenue, trend: revenueTrend },
+                students: { value: activeStudents, trend: studentTrend },
+                occupancy: { value: occupancyRate, trend: occupancyTrend },
+                issues: { value: openIssues, pending: pendingIssues }
+            },
+            recentActivity: activities.map(a => ({
+                ...a,
+                time: formatTimeAgo(new Date(a.time))
+            })),
+            revenueChart: revenueChartData,
+            upcomingExpirations: upcomingExpirations.map(sub => ({
+                id: sub.id,
+                studentName: sub.student.name,
+                studentImage: sub.student.image,
+                planName: sub.plan.name,
+                endDate: sub.endDate
+            })),
+            recentlyExpired: recentlyExpired.map(sub => ({
+                id: sub.id,
+                studentName: sub.student.name,
+                studentImage: sub.student.image,
+                planName: sub.plan.name,
+                endDate: sub.endDate,
+                phone: sub.student.phone
+            })),
+            attendance: {
+                today: todayAttendanceCount,
+                totalActive: activeStudents,
+                percentage: activeStudents > 0 ? Math.round((todayAttendanceCount / activeStudents) * 100) : 0
+            },
+            revenueByMethod,
+            alerts
+        }
     }
 
   } catch (error) {
     console.error('Error fetching dashboard stats:', error)
-    throw new Error('Failed to load dashboard data')
+    return { success: false, error: 'Failed to load dashboard data' }
   }
 }
 

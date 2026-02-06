@@ -172,11 +172,13 @@ export default function BookingPayment({
             }
         })()
 
-        const [url, text] = await Promise.all([uploadPromise, ocrPromise])
+        const [uploadRes, text] = await Promise.all([uploadPromise, ocrPromise])
 
-        if (url) {
-            setProofUrl(url)
+        if (uploadRes.success && uploadRes.data) {
+            setProofUrl(uploadRes.data)
             toast.success('Screenshot uploaded successfully')
+        } else if (!uploadRes.success) {
+            toast.error(uploadRes.error || 'Failed to upload screenshot')
         }
 
         if (text) {

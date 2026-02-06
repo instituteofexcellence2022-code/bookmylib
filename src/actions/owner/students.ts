@@ -10,7 +10,7 @@ import bcrypt from 'bcryptjs'
 
 export async function createStudent(formData: FormData) {
     const owner = await getAuthenticatedOwner()
-    if (!owner) throw new Error('Unauthorized')
+    if (!owner) return { success: false, error: 'Unauthorized' }
 
     // Owner already has libraryId included from getAuthenticatedOwner logic (see src/lib/auth/owner.ts)
     // But we need to make sure we have access to it.
@@ -81,12 +81,18 @@ export async function createStudent(formData: FormData) {
 
         let imagePath = null
         if (imageFile && imageFile.size > 0) {
-            imagePath = await uploadFile(imageFile)
+            const uploadRes = await uploadFile(imageFile)
+            if (uploadRes.success) {
+                imagePath = uploadRes.data
+            }
         }
 
         let govtIdPath = null
         if (govtIdFile && govtIdFile.size > 0) {
-            govtIdPath = await uploadFile(govtIdFile)
+            const uploadRes = await uploadFile(govtIdFile)
+            if (uploadRes.success) {
+                govtIdPath = uploadRes.data
+            }
         }
 
         const student = await prisma.student.create({
@@ -130,7 +136,7 @@ export type StudentFilter = {
 
 export async function getOwnerStudents(filters: StudentFilter = {}) {
     const owner = await getAuthenticatedOwner()
-    if (!owner) throw new Error('Unauthorized')
+    if (!owner) return { success: false, error: 'Unauthorized' }
 
     const { search, branchId, status, page = 1, limit = 10 } = filters
     const skip = (page - 1) * limit
@@ -356,20 +362,23 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
         })
 
         return {
-            students: enhancedStudents,
-            total,
-            pages: Math.ceil(total / limit)
+            success: true,
+            data: {
+                students: enhancedStudents,
+                total,
+                pages: Math.ceil(total / limit)
+            }
         }
 
     } catch (error) {
         console.error('Error fetching students:', error)
-        throw new Error('Failed to fetch students')
+        return { success: false, error: 'Failed to fetch students' }
     }
 }
 
 export async function verifyStudentGovtId(studentId: string, status: 'verified' | 'rejected') {
     const owner = await getAuthenticatedOwner()
-    if (!owner) throw new Error('Unauthorized')
+    if (!owner) return { success: false, error: 'Unauthorized' }
 
     try {
         const student = await prisma.student.findUnique({
@@ -393,9 +402,39 @@ export async function verifyStudentGovtId(studentId: string, status: 'verified' 
     }
 }
 
+export async function getPendingVerifications() {
+    const owner = await getAuthenticatedOwner()
+    if (!owner) return { success: false, error: 'Unauthorized' }
+
+    try {
+        const students = await prisma.student.findMany({
+            where: {
+                libraryId: owner.libraryId,
+                govtIdStatus: 'pending',
+                govtIdUrl: { not: null }
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                govtIdUrl: true,
+                govtIdStatus: true,
+                createdAt: true
+            },
+            orderBy: { createdAt: 'desc' }
+        })
+
+        return { success: true, data: students }
+    } catch (error) {
+        console.error('Error fetching pending verifications:', error)
+        return { success: false, error: 'Failed to fetch pending verifications' }
+    }
+}
+
 export async function getStudentDetails(studentId: string) {
     const owner = await getAuthenticatedOwner()
-    if (!owner) throw new Error('Unauthorized')
+    if (!owner) return { success: false, error: 'Unauthorized' }
 
     try {
         const student = await prisma.student.findUnique({
@@ -442,7 +481,7 @@ export async function getStudentDetails(studentId: string) {
             }
         })
 
-        if (!student) return null
+        if (!student) return { success: false, error: 'Student not found' }
 
         // Calculate Stats
         const totalAttendance = await prisma.attendance.count({
@@ -458,12 +497,15 @@ export async function getStudentDetails(studentId: string) {
         const activeSubscription = student.subscriptions.find(s => s.status === 'active')
 
         return {
-            student,
-            stats: {
-                totalAttendance,
-                totalSpent,
-                activePlan: activeSubscription?.plan?.name || 'None',
-                lastActive: student.attendance[0]?.date || null
+            success: true,
+            data: {
+                student,
+                stats: {
+                    totalAttendance,
+                    totalSpent,
+                    activePlan: activeSubscription?.plan?.name || 'None',
+                    lastActive: student.attendance[0]?.date || null
+                }
             }
         }
     } catch (error) {
@@ -471,7 +513,7 @@ export async function getStudentDetails(studentId: string) {
             throw error
         }
         console.error('Error fetching student details:', error)
-        return null
+        return { success: false, error: 'Failed to fetch student details' }
     }
 }
 

@@ -13,8 +13,10 @@ import { getAuthenticatedOwner } from '@/lib/auth/owner'
 export const getStaffProfile = cache(async function getStaffProfile() {
   try {
     const staff = await getAuthenticatedStaff()
-    if (!staff) return null
-    return staff
+    if (!staff) {
+      return { success: false, error: 'Unauthorized' }
+    }
+    return { success: true, data: staff }
   } catch (error) {
     // Re-throw Next.js dynamic server usage errors so the page can opt-out of static generation
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -22,7 +24,7 @@ export const getStaffProfile = cache(async function getStaffProfile() {
       throw error
     }
     console.error('Error fetching staff profile:', error)
-    return null
+    return { success: false, error: 'Failed to fetch staff profile' }
   }
 })
 
@@ -70,7 +72,7 @@ export async function createStaff(formData: FormData) {
     })
 
     if (!branch) {
-      throw new Error('Invalid branch selected')
+      return { success: false, error: 'Invalid branch selected' }
     }
 
     // Handle file uploads
@@ -194,9 +196,9 @@ export async function updateStaffProfile(formData: FormData) {
 
     if (imageFile && imageFile.size > 0) {
         try {
-            const uploadedUrl = await uploadFile(imageFile)
-            if (uploadedUrl) {
-                image = uploadedUrl
+            const uploadRes = await uploadFile(imageFile)
+            if (uploadRes.success && uploadRes.data) {
+                image = uploadRes.data
             }
         } catch (e) {
             console.error('Failed to upload profile image', e)
@@ -376,8 +378,9 @@ export async function updateStaff(id: string, formData: FormData) {
 
     if (idProof && idProof.size > 0) {
       try {
-        const url = await uploadFile(idProof)
-        if (url) {
+        const uploadRes = await uploadFile(idProof)
+        if (uploadRes.success && uploadRes.data) {
+          const url = uploadRes.data
           documents = documents.filter(d => d.name !== 'ID Proof')
           documents.push({
             name: 'ID Proof',
@@ -393,8 +396,9 @@ export async function updateStaff(id: string, formData: FormData) {
 
     if (resume && resume.size > 0) {
       try {
-        const url = await uploadFile(resume)
-        if (url) {
+        const uploadRes = await uploadFile(resume)
+        if (uploadRes.success && uploadRes.data) {
+          const url = uploadRes.data
           documents = documents.filter(d => d.name !== 'Resume')
           documents.push({
             name: 'Resume',
@@ -504,25 +508,26 @@ export async function updateStaffImage(staffId: string, formData: FormData) {
 
     const file = formData.get('image') as File
     if (!file) {
-      throw new Error('No image provided')
+      return { success: false, error: 'No image provided' }
     }
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      throw new Error('Invalid file type. Please upload an image.')
+      return { success: false, error: 'Invalid file type. Please upload an image.' }
     }
 
     // Validate file size (e.g., 5MB limit)
     if (file.size > 5 * 1024 * 1024) {
-      throw new Error('File size exceeds 5MB limit.')
+      return { success: false, error: 'File size exceeds 5MB limit.' }
     }
 
     // Upload file
-    const imageUrl = await uploadFile(file)
+    const uploadRes = await uploadFile(file)
     
-    if (!imageUrl) {
-        throw new Error('Failed to upload image')
+    if (!uploadRes.success || !uploadRes.data) {
+        return { success: false, error: uploadRes.error || 'Failed to upload image' }
     }
+    const imageUrl = uploadRes.data
 
     // Update database
     const updatedStaff = await prisma.staff.update({
@@ -566,7 +571,9 @@ export async function getStaffDetails(id: string) {
     const owner = await getAuthenticatedOwner()
     const staff = await getAuthenticatedStaff()
     
-    if (!owner && !staff) return null
+    if (!owner && !staff) {
+      return { success: false, error: 'Unauthorized' }
+    }
 
     const libraryId = owner?.libraryId || staff?.libraryId
 
@@ -578,13 +585,13 @@ export async function getStaffDetails(id: string) {
     })
 
     if (!targetStaff || targetStaff.libraryId !== libraryId) {
-      return null
+      return { success: false, error: 'Staff member not found' }
     }
 
-    return targetStaff
+    return { success: true, data: targetStaff }
   } catch (error) {
     console.error('Error fetching staff details:', error)
-    return null
+    return { success: false, error: 'Failed to fetch staff details' }
   }
 }
 
@@ -593,7 +600,9 @@ export async function getAllStaff() {
     const owner = await getAuthenticatedOwner()
     const staff = await getAuthenticatedStaff()
     
-    if (!owner && !staff) return []
+    if (!owner && !staff) {
+      return { success: false, error: 'Unauthorized' }
+    }
 
     const libraryId = owner?.libraryId || staff?.libraryId
 
@@ -606,10 +615,10 @@ export async function getAllStaff() {
         createdAt: 'desc'
       }
     })
-    return allStaff
+    return { success: true, data: allStaff }
   } catch (error) {
     console.error('Error fetching all staff:', error)
-    return []
+    return { success: false, error: 'Failed to fetch staff list' }
   }
 }
 
@@ -617,11 +626,8 @@ export async function getGlobalStaffStats() {
   try {
     const owner = await getAuthenticatedOwner()
     
-    if (!owner?.libraryId) return {
-      totalStaff: 0,
-      presentToday: 0,
-      onLeave: 0,
-      inactive: 0
+    if (!owner?.libraryId) {
+        return { success: false, error: 'Unauthorized or no library found' }
     }
 
     const libraryId = owner.libraryId
@@ -643,10 +649,13 @@ export async function getGlobalStaffStats() {
     ])
 
     return {
-      totalStaff,
-      presentToday,
-      onLeave: onLeaveStaff,
-      inactive: inactiveStaff
+      success: true,
+      data: {
+        totalStaff,
+        presentToday,
+        onLeave: onLeaveStaff,
+        inactive: inactiveStaff
+      }
     }
   } catch (error) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -654,12 +663,7 @@ export async function getGlobalStaffStats() {
       throw error
     }
     console.error('Error fetching global staff stats:', error)
-    return {
-      totalStaff: 0,
-      presentToday: 0,
-      onLeave: 0,
-      inactive: 0
-    }
+    return { success: false, error: 'Failed to fetch global staff stats' }
   }
 }
 
@@ -670,10 +674,10 @@ export async function getStaffAttendance(id: string) {
       orderBy: { date: 'desc' },
       take: 30
     })
-    return attendance
+    return { success: true, data: attendance }
   } catch (error) {
     console.error('Error fetching staff attendance:', error)
-    return []
+    return { success: false, error: 'Failed to fetch staff attendance' }
   }
 }
 
@@ -684,10 +688,10 @@ export async function getStaffActivities(id: string) {
       orderBy: { createdAt: 'desc' },
       take: 50
     })
-    return activities
+    return { success: true, data: activities }
   } catch (error) {
     console.error('Error fetching staff activities:', error)
-    return []
+    return { success: false, error: 'Failed to fetch staff activities' }
   }
 }
 
@@ -698,19 +702,17 @@ export async function getStaffStats(id: string) {
     // Use id to avoid linter warning
     void id
     return {
-      attendance: '98%',
-      performance: 'Excellent',
-      tasksCompleted: 145,
-      avgResponseTime: '15 mins'
+      success: true,
+      data: {
+        attendance: '98%',
+        performance: 'Excellent',
+        tasksCompleted: 145,
+        avgResponseTime: '15 mins'
+      }
     }
   } catch (error) {
     console.error('Error fetching staff stats:', error)
-    return {
-      attendance: '0%',
-      performance: 'N/A',
-      tasksCompleted: 0,
-      avgResponseTime: 'N/A'
-    }
+    return { success: false, error: 'Failed to fetch staff stats' }
   }
 }
 
@@ -718,7 +720,9 @@ export async function getStaffManagementData() {
   try {
     const owner = await getAuthenticatedOwner()
     
-    if (!owner?.libraryId) return null
+    if (!owner?.libraryId) {
+      return { success: false, error: 'Unauthorized or no library found' }
+    }
 
     const libraryId = owner.libraryId
     const today = new Date()
@@ -750,13 +754,16 @@ export async function getStaffManagementData() {
     ])
 
     return {
-      staff,
-      branches,
-      stats: {
-        totalStaff,
-        presentToday,
-        onLeave: onLeaveStaff,
-        inactive: inactiveStaff
+      success: true,
+      data: {
+        staff,
+        branches,
+        stats: {
+          totalStaff,
+          presentToday,
+          onLeave: onLeaveStaff,
+          inactive: inactiveStaff
+        }
       }
     }
 
@@ -766,6 +773,6 @@ export async function getStaffManagementData() {
       throw error
     }
     console.error('Error fetching staff management data:', error)
-    return null
+    return { success: false, error: 'Failed to fetch staff management data' }
   }
 }

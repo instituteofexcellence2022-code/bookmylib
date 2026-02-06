@@ -19,8 +19,12 @@ export function StaffRevenueStatsClient() {
   useEffect(() => {
     async function load() {
       try {
-        const data = await getStaffFinanceStats()
-        setStats(data)
+        const result = await getStaffFinanceStats()
+        if (result.success && result.data) {
+          setStats(result.data)
+        } else {
+          toast.error(result.error || 'Failed to load finance stats')
+        }
       } catch {
         toast.error('Failed to load finance stats')
       } finally {

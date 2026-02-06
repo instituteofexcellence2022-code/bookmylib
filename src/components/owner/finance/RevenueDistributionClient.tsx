@@ -38,7 +38,9 @@ export function RevenueDistributionClient() {
     async function load() {
       try {
         const result = await getRevenueDistribution()
-        setData(result)
+        if (result.success && result.data) {
+          setData(result.data)
+        }
       } catch (e) {
         console.error(e)
       } finally {

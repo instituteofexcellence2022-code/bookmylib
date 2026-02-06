@@ -36,46 +36,46 @@ export async function getStudentProfile() {
     const authStudent = await getAuthenticatedStudent()
 
     if (!authStudent) {
+        // Return error instead of redirecting if possible, or keep redirect if it's a page load requirement
+        // But for consistency in "actions", usually we return unauth. 
+        // However, this is used in page.tsx, so redirect is fine. 
+        // Let's keep redirect for now but wrap the rest.
         redirect('/student/login')
     }
     const studentId = authStudent.id
 
-    const student = await prisma.student.findUnique({
-        where: { id: studentId },
-        include: {
-            subscriptions: {
-                include: {
-                    plan: true,
-                    branch: true,
-                    seat: true
-                },
-                where: {
-                    status: {
-                        in: ['active', 'pending']
+    try {
+        const student = await prisma.student.findUnique({
+            where: { id: studentId },
+            include: {
+                subscriptions: {
+                    include: {
+                        plan: true,
+                        branch: true,
+                        seat: true
+                    },
+                    where: {
+                        status: {
+                            in: ['active', 'pending']
+                        }
+                    },
+                    orderBy: {
+                        createdAt: 'desc'
                     }
                 },
-                orderBy: {
-                    createdAt: 'desc'
+                attendance: {
+                    orderBy: {
+                        date: 'desc'
+                    },
+                    take: 5
                 }
-            },
-            attendance: {
-                orderBy: {
-                    date: 'desc'
-                },
-                take: 5
             }
+        })
+
+        if (!student) {
+            redirect('/student/logout')
         }
-    }).catch(error => {
-        console.error('Error fetching student profile:', error)
-        throw new Error('Failed to fetch profile')
-    })
 
-    if (!student) {
-        // If student not found but cookie exists, redirect to logout to clear stale cookie
-        redirect('/student/logout')
-    }
-
-    try {
         // Calculate attendance stats
         const totalAttendance = await prisma.attendance.count({
             where: { studentId }
@@ -94,15 +94,19 @@ export async function getStudentProfile() {
         })
 
         return { 
-            student,
-            stats: {
-                totalAttendance,
-                monthAttendance
+            success: true,
+            data: {
+                student,
+                stats: {
+                    totalAttendance,
+                    monthAttendance
+                }
             }
         }
+
     } catch (error) {
-        console.error('Error fetching student stats:', error)
-        throw new Error('Failed to fetch profile stats')
+        console.error('Error fetching student profile:', error)
+        return { success: false, error: 'Failed to fetch profile' }
     }
 }
 
@@ -150,14 +154,20 @@ export async function updateStudentProfile(formData: FormData) {
 
         if (profileImage && profileImage.size > 0) {
             // Fixed: uploadFile only accepts one argument
-            const url = await uploadFile(profileImage)
-            data.image = url
+            const uploadRes = await uploadFile(profileImage)
+            if (!uploadRes.success) {
+                return { success: false, error: uploadRes.error || 'Failed to upload profile image' }
+            }
+            data.image = uploadRes.data
         }
 
         if (idProofFile && idProofFile.size > 0) {
             // Fixed: uploadFile only accepts one argument
-            const url = await uploadFile(idProofFile)
-            data.govtIdUrl = url
+            const uploadRes = await uploadFile(idProofFile)
+            if (!uploadRes.success) {
+                return { success: false, error: uploadRes.error || 'Failed to upload ID proof' }
+            }
+            data.govtIdUrl = uploadRes.data
         }
 
         await prisma.student.update({
@@ -188,7 +198,13 @@ export async function updateStudentProfileImage(formData: FormData) {
     }
 
     try {
-        const uploadedUrl = await uploadFile(imageFile)
+        const uploadRes = await uploadFile(imageFile)
+
+        if (!uploadRes.success) {
+            return { success: false, error: uploadRes.error || 'Failed to upload image' }
+        }
+
+        const uploadedUrl = uploadRes.data
 
         if (!uploadedUrl) {
             return { success: false, error: 'Failed to upload image' }
@@ -224,10 +240,16 @@ export async function uploadGovtId(formData: FormData) {
     }
 
     try {
-        const url = await uploadFile(file)
+        const uploadRes = await uploadFile(file)
+        
+        if (!uploadRes.success) {
+            return { success: false, error: uploadRes.error || 'Upload failed' }
+        }
+
+        const url = uploadRes.data
 
         if (!url) {
-            return { success: false, error: 'Upload failed' }      
+            return { success: false, error: 'Upload failed' }
         }
 
         await prisma.student.update({
@@ -327,102 +349,110 @@ export async function getStudentReferralData() {
     }
     const studentId = authStudent.id
 
-    let student = await prisma.student.findUnique({
-        where: { id: studentId },
-        include: {
-            library: true,
-            branch: true,
-            referralsMade: {
-                include: {
-                    referee: true,
-                    rewardCoupon: {
-                        select: { code: true }
+    try {
+        let student = await prisma.student.findUnique({
+            where: { id: studentId },
+            include: {
+                library: true,
+                branch: true,
+                referralsMade: {
+                    include: {
+                        referee: true,
+                        rewardCoupon: {
+                            select: { code: true }
+                        }
+                    },
+                    orderBy: {
+                        createdAt: 'desc'
                     }
-                },
-                orderBy: {
-                    createdAt: 'desc'
+                }
+            }
+        })
+
+        if (!student) {
+            redirect('/student/logout')
+        }
+
+        // Generate referral code if not exists
+        if (!student.referralCode) {
+            const namePrefix = (student.name || 'USER').replace(/[^a-zA-Z]/g, '').substring(0, 4).toUpperCase()
+
+            // Retry logic for referral code generation
+            let newCode = ''
+            let attempts = 0
+            const maxAttempts = 3
+
+            while (attempts < maxAttempts) {
+                const randomSuffix = Math.floor(1000 + Math.random() * 9000)
+                newCode = `${namePrefix}${randomSuffix}`
+
+                // Check if code exists
+                const existing = await prisma.student.findUnique({ where: { referralCode: newCode } })
+                if (!existing) break
+
+                attempts++
+            }
+
+            if (attempts >= maxAttempts) {
+                newCode = `${namePrefix}${Date.now().toString().slice(-6)}`
+            }
+
+            try {
+                student = await prisma.student.update({
+                    where: { id: studentId },
+                    data: { referralCode: newCode },
+                    include: {
+                        library: true,
+                        branch: true,
+                        referralsMade: {
+                            include: {
+                                referee: true,
+                                rewardCoupon: {
+                                    select: { code: true }
+                                }
+                            },
+                            orderBy: {
+                                createdAt: 'desc'
+                            }
+                        }
+                    }
+                })
+            } catch (e) {
+                console.error('Referral code generation error', e)     
+            }
+        }
+
+        const settings = (student.library?.referralSettings as unknown as ReferralSettings) || {}
+
+        // Calculate stats
+        const totalReferrals = student.referralsMade.length
+        const totalCoupons = student.referralsMade.filter(r => r.rewardCoupon?.code).length
+        const coupons = student.referralsMade
+            .filter(r => r.rewardCoupon?.code && r.status === 'completed')
+            .map(r => ({
+                code: r.rewardCoupon?.code || '',
+                status: r.status,
+                createdAt: r.createdAt
+            }))
+
+        return {
+            success: true,
+            data: {
+                referralCode: student.referralCode,
+                referrals: student.referralsMade,
+                libraryName: student.library?.name,
+                branchName: student.branch?.name,
+                settings,
+                stats: {
+                    totalReferrals,
+                    totalCoupons,
+                    activeCoupons: coupons.length // Assuming completed = active coupon
                 }
             }
         }
-    })
-
-    if (!student) {
-        redirect('/student/logout')
-    }
-
-    // Generate referral code if not exists
-    if (!student.referralCode) {
-        const namePrefix = (student.name || 'USER').replace(/[^a-zA-Z]/g, '').substring(0, 4).toUpperCase()
-
-        // Retry logic for referral code generation
-        let newCode = ''
-        let attempts = 0
-        const maxAttempts = 3
-
-        while (attempts < maxAttempts) {
-            const randomSuffix = Math.floor(1000 + Math.random() * 9000)
-            newCode = `${namePrefix}${randomSuffix}`
-
-            // Check if code exists
-            const existing = await prisma.student.findUnique({ where: { referralCode: newCode } })
-            if (!existing) break
-
-            attempts++
-        }
-
-        if (attempts >= maxAttempts) {
-             newCode = `${namePrefix}${Date.now().toString().slice(-6)}`
-        }
-
-        try {
-            student = await prisma.student.update({
-                where: { id: studentId },
-                data: { referralCode: newCode },
-                include: {
-                    library: true,
-                    branch: true,
-                    referralsMade: {
-                        include: {
-                            referee: true,
-                            rewardCoupon: {
-                                select: { code: true }
-                            }
-                        },
-                        orderBy: {
-                            createdAt: 'desc'
-                        }
-                    }
-                }
-            })
-        } catch (e) {
-            console.error('Referral code generation error', e)     
-        }
-    }
-
-    const settings = (student.library?.referralSettings as unknown as ReferralSettings) || {}
-
-    // Calculate stats
-    const totalReferrals = student.referralsMade.length
-    const totalCoupons = student.referralsMade.filter(r => r.rewardCoupon?.code).length
-    const coupons = student.referralsMade
-        .filter(r => r.rewardCoupon?.code && r.status === 'completed')
-        .map(r => ({
-            code: r.rewardCoupon?.code || '',
-            status: r.status,
-            createdAt: r.createdAt
-        }))
-
-    return {
-        referralCode: student.referralCode,
-        referrals: student.referralsMade,
-        libraryName: student.library?.name,
-        branchName: student.branch?.name,
-        settings,
-        stats: {
-            totalReferrals,
-            totalCoupons,
-            activeCoupons: coupons.length // Assuming completed = active coupon
-        }
+    } catch (error) {
+        console.error('Error fetching referral data:', error)
+        return { success: false, error: 'Failed to fetch referral data' }
     }
 }
 
