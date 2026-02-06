@@ -106,7 +106,7 @@ export function InstallPrompt({ onOpenChange, role }: InstallPromptProps) {
           initial={{ opacity: 0, y: -50 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -50 }}
-          className={`fixed top-20 left-4 right-4 md:right-4 md:left-auto md:w-auto z-50 flex items-center gap-3 p-3 pr-4 bg-white dark:bg-gray-900 border rounded-xl shadow-lg ${theme.border} ${theme.shadow}`}
+          className={`fixed top-20 left-4 right-4 md:right-4 md:left-auto md:w-auto z-50 flex items-center gap-3 py-3 pl-3 pr-1 bg-white dark:bg-gray-900 border rounded-xl shadow-lg ${theme.border} ${theme.shadow}`}
         >
           <div className={`flex items-center justify-center w-10 h-10 rounded-lg ${theme.bg}`}>
              {/* Using a generic app icon or the Lucide download icon */}
