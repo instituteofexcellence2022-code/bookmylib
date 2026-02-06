@@ -18,6 +18,7 @@ function RegisterForm() {
     const referralCode = searchParams.get('ref')
     
     const [loading, setLoading] = useState(false)
+    const [isRedirecting, setIsRedirecting] = useState(false)
     const [emailVerified, setEmailVerified] = useState(false)
     const [showEmailOtp, setShowEmailOtp] = useState(false)
     const [verifyingEmail, setVerifyingEmail] = useState(false)
@@ -194,6 +195,7 @@ function RegisterForm() {
             const result = await registerStudent(data)
 
             if (result.success) {
+                setIsRedirecting(true)
                 toast.success('Registration successful! Redirecting...')
                 router.push('/student/login')
             } else {
@@ -460,9 +462,14 @@ function RegisterForm() {
                         <Button
                             type="submit"
                             className="w-full justify-center bg-blue-600 hover:bg-blue-700 text-white py-2"
-                            disabled={!emailVerified || loading}
+                            disabled={!emailVerified || loading || isRedirecting}
                         >
-                            {loading ? (
+                            {isRedirecting ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Redirecting...
+                                </>
+                            ) : loading ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                     Creating Account...
