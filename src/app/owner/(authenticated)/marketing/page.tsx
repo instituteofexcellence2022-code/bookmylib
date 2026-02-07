@@ -5,7 +5,7 @@ export default function MarketingPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Marketing & CRM</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Announcements</h1>
         <p className="text-gray-600 dark:text-gray-400">Manage announcements and notifications for your library.</p>
       </div>
       

@@ -39,7 +39,7 @@ const navItems = [
   { href: '/owner/staff', label: 'Staff', icon: Users, group: 'Business' },
   { href: '/owner/plans', label: 'Plans & Fees', icon: CreditCard, group: 'Business' },
   { href: '/owner/promos', label: 'Promotions', icon: Tag, group: 'Business' },
-  { href: '/owner/marketing', label: 'Marketing', icon: Megaphone, group: 'Business' },
+  { href: '/owner/marketing', label: 'Announcement', icon: Megaphone, group: 'Business' },
   { href: '/owner/finance', label: 'Finance', icon: TrendingUp, group: 'Business' },
   { href: '/owner/khatabook', label: 'Khatabook', icon: BookOpen, group: 'Business' },
   
