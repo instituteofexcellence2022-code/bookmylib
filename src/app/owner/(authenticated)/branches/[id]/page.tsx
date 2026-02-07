@@ -280,6 +280,15 @@ const tabs = [
               /* Reset background opacities for better print reproduction */
               .bg-gray-50 { background-color: #f9fafb !important; }
               .bg-blue-600 { background-color: #2563eb !important; color: white !important; }
+
+              /* Force gradient visibility in print */
+              .print-gradient {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                opacity: 1 !important;
+                display: block !important;
+                background-image: linear-gradient(to top right, #9333ea, #db2777, #2563eb) !important; /* Fallback/Force gradient */
+              }
             </style>
           </head>
           <body>
@@ -944,10 +953,10 @@ const tabs = [
                        </div>
     
                        {/* 2. Main QR Section */}
-                       <div className="flex flex-col items-center space-y-5 py-2 w-full">
-                         <div className="relative group w-full flex justify-center">
-                            <div className="absolute -inset-1.5 bg-gradient-to-tr from-purple-600 via-pink-600 to-blue-600 rounded-2xl opacity-75 blur transition duration-1000 group-hover:duration-200 group-hover:opacity-100"></div>
-                        <div className="relative p-0.5 bg-white rounded-xl shadow-xl w-full max-w-sm">
+                   <div className="flex flex-col items-center space-y-5 py-2 w-full">
+                     <div className="relative group w-full flex justify-center">
+                        <div className="print-gradient absolute -inset-1.5 bg-gradient-to-tr from-purple-600 via-pink-600 to-blue-600 rounded-2xl opacity-75 blur transition duration-1000 group-hover:duration-200 group-hover:opacity-100"></div>
+                    <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm mx-auto p-4 sm:p-2">
                                  {qrDataUrl ? (
                                      <div className="relative w-full aspect-square qr-image-container">
                                         <Image src={qrDataUrl} alt="Branch QR" fill className="object-contain" />
