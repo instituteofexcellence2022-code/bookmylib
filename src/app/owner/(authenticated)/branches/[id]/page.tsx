@@ -243,6 +243,11 @@ const tabs = [
                 width: 100%;
                 max-width: 100%;
                 border: 2px solid #e5e7eb;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                text-align: center !important;
               }
 
               /* Scale up QR code for print */
@@ -251,6 +256,7 @@ const tabs = [
                 height: 500px !important;
                 max-width: 80% !important;
                 position: relative !important;
+                margin: 0 auto !important;
               }
               #printable-qr-card img {
                 width: 100% !important;
