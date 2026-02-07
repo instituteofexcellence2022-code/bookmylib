@@ -944,16 +944,16 @@ const tabs = [
                        </div>
     
                        {/* 2. Main QR Section */}
-                       <div className="flex flex-col items-center space-y-5 py-2">
-                         <div className="relative group">
+                       <div className="flex flex-col items-center space-y-5 py-2 w-full">
+                         <div className="relative group w-full flex justify-center">
                             <div className="absolute -inset-1.5 bg-gradient-to-tr from-purple-600 via-pink-600 to-blue-600 rounded-2xl opacity-75 blur transition duration-1000 group-hover:duration-200 group-hover:opacity-100"></div>
-                        <div className="relative p-2 bg-white rounded-xl shadow-xl">
+                        <div className="relative p-2 bg-white rounded-xl shadow-xl w-full max-w-sm">
                                  {qrDataUrl ? (
-                                     <div className="relative w-96 h-96 qr-image-container">
+                                     <div className="relative w-full aspect-square qr-image-container">
                                         <Image src={qrDataUrl} alt="Branch QR" fill className="object-contain" />
                                      </div>
                                  ) : (
-                                     <div className="w-96 h-96 flex items-center justify-center bg-gray-50 text-gray-400">
+                                     <div className="w-full aspect-square flex items-center justify-center bg-gray-50 text-gray-400">
                                          <QrCodeIcon className="w-24 h-24" />
                                      </div>
                                  )}
@@ -964,9 +964,9 @@ const tabs = [
                             <span>Scan Now</span>
                          </div>
                        </div>
-    
+
                        {/* 3. Dual Instruction Section */}
-                       <div className="grid grid-cols-2 gap-4 w-full">
+                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
                           {/* New Users */}
                           <div className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-transparent border border-blue-100 dark:border-blue-900/50 p-4 rounded-2xl relative overflow-hidden group hover:shadow-md transition-all flex items-center gap-4 text-left">
                             <div className="absolute top-0 right-0 w-16 h-16 bg-blue-100/50 dark:bg-blue-800/20 rounded-bl-full -mr-8 -mt-8"></div>
@@ -997,7 +997,7 @@ const tabs = [
                        </div>
     
                        {/* 4. Footer Details */}
-                       <div className="w-full pt-5 border-t border-gray-100 dark:border-gray-800 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400">
+                       <div className="w-full pt-5 border-t border-gray-100 dark:border-gray-800 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400">
                           {(branch.owner?.name) && (
                             <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                                 <span className="text-gray-400 font-medium uppercase text-[10px] shrink-0">Owner</span>
