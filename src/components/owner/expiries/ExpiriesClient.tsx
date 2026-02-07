@@ -124,7 +124,7 @@ export function ExpiriesClient() {
             } else if (daysSinceExpiry <= 7) {
                 message = `Hello ${item.student.name}, it's been a week since your subscription expired. We miss you at the library! Renew now to keep your spot.`
             } else if (daysSinceExpiry <= 30) {
-                 message = `Hello ${item.student.name}, your subscription has been expired for a while now. We hope to see you back soon! Let us know if you'd like to renew.`
+                message = `Hello ${item.student.name}, your subscription has been expired for a while now. We hope to see you back soon! Let us know if you'd like to renew.`
             } else {
                  message = `Hello ${item.student.name}, it's been over a month since we last saw you. We have new plans available that might suit you. Visit us or reply to know more!`
             }
@@ -183,27 +183,23 @@ export function ExpiriesClient() {
             <AnimatedCard key={item.id} className="p-4 hover:shadow-md transition-all border-l-4 border-l-transparent hover:border-l-primary">
                 <div className="flex justify-between items-start gap-3">
                     <div className="flex gap-3">
-                        <Link href={`/owner/students/${item.student.id}`}>
-                            <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 hover:opacity-80 transition-opacity">
-                                {item.student.image ? (
-                                    <Image 
-                                        src={item.student.image} 
-                                        alt={item.student.name}
-                                        fill
-                                        className="object-cover"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                        <User size={20} />
-                                    </div>
-                                )}
-                            </div>
-                        </Link>
+                        <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                            {item.student.image ? (
+                                <Image 
+                                    src={item.student.image} 
+                                    alt={item.student.name}
+                                    fill
+                                    className="object-cover"
+                                />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                    <User size={20} />
+                                </div>
+                            )}
+                        </div>
                         <div>
                             <div className="flex items-center flex-wrap gap-2">
-                                <Link href={`/owner/students/${item.student.id}`} className="hover:underline">
-                                    <h4 className="font-semibold text-gray-900 dark:text-gray-100">{item.student.name}</h4>
-                                </Link>
+                                <h4 className="font-semibold text-gray-900 dark:text-gray-100">{item.student.name}</h4>
                                 <span className="text-xs text-gray-500 font-medium">({item.plan.name})</span>
                                 {item.isPresentToday && (
                                     <span className="px-1.5 py-0.5 text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full flex items-center gap-1">
@@ -213,8 +209,20 @@ export function ExpiriesClient() {
                                 )}
                             </div>
 
+                            <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                <span>{item.branch.name}</span>
+                                {item.seat && (
+                                    <>
+                                        <span>•</span>
+                                        <span className="font-medium text-gray-700 dark:text-gray-300">
+                                            {formatSeatNumber(item.seat.number)}
+                                        </span>
+                                    </>
+                                )}
+                            </div>
+
                             {(item.student.phone || item.student.email) && (
-                                <div className="text-xs text-gray-500 mt-0.5">
+                                <div className="text-xs text-gray-500 mt-1">
                                     {item.student.phone || item.student.email}
                                 </div>
                             )}
@@ -242,19 +250,7 @@ export function ExpiriesClient() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs text-gray-500 mt-1.5 whitespace-nowrap overflow-hidden">
-                    <span className="truncate">{item.branch.name}</span>
-                    {item.seat && (
-                        <>
-                            <span className="flex-shrink-0">•</span>
-                            <span className="font-medium text-gray-700 dark:text-gray-300 flex-shrink-0">
-                                {formatSeatNumber(item.seat.number)}
-                            </span>
-                        </>
-                    )}
-                </div>
-
-                <div className="mt-1.5 pt-1.5 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center">
                     <div className="text-xs text-gray-500 flex items-center gap-1">
                         <Calendar size={12} />
                         {format(endDate, 'dd MMM yyyy')}
