@@ -394,7 +394,7 @@ export default function PlansAndFeesPage() {
                         {!plan.branch && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-50 text-slate-700 dark:bg-slate-900/30 dark:text-slate-200">
                             <MapPin className="w-3 h-3" />
-                            Global
+                            All Branches
                         </span>
                         )}
                     </div>
@@ -503,7 +503,7 @@ export default function PlansAndFeesPage() {
                             {!fee.branch && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-50 text-slate-700 dark:bg-slate-900/30 dark:text-slate-200">
                                 <MapPin className="w-3 h-3" />
-                                Global
+                                All Branches
                             </span>
                             )}
                         </div>
