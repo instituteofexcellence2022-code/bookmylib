@@ -8,7 +8,8 @@ import {
   Wifi, Coffee, Wind, Zap, Car, Lock, Camera, BookOpen, ShieldCheck,
   Star, Clock, Info,
   Book,
-  ArrowRight
+  ArrowRight,
+  Armchair
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BranchDetailsModal } from './BranchDetailsModal'
@@ -16,7 +17,7 @@ import { getThemeClasses } from '@/lib/utils'
 import type { ThemeColor } from '@/lib/utils'
 
 // Helper to parse amenities safely
-const getAmenities = (amenitiesString: string | null) => {
+const getAmenities = (amenitiesString: string | null, seatCount: number = 0) => {
   const allAmenities = [
     { id: 'wifi', icon: Wifi, label: 'Free WiFi' },
     { id: 'ac', icon: Wind, label: 'Fully AC' },
@@ -38,24 +39,39 @@ const getAmenities = (amenitiesString: string | null) => {
     { id: 'security', icon: ShieldCheck, label: 'Security' }
   ]
 
-  if (!amenitiesString) return allAmenities.slice(0, 8)
-  
-  try {
-    const parsed = JSON.parse(amenitiesString)
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      if (typeof parsed[0] === 'string') {
-          return allAmenities.filter(a => 
-            parsed.includes(a.id) || 
-            parsed.includes(a.label) || 
-            parsed.some((p: string) => p.toLowerCase() === a.label.toLowerCase())
-          )
+  let amenities = []
+
+  if (!amenitiesString) {
+    amenities = allAmenities.slice(0, 8)
+  } else {
+    try {
+      const parsed = JSON.parse(amenitiesString)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        if (typeof parsed[0] === 'string') {
+            amenities = allAmenities.filter(a => 
+              parsed.includes(a.id) || 
+              parsed.includes(a.label) || 
+              parsed.some((p: string) => p.toLowerCase() === a.label.toLowerCase())
+            )
+        } else {
+            amenities = allAmenities.slice(0, 8)
+        }
+      } else {
+        amenities = allAmenities.slice(0, 8)
       }
-      return allAmenities.slice(0, 8)
+    } catch {
+      amenities = allAmenities.slice(0, 8)
     }
-    return allAmenities.slice(0, 8)
-  } catch {
-    return allAmenities.slice(0, 8)
   }
+
+  // Explicitly add Seat Reservation if seats exist
+  if (seatCount > 0) {
+    if (!amenities.some(a => a.id === 'reserved_seat')) {
+        amenities.unshift({ id: 'reserved_seat', icon: Armchair, label: 'Reserved Seat' })
+    }
+  }
+
+  return amenities
 }
 
 export interface BranchCardProps {
@@ -106,7 +122,7 @@ export function BranchCard({ branch, isActiveMember, theme = 'emerald', publicMo
   const [showDetails, setShowDetails] = useState(false)
   const [showHours, setShowHours] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
-  const amenities = getAmenities(branch.amenities)
+  const amenities = getAmenities(branch.amenities, branch._count?.seats || 0)
   const themeClasses = getThemeClasses(theme)
   
   const hoursRef = useRef<HTMLDivElement>(null)

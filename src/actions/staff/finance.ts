@@ -174,6 +174,7 @@ export async function createStaffPayment(data: {
     remarks?: string
     planId?: string
     feeId?: string
+    additionalFeeIds?: string[]
     seatId?: string
     discount?: number
     promoCode?: string
@@ -213,6 +214,7 @@ export async function createStaffPayment(data: {
         let start = new Date()
         let end = new Date()
         let subscriptionId: string | undefined = undefined
+        let hasLocker = false
 
         if (data.type === 'subscription' && plan) {
              const lastSubscription = await prisma.studentSubscription.findFirst({
@@ -250,6 +252,17 @@ export async function createStaffPayment(data: {
 
                 if (conflictingSub) return { success: false, error: 'Seat is already occupied for the selected dates' }
             }
+
+            // Determine hasLocker status
+            hasLocker = plan.includesLocker || false
+            const feeIds = data.additionalFeeIds || (data.feeId ? [data.feeId] : [])
+            
+            if (!hasLocker && feeIds.length > 0) {
+                const fees = await prisma.additionalFee.findMany({
+                    where: { id: { in: feeIds } }
+                })
+                hasLocker = fees.some(f => f.name.toLowerCase().includes('locker'))
+            }
         }
 
         const payment = await prisma.$transaction(async (tx) => {
@@ -266,10 +279,25 @@ export async function createStaffPayment(data: {
                         startDate: start,
                         endDate: end,
                         amount: data.amount,
-                        status: 'active' // Immediate activation for staff payments
+                        status: 'active', // Immediate activation for staff payments
+                        hasLocker
                     }
                 })
                 subscriptionId = subscription.id
+            }
+
+            // Generate description for fees
+            let feeDescription = ''
+            if (plan) feeDescription = `Plan: ${plan.name}`
+            
+            const feeIds = data.additionalFeeIds || (data.feeId ? [data.feeId] : [])
+            if (feeIds.length > 0) {
+                const fees = await tx.additionalFee.findMany({
+                    where: { id: { in: feeIds } }
+                })
+                fees.forEach(fee => {
+                    feeDescription += feeDescription ? `, ${fee.name}` : fee.name
+                })
             }
 
             // Create Payment
@@ -283,7 +311,7 @@ export async function createStaffPayment(data: {
                     studentId: data.studentId,
                     libraryId: staff.libraryId,
                     branchId: staff.branchId,
-                    notes: data.remarks,
+                    notes: data.remarks ? `${feeDescription}. ${data.remarks}` : feeDescription,
                     remarks: data.remarks,
                     collectedBy: staff.id,
                     verifiedBy: staff.id,

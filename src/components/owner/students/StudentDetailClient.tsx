@@ -22,7 +22,8 @@ import {
     StickyNote,
     ArrowLeft,
     Download,
-    CheckCircle
+    CheckCircle,
+    Lock
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
@@ -49,6 +50,7 @@ interface Subscription {
   plan: { name: string }
   branch: { name: string; id: string }
   seat?: { number: string } | null
+  hasLocker?: boolean
 }
 
 interface Attendance {
@@ -497,8 +499,16 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                                             <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-5 text-white shadow-lg">
                                                 <div className="text-indigo-100 text-xs font-medium uppercase tracking-wider mb-2">Active Plan</div>
                                                 <div className="text-2xl font-bold mb-1">{activeSub.plan.name}</div>
-                                                <div className="text-indigo-100 text-sm mb-4">
-                                                    {activeSub.branch.name} • {activeSub.seat ? formatSeatNumber(activeSub.seat.number) : 'No Seat'}
+                                                <div className="text-indigo-100 text-sm mb-4 space-y-1">
+                                                    <div>{activeSub.branch.name}</div>
+                                                    <div className="flex items-center gap-3 text-indigo-100/90">
+                                                        <span>{activeSub.seat ? formatSeatNumber(activeSub.seat.number) : 'No Seat'}</span>
+                                                        {activeSub.hasLocker && (
+                                                            <span className="flex items-center gap-1 bg-white/20 px-2 py-0.5 rounded text-[10px] font-medium">
+                                                                <Lock size={10} /> Locker
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 <div className="flex justify-between items-end border-t border-white/20 pt-4">
                                                     <div>
@@ -656,6 +666,11 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                                                     <td className="p-4 font-medium text-gray-900 dark:text-white">
                                                         {sub.plan.name}
                                                         {sub.seat && <div className="text-xs text-gray-500 font-normal">Seat: {sub.seat.number}</div>}
+                                                        {sub.hasLocker && (
+                                                            <div className="text-xs text-purple-600 dark:text-purple-400 font-normal flex items-center gap-1 mt-0.5">
+                                                                <Lock size={10} /> Locker Included
+                                                            </div>
+                                                        )}
                                                     </td>
                                                     <td className="p-4 text-gray-500">{sub.branch.name}</td>
                                                     <td className="p-4 text-gray-500">{format(new Date(sub.startDate), 'PP')}</td>

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
-import { Search, User, CreditCard, Banknote, Check, Loader2, ChevronRight, ChevronLeft, Percent, Armchair, Calendar, Info, LayoutGrid, List, ShieldCheck, MapPin, CheckCircle2, Clock } from 'lucide-react'
+import { Search, User, CreditCard, Banknote, Check, Loader2, ChevronRight, ChevronLeft, Percent, Armchair, Calendar, Info, LayoutGrid, List, ShieldCheck, MapPin, CheckCircle2, Clock, Lock } from 'lucide-react'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
@@ -34,6 +34,8 @@ interface Plan {
     shiftStart?: string | null
     shiftEnd?: string | null
     billingCycle: string
+    includesSeat?: boolean
+    includesLocker?: boolean
 }
 
 interface Fee {
@@ -246,6 +248,8 @@ export function StaffAcceptPaymentForm() {
     const isSeatSelectionEnabled = useMemo(() => {
         if (!selectedPlan) return false
         
+        if (selectedPlan.includesSeat) return true
+
         // Check for "Seat Reservation" or similar fee
         const seatFeeExists = fees.some(f => 
             f.name.toLowerCase().includes('seat') || 
@@ -263,6 +267,25 @@ export function StaffAcceptPaymentForm() {
             )
         })
     }, [selectedPlan, selectedFees, fees])
+
+    // Filter fees
+    const lockerFees = useMemo(() => fees.filter(f => f.name.toLowerCase().includes('locker')), [fees])
+    const seatFees = useMemo(() => fees.filter(f => f.name.toLowerCase().includes('seat') || f.name.toLowerCase().includes('reservation')), [fees])
+    const otherFees = useMemo(() => fees.filter(f => !lockerFees.includes(f) && !seatFees.includes(f)), [fees, lockerFees, seatFees])
+
+    // Handle Fee Toggles with conflict resolution
+    const toggleFee = (feeId: string) => {
+        const id = String(feeId)
+        
+        setSelectedFees(prev => {
+            const isSelected = prev.includes(id)
+            if (isSelected) {
+                return prev.filter(f => f !== id)
+            } else {
+                return [...prev, id]
+            }
+        })
+    }
 
     // Reset seat if selection becomes disabled
     useEffect(() => {
@@ -349,6 +372,7 @@ export function StaffAcceptPaymentForm() {
                 remarks,
                 planId: selectedPlan.id,
                 seatId: selectedSeat?.id,
+                additionalFeeIds: selectedFees,
                 promoCode: appliedCoupon?.code,
                 discount: (appliedCoupon?.discount || 0) + (parseFloat(additionalDiscount) || 0)
             })
@@ -699,44 +723,142 @@ export function StaffAcceptPaymentForm() {
                             </div>
                         </div>
 
-                        {/* Additional Fees */}
-                        {fees.length > 0 && (
-                            <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                        {/* 2. Fees & Customization */}
+                        {(fees.length > 0 || selectedPlan?.includesLocker) && (
+                            <div className="space-y-6 pt-4 border-t border-gray-100 dark:border-gray-800">
                                 <h3 className="text-lg font-medium flex items-center gap-2 text-gray-700 dark:text-gray-300">
                                     <Info className="w-4 h-4 text-purple-500" />
-                                    2. Additional Fees
+                                    2. Fees & Customization
                                 </h3>
-                                <div className="space-y-3">
-                                    {fees.map(fee => (
-                                        <div
-                                            key={fee.id}
-                                            className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
-                                            onClick={() => {
-                                                setSelectedFees(prev => 
-                                                    prev.includes(String(fee.id))
-                                                        ? prev.filter(id => id !== String(fee.id))
-                                                        : [...prev, String(fee.id)]
-                                                )
-                                            }}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className={cn(
-                                                    "w-5 h-5 rounded border flex items-center justify-center transition-colors",
-                                                    selectedFees.includes(String(fee.id))
-                                                        ? "bg-purple-500 border-purple-500"
-                                                        : "border-gray-300 dark:border-gray-600"
-                                                )}>
-                                                    {selectedFees.includes(String(fee.id)) && <Check className="w-3 h-3 text-white" />}
+                                
+                                {/* Locker Section */}
+                                {(selectedPlan?.includesLocker || lockerFees.length > 0) && (
+                                    <div className="space-y-2">
+                                        <h4 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2 text-xs uppercase tracking-wider text-purple-600 dark:text-purple-400">
+                                            <Lock className="w-3.5 h-3.5" />
+                                            Locker Facility
+                                        </h4>
+                                        
+                                        {selectedPlan?.includesLocker ? (
+                                            <div className="flex items-center gap-3 p-3 rounded-xl border border-purple-200 bg-purple-50 dark:bg-purple-900/10 dark:border-purple-800">
+                                                <div className="w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
+                                                    <Check className="w-3 h-3 text-purple-600 dark:text-purple-400" />
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium text-sm text-gray-900 dark:text-white">{fee.name}</p>
-                                                    <p className="text-xs text-gray-500 capitalize">{fee.description || (fee.type || '').replace(/_/g, ' ')}</p>
+                                                    <p className="font-medium text-sm text-purple-900 dark:text-purple-100">Locker Included</p>
+                                                    <p className="text-xs text-purple-700 dark:text-purple-300">Part of your plan</p>
                                                 </div>
                                             </div>
-                                            <span className="font-semibold text-sm text-gray-900 dark:text-white">₹{fee.amount}</span>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {lockerFees.map(fee => (
+                                                    <div
+                                                        key={fee.id}
+                                                        onClick={() => toggleFee(fee.id)}
+                                                        className={cn(
+                                                            "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
+                                                            selectedFees.includes(String(fee.id))
+                                                                ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 ring-1 ring-purple-500/20"
+                                                                : "border-gray-200 dark:border-gray-700 hover:border-purple-300"
+                                                        )}
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={cn(
+                                                                "w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0",
+                                                                selectedFees.includes(String(fee.id))
+                                                                    ? "bg-purple-500 border-purple-500 text-white"
+                                                                    : "border-gray-300 dark:border-gray-600"
+                                                            )}>
+                                                                {selectedFees.includes(String(fee.id)) && <Check className="w-3 h-3" />}
+                                                            </div>
+                                                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fee.name}</span>
+                                                        </div>
+                                                        <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Seat Fee Section (Only if not included and fees exist) */}
+                                {(!selectedPlan?.includesSeat && seatFees.length > 0) && (
+                                    <div className="space-y-2">
+                                        <h4 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2 text-xs uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                                            <Armchair className="w-3.5 h-3.5" />
+                                            Seat Reservation
+                                        </h4>
+                                        <div className="space-y-2">
+                                            {seatFees.map(fee => (
+                                                <div
+                                                    key={fee.id}
+                                                    onClick={() => toggleFee(fee.id)}
+                                                    className={cn(
+                                                        "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
+                                                        selectedFees.includes(String(fee.id))
+                                                            ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 ring-1 ring-emerald-500/20"
+                                                            : "border-gray-200 dark:border-gray-700 hover:border-emerald-300"
+                                                    )}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={cn(
+                                                            "w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0",
+                                                            selectedFees.includes(String(fee.id))
+                                                                ? "bg-emerald-500 border-emerald-500 text-white"
+                                                                : "border-gray-300 dark:border-gray-600"
+                                                        )}>
+                                                            {selectedFees.includes(String(fee.id)) && <Check className="w-3 h-3" />}
+                                                        </div>
+                                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fee.name}</span>
+                                                    </div>
+                                                    <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
+                                    </div>
+                                )}
+
+                                {/* Other Fees */}
+                                {otherFees.length > 0 && (
+                                    <div className="space-y-2">
+                                        <h4 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2 text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                                            <Info className="w-3.5 h-3.5" />
+                                            Other Fees
+                                        </h4>
+                                        <div className="space-y-2">
+                                            {otherFees.map(fee => (
+                                                <div
+                                                    key={fee.id}
+                                                    onClick={() => toggleFee(fee.id)}
+                                                    className={cn(
+                                                        "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
+                                                        selectedFees.includes(String(fee.id))
+                                                            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-500/20"
+                                                            : "border-gray-200 dark:border-gray-700 hover:border-blue-300"
+                                                    )}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={cn(
+                                                            "w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0",
+                                                            selectedFees.includes(String(fee.id))
+                                                                ? "bg-blue-500 border-blue-500 text-white"
+                                                                : "border-gray-300 dark:border-gray-600"
+                                                        )}>
+                                                            {selectedFees.includes(String(fee.id)) && <Check className="w-3 h-3" />}
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-medium text-sm text-gray-900 dark:text-white">{fee.name}</p>
+                                                            {fee.description && (
+                                                                <p className="text-xs text-gray-500">{fee.description}</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 

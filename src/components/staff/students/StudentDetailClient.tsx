@@ -15,7 +15,8 @@ import {
     Shield, 
     MessageSquare,
     StickyNote,
-    ArrowLeft
+    ArrowLeft,
+    Lock
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { formatSeatNumber } from '@/lib/utils'
@@ -37,6 +38,7 @@ interface Subscription {
   plan: { name: string }
   branch: { name: string }
   seat?: { number: string } | null
+  hasLocker?: boolean
 }
 
 interface Attendance {
@@ -461,6 +463,14 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-500">Seat</span>
                                                     <span className="font-medium">{formatSeatNumber(sub.seat.number)}</span>
+                                                </div>
+                                            )}
+                                            {sub.hasLocker && (
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-500">Locker</span>
+                                                    <span className="font-medium flex items-center gap-1 text-purple-600 dark:text-purple-400">
+                                                        <Lock size={12} /> Included
+                                                    </span>
                                                 </div>
                                             )}
                                         </div>

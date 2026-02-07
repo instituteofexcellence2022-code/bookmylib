@@ -414,6 +414,19 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                                                 }
                                             </span>
                                         </div>
+                                        
+                                        {plan.includesSeat && (
+                                            <div className="flex items-center gap-1 bg-purple-50 dark:bg-purple-900/20 px-1.5 py-0.5 rounded border border-purple-100 dark:border-purple-800">
+                                                <Armchair className="w-2.5 h-2.5 text-purple-500" />
+                                                <span className="font-medium text-purple-700 dark:text-purple-300">Seat</span>
+                                            </div>
+                                        )}
+                                        {plan.includesLocker && (
+                                            <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded border border-amber-100 dark:border-amber-800">
+                                                <Lock className="w-2.5 h-2.5 text-amber-500" />
+                                                <span className="font-medium text-amber-700 dark:text-amber-300">Locker</span>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="flex flex-wrap gap-1.5">
