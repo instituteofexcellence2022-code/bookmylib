@@ -29,20 +29,20 @@ const navItems = [
   { href: '/owner/dashboard', label: 'Dashboard', icon: LayoutDashboard, group: 'Overview' },
   
   { href: '/owner/scanner', label: 'Master Scanner', icon: Scan, group: 'Operations' },
-  { href: '/owner/branches', label: 'Branches', icon: Store, group: 'Operations' },
-  { href: '/owner/staff', label: 'Staff', icon: Users, group: 'Operations' },
   { href: '/owner/students', label: 'Students', icon: GraduationCap, group: 'Operations' },
   { href: '/owner/attendance', label: 'Attendance', icon: CalendarCheck, group: 'Operations' },
   { href: '/owner/expiries', label: 'Expiries', icon: Clock, group: 'Operations' },
   { href: '/owner/verification', label: 'Verification', icon: ShieldCheck, group: 'Operations' },
+  { href: '/owner/issues', label: 'Issues', icon: AlertCircle, group: 'Operations', badge: 3, badgeColor: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
   
+  { href: '/owner/branches', label: 'Branches', icon: Store, group: 'Business' },
+  { href: '/owner/staff', label: 'Staff', icon: Users, group: 'Business' },
   { href: '/owner/plans', label: 'Plans & Fees', icon: CreditCard, group: 'Business' },
   { href: '/owner/promos', label: 'Promotions', icon: Tag, group: 'Business' },
   { href: '/owner/marketing', label: 'Marketing', icon: Megaphone, group: 'Business' },
   { href: '/owner/finance', label: 'Finance', icon: TrendingUp, group: 'Business' },
   { href: '/owner/khatabook', label: 'Khatabook', icon: BookOpen, group: 'Business' },
   
-  { href: '/owner/issues', label: 'Issues', icon: AlertCircle, group: 'System', badge: 3, badgeColor: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
   { href: '/owner/profile', label: 'My Profile', icon: User, group: 'System' },
   { href: '/owner/settings', label: 'Settings', icon: Settings, group: 'System' },
 ]
