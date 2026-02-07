@@ -7,15 +7,14 @@ import { RevenueChartClient } from '@/components/owner/finance/RevenueChartClien
 import { RevenueDistributionClient } from '@/components/owner/finance/RevenueDistributionClient'
 import { PaymentHistoryClient } from '@/components/owner/finance/PaymentHistoryClient'
 import { AcceptPaymentClient } from '@/components/owner/finance/AcceptPaymentClient'
-import { HandoverVerificationClient } from '@/components/owner/finance/HandoverVerificationClient'
-import { LayoutDashboard, PlusCircle, Wallet } from 'lucide-react'
+import { LayoutDashboard, PlusCircle } from 'lucide-react'
 
 export function FinanceTabsClient() {
     const router = useRouter()
     const searchParams = useSearchParams()
-    const activeTab = (searchParams.get('tab') as 'overview' | 'accept' | 'handovers') || 'overview'
+    const activeTab = (searchParams.get('tab') as 'overview' | 'accept') || 'overview'
 
-    const setActiveTab = (tab: 'overview' | 'accept' | 'handovers') => {
+    const setActiveTab = (tab: 'overview' | 'accept') => {
         router.push(`/owner/finance?tab=${tab}`)
     }
 
@@ -46,18 +45,6 @@ export function FinanceTabsClient() {
                     <span className="hidden sm:inline truncate">Accept Payment</span>
                     <span className="sm:hidden truncate">Accept</span>
                 </button>
-                <button
-                    onClick={() => setActiveTab('handovers')}
-                    className={`flex-1 min-w-[100px] flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all duration-200 ${
-                        activeTab === 'handovers'
-                            ? 'bg-white text-blue-600 shadow-sm dark:bg-gray-950 dark:text-blue-400'
-                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700/50'
-                    }`}
-                >
-                    <Wallet className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden sm:inline truncate">Verification</span>
-                    <span className="sm:hidden truncate">Verify</span>
-                </button>
             </div>
 
             {/* Tab Content */}
@@ -82,12 +69,6 @@ export function FinanceTabsClient() {
                 {activeTab === 'accept' && (
                     <div className="mt-2">
                         <AcceptPaymentClient />
-                    </div>
-                )}
-
-                {activeTab === 'handovers' && (
-                    <div className="mt-2">
-                        <HandoverVerificationClient />
                     </div>
                 )}
             </div>

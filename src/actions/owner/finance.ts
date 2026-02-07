@@ -346,54 +346,6 @@ export async function getPendingPayments() {
     }
 }
 
-export async function getPendingHandovers() {
-    const owner = await getAuthenticatedOwner()
-    if (!owner) return { success: false, error: 'Unauthorized' }
-
-    try {
-        const handovers = await prisma.cashHandover.findMany({
-            where: {
-                libraryId: owner.libraryId,
-                status: 'pending'
-            },
-            include: {
-                staff: {
-                    select: { name: true, email: true, image: true }
-                },
-                branch: {
-                    select: { name: true }
-                }
-            },
-            orderBy: { createdAt: 'desc' }
-        })
-        return { success: true, data: handovers }
-    } catch (error) {
-        console.error('Error fetching pending handovers:', error)
-        return { success: false, error: 'Failed to fetch pending handovers' }
-    }
-}
-
-export async function verifyHandover(id: string, status: 'verified' | 'rejected') {
-    const owner = await getAuthenticatedOwner()
-    if (!owner) return { success: false, error: 'Unauthorized' }
-
-    try {
-        await prisma.cashHandover.update({
-            where: { id, libraryId: owner.libraryId },
-            data: {
-                status: status === 'verified' ? 'accepted' : 'rejected',
-                verifiedBy: owner.id,
-                verifiedAt: new Date()
-            }
-        })
-        revalidatePath('/owner/finance')
-        return { success: true }
-    } catch (error) {
-        console.error('Error verifying handover:', error)
-        return { success: false, error: 'Failed to verify handover' }
-    }
-}
-
 export async function getRevenueAnalytics(period: string = '6_months') {
     const owner = await getAuthenticatedOwner()
     if (!owner) return { success: false, error: 'Unauthorized' }
