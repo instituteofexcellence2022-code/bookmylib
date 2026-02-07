@@ -7,28 +7,20 @@ import {
   MapPin, 
   Users, 
   Armchair, 
-  Settings,
   Clock,
   Phone,
   Mail,
-  Wifi,
-  Coffee,
-  Wind,
   TrendingUp,
   AlertCircle,
   Loader2,
   QrCode as QrCodeIcon,
   BookOpen,
-  Download,
-  RefreshCw,
-  Printer,
   Shield,
   Scan,
   Search,
-  UserCheck,
-  ExternalLink,
-  Smartphone,
-  Info
+  RefreshCw,
+  Printer,
+  UserCheck
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
@@ -70,7 +62,7 @@ interface BranchDetail {
   status: string
   seats: { total: number; occupied: number }
   staff: number
-  staffList?: any[]
+  staffList?: { id: string; name: string; role: string; status: string; image?: string }[]
   revenue: number
   monthlyRevenue?: number
   lastMonthRevenue?: number
@@ -241,7 +233,7 @@ const tabs = [
             <style>
               @page { size: A4 portrait; margin: 0; }
               body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
-              .print-container { width: 100%; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+              .print-container { width: 100%; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 15mm; }
               
               /* Force white background and high contrast text for print */
               #printable-qr-card { 
@@ -249,8 +241,21 @@ const tabs = [
                 color: black !important; 
                 box-shadow: none !important;
                 width: 100%;
-                max-width: 140mm;
-                border: 1px solid #e5e7eb;
+                max-width: 100%;
+                border: 2px solid #e5e7eb;
+              }
+
+              /* Scale up QR code for print */
+              #printable-qr-card .qr-image-container {
+                width: 500px !important;
+                height: 500px !important;
+                max-width: 80% !important;
+                position: relative !important;
+              }
+              #printable-qr-card img {
+                width: 100% !important;
+                height: 100% !important;
+                object-fit: contain !important;
               }
 
               /* Ensure text visibility */
@@ -388,7 +393,7 @@ const tabs = [
                   <MapPin className="w-4 h-4" />
                   {(() => {
                     // Combine all parts, split by comma, trim, and deduplicate
-                    const rawParts = [branch.address, (branch as any).area, (branch as any).city, (branch as any).state]
+                    const rawParts = [branch.address, branch.area, branch.city, branch.state]
                       .filter(Boolean)
                       .join(', ')
                       .split(',')
@@ -737,7 +742,7 @@ const tabs = [
                </div>
                <div className="space-y-4">
                  {branch.staffList && branch.staffList.length > 0 ? (
-                    branch.staffList.map((staff: any) => (
+                    branch.staffList.map((staff: { id: string; name: string; role: string; status: string; image?: string }) => (
                    <div key={staff.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700/50">
                      <div className="flex items-center gap-4">
                        <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 font-medium overflow-hidden">
@@ -794,7 +799,7 @@ const tabs = [
                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Activity Log</h3>
                  <select
                    value={logFilter}
-                   onChange={(e) => setLogFilter(e.target.value as any)}
+                   onChange={(e) => setLogFilter(e.target.value as 'all' | 'staff_activity' | 'attendance' | 'payment')}
                    className="text-sm bg-transparent border-none text-gray-500 focus:ring-0 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none"
                  >
                    <option value="all">All Activity</option>
@@ -936,14 +941,16 @@ const tabs = [
                          <div className="relative group">
                             <div className="absolute -inset-1.5 bg-gradient-to-tr from-purple-600 via-pink-600 to-blue-600 rounded-2xl opacity-75 blur transition duration-1000 group-hover:duration-200 group-hover:opacity-100"></div>
                         <div className="relative p-6 bg-white rounded-xl shadow-xl">
-                                {qrDataUrl ? (
-                                    <img src={qrDataUrl} alt="Branch QR" className="w-64 h-64 object-contain" />
-                                ) : (
-                                    <div className="w-64 h-64 flex items-center justify-center bg-gray-50 text-gray-400">
-                                        <QrCodeIcon className="w-16 h-16" />
-                                    </div>
-                                )}
-                            </div>
+                                 {qrDataUrl ? (
+                                     <div className="relative w-96 h-96 qr-image-container">
+                                        <Image src={qrDataUrl} alt="Branch QR" fill className="object-contain" />
+                                     </div>
+                                 ) : (
+                                     <div className="w-96 h-96 flex items-center justify-center bg-gray-50 text-gray-400">
+                                         <QrCodeIcon className="w-24 h-24" />
+                                     </div>
+                                 )}
+                             </div>
                          </div>
                          <div className="flex items-center gap-2 text-sm font-bold text-purple-700 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-300 px-5 py-2 rounded-full border border-purple-100 dark:border-purple-800">
                             <Scan className="w-4 h-4" />

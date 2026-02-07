@@ -11,8 +11,8 @@ export interface QRConfig {
 }
 
 export const DEFAULT_QR_CONFIG: QRConfig = {
-  width: 600,
-  margin: 2,
+  width: 1200,
+  margin: 1,
   errorCorrectionLevel: 'H',
   color: {
     dark: '#000000',
