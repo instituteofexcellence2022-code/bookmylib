@@ -112,12 +112,16 @@ export async function getPaymentHistory() {
 
 export async function getStudentBookingStatus() {
   const student = await getStudent()
-  if (!student) return { isNew: true, lastBranchId: null, lastSubscription: null }
+  if (!student) return { isNew: true, lastBranchId: null, lastSubscription: null, activeSubscription: null, queuedSubscriptions: [] }
 
-  // Check for any subscription (active or expired)
-  const lastSubscription = await prisma.studentSubscription.findFirst({
-    where: { studentId: student.id },
-    orderBy: { endDate: 'desc' },
+  // Fetch all active/pending subscriptions
+  const allSubscriptions = await prisma.studentSubscription.findMany({
+    where: { 
+      studentId: student.id,
+      status: { in: ['active', 'pending'] },
+      endDate: { gt: new Date() } // Filter out expired ones
+    },
+    orderBy: { startDate: 'asc' }, // Order by start date
     select: { 
       id: true,
       branchId: true,
@@ -137,13 +141,63 @@ export async function getStudentBookingStatus() {
       endDate: true,
       hasLocker: true,
       seat: {
+                select: {
+                  number: true,
+                  section: true
+                }
+              },
+              payments: {
+        where: { status: 'completed', type: 'subscription' },
+        take: 1,
+        orderBy: { createdAt: 'desc' },
         select: {
-          number: true,
-          section: true
+          id: true,
+          amount: true,
+          createdAt: true,
+          method: true,
+          student: {
+            select: {
+              name: true,
+              email: true,
+              phone: true
+            }
+          },
+          branch: {
+            select: {
+              name: true,
+              address: true,
+              city: true
+            }
+          }
         }
       }
     }
   })
+
+  // Transform to flatten payment
+  const formattedSubscriptions = allSubscriptions.map(sub => {
+    const { payments, ...rest } = sub
+    return {
+      ...rest,
+      payment: payments[0] || null
+    }
+  })
+
+  // Determine Active vs Queued
+  const now = new Date()
+  const activeSubscription = formattedSubscriptions.find(sub => 
+    new Date(sub.startDate) <= now && new Date(sub.endDate) >= now
+  ) || null
+
+  const queuedSubscriptions = formattedSubscriptions.filter(sub => 
+    new Date(sub.startDate) > now
+  )
+
+  // Determine "Last" subscription (for renewals - usually the one ending last)
+  // Since we sorted by startDate asc, and assuming non-overlapping chains, the last one in array usually ends last.
+  // But let's be safe and sort by endDate desc to find the "latest" one.
+  const sortedByEnd = [...formattedSubscriptions].sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime())
+  const lastSubscription = sortedByEnd[0] || null
 
   let latestPayment = null
   if (lastSubscription) {
@@ -187,7 +241,9 @@ export async function getStudentBookingStatus() {
   return {
     isNew: !lastSubscription,
     lastBranchId: lastSubscription?.branchId || null,
-    lastSubscription: lastSubscription ? { ...lastSubscription, payment: latestPayment } : null
+    lastSubscription: lastSubscription ? { ...lastSubscription, payment: latestPayment } : null,
+    activeSubscription: activeSubscription ? { ...activeSubscription, payment: null } : null, // Payment fetching for active/queued can be added if needed
+    queuedSubscriptions
   }
 }
 

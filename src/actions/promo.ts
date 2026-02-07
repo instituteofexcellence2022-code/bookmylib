@@ -88,6 +88,27 @@ export async function createPromotion(formData: FormData) {
     
     if (validTo < validFrom) return { success: false, error: 'End date cannot be before start date' }
 
+    // Validate Branch and Plan ownership
+    if (branchId && branchId !== 'all') {
+      const branch = await prisma.branch.findFirst({
+        where: {
+          id: branchId,
+          libraryId: owner.libraryId
+        }
+      })
+      if (!branch) return { success: false, error: 'Invalid branch selected' }
+    }
+
+    if (planId && planId !== 'all') {
+      const plan = await prisma.plan.findFirst({
+        where: {
+          id: planId,
+          libraryId: owner.libraryId
+        }
+      })
+      if (!plan) return { success: false, error: 'Invalid plan selected' }
+    }
+
     // Unique Code Check
     const normalizedCode = code.toUpperCase()
     const existing = await prisma.promotion.findFirst({
@@ -120,6 +141,7 @@ export async function createPromotion(formData: FormData) {
 
     revalidatePath('/owner/promos')
     return { success: true }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error('Detailed error creating promotion:', error)
     if (error.code === 'P2002') {
@@ -170,6 +192,27 @@ export async function updatePromotion(formData: FormData) {
 
     if (validTo < validFrom) return { success: false, error: 'End date cannot be before start date' }
 
+    // Validate Branch and Plan ownership
+    if (branchId && branchId !== 'all') {
+      const branch = await prisma.branch.findFirst({
+        where: {
+          id: branchId,
+          libraryId: owner.libraryId
+        }
+      })
+      if (!branch) return { success: false, error: 'Invalid branch selected' }
+    }
+
+    if (planId && planId !== 'all') {
+      const plan = await prisma.plan.findFirst({
+        where: {
+          id: planId,
+          libraryId: owner.libraryId
+        }
+      })
+      if (!plan) return { success: false, error: 'Invalid plan selected' }
+    }
+
     // Unique Code Check (excluding current promo)
     const existing = await prisma.promotion.findFirst({
       where: {
@@ -203,6 +246,7 @@ export async function updatePromotion(formData: FormData) {
 
     revalidatePath('/owner/promos')
     return { success: true }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error('Error updating promotion:', error)
     if (error.code === 'P2002') {
@@ -214,9 +258,19 @@ export async function updatePromotion(formData: FormData) {
 
 export async function deletePromotion(id: string) {
   const owner = await getOwnerProfile()
-  if (!owner) return { success: false, error: 'Unauthorized' }
+  if (!owner || !owner.libraryId) return { success: false, error: 'Unauthorized' }
 
   try {
+    // Verify ownership
+    const promo = await prisma.promotion.findFirst({
+      where: { 
+        id,
+        libraryId: owner.libraryId
+      }
+    })
+    
+    if (!promo) return { success: false, error: 'Promotion not found or access denied' }
+
     await prisma.promotion.delete({
       where: { id }
     })
@@ -229,9 +283,17 @@ export async function deletePromotion(id: string) {
 }
 
 export async function togglePromotionStatus(id: string) {
+  const owner = await getOwnerProfile()
+  if (!owner || !owner.libraryId) return { success: false, error: 'Unauthorized' }
+
   try {
-    const promo = await prisma.promotion.findUnique({ where: { id } })
-    if (!promo) return { success: false, error: 'Promotion not found' }
+    const promo = await prisma.promotion.findFirst({ 
+      where: { 
+        id,
+        libraryId: owner.libraryId
+      } 
+    })
+    if (!promo) return { success: false, error: 'Promotion not found or access denied' }
 
     await prisma.promotion.update({
       where: { id },
@@ -239,7 +301,7 @@ export async function togglePromotionStatus(id: string) {
     })
     revalidatePath('/owner/promos')
     return { success: true }
-  } catch (error) {
+  } catch {
     return { success: false, error: 'Failed to update status' }
   }
 }
@@ -272,7 +334,7 @@ export async function getOwnerReferrals() {
   }
 }
 
-export async function saveReferralSettings(settings: any) {
+export async function saveReferralSettings(settings: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
   const owner = await getOwnerProfile()
   if (!owner || !owner.libraryId) return { success: false, error: 'Unauthorized' }
 

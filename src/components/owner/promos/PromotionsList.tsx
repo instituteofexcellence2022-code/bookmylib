@@ -138,7 +138,15 @@ export function PromotionsList() {
         if (statusFilter === 'active') return p.isActive
         return !p.isActive
       })
-  }, [promotions, search, statusFilter])
+      .filter(p => {
+        if (filterBranchId === 'all') return true
+        return p.branchId === filterBranchId
+      })
+      .filter(p => {
+        if (filterPlanId === 'all') return true
+        return p.planId === filterPlanId
+      })
+  }, [promotions, search, statusFilter, filterBranchId, filterPlanId])
 
   // Handlers
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -301,7 +309,6 @@ export function PromotionsList() {
                 onChange={e => setFilterBranchId(e.target.value)}
                 options={[
                   { label: 'All Branches', value: 'all' },
-                  { label: 'Global Only', value: 'global' },
                   ...branches.map(b => ({ label: b.name, value: b.id }))
                 ]}
                 icon={MapPin}
@@ -313,7 +320,6 @@ export function PromotionsList() {
                 onChange={e => setFilterPlanId(e.target.value)}
                 options={[
                   { label: 'All Plans', value: 'all' },
-                  { label: 'Global Only', value: 'global' },
                   ...plans.map(p => ({ label: p.name, value: p.id }))
                 ]}
                 icon={Layers}
