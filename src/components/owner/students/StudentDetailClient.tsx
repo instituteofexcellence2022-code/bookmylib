@@ -95,7 +95,6 @@ interface Payment {
       city?: string | null
   } | null
   remarks?: string | null
-  description?: string | null
 }
 
 interface Ticket {
