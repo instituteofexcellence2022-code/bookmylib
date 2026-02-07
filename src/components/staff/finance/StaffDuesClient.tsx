@@ -51,6 +51,12 @@ export function StaffDuesClient() {
     const [searchQuery, setSearchQuery] = useState('')
     const [sendingReminders, setSendingReminders] = useState(false)
 
+    const maskPhoneNumber = (phone: string | null) => {
+        if (!phone) return ''
+        const last4 = phone.slice(-4)
+        return `******${last4}`
+    }
+
     const handleSendReminders = async () => {
         setSendingReminders(true)
         try {
@@ -210,6 +216,9 @@ export function StaffDuesClient() {
                                 <Link href={`/staff/students/${item.student.id}`} className="group-hover:text-primary transition-colors">
                                     <h4 className="font-bold text-gray-900 dark:text-gray-100 text-base">{item.student.name}</h4>
                                 </Link>
+                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-mono">
+                                    {maskPhoneNumber(item.student.phone)}
+                                </div>
                                 <div className="flex items-center gap-2 mt-1">
                                     {item.isPresentToday && (
                                         <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full flex items-center gap-1.5 shadow-sm">
