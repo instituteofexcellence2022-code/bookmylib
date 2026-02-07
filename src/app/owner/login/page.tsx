@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { FormInput } from '@/components/ui/FormInput'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { loginOwner, verifyOwnerTwoFactor } from '@/actions/auth'
@@ -10,8 +10,10 @@ import { LogIn, ShieldCheck, Lock, Mail, ArrowRight, Shield, ArrowLeft, Eye, Eye
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 
-export default function OwnerLoginPage() {
+function OwnerLoginForm() {
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const callbackUrl = searchParams.get('callbackUrl') || '/owner/dashboard'
     const [step, setStep] = useState<'credentials' | '2fa'>('credentials')
     const [loading, setLoading] = useState(false)
     const [tempOwnerId, setTempOwnerId] = useState('')
@@ -43,7 +45,7 @@ export default function OwnerLoginPage() {
                     toast.success('Please verify your 2FA code')
                 } else {
                     toast.success('Login successful')
-                    router.push('/owner/dashboard')
+                    router.push(callbackUrl)
                 }
             } else {
                 toast.error(result.error || 'Login failed')
@@ -65,7 +67,7 @@ export default function OwnerLoginPage() {
 
             if (result.success) {
                 toast.success('Verification successful')
-                router.push('/owner/dashboard')
+                router.push(callbackUrl)
             } else {
                 toast.error(result.error || 'Verification failed')
             }
@@ -272,5 +274,13 @@ export default function OwnerLoginPage() {
                 </div>
             </motion.div>
         </div>
+    )
+}
+
+export default function OwnerLoginPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">Loading...</div>}>
+            <OwnerLoginForm />
+        </Suspense>
     )
 }
