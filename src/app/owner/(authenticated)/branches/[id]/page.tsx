@@ -233,7 +233,7 @@ const tabs = [
             <style>
               @page { size: A4 portrait; margin: 0; }
               body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
-              .print-container { width: 100%; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 15mm; }
+              .print-container { width: 100%; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20mm; box-sizing: border-box; }
               
               /* Force white background and high contrast text for print */
               #printable-qr-card { 
@@ -248,12 +248,13 @@ const tabs = [
                 align-items: center !important;
                 justify-content: center !important;
                 text-align: center !important;
+                padding: 2rem !important;
               }
 
               /* Scale up QR code for print */
               #printable-qr-card .qr-image-container {
-                width: 500px !important;
-                height: 500px !important;
+                width: 400px !important;
+                height: 400px !important;
                 max-width: 80% !important;
                 position: relative !important;
                 margin: 0 auto !important;
