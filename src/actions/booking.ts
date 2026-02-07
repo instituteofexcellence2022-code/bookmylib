@@ -352,11 +352,14 @@ export async function createBooking(data: {
                 createdSubscriptionIds.push(subscription.id)
             }
             
-            // 8. Link Payment to First Subscription
+            // 8. Link Payment to First Subscription and Store All IDs in Remarks
             if (paymentIdToUse && createdSubscriptionIds.length > 0) {
                 await tx.payment.update({
                     where: { id: paymentIdToUse },
-                    data: { subscriptionId: createdSubscriptionIds[0] }
+                    data: { 
+                        subscriptionId: createdSubscriptionIds[0],
+                        remarks: JSON.stringify(createdSubscriptionIds)
+                    }
                 })
             }
             

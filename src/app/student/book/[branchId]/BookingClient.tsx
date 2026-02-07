@@ -6,9 +6,9 @@ import { toast } from 'react-hot-toast'
 import { 
     Check, Armchair, Calendar, 
     CreditCard, Clock, MapPin, Info,
-    ChevronRight, ChevronLeft, ChevronDown,
+    ChevronRight, ChevronLeft,
     LayoutGrid, List, Loader2, Library as LibraryIcon,
-    Lock
+    Lock, Plus, Minus
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
@@ -472,30 +472,32 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                         </h3>
                         
                         <div className="flex flex-wrap items-center gap-6">
-                            <div className="relative">
-                                <select
-                                    value={quantity}
-                                    onChange={(e) => setQuantity(Number(e.target.value))}
-                                    className="appearance-none bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 pr-10 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer min-w-[240px] font-medium"
+                            <div className="flex items-center gap-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2">
+                                <button
+                                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                                    className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-600 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={quantity <= 1}
                                 >
-                                    {[1, 2, 3, 4, 5, 6, 12].map(num => {
-                                        let label = `${num} Cycle${num > 1 ? 's' : ''}`
-                                        if (selectedPlan.durationUnit === 'months') {
-                                            label = `${num} Month${num > 1 ? 's' : ''}`
-                                        } else if (selectedPlan.durationUnit === 'days') {
-                                            label = `${num * selectedPlan.duration} Days`
-                                        }
-                                        return (
-                                            <option key={num} value={num}>
-                                                {label}
-                                            </option>
-                                        )
-                                    })}
-                                </select>
-                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                                    <Minus className="w-5 h-5" />
+                                </button>
+                                <span className="text-lg font-semibold text-gray-900 dark:text-white min-w-[3ch] text-center">
+                                    {quantity}
+                                </span>
+                                <button
+                                    onClick={() => setQuantity(quantity + 1)}
+                                    className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-600 dark:text-gray-300"
+                                >
+                                    <Plus className="w-5 h-5" />
+                                </button>
                             </div>
+
+                            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                {quantity} Cycle{quantity > 1 ? 's' : ''} 
+                                {selectedPlan.durationUnit === 'months' ? `(${quantity} Month${quantity > 1 ? 's' : ''})` : 
+                                 selectedPlan.durationUnit === 'days' ? `(${quantity * selectedPlan.duration} Days)` : ''}
+                            </span>
                             
-                            <div className="flex items-center gap-3 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800">
+                            <div className="flex items-center gap-3 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800 ml-auto">
                                 <span className="text-sm text-indigo-600 dark:text-indigo-300 font-medium">Total Amount:</span>
                                 <span className="text-xl font-bold text-indigo-700 dark:text-indigo-200">₹{totalAmount}</span>
                             </div>

@@ -108,9 +108,10 @@ export default function PublicBookingPayment({
   payeeName,
   studentDetails,
   startDate = new Date().toISOString(),
+  quantity = 1,
   onSuccess, 
   onBack 
-}: PublicBookingPaymentProps) {
+}: PublicBookingPaymentProps & { quantity?: number }) {
   const [paymentMethod, setPaymentMethod] = useState<string>('front_desk')
   const [couponCode, setCouponCode] = useState('')
   const [appliedCoupon, setAppliedCoupon] = useState<{
@@ -135,7 +136,7 @@ export default function PublicBookingPayment({
 
   // Calculate Base Total (Plan + Fees)
   const feesTotal = fees.reduce((sum: number, fee) => sum + Number(fee.amount), 0)
-  const baseTotal = Number(plan.price) + feesTotal
+  const baseTotal = (Number(plan.price) * quantity) + feesTotal
   const subTotal = Math.round(baseTotal)
   
   // Calculate Final Amount
@@ -307,6 +308,8 @@ export default function PublicBookingPayment({
             ...studentDetails,
             amount,
             planId: plan.id,
+            quantity,
+            startDate,
             seatId: seat?.id ? String(seat.id) : undefined, // Ensure seat ID is string
             fees: fees.map(f => String(f.id)),
             branchId,

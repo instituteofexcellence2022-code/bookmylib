@@ -18,6 +18,8 @@ export async function initiatePublicBooking(data: {
     planId: string
     seatId?: string // Optional
     fees: string[] // Fee IDs
+    quantity?: number // Number of cycles/months
+    startDate?: string // YYYY-MM-DD
     branchId: string
     gatewayProvider: string
     couponCode?: string
@@ -27,7 +29,7 @@ export async function initiatePublicBooking(data: {
     }
 }) {
     try {
-        const { name, email, phone, dob, amount, planId, seatId, fees, branchId, gatewayProvider, couponCode, manualPaymentData } = data
+        const { name, email, phone, dob, amount, planId, seatId, fees, quantity = 1, branchId, gatewayProvider, couponCode, manualPaymentData } = data
 
         // 0. Verify Email Verification Status
         // We strictly require email verification for public bookings to prevent spam and unauthorized usage
@@ -143,35 +145,50 @@ export async function initiatePublicBooking(data: {
             }
         }
 
-        // Calculate Dates
-        const startDate = new Date()
-        let endDate = new Date(startDate)
-        
-        if (plan.durationUnit === 'months') {
-            endDate = addMonths(startDate, plan.duration)
-        } else {
-            endDate = addDays(startDate, plan.duration)
+        // Calculate Dates & Create Subscriptions
+        const subscriptionPeriods: { start: Date, end: Date }[] = []
+        let currentStart = data.startDate ? new Date(data.startDate) : new Date()
+
+        for (let i = 0; i < quantity; i++) {
+            const end = new Date(currentStart)
+            if (plan.durationUnit === 'months') {
+                end.setMonth(end.getMonth() + plan.duration)
+            } else if (plan.durationUnit === 'weeks') {
+                end.setDate(end.getDate() + (plan.duration * 7))
+            } else {
+                end.setDate(end.getDate() + plan.duration)
+            }
+            subscriptionPeriods.push({ start: new Date(currentStart), end: new Date(end) })
+            currentStart = new Date(end)
         }
 
-        // Create Pending Subscription
-        // This ensures we capture all details (locker, seat) even before payment
-        const subscription = await prisma.studentSubscription.create({
-            data: {
-                libraryId: plan.libraryId,
-                branchId,
-                studentId: student.id,
-                planId: plan.id,
-                seatId: seatId || undefined,
-                hasLocker,
-                startDate,
-                endDate,
-                status: 'pending',
-                amount: amount
-            }
-        })
+        // Create Pending Subscriptions
+        const createdSubscriptionIds: string[] = []
+        // Calculate per-subscription amount for record keeping
+        const perSubAmount = amount / quantity
+
+        for (let i = 0; i < quantity; i++) {
+            const period = subscriptionPeriods[i]
+            const subscription = await prisma.studentSubscription.create({
+                data: {
+                    libraryId: plan.libraryId,
+                    branchId,
+                    studentId: student.id,
+                    planId: plan.id,
+                    seatId: seatId || undefined,
+                    hasLocker,
+                    startDate: period.start,
+                    endDate: period.end,
+                    status: 'pending',
+                    amount: perSubAmount
+                }
+            })
+            createdSubscriptionIds.push(subscription.id)
+        }
 
         // 4. Initiate Payment
         // We explicitly pass studentId to ensure it uses the student we just handled
+        // We link to the FIRST subscription.
         const paymentResult = await initiatePayment(
             amount,
             'subscription',
@@ -182,7 +199,8 @@ export async function initiatePublicBooking(data: {
             couponCode,
             student.id, // Pass the student ID
             manualPaymentData,
-            subscription.id // Pass subscription ID to link and activate
+            createdSubscriptionIds[0], // Pass first subscription ID
+            JSON.stringify(createdSubscriptionIds) // Pass all IDs in remarks for multi-activation
         )
 
         if (!paymentResult.success) {

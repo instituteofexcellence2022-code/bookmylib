@@ -6,7 +6,8 @@ import {
     Check, Calendar, CreditCard, Info, 
     User, Mail, Phone, Cake,
     Armchair, Lock,
-    LayoutGrid, List, ChevronLeft, ChevronRight, Clock, Filter
+    LayoutGrid, List, ChevronLeft, ChevronRight, Clock, Filter,
+    Plus, Minus
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -81,6 +82,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
 
     // Selection State
     const [selectedPlan, setSelectedPlan] = useState<ExtendedPlan | null>(null)
+    const [quantity, setQuantity] = useState(1)
     const [selectedSeat, setSelectedSeat] = useState<SeatWithOccupancy | null>(null)
     const [selectedFees, setSelectedFees] = useState<string[]>([])
     const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0])
@@ -193,7 +195,9 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
     }, [isSeatSelectionEnabled, selectedSeat])
 
     const handlePlanSelect = (plan: ExtendedPlan) => {
+        if (selectedPlan?.id === plan.id) return // Don't reset if clicking same plan
         setSelectedPlan(plan)
+        setQuantity(1)
         setSelectedSeat(null)
         setSelectedFees([])
     }
@@ -385,7 +389,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
     const feesTotal = branch.fees
         .filter(f => selectedFees.includes(f.id))
         .reduce((sum, f) => sum + Number(f.amount), 0)
-    const totalAmount = Math.round((Number(selectedPlan?.price) || 0) + feesTotal)
+    const totalAmount = Math.round(((Number(selectedPlan?.price) || 0) * quantity) + feesTotal)
 
     return (
         <div className="max-w-4xl mx-auto pb-12">
@@ -547,6 +551,42 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                     </span>
                                                 </div>
                                             </div>
+
+                                            {/* Quantity Selector - Only show when selected */}
+                                            {selectedPlan?.id === plan.id && (
+                                                <div className="mb-2 pt-2 border-t border-gray-100 dark:border-gray-700/50">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
+                                                            Duration
+                                                        </span>
+                                                        <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-lg p-0.5 border border-gray-100 dark:border-gray-700 shadow-sm">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    setQuantity(q => Math.max(1, q - 1))
+                                                                }}
+                                                                disabled={quantity <= 1}
+                                                                className="p-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-gray-600 dark:text-gray-400"
+                                                            >
+                                                                <Minus className="w-3 h-3" />
+                                                            </button>
+                                                            <span className="font-semibold w-3 text-center text-xs text-gray-900 dark:text-white">{quantity}</span>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    setQuantity(q => q + 1)
+                                                                }}
+                                                                className="p-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded transition-colors text-gray-600 dark:text-gray-400"
+                                                            >
+                                                                <Plus className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div className="mt-1.5 text-right text-[10px] text-gray-500 font-medium">
+                                                        Total: {quantity} x {plan.duration} {plan.durationUnit}s
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             <div className="flex flex-wrap gap-1.5">
                                                 <span className={cn(
@@ -1229,9 +1269,10 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                     >
                         <PublicBookingPayment 
                             plan={selectedPlan}
-                            seat={selectedSeat}
-                            fees={branch.fees.filter(f => selectedFees.includes(f.id))}
-                            branchId={branch.id}
+                        seat={selectedSeat}
+                        quantity={quantity}
+                        fees={branch.fees.filter(f => selectedFees.includes(f.id))}
+                        branchId={branch.id}
                             branchName={branch.name}
                             startDate={bookingDate}
                             upiId={branch.upiId || undefined}

@@ -293,7 +293,8 @@ export async function initiatePayment(
     transactionId?: string
     proofUrl?: string
   },
-  subscriptionId?: string
+  subscriptionId?: string,
+  remarks?: string
 ) {
   let student
   if (studentId) {
@@ -441,7 +442,8 @@ export async function initiatePayment(
         discountAmount,
         transactionId: manualPaymentData?.transactionId,
         proofUrl: manualPaymentData?.proofUrl,
-        subscriptionId
+        subscriptionId,
+        remarks
       }
     })
 
@@ -626,8 +628,28 @@ async function activateSubscription(paymentId: string) {
 
   if (!payment || payment.type !== 'subscription' || payment.status !== 'completed') return
 
-  // 1. Try to use linked subscription
-  if (payment.subscriptionId) {
+  // 0. Check for multi-quantity subscriptions in remarks
+  let activatedIds: string[] = []
+  
+  if (payment.remarks) {
+      try {
+          const ids = JSON.parse(payment.remarks)
+          if (Array.isArray(ids) && ids.length > 0) {
+              // Activate all listed subscriptions
+              await prisma.studentSubscription.updateMany({
+                  where: { id: { in: ids } },
+                  data: { status: 'active' }
+              })
+              activatedIds = ids
+              console.log('Activated multi-quantity subscriptions:', ids)
+          }
+      } catch (e) {
+          // Remarks was not a JSON array of IDs, ignore
+      }
+  }
+
+  // 1. Try to use linked subscription (if not already activated via remarks)
+  if (payment.subscriptionId && !activatedIds.includes(payment.subscriptionId)) {
     await prisma.studentSubscription.update({
       where: { id: payment.subscriptionId },
       data: { 
