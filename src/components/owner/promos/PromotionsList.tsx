@@ -66,6 +66,8 @@ export function PromotionsList() {
   // Filters
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [filterBranchId, setFilterBranchId] = useState('all')
+  const [filterPlanId, setFilterPlanId] = useState('all')
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -292,17 +294,43 @@ export function PromotionsList() {
               onChange={e => setSearch(e.target.value)}
             />
           </div>
-          <div className="w-full md:w-48">
-            <FormSelect
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-              options={[
-                { label: 'All Status', value: 'all' },
-                { label: 'Active', value: 'active' },
-                { label: 'Inactive', value: 'inactive' }
-              ]}
-              icon={SlidersHorizontal}
-            />
+          <div className="flex flex-wrap gap-2 w-full md:w-auto">
+            <div className="w-full md:w-40">
+              <FormSelect
+                value={filterBranchId}
+                onChange={e => setFilterBranchId(e.target.value)}
+                options={[
+                  { label: 'All Branches', value: 'all' },
+                  { label: 'Global Only', value: 'global' },
+                  ...branches.map(b => ({ label: b.name, value: b.id }))
+                ]}
+                icon={MapPin}
+              />
+            </div>
+            <div className="w-full md:w-40">
+              <FormSelect
+                value={filterPlanId}
+                onChange={e => setFilterPlanId(e.target.value)}
+                options={[
+                  { label: 'All Plans', value: 'all' },
+                  { label: 'Global Only', value: 'global' },
+                  ...plans.map(p => ({ label: p.name, value: p.id }))
+                ]}
+                icon={Layers}
+              />
+            </div>
+            <div className="w-full md:w-40">
+              <FormSelect
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                options={[
+                  { label: 'All Status', value: 'all' },
+                  { label: 'Active', value: 'active' },
+                  { label: 'Inactive', value: 'inactive' }
+                ]}
+                icon={SlidersHorizontal}
+              />
+            </div>
           </div>
         </div>
       </CompactCard>
