@@ -21,6 +21,8 @@ import {
   deletePromotion, 
   togglePromotionStatus 
 } from '@/actions/promo'
+import { getOwnerBranches } from '@/actions/branch'
+import { getOwnerPlans } from '@/actions/plan'
 
 interface Promotion {
   id: string
@@ -44,9 +46,21 @@ interface Promotion {
   plan?: { name: string } | null
 }
 
+interface Branch {
+  id: string
+  name: string
+}
+
+interface Plan {
+  id: string
+  name: string
+}
+
 export function PromotionsList() {
   // Data State
   const [promotions, setPromotions] = useState<Promotion[]>([])
+  const [branches, setBranches] = useState<Branch[]>([])
+  const [plans, setPlans] = useState<Plan[]>([])
   const [loading, setLoading] = useState(true)
 
   // Filters
@@ -57,12 +71,20 @@ export function PromotionsList() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingPromo, setEditingPromo] = useState<Promotion | null>(null)
   const [promoType, setPromoType] = useState('percentage')
+  
+  // Form State for Conditional Fields
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('all')
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('all')
 
   useEffect(() => {
     if (editingPromo) {
       setPromoType(editingPromo.type)
+      setSelectedBranchId(editingPromo.branchId || 'all')
+      setSelectedPlanId(editingPromo.planId || 'all')
     } else {
       setPromoType('percentage')
+      setSelectedBranchId('all')
+      setSelectedPlanId('all')
     }
   }, [editingPromo])
 
@@ -73,9 +95,19 @@ export function PromotionsList() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const promosData = await getOwnerPromotions()
+      const [promosData, branchesRes, plansData] = await Promise.all([
+        getOwnerPromotions(),
+        getOwnerBranches(),
+        getOwnerPlans()
+      ])
       
       setPromotions(promosData as unknown as Promotion[] || [])
+      
+      if (branchesRes && branchesRes.success && branchesRes.data) {
+        setBranches(branchesRes.data as unknown as Branch[])
+      }
+      
+      setPlans(plansData as unknown as Plan[] || [])
     } catch (error) {
       console.error('Error loading data:', error)
       toast.error('Failed to load data')
@@ -491,6 +523,32 @@ export function PromotionsList() {
                     )}
                   </div>
               )}
+
+              {/* Branch and Plan Selection */}
+              <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                <FormSelect
+                  name="branchId"
+                  label="Applicable Branch"
+                  value={selectedBranchId}
+                  onChange={(e) => setSelectedBranchId(e.target.value)}
+                  options={[
+                    { label: 'All Branches', value: 'all' },
+                    ...branches.map(b => ({ label: b.name, value: b.id }))
+                  ]}
+                  icon={MapPin}
+                />
+                <FormSelect
+                  name="planId"
+                  label="Applicable Plan"
+                  value={selectedPlanId}
+                  onChange={(e) => setSelectedPlanId(e.target.value)}
+                  options={[
+                    { label: 'All Plans', value: 'all' },
+                    ...plans.map(p => ({ label: p.name, value: p.id }))
+                  ]}
+                  icon={Layers}
+                />
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <FormInput

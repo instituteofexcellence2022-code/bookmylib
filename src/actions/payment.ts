@@ -301,6 +301,18 @@ export async function initiatePayment(
     })
     
     if (promo && promo.isActive) {
+      // Validate Branch Constraint
+      if (promo.branchId && promo.branchId !== branchId) {
+        return { success: false, error: 'This coupon is not valid for this branch' }
+      }
+
+      // Validate Plan Constraint
+      if (promo.planId) {
+        if (type !== 'subscription' || !relatedId || promo.planId !== relatedId) {
+          return { success: false, error: 'This coupon is not valid for this plan' }
+        }
+      }
+
       promotionId = promo.id
       couponConfig = {
         type: promo.type,
