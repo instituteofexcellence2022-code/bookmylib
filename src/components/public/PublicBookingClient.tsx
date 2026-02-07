@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { 
     Check, Calendar, CreditCard, Info, 
     User, Mail, Phone, Cake,
-    Armchair,
+    Armchair, Lock,
     LayoutGrid, List, ChevronLeft, ChevronRight, Clock, Filter
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
@@ -152,8 +152,41 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
         }, {})
     }, [sortedSeats])
 
+    const isSeatSelectionEnabled = React.useMemo(() => {
+        if (!selectedPlan) return false
+        
+        // Check if plan includes seat
+        if (selectedPlan.includesSeat) return true
+
+        // Check for "Seat Reservation" or similar fee
+        const seatFeeExists = branch.fees?.some(f => 
+            f.name.toLowerCase().includes('seat') || 
+            f.name.toLowerCase().includes('reservation')
+        )
+
+        if (!seatFeeExists) return true // If no specific seat fee, allow selection
+
+        // If seat fee exists, user must have selected it
+        return selectedFees.some(id => {
+            const fee = branch.fees.find(f => f.id === id)
+            return fee && (
+                fee.name.toLowerCase().includes('seat') || 
+                fee.name.toLowerCase().includes('reservation')
+            )
+        })
+    }, [selectedPlan, selectedFees, branch.fees])
+
+    // Reset seat if selection becomes disabled
+    React.useEffect(() => {
+        if (!isSeatSelectionEnabled && selectedSeat) {
+            setSelectedSeat(null)
+        }
+    }, [isSeatSelectionEnabled, selectedSeat])
+
     const handlePlanSelect = (plan: Plan) => {
         setSelectedPlan(plan)
+        setSelectedSeat(null)
+        setSelectedFees([])
     }
 
     const toggleFee = (feeId: string) => {
@@ -200,6 +233,20 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
             return
         }
         
+        // Check if seat is mandatory
+        const isSeatMandatory = selectedPlan && (selectedPlan.includesSeat || selectedFees.some(id => {
+            const fee = branch.fees.find(f => f.id === id)
+            return fee && (
+                fee.name.toLowerCase().includes('seat') || 
+                fee.name.toLowerCase().includes('reservation')
+            )
+        }))
+        
+        if (isSeatMandatory && !selectedSeat) {
+            toast.error('Please select a seat')
+            return
+        }
+
         // Skip verification if email is already verified
         if (verifiedEmail === studentDetails.email) {
             setStep('payment')
@@ -272,19 +319,37 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
         window.scrollTo({ top: 0, behavior: 'smooth' })
     }
 
+    // Remove conflicting fees when plan includes them
+    React.useEffect(() => {
+        if (!selectedPlan) return
+
+        const feesToRemove: string[] = []
+        branch.fees?.forEach(f => {
+            const name = f.name.toLowerCase()
+            const isSeatFee = name.includes('seat') || name.includes('reservation')
+            const isLockerFee = name.includes('locker')
+
+            if (selectedPlan.includesSeat && isSeatFee) {
+                if (selectedFees.includes(f.id)) feesToRemove.push(f.id)
+            }
+            if (selectedPlan.includesLocker && isLockerFee) {
+                if (selectedFees.includes(f.id)) feesToRemove.push(f.id)
+            }
+        })
+
+        if (feesToRemove.length > 0) {
+            setSelectedFees(prev => prev.filter(id => !feesToRemove.includes(id)))
+        }
+    }, [selectedPlan, branch.fees, selectedFees])
+
     const isSeatReservationFeeSelected = React.useMemo(() => {
+        if (selectedPlan && selectedPlan.includesSeat) return true
+        
         return selectedFees.some(feeId => {
             const fee = branch.fees.find(f => f.id === feeId)
             return fee?.name.toLowerCase().includes('seat reservation')
         })
-    }, [selectedFees, branch.fees])
-
-    // Clear seat selection if fee is deselected
-    React.useEffect(() => {
-        if (!isSeatReservationFeeSelected) {
-            setSelectedSeat(null)
-        }
-    }, [isSeatReservationFeeSelected])
+    }, [selectedFees, branch.fees, selectedPlan])
 
     // Calculate Total for display
     const feesTotal = branch.fees
@@ -466,6 +531,18 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                 <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-600 border border-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700 capitalize">
                                                     {plan.billingCycle.replace(/_/g, ' ')}
                                                 </span>
+                                                {plan.includesSeat && (
+                                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900/30 flex items-center gap-1">
+                                                        <Armchair className="w-3 h-3" />
+                                                        Seat
+                                                    </span>
+                                                )}
+                                                {plan.includesLocker && (
+                                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-600 border border-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-900/30 flex items-center gap-1">
+                                                        <Lock className="w-3 h-3" />
+                                                        Locker
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                     ))
@@ -481,7 +558,47 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                     Add-ons
                                 </h3>
                                 <div className="space-y-3">
-                                    {branch.fees.map(fee => (
+                                    {/* Included Benefits */}
+                                    {selectedPlan && selectedPlan.includesSeat && (
+                                        <div className="flex items-center justify-between p-3 rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-900/10 dark:border-emerald-800 opacity-80">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                                                    <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-sm text-emerald-900 dark:text-emerald-100">Seat Reservation</p>
+                                                    <p className="text-xs text-emerald-700 dark:text-emerald-300">Included in Plan</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {selectedPlan && selectedPlan.includesLocker && (
+                                        <div className="flex items-center justify-between p-3 rounded-xl border border-purple-200 bg-purple-50 dark:bg-purple-900/10 dark:border-purple-800 opacity-80">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                                                    <Check className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-sm text-purple-900 dark:text-purple-100">Locker Facility</p>
+                                                    <p className="text-xs text-purple-700 dark:text-purple-300">Included in Plan</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {branch.fees
+                                        .filter(f => {
+                                            if (!selectedPlan) return true
+                                            const name = f.name.toLowerCase()
+                                            const isSeatFee = name.includes('seat') || name.includes('reservation')
+                                            const isLockerFee = name.includes('locker')
+                                            
+                                            if (selectedPlan.includesSeat && isSeatFee) return false
+                                            if (selectedPlan.includesLocker && isLockerFee) return false
+                                            
+                                            return true
+                                        })
+                                        .map(fee => (
                                         <label key={fee.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors">
                                             <div className="flex items-center gap-3">
                                                 <div className={cn(
@@ -540,7 +657,10 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                             Select Your Preferred Seat
                                         </h2>
                                         <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                            Optional - You can skip this step
+                                            {selectedPlan?.includesSeat 
+                                                ? "Seat included in your plan. Please select a seat."
+                                                : "Optional - You can skip this step"
+                                            }
                                         </p>
                                     </div>
                                     
@@ -1078,3 +1198,4 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
         </div>
     )
 }
+

@@ -6,7 +6,7 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
 import { FormSelect } from '@/components/ui/FormSelect'
 import { CompactCard } from '@/components/ui/AnimatedCard'
-import { Loader2, PlusCircle, Search, SlidersHorizontal, CalendarClock, IndianRupee, Clock, Trash2, Layers, MapPin, Receipt, X } from 'lucide-react'
+import { Loader2, PlusCircle, Search, SlidersHorizontal, CalendarClock, IndianRupee, Clock, Trash2, Layers, MapPin, Receipt, X, Armchair, Lock } from 'lucide-react'
 import { getOwnerPlans, updatePlan, deletePlan } from '@/actions/plan'
 import { getOwnerFees, createFee, deleteFee, updateFee } from '@/actions/fee'
 import { getOwnerBranches } from '@/actions/branch'
@@ -396,6 +396,18 @@ export default function PlansAndFeesPage() {
                             <MapPin className="w-3 h-3" />
                             All Branches
                         </span>
+                        )}
+                        {plan.includesSeat && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200">
+                                <Armchair className="w-3 h-3" />
+                                Seat
+                            </span>
+                        )}
+                        {plan.includesLocker && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-200">
+                                <Lock className="w-3 h-3" />
+                                Locker
+                            </span>
                         )}
                     </div>
                     </div>

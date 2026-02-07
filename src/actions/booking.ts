@@ -196,6 +196,15 @@ export async function createBooking(data: {
             end.setMonth(end.getMonth() + plan.duration)
         }
 
+        // Determine hasLocker status
+        let hasLocker = plan.includesLocker || false
+        if (!hasLocker && additionalFeeIds.length > 0) {
+            const fees = await prisma.additionalFee.findMany({
+                where: { id: { in: additionalFeeIds } }
+            })
+            hasLocker = fees.some(f => f.name.toLowerCase().includes('locker'))
+        }
+
         // Check for overlapping subscriptions on this seat (Outside transaction)
         if (seatId) {
             const conflictingSub = await prisma.studentSubscription.findFirst({
@@ -311,7 +320,8 @@ export async function createBooking(data: {
                     status: subscriptionStatus,
                     startDate: start,
                     endDate: end,
-                    amount: finalAmount
+                    amount: finalAmount,
+                    hasLocker
                 }
             })
             

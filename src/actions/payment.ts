@@ -134,7 +134,9 @@ export async function getStudentBookingStatus() {
           shiftStart: true,
           shiftEnd: true,
           hoursPerDay: true,
-          billingCycle: true
+          billingCycle: true,
+          includesSeat: true,
+          includesLocker: true
         }
       },
       branch: {
@@ -148,6 +150,7 @@ export async function getStudentBookingStatus() {
       status: true,
       startDate: true,
       endDate: true,
+      hasLocker: true,
       seat: {
         select: {
           number: true,
@@ -248,7 +251,8 @@ export async function initiatePayment(
   manualPaymentData?: {
     transactionId?: string
     proofUrl?: string
-  }
+  },
+  subscriptionId?: string
 ) {
   let student
   if (studentId) {
@@ -383,7 +387,8 @@ export async function initiatePayment(
         promotionId,
         discountAmount,
         transactionId: manualPaymentData?.transactionId,
-        proofUrl: manualPaymentData?.proofUrl
+        proofUrl: manualPaymentData?.proofUrl,
+        subscriptionId
       }
     })
 

@@ -6,7 +6,8 @@ import { QRCodeSVG } from 'qrcode.react'
 import { createWorker } from 'tesseract.js'
 import { 
   CreditCard, Banknote, QrCode, Building, 
-  AlertCircle, Check, Upload, X, Loader2
+  AlertCircle, Check, Upload, X, Loader2,
+  Armchair, Lock
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { uploadFile } from '@/actions/upload'
@@ -28,6 +29,8 @@ interface PublicBookingPaymentProps {
     hoursPerDay?: number | null
     shiftStart?: string | null
     shiftEnd?: string | null
+    includesSeat?: boolean
+    includesLocker?: boolean
   }
   seat?: {
     number: string | number
@@ -622,6 +625,20 @@ export default function PublicBookingPayment({
                <div className="text-right">
                    <span className="font-medium text-gray-900 dark:text-white block">{plan.name}</span>
                    <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">{plan.category} Plan</span>
+                   <div className="flex gap-1 justify-end mt-1">
+                       {plan.includesSeat && (
+                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
+                               <Armchair className="w-3 h-3" />
+                               Seat
+                           </span>
+                       )}
+                       {plan.includesLocker && (
+                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400">
+                               <Lock className="w-3 h-3" />
+                               Locker
+                           </span>
+                       )}
+                   </div>
                </div>
             </div>
 

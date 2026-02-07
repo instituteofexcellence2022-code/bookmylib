@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { createSession } from '@/lib/auth/session'
 import { initiatePayment } from '@/actions/payment'
 import { sendWelcomeEmail } from '@/actions/email'
+import { addDays, addMonths } from 'date-fns'
 
 export async function initiatePublicBooking(data: {
     // Student Details
@@ -116,18 +117,58 @@ export async function initiatePublicBooking(data: {
         // 2. Log them in (Set Cookie)
         await createSession(student.id, 'student')
 
-        // 3. Construct Description
+        // 3. Construct Description & Prepare Subscription
         const plan = await prisma.plan.findUnique({ where: { id: planId } })
-        let description = `Booking: ${plan?.name || 'Plan'}`
+        if (!plan) return { success: false, error: 'Plan not found' }
+
+        let description = `Booking: ${plan.name}`
         
         if (seatId) {
             const seat = await prisma.seat.findUnique({ where: { id: seatId } })
             if (seat) description += ` (Seat ${seat.number})`
         }
         
+        let hasLocker = plan.includesLocker
+
         if (fees.length > 0) {
             description += ` + ${fees.length} Fees`
+            
+            // Check if any selected fee is for Locker
+            const selectedFees = await prisma.additionalFee.findMany({
+                where: { id: { in: fees } }
+            })
+            const lockerFee = selectedFees.find(f => f.name.toLowerCase().includes('locker'))
+            if (lockerFee) {
+                hasLocker = true
+            }
         }
+
+        // Calculate Dates
+        const startDate = new Date()
+        let endDate = new Date(startDate)
+        
+        if (plan.durationUnit === 'months') {
+            endDate = addMonths(startDate, plan.duration)
+        } else {
+            endDate = addDays(startDate, plan.duration)
+        }
+
+        // Create Pending Subscription
+        // This ensures we capture all details (locker, seat) even before payment
+        const subscription = await prisma.studentSubscription.create({
+            data: {
+                libraryId: plan.libraryId,
+                branchId,
+                studentId: student.id,
+                planId: plan.id,
+                seatId: seatId || undefined,
+                hasLocker,
+                startDate,
+                endDate,
+                status: 'pending',
+                amount: amount
+            }
+        })
 
         // 4. Initiate Payment
         // We explicitly pass studentId to ensure it uses the student we just handled
@@ -140,7 +181,8 @@ export async function initiatePublicBooking(data: {
             branchId,
             couponCode,
             student.id, // Pass the student ID
-            manualPaymentData
+            manualPaymentData,
+            subscription.id // Pass subscription ID to link and activate
         )
 
         if (!paymentResult.success) {

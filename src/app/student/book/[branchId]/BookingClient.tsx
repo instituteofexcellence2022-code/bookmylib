@@ -7,28 +7,41 @@ import {
     Check, Armchair, Calendar, 
     CreditCard, Clock, MapPin, Info,
     ChevronRight, ChevronLeft,
-    LayoutGrid, List, Loader2, Library as LibraryIcon
+    LayoutGrid, List, Loader2, Library as LibraryIcon,
+    Lock
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { createBooking } from '@/actions/booking'
 import { cn, formatSeatNumber } from '@/lib/utils'
 
-import { Branch, Seat, Plan, AdditionalFee, Library } from '@prisma/client'
+import { Branch, Seat, Plan, AdditionalFee } from '@prisma/client'
 import BookingPayment from '@/components/student/BookingPayment'
 import BranchHeader from './BranchHeader'
 
+type ExtendedPlan = Plan & {
+    includesSeat: boolean
+    includesLocker: boolean
+}
+
+type SeatWithOccupancy = Seat & {
+    isOccupied: boolean
+}
+
 type BranchWithDetails = Branch & {
     library: { name: string }
-    seats: (Seat & { isOccupied: boolean })[]
-    plans: Plan[]
+    seats: SeatWithOccupancy[]
+    plans: ExtendedPlan[]
     fees: AdditionalFee[]
 }
 
 interface BookingClientProps {
     branch: BranchWithDetails
     studentId: string
-    currentSubscription?: any
+    currentSubscription?: {
+        plan?: Plan
+        seatId?: string | null
+    }
     images?: string[]
     amenities?: string[]
 }
@@ -41,7 +54,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
 
     const [step, setStep] = useState<'selection' | 'payment' | 'success'>('selection')
     const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null)
-    const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
+    const [selectedPlan, setSelectedPlan] = useState<ExtendedPlan | null>(null)
     const [selectedFees, setSelectedFees] = useState<string[]>([])
     const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0])
     const [isLoading, setIsLoading] = useState(false)
@@ -71,7 +84,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
 
              // Auto-select seat if available
              if (currentSubscription?.seatId) {
-                 const seat = branch.seats.find((s: any) => s.id === currentSubscription.seatId)
+                 const seat = branch.seats.find(s => s.id === currentSubscription.seatId)
                  if (seat && !seat.isOccupied) {
                      setSelectedSeat(seat)
                  }
@@ -96,12 +109,12 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
 
     // Calculate total
     const totalAmount = Math.round((Number(selectedPlan?.price) || 0) + 
-        (branch.fees || []).filter((f: any) => selectedFees.includes(String(f.id)))
-            .reduce((sum: number, f: any) => sum + Number(f.amount), 0))
+        (branch.fees || []).filter(f => selectedFees.includes(String(f.id)))
+            .reduce((sum: number, f) => sum + Number(f.amount), 0))
 
     // Sort seats naturally
     const sortedSeats = React.useMemo(() => {
-        return [...(branch.seats || [])].sort((a: any, b: any) => {
+        return [...(branch.seats || [])].sort((a, b) => {
             return a.number.localeCompare(b.number, undefined, { numeric: true, sensitivity: 'base' })
         })
     }, [branch.seats])
@@ -110,8 +123,11 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
     const isSeatSelectionEnabled = React.useMemo(() => {
         if (!selectedPlan) return false
         
+        // Check if plan includes seat
+        if (selectedPlan.includesSeat) return true
+
         // Check for "Seat Reservation" or similar fee
-        const seatFeeExists = branch.fees?.some((f: any) => 
+        const seatFeeExists = branch.fees?.some(f => 
             f.name.toLowerCase().includes('seat') || 
             f.name.toLowerCase().includes('reservation')
         )
@@ -120,7 +136,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
 
         // If seat fee exists, user must have selected it
         return selectedFees.some(id => {
-            const fee = branch.fees.find((f: any) => String(f.id) === id)
+            const fee = branch.fees.find(f => String(f.id) === id)
             return fee && (
                 fee.name.toLowerCase().includes('seat') || 
                 fee.name.toLowerCase().includes('reservation')
@@ -135,15 +151,38 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
         }
     }, [isSeatSelectionEnabled, selectedSeat])
 
+    // Remove conflicting fees when plan includes them
+    React.useEffect(() => {
+        if (!selectedPlan) return
+
+        const feesToRemove: string[] = []
+        branch.fees?.forEach(f => {
+            const name = f.name.toLowerCase()
+            const isSeatFee = name.includes('seat') || name.includes('reservation')
+            const isLockerFee = name.includes('locker')
+
+            if (selectedPlan.includesSeat && isSeatFee) {
+                if (selectedFees.includes(String(f.id))) feesToRemove.push(String(f.id))
+            }
+            if (selectedPlan.includesLocker && isLockerFee) {
+                if (selectedFees.includes(String(f.id))) feesToRemove.push(String(f.id))
+            }
+        })
+
+        if (feesToRemove.length > 0) {
+            setSelectedFees(prev => prev.filter(id => !feesToRemove.includes(id)))
+        }
+    }, [selectedPlan, branch.fees, selectedFees])
+
     // Group seats by section
-    const seatsBySection = sortedSeats.reduce((acc: any, seat: any) => {
+    const seatsBySection = sortedSeats.reduce((acc: Record<string, SeatWithOccupancy[]>, seat) => {
         const section = seat.section || 'General'
         if (!acc[section]) acc[section] = []
         acc[section].push(seat)
         return acc
     }, {})
 
-    const handleSeatSelect = (seat: any) => {
+    const handleSeatSelect = (seat: SeatWithOccupancy) => {
         if (seat.isOccupied) return
         setSelectedSeat(seat)
     }
@@ -154,9 +193,9 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
             return
         }
         
-        // Check if seat is mandatory (only if user selected a seat reservation fee)
-        const isSeatMandatory = selectedFees.some(id => {
-            const fee = branch.fees.find((f: any) => String(f.id) === id)
+        // Check if seat is mandatory (if plan includes seat OR if user selected a seat reservation fee)
+        const isSeatMandatory = selectedPlan.includesSeat || selectedFees.some(id => {
+            const fee = branch.fees.find(f => String(f.id) === id)
             return fee && (
                 fee.name.toLowerCase().includes('seat') || 
                 fee.name.toLowerCase().includes('reservation')
@@ -296,13 +335,13 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                 <BookingPayment 
                     plan={selectedPlan}
                     seat={selectedSeat}
-                    fees={branch.fees?.filter((f: any) => selectedFees.includes(String(f.id))) || []}
+                    fees={branch.fees?.filter(f => selectedFees.includes(String(f.id))) || []}
                     branchId={branch.id}
                     branchName={branch.name}
                     adjustmentAmount={upgradeCredit}
                     adjustmentLabel="Upgrade Credit"
-                    upiId={(branch as any).upiId || undefined}
-                    payeeName={(branch as any).payeeName || undefined}
+                    upiId={(branch as unknown as { upiId?: string }).upiId || undefined}
+                    payeeName={(branch as unknown as { payeeName?: string }).payeeName || undefined}
                     startDate={bookingDate}
                     onSuccess={handlePaymentSuccess}
                     onBack={() => setStep('selection')}
@@ -334,7 +373,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                                 </p>
                             </div>
                         ) : (
-                            visiblePlans.map((plan: any) => (
+                            visiblePlans.map(plan => (
                                 <div 
                                     key={plan.id}
                                     onClick={() => setSelectedPlan(plan)}
@@ -388,6 +427,18 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                                         <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-600 border border-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700 capitalize">
                                             {plan.billingCycle.replace(/_/g, ' ')}
                                         </span>
+                                        {plan.includesSeat && (
+                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900/30 flex items-center gap-1">
+                                                <Armchair className="w-3 h-3" />
+                                                Seat
+                                            </span>
+                                        )}
+                                        {plan.includesLocker && (
+                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-600 border border-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-900/30 flex items-center gap-1">
+                                                <Lock className="w-3 h-3" />
+                                                Locker
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             ))
@@ -403,7 +454,20 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                             2. Additional Fees
                         </h3>
                         <div className="space-y-3">
-                            {branch.fees.map((fee: any) => (
+                            {branch.fees.map(fee => {
+                                // Check if fee should be hidden because it's included in plan
+                                const name = fee.name.toLowerCase()
+                                const isSeatFee = name.includes('seat') || name.includes('reservation')
+                                const isLockerFee = name.includes('locker')
+                                
+                                const isIncluded = selectedPlan && (
+                                    (selectedPlan.includesSeat && isSeatFee) ||
+                                    (selectedPlan.includesLocker && isLockerFee)
+                                )
+
+                                if (isIncluded) return null
+
+                                return (
                                 <div 
                                     key={fee.id}
                                     onClick={() => {
@@ -439,7 +503,35 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                                         ₹{fee.amount}
                                     </span>
                                 </div>
-                            ))}
+                            )})}
+                            
+                            {/* Show included benefits if any */}
+                            {selectedPlan && selectedPlan.includesSeat && (
+                                <div className="flex items-center justify-between p-3 rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-900/10 dark:border-emerald-800 opacity-80">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                                            <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-sm text-emerald-900 dark:text-emerald-100">Seat Reservation</p>
+                                            <p className="text-xs text-emerald-700 dark:text-emerald-300">Included in Plan</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            {selectedPlan && selectedPlan.includesLocker && (
+                                <div className="flex items-center justify-between p-3 rounded-xl border border-purple-200 bg-purple-50 dark:bg-purple-900/10 dark:border-purple-800 opacity-80">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                                            <Check className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-sm text-purple-900 dark:text-purple-100">Locker Facility</p>
+                                            <p className="text-xs text-purple-700 dark:text-purple-300">Included in Plan</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -456,7 +548,10 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                                     <span className="line-clamp-1">{branch.name} Seat Map</span>
                                 </h2>
                                 <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                    Choose your preferred seat (Optional).
+                                    {selectedPlan?.includesSeat 
+                                        ? "Seat included in your plan. Please select a seat."
+                                        : "Choose your preferred seat (Optional)."
+                                    }
                                 </p>
                             </div>
                             
@@ -537,8 +632,8 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                     <div className="p-4 md:p-6 bg-white dark:bg-gray-800 min-h-[300px]">
                         {viewMode === 'pagination' ? (
                             <div className="space-y-8">
-                                {Object.entries(seatsBySection).map(([section, seats]: [string, any]) => {
-                                    const sectionSeats = seats as any[]
+                                {Object.entries(seatsBySection).map(([section, seats]) => {
+                                    const sectionSeats = seats as SeatWithOccupancy[]
                                     const currentPage = pageBySection[section] || 0
                                     const totalPages = Math.ceil(sectionSeats.length / (columns * 4)) // 4 rows
                                     
@@ -588,7 +683,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                                                 className="grid gap-2 md:gap-3"
                                                 style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
                                             >
-                                                {currentSeats.map((seat: any) => (
+                                                {currentSeats.map(seat => (
                                                     <motion.button
                                                         key={seat.id}
                                                         whileHover={!seat.isOccupied ? { scale: 1.05 } : {}}
@@ -628,7 +723,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                             </div>
                         ) : (
                             <div className="space-y-8 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                                {Object.entries(seatsBySection).map(([section, seats]: [string, any]) => (
+                                {Object.entries(seatsBySection).map(([section, seats]) => (
                                     <div key={section} className="space-y-3">
                                         <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2 sticky top-0 bg-white dark:bg-gray-800 z-10 py-2">
                                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -638,7 +733,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                                             className="grid gap-2 md:gap-3"
                                             style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
                                         >
-                                            {(seats as any[]).map((seat: any) => (
+                                            {(seats as SeatWithOccupancy[]).map(seat => (
                                                 <motion.button
                                                     key={seat.id}
                                                     whileHover={!seat.isOccupied ? { scale: 1.05 } : {}}

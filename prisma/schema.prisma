@@ -309,6 +309,7 @@ model StudentSubscription {
   studentId String
   planId    String
   seatId    String?
+  hasLocker Boolean @default(false)
 
   // Dates
   startDate DateTime

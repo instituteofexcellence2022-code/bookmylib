@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { 
   CreditCard, RefreshCw, TrendingUp, Compass, ArrowRight, Loader2,
-  Calendar, Clock, MapPin, CheckCircle, AlertCircle, Download, Receipt, Sparkles, Building
+  Clock, MapPin, Download, Receipt, Sparkles, Building, Lock
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { getStudentBookingStatus } from '@/actions/payment'
@@ -14,12 +14,54 @@ import { motion } from 'framer-motion'
 import { generateReceiptPDF } from '@/lib/pdf-generator'
 import { formatSeatNumber } from '@/lib/utils'
 
+interface SubscriptionDetails {
+  id: string
+  branchId: string
+  planId: string
+  plan: {
+    id: string
+    name: string
+    price: number
+    duration: number
+    durationUnit: string
+    includesSeat: boolean
+    includesLocker: boolean
+  }
+  branch: {
+    name: string
+    address: string | null
+  }
+  status: string
+  startDate: Date
+  endDate: Date
+  hasLocker: boolean
+  seat: {
+    number: string
+  } | null
+  payment: {
+    id: string
+    amount: number
+    createdAt: Date
+    method: string
+    student: {
+      name: string
+      email: string
+      phone: string
+    }
+    branch?: {
+      name: string
+      address: string | null
+      city: string | null
+    }
+  } | null
+}
+
 export default function MyPlanClient() {
   const router = useRouter()
   const [bookingStatus, setBookingStatus] = useState<{ 
     isNew: boolean, 
     lastBranchId: string | null,
-    lastSubscription: any 
+    lastSubscription: SubscriptionDetails | null 
   } | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -79,7 +121,7 @@ export default function MyPlanClient() {
     return Math.ceil(diff / (1000 * 60 * 60 * 24))
   }
 
-  const handleDownloadReceipt = (subscription: any) => {
+  const handleDownloadReceipt = (subscription: SubscriptionDetails) => {
     const payment = subscription.payment
     if (!payment) return
 
@@ -130,7 +172,6 @@ export default function MyPlanClient() {
   const sub = bookingStatus?.lastSubscription
   const isActive = sub?.status === 'active'
   const isPending = sub?.status === 'pending'
-  const isExpired = sub?.status === 'expired' || sub?.status === 'cancelled'
   const daysRemaining = sub ? getDaysRemaining(sub.endDate) : 0
   const isUrgent = isActive && daysRemaining <= 7 && daysRemaining > 0
 
@@ -261,6 +302,16 @@ export default function MyPlanClient() {
                         {sub?.seat?.number ? `${formatSeatNumber(sub.seat.number)} ${sub.seat.section ? `(${sub.seat.section})` : ''}` : 'No Seat'}
                       </span>
                     </div>
+
+                    {(sub?.plan?.includesLocker || sub?.hasLocker) && (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-purple-200/60 uppercase tracking-wider text-[10px]">Locker</span>
+                        <span className="font-medium truncate flex items-center gap-1.5">
+                          <Lock className="w-3.5 h-3.5" />
+                          Included
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
