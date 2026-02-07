@@ -533,58 +533,55 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                 <span className="font-bold text-purple-600 dark:text-purple-400 text-sm">₹{plan.price}</span>
                                             </div>
                                             
-                                            <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{plan.description}</p>
-                                            
-                                            <div className="flex flex-wrap items-center gap-2 mb-2">
-                                                <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
-                                                    <Clock className="w-2.5 h-2.5 text-gray-400" />
-                                                    <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">{plan.duration} {plan.durationUnit}</span>
-                                                </div>
-                                                
-                                                <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
-                                                    <Info className="w-2.5 h-2.5 text-gray-400" />
-                                                    <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
-                                                        {plan.category === 'fixed' 
-                                                            ? `${formatTime(plan.shiftStart || undefined)} - ${formatTime(plan.shiftEnd || undefined)}`
-                                                            : `${plan.hoursPerDay} Hrs/Day`
-                                                        }
-                                                    </span>
-                                                </div>
-
-                                                {selectedPlan?.id === plan.id && (
-                                                    <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700 ml-auto animate-in fade-in slide-in-from-left-2 duration-200">
-                                                        <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mr-1">Qty:</span>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation()
-                                                                setQuantity(q => Math.max(1, q - 1))
-                                                            }}
-                                                            disabled={quantity <= 1}
-                                                            className="p-0.5 hover:bg-gray-50 dark:hover:bg-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-gray-600 dark:text-gray-400"
-                                                        >
-                                                            <Minus className="w-2.5 h-2.5" />
-                                                        </button>
-                                                        <span className="font-semibold w-4 text-center text-[10px] text-gray-900 dark:text-white">{quantity}</span>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation()
-                                                                setQuantity(q => q + 1)
-                                                            }}
-                                                            className="p-0.5 hover:bg-gray-50 dark:hover:bg-gray-700 rounded transition-colors text-gray-600 dark:text-gray-400"
-                                                        >
-                                                            <Plus className="w-2.5 h-2.5" />
-                                                        </button>
+                                            {selectedPlan?.id === plan.id ? (
+                                                <div className="py-2 mb-2">
+                                                    <div className="flex items-center justify-between bg-purple-100/50 dark:bg-purple-900/30 rounded-lg p-2 border border-purple-200 dark:border-purple-800">
+                                                        <span className="text-xs font-medium text-purple-800 dark:text-purple-200">Quantity:</span>
+                                                        <div className="flex items-center gap-3">
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    setQuantity(Math.max(1, quantity - 1))
+                                                                }}
+                                                                className="p-1 hover:bg-white dark:hover:bg-gray-800 rounded-md transition-colors text-purple-700 dark:text-purple-300 disabled:opacity-50"
+                                                                disabled={quantity <= 1}
+                                                            >
+                                                                <Minus className="w-4 h-4" />
+                                                            </button>
+                                                            <span className="text-sm font-bold text-purple-900 dark:text-purple-100 w-4 text-center">{quantity}</span>
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    setQuantity(quantity + 1)
+                                                                }}
+                                                                className="p-1 hover:bg-white dark:hover:bg-gray-800 rounded-md transition-colors text-purple-700 dark:text-purple-300"
+                                                            >
+                                                                <Plus className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
                                                     </div>
-                                                )}
-                                            </div>
-
-                                            {/* Quantity Selector - Only show when selected */}
-                                            {selectedPlan?.id === plan.id && (
-                                                <div className="mb-2 pt-2 border-t border-gray-100 dark:border-gray-700/50 flex items-center justify-between">
-                                                    <span className="text-[10px] text-gray-500 font-medium">
-                                                        Total Duration: {quantity * plan.duration} {plan.durationUnit}s
-                                                    </span>
                                                 </div>
+                                            ) : (
+                                                <>
+                                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{plan.description}</p>
+                                                    
+                                                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                                                        <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
+                                                            <Clock className="w-2.5 h-2.5 text-gray-400" />
+                                                            <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">{plan.duration} {plan.durationUnit}</span>
+                                                        </div>
+                                                        
+                                                        <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
+                                                            <Info className="w-2.5 h-2.5 text-gray-400" />
+                                                            <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
+                                                                {plan.category === 'fixed' 
+                                                                    ? `${formatTime(plan.shiftStart || undefined)} - ${formatTime(plan.shiftEnd || undefined)}`
+                                                                    : `${plan.hoursPerDay} Hrs/Day`
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </>
                                             )}
 
                                             <div className="flex flex-wrap gap-1.5">

@@ -94,6 +94,8 @@ interface Payment {
       address?: string | null
       city?: string | null
   } | null
+  remarks?: string | null
+  description?: string | null
 }
 
 interface Ticket {
@@ -210,6 +212,37 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
         const toastId = toast.loading('Sending receipt...')
         
         try {
+            // Determine quantity from remarks if available
+            let quantity = 1
+            try {
+                if (payment.remarks && payment.remarks.startsWith('[')) {
+                    const ids = JSON.parse(payment.remarks)
+                    if (Array.isArray(ids)) {
+                        quantity = ids.length
+                    }
+                }
+            } catch (e) {
+                // ignore
+            }
+
+            // Calculate End Date for multi-quantity
+            let endDate = payment.subscription?.endDate ? new Date(payment.subscription.endDate) : undefined
+            if (quantity > 1 && payment.subscription?.plan && payment.subscription.startDate) {
+                const start = new Date(payment.subscription.startDate)
+                endDate = new Date(start)
+                const plan = payment.subscription.plan
+                
+                // Add total duration
+                const totalDuration = (plan.duration || 1) * quantity
+                if (plan.durationUnit === 'days') {
+                    endDate.setDate(endDate.getDate() + totalDuration)
+                } else if (plan.durationUnit === 'weeks') {
+                    endDate.setDate(endDate.getDate() + (totalDuration * 7))
+                } else {
+                    endDate.setMonth(endDate.getMonth() + totalDuration)
+                }
+            }
+
             const receiptData: ReceiptData = {
                 invoiceNo: payment.invoiceNo || payment.id.slice(0, 8).toUpperCase(),
                 date: new Date(payment.date),
@@ -219,17 +252,17 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                 branchName: payment.branch.name,
                 branchAddress: payment.branch.address ? `${payment.branch.address}, ${payment.branch.city || ''}` : undefined,
                 planName: payment.subscription?.plan?.name || payment.additionalFee?.name || 'Payment',
-                planDuration: payment.subscription?.plan?.duration ? `${payment.subscription.plan.duration} ${payment.subscription.plan.durationUnit}` : undefined,
+                planDuration: payment.subscription?.plan?.duration ? `${payment.subscription.plan.duration} ${payment.subscription.plan.durationUnit}${quantity > 1 ? ` (x${quantity})` : ''}` : undefined,
                 planHours: payment.subscription?.plan?.hoursPerDay ? `${payment.subscription.plan.hoursPerDay} Hrs/Day` : undefined,
                 seatNumber: payment.subscription?.seat?.number ? formatSeatNumber(payment.subscription.seat.number) : undefined,
                 startDate: payment.subscription?.startDate ? new Date(payment.subscription.startDate) : undefined,
-                endDate: payment.subscription?.endDate ? new Date(payment.subscription.endDate) : undefined,
+                endDate: endDate,
                 amount: payment.amount,
                 paymentMethod: payment.method,
                 subTotal: payment.amount,
                 discount: payment.discountAmount || 0,
                 items: [{
-                    description: payment.subscription?.plan?.name || payment.additionalFee?.name || payment.description || 'Payment',
+                    description: payment.description || payment.subscription?.plan?.name || payment.additionalFee?.name || 'Payment',
                     amount: payment.amount
                 }]
             }
@@ -252,6 +285,37 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
              return
         }
 
+        // Determine quantity from remarks if available
+        let quantity = 1
+        try {
+            if (payment.remarks && payment.remarks.startsWith('[')) {
+                const ids = JSON.parse(payment.remarks)
+                if (Array.isArray(ids)) {
+                    quantity = ids.length
+                }
+            }
+        } catch (e) {
+            // ignore
+        }
+
+        // Calculate End Date for multi-quantity
+        let endDate = payment.subscription?.endDate ? new Date(payment.subscription.endDate) : undefined
+        if (quantity > 1 && payment.subscription?.plan && payment.subscription.startDate) {
+            const start = new Date(payment.subscription.startDate)
+            endDate = new Date(start)
+            const plan = payment.subscription.plan
+            
+            // Add total duration
+            const totalDuration = (plan.duration || 1) * quantity
+            if (plan.durationUnit === 'days') {
+                endDate.setDate(endDate.getDate() + totalDuration)
+            } else if (plan.durationUnit === 'weeks') {
+                endDate.setDate(endDate.getDate() + (totalDuration * 7))
+            } else {
+                endDate.setMonth(endDate.getMonth() + totalDuration)
+            }
+        }
+
         const receiptData: ReceiptData = {
                 invoiceNo: payment.invoiceNo || payment.id.slice(0, 8).toUpperCase(),
                 date: new Date(payment.date),
@@ -261,17 +325,17 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                 branchName: payment.branch.name,
                 branchAddress: payment.branch.address ? `${payment.branch.address}, ${payment.branch.city || ''}` : undefined,
                 planName: payment.subscription?.plan?.name || payment.additionalFee?.name || 'Payment',
-                planDuration: payment.subscription?.plan?.duration ? `${payment.subscription.plan.duration} ${payment.subscription.plan.durationUnit}` : undefined,
+                planDuration: payment.subscription?.plan?.duration ? `${payment.subscription.plan.duration} ${payment.subscription.plan.durationUnit}${quantity > 1 ? ` (x${quantity})` : ''}` : undefined,
                 planHours: payment.subscription?.plan?.hoursPerDay ? `${payment.subscription.plan.hoursPerDay} Hrs/Day` : undefined,
                 seatNumber: payment.subscription?.seat?.number,
                 startDate: payment.subscription?.startDate ? new Date(payment.subscription.startDate) : undefined,
-                endDate: payment.subscription?.endDate ? new Date(payment.subscription.endDate) : undefined,
+                endDate: endDate,
                 amount: payment.amount,
                 paymentMethod: payment.method,
                 subTotal: payment.amount,
                 discount: payment.discountAmount || 0, 
                 items: [{
-                    description: payment.subscription?.plan?.name || payment.additionalFee?.name || payment.description || 'Payment',
+                    description: payment.description || payment.subscription?.plan?.name || payment.additionalFee?.name || 'Payment',
                     amount: payment.amount
                 }]
         }

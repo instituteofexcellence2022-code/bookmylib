@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
-import { Search, User, CreditCard, Banknote, Calendar, Check, Loader2, MapPin, Armchair, ChevronRight, Clock, Info, ChevronLeft, LayoutGrid, List, ShieldCheck, Percent, Lock } from 'lucide-react'
+import { Search, User, CreditCard, Banknote, Calendar, Check, Loader2, MapPin, Armchair, ChevronRight, Clock, Info, ChevronLeft, LayoutGrid, List, ShieldCheck, Percent, Lock, Plus, Minus } from 'lucide-react'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
@@ -101,6 +101,7 @@ export function AcceptPaymentForm() {
     const [seats, setSeats] = useState<Seat[]>([])
     
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
+    const [quantity, setQuantity] = useState(1)
     const [selectedFees, setSelectedFees] = useState<string[]>([])
     const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null)
     
@@ -266,7 +267,7 @@ export function AcceptPaymentForm() {
         .reduce((sum, f) => sum + f.amount, 0)
         
     const planPrice = selectedPlan?.price || 0
-    const subTotal = planPrice + feesTotal
+    const subTotal = (planPrice * quantity) + (feesTotal * quantity)
     
     // Update Amount when selection changes
     useEffect(() => {
@@ -381,6 +382,7 @@ export function AcceptPaymentForm() {
                 planId: selectedPlan.id,
                 seatId: selectedSeat?.id,
                 startDate,
+                quantity,
                 additionalFeeIds: selectedFees,
                 paymentDetails: {
                     amount: parseFloat(amount) || 0,
@@ -424,11 +426,14 @@ export function AcceptPaymentForm() {
 
         // Calculate End Date
         const end = new Date(startDate)
-        if (selectedPlan.durationUnit === 'days') {
-            end.setDate(end.getDate() + selectedPlan.duration)
-        } else {
-            // Assume months for any other unit (including 'month', 'months')
-            end.setMonth(end.getMonth() + selectedPlan.duration)
+        for (let i = 0; i < quantity; i++) {
+            if (selectedPlan.durationUnit === 'days') {
+                end.setDate(end.getDate() + selectedPlan.duration)
+            } else if (selectedPlan.durationUnit === 'weeks') {
+                end.setDate(end.getDate() + (selectedPlan.duration * 7))
+            } else {
+                end.setMonth(end.getMonth() + selectedPlan.duration)
+            }
         }
 
         return {
@@ -441,7 +446,7 @@ export function AcceptPaymentForm() {
             branchAddress: `${selectedBranch.address}, ${selectedBranch.city}`,
             planName: selectedPlan.name,
             planType: selectedPlan.category,
-            planDuration: `${selectedPlan.duration} ${selectedPlan.durationUnit}`,
+            planDuration: `${selectedPlan.duration} ${selectedPlan.durationUnit} (x${quantity})`,
             planHours: selectedPlan.hoursPerDay ? `${selectedPlan.hoursPerDay} Hrs/Day` : 
                       (selectedPlan.shiftStart && selectedPlan.shiftEnd) ? `${formatTime(selectedPlan.shiftStart)} - ${formatTime(selectedPlan.shiftEnd)}` : undefined,
             seatNumber: selectedSeat ? `${formatSeatNumber(selectedSeat.number)} (${selectedSeat.section || 'General'})` : undefined,
@@ -453,10 +458,13 @@ export function AcceptPaymentForm() {
             discount: (appliedCoupon?.discount || 0) + (parseFloat(additionalDiscount) || 0),
             items: [
                 {
-                    description: `Plan: ${selectedPlan.name}`,
-                    amount: selectedPlan.price
+                    description: `Plan: ${selectedPlan.name} (x${quantity})`,
+                    amount: selectedPlan.price * quantity
                 },
-                ...feeItems
+                ...feeItems.map(f => ({
+                    description: `${f.description} (x${quantity})`,
+                    amount: f.amount * quantity
+                }))
             ]
         }
     }
@@ -532,6 +540,7 @@ Thank you!`
         setSelectedStudent(null)
         setSelectedBranch(null)
         setSelectedPlan(null)
+        setQuantity(1)
         setSelectedSeat(null)
         setSelectedFees([])
         setAppliedCoupon(null)
@@ -707,7 +716,10 @@ Thank you!`
                                         {plans.map(plan => (
                                             <div
                                                 key={plan.id}
-                                                onClick={() => setSelectedPlan(plan)}
+                                                onClick={() => {
+                                                    setSelectedPlan(plan)
+                                                    setQuantity(1)
+                                                }}
                                                 className={cn(
                                                     "p-3 rounded-xl border cursor-pointer transition-all duration-200 relative",
                                                     selectedPlan?.id === plan.id 
@@ -727,24 +739,75 @@ Thank you!`
                                                     <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">₹{plan.price.toFixed(2)}</span>
                                                 </div>
                                                 
-                                                <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{plan.description}</p>
-                                                
-                                                <div className="flex items-center gap-2 mb-2 text-[11px] text-gray-600 dark:text-gray-300">
-                                                    <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
-                                                        <Clock className="w-2.5 h-2.5 text-gray-400" />
-                                                        <span className="font-medium">{plan.duration} {plan.durationUnit}</span>
+                                                {selectedPlan?.id !== plan.id ? (
+                                                    <>
+                                                        <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{plan.description}</p>
+                                                        
+                                                        <div className="flex items-center gap-2 mb-2 text-[11px] text-gray-600 dark:text-gray-300">
+                                                            <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
+                                                                <Clock className="w-2.5 h-2.5 text-gray-400" />
+                                                                <span className="font-medium">{plan.duration} {plan.durationUnit}</span>
+                                                            </div>
+                                                            
+                                                            <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
+                                                                <Info className="w-2.5 h-2.5 text-gray-400" />
+                                                                <span className="font-medium">
+                                                                    {plan.category === 'fixed' 
+                                                                        ? `${formatTime(plan.shiftStart)} - ${formatTime(plan.shiftEnd)}`
+                                                                        : `${plan.hoursPerDay} Hrs/Day`
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <div className="mb-2 pt-2 border-t border-gray-100 dark:border-gray-700/50 animate-in fade-in zoom-in-95 duration-200">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-2 text-[11px] text-gray-600 dark:text-gray-300">
+                                                                <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
+                                                                    <Clock className="w-2.5 h-2.5 text-gray-400" />
+                                                                    <span className="font-medium">{plan.duration} {plan.durationUnit}</span>
+                                                                </div>
+                                                                
+                                                                <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
+                                                                    <Info className="w-2.5 h-2.5 text-gray-400" />
+                                                                    <span className="font-medium">
+                                                                        {plan.category === 'fixed' 
+                                                                            ? `${formatTime(plan.shiftStart)} - ${formatTime(plan.shiftEnd)}`
+                                                                            : `${plan.hoursPerDay} Hrs/Day`
+                                                                        }
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-lg p-0.5 border border-gray-100 dark:border-gray-700 shadow-sm">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        setQuantity(q => Math.max(1, q - 1))
+                                                                    }}
+                                                                    disabled={quantity <= 1}
+                                                                    className="p-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-gray-600 dark:text-gray-400"
+                                                                >
+                                                                    <Minus className="w-3 h-3" />
+                                                                </button>
+                                                                <span className="font-semibold w-3 text-center text-xs text-gray-900 dark:text-white">{quantity}</span>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        setQuantity(q => q + 1)
+                                                                    }}
+                                                                    className="p-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded transition-colors text-gray-600 dark:text-gray-400"
+                                                                >
+                                                                    <Plus className="w-3 h-3" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        <div className="mt-1.5 text-right text-[10px] text-gray-500 font-medium">
+                                                            Total: {quantity} x {plan.duration} {plan.durationUnit}s
+                                                        </div>
                                                     </div>
-                                                    
-                                                    <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
-                                                        <Info className="w-2.5 h-2.5 text-gray-400" />
-                                                        <span className="font-medium">
-                                                            {plan.category === 'fixed' 
-                                                                ? `${formatTime(plan.shiftStart)} - ${formatTime(plan.shiftEnd)}`
-                                                                : `${plan.hoursPerDay} Hrs/Day`
-                                                            }
-                                                        </span>
-                                                    </div>
-                                                </div>
+                                                )}
 
                                                 <div className="flex flex-wrap gap-1.5">
                                                     <span className={cn(
@@ -1062,12 +1125,12 @@ Thank you!`
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-gray-500">Plan</span>
-                                <span className="font-medium text-gray-900 dark:text-white">{selectedPlan.name} ({selectedPlan.duration} {selectedPlan.durationUnit})</span>
+                                <span className="font-medium text-gray-900 dark:text-white">{selectedPlan.name} ({selectedPlan.duration} {selectedPlan.durationUnit}) {quantity > 1 && `x ${quantity}`}</span>
                             </div>
                             {feesTotal > 0 && (
                                 <div className="flex justify-between text-sm">
-                                    <span className="text-gray-500">Additional Fees ({selectedFees.length})</span>
-                                    <span className="font-medium text-gray-900 dark:text-white">+ ₹{feesTotal.toFixed(2)}</span>
+                                    <span className="text-gray-500">Additional Fees ({selectedFees.length}) {quantity > 1 && `x ${quantity}`}</span>
+                                    <span className="font-medium text-gray-900 dark:text-white">+ ₹{(feesTotal * quantity).toFixed(2)}</span>
                                 </div>
                             )}
                             {selectedSeat && (
@@ -1225,7 +1288,7 @@ Thank you!`
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-500">Plan</span>
-                                        <span className="font-medium">{selectedPlan.name} ({selectedPlan.duration} {selectedPlan.durationUnit})</span>
+                                        <span className="font-medium">{selectedPlan.name} ({selectedPlan.duration} {selectedPlan.durationUnit}) {quantity > 1 && `x ${quantity}`}</span>
                                     </div>
                                     {selectedSeat && (
                                         <div className="flex justify-between">
@@ -1250,14 +1313,14 @@ Thank you!`
                             
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
-                                    <span className="text-gray-500">Plan Price</span>
-                                    <span>₹{selectedPlan.price.toFixed(2)}</span>
+                                    <span className="text-gray-500">Plan Price {quantity > 1 && `(x${quantity})`}</span>
+                                    <span>₹{(selectedPlan.price * quantity).toFixed(2)}</span>
                                 </div>
                                 
                                 {feesTotal > 0 && (
                                     <div className="flex justify-between">
-                                        <span className="text-gray-500">Additional Fees</span>
-                                        <span>+ ₹{feesTotal.toFixed(2)}</span>
+                                        <span className="text-gray-500">Additional Fees {quantity > 1 && `(x${quantity})`}</span>
+                                        <span>+ ₹{(feesTotal * quantity).toFixed(2)}</span>
                                     </div>
                                 )}
                                 

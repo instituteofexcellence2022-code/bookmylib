@@ -124,6 +124,9 @@ export async function initiatePublicBooking(data: {
         if (!plan) return { success: false, error: 'Plan not found' }
 
         let description = `Booking: ${plan.name}`
+        if (quantity > 1) {
+            description += ` (x${quantity})`
+        }
         
         if (seatId) {
             const seat = await prisma.seat.findUnique({ where: { id: seatId } })
