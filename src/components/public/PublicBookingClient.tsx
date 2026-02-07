@@ -581,79 +581,164 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                         </section>
 
                         <div className="space-y-6 lg:col-span-1">
-                            {/* Fees */}
-                            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 h-fit">
+                            {/* Fees & Customization */}
+                            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 h-fit space-y-6">
                                 <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                                     <Info className="w-5 h-5 text-blue-500" />
-                                    Add-ons
+                                    Customize Plan
                                 </h3>
-                                <div className="space-y-3">
-                                    {/* Included Benefits */}
-                                    {selectedPlan && selectedPlan.includesSeat && (
-                                        <div className="flex items-center justify-between p-3 rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-900/10 dark:border-emerald-800 opacity-80">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                                                    <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-sm text-emerald-900 dark:text-emerald-100">Seat Reservation</p>
-                                                    <p className="text-xs text-emerald-700 dark:text-emerald-300">Included in Plan</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {selectedPlan && selectedPlan.includesLocker && (
-                                        <div className="flex items-center justify-between p-3 rounded-xl border border-purple-200 bg-purple-50 dark:bg-purple-900/10 dark:border-purple-800 opacity-80">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+
+                                {/* Locker Section */}
+                                {(selectedPlan?.includesLocker || branch.fees.some(f => f.name.toLowerCase().includes('locker'))) && (
+                                    <div>
+                                        <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2 text-xs uppercase tracking-wider text-purple-600 dark:text-purple-400">
+                                            <Lock className="w-3.5 h-3.5" />
+                                            Locker Facility
+                                        </h4>
+                                        
+                                        {selectedPlan?.includesLocker ? (
+                                            <div className="flex items-center gap-3 p-3 rounded-xl border border-purple-200 bg-purple-50 dark:bg-purple-900/10 dark:border-purple-800">
+                                                <div className="w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
                                                     <Check className="w-3 h-3 text-purple-600 dark:text-purple-400" />
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium text-sm text-purple-900 dark:text-purple-100">Locker Facility</p>
-                                                    <p className="text-xs text-purple-700 dark:text-purple-300">Included in Plan</p>
+                                                    <p className="font-medium text-sm text-purple-900 dark:text-purple-100">Locker Included</p>
+                                                    <p className="text-xs text-purple-700 dark:text-purple-300">Part of your plan</p>
                                                 </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {branch.fees.filter(f => f.name.toLowerCase().includes('locker')).map(fee => (
+                                                    <label key={fee.id} className={cn(
+                                                        "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
+                                                        selectedFees.includes(fee.id)
+                                                            ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 ring-1 ring-purple-500/20"
+                                                            : "border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                                                    )}>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={cn(
+                                                                "w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0",
+                                                                selectedFees.includes(fee.id)
+                                                                    ? "bg-purple-500 border-purple-500 text-white"
+                                                                    : "border-gray-300 dark:border-gray-600"
+                                                            )}>
+                                                                {selectedFees.includes(fee.id) && <Check className="w-3 h-3" />}
+                                                            </div>
+                                                            <input 
+                                                                type="checkbox" 
+                                                                className="hidden"
+                                                                checked={selectedFees.includes(fee.id)}
+                                                                onChange={() => toggleFee(fee.id)}
+                                                            />
+                                                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fee.name}</span>
+                                                        </div>
+                                                        <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
-                                    {branch.fees
-                                        .filter(f => {
-                                            if (!selectedPlan) return true
-                                            const name = f.name.toLowerCase()
-                                            const isSeatFee = name.includes('seat') || name.includes('reservation')
-                                            const isLockerFee = name.includes('locker')
-                                            
-                                            if (selectedPlan.includesSeat && isSeatFee) return false
-                                            if (selectedPlan.includesLocker && isLockerFee) return false
-                                            
-                                            return true
-                                        })
-                                        .map(fee => (
-                                        <label key={fee.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors">
-                                            <div className="flex items-center gap-3">
-                                                <div className={cn(
-                                                    "w-5 h-5 rounded border flex items-center justify-center transition-colors",
-                                                    selectedFees.includes(fee.id)
-                                                        ? "bg-blue-500 border-blue-500 text-white"
-                                                        : "border-gray-300 dark:border-gray-600"
-                                                )}>
-                                                    {selectedFees.includes(fee.id) && <Check className="w-3 h-3" />}
+                                {/* Seat Section */}
+                                {(selectedPlan?.includesSeat || branch.fees.some(f => f.name.toLowerCase().includes('seat') || f.name.toLowerCase().includes('reservation'))) && (
+                                    <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                                        <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2 text-xs uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                                            <Armchair className="w-3.5 h-3.5" />
+                                            Seat Reservation
+                                        </h4>
+
+                                        {selectedPlan?.includesSeat ? (
+                                                <div className="flex items-center gap-3 p-3 rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-900/10 dark:border-emerald-800">
+                                                <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+                                                    <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                                                 </div>
-                                                <input 
-                                                    type="checkbox" 
-                                                    className="hidden"
-                                                    checked={selectedFees.includes(fee.id)}
-                                                    onChange={() => toggleFee(fee.id)}
-                                                />
-                                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fee.name}</span>
+                                                <div>
+                                                    <p className="font-medium text-sm text-emerald-900 dark:text-emerald-100">Seat Included</p>
+                                                    <p className="text-xs text-emerald-700 dark:text-emerald-300">Select seat below</p>
+                                                </div>
                                             </div>
-                                            <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
-                                        </label>
-                                    ))}
-                                    {branch.fees.length === 0 && (
-                                        <p className="text-sm text-gray-500">No additional fees.</p>
-                                    )}
-                                </div>
+                                        ) : (
+                                                <div className="space-y-2">
+                                                {branch.fees.filter(f => f.name.toLowerCase().includes('seat') || f.name.toLowerCase().includes('reservation')).map(fee => (
+                                                    <label key={fee.id} className={cn(
+                                                        "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
+                                                        selectedFees.includes(fee.id)
+                                                            ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 ring-1 ring-emerald-500/20"
+                                                            : "border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                                                    )}>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={cn(
+                                                                "w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0",
+                                                                selectedFees.includes(fee.id)
+                                                                    ? "bg-emerald-500 border-emerald-500 text-white"
+                                                                    : "border-gray-300 dark:border-gray-600"
+                                                            )}>
+                                                                {selectedFees.includes(fee.id) && <Check className="w-3 h-3" />}
+                                                            </div>
+                                                            <input 
+                                                                type="checkbox" 
+                                                                className="hidden"
+                                                                checked={selectedFees.includes(fee.id)}
+                                                                onChange={() => toggleFee(fee.id)}
+                                                            />
+                                                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fee.name}</span>
+                                                        </div>
+                                                        <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Other Add-ons */}
+                                {branch.fees.some(f => {
+                                    const name = f.name.toLowerCase()
+                                    return !name.includes('locker') && !name.includes('seat') && !name.includes('reservation')
+                                }) && (
+                                    <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                                        <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2 text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                                            Other Add-ons
+                                        </h4>
+                                        <div className="space-y-2">
+                                            {branch.fees.filter(f => {
+                                                    const name = f.name.toLowerCase()
+                                                    return !name.includes('locker') && !name.includes('seat') && !name.includes('reservation')
+                                            }).map(fee => (
+                                                <label key={fee.id} className={cn(
+                                                    "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
+                                                    selectedFees.includes(fee.id)
+                                                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-500/20"
+                                                        : "border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                                                )}>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={cn(
+                                                            "w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0",
+                                                            selectedFees.includes(fee.id)
+                                                                ? "bg-blue-500 border-blue-500 text-white"
+                                                                : "border-gray-300 dark:border-gray-600"
+                                                        )}>
+                                                            {selectedFees.includes(fee.id) && <Check className="w-3 h-3" />}
+                                                        </div>
+                                                        <input 
+                                                            type="checkbox" 
+                                                            className="hidden"
+                                                            checked={selectedFees.includes(fee.id)}
+                                                            onChange={() => toggleFee(fee.id)}
+                                                        />
+                                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fee.name}</span>
+                                                    </div>
+                                                    <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {branch.fees.length === 0 && (
+                                    <p className="text-sm text-gray-500">No additional fees available.</p>
+                                )}
                             </div>
 
                             {/* Start Date */}
