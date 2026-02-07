@@ -248,7 +248,7 @@ const tabs = [
                 align-items: center !important;
                 justify-content: center !important;
                 text-align: center !important;
-                padding: 2rem !important;
+                padding: 1rem !important;
               }
 
               /* Scale up QR code for print */
@@ -257,7 +257,7 @@ const tabs = [
                 height: 400px !important;
                 max-width: 80% !important;
                 position: relative !important;
-                margin: 0 auto !important;
+                margin: 0 auto 0.25rem auto !important;
               }
               #printable-qr-card img {
                 width: 100% !important;
@@ -947,7 +947,7 @@ const tabs = [
                        <div className="flex flex-col items-center space-y-5 py-2">
                          <div className="relative group">
                             <div className="absolute -inset-1.5 bg-gradient-to-tr from-purple-600 via-pink-600 to-blue-600 rounded-2xl opacity-75 blur transition duration-1000 group-hover:duration-200 group-hover:opacity-100"></div>
-                        <div className="relative p-2 bg-white rounded-xl shadow-xl">
+                        <div className="relative p-0.5 bg-white rounded-xl shadow-xl">
                                  {qrDataUrl ? (
                                      <div className="relative w-96 h-96 qr-image-container">
                                         <Image src={qrDataUrl} alt="Branch QR" fill className="object-contain" />
