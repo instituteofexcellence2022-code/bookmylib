@@ -319,7 +319,6 @@ export default function PlansAndFeesPage() {
                 onChange={e => setBranchFilter(e.target.value)}
                 options={[
                   { label: 'All Branches', value: 'all' },
-                  { label: 'Global', value: 'global' },
                   ...branches.map(b => ({ label: b.name, value: b.id }))
                 ]}
                 icon={MapPin}
