@@ -30,10 +30,10 @@ const navItems = [
   
   { href: '/owner/scanner', label: 'Master Scanner', icon: Scan, group: 'Operations' },
   { href: '/owner/students', label: 'Students', icon: GraduationCap, group: 'Operations' },
-  { href: '/owner/attendance', label: 'Attendance', icon: CalendarCheck, group: 'Operations' },
-  { href: '/owner/expiries', label: 'Expiries', icon: Clock, group: 'Operations' },
   { href: '/owner/verification', label: 'Verification', icon: ShieldCheck, group: 'Operations' },
   { href: '/owner/issues', label: 'Issues', icon: AlertCircle, group: 'Operations', badge: 3, badgeColor: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+  { href: '/owner/expiries', label: 'Expiries', icon: Clock, group: 'Operations' },
+  { href: '/owner/attendance', label: 'Attendance', icon: CalendarCheck, group: 'Operations' },
   
   { href: '/owner/branches', label: 'Branches', icon: Store, group: 'Business' },
   { href: '/owner/staff', label: 'Staff', icon: Users, group: 'Business' },
