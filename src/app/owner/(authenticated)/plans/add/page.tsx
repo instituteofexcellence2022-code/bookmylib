@@ -23,12 +23,14 @@ export default function CreateSubscriptionPage() {
     duration: '',
     durationUnit: 'months',
     category: 'fixed',
-    billingCycle: 'per_month',
+    billingCycle: 'one_time',
     branchId: 'all',
     hoursPerDay: '',
     shiftStart: '',
     shiftEnd: '',
-    status: 'active'
+    status: 'active',
+    includesSeat: false,
+    includesLocker: false
   })
 
   useEffect(() => {
@@ -46,8 +48,13 @@ export default function CreateSubscriptionPage() {
   }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-    setForm(prev => ({ ...prev, [name]: value }))
+    const { name, value, type } = e.target
+    if (type === 'checkbox') {
+      const checked = (e.target as HTMLInputElement).checked
+      setForm(prev => ({ ...prev, [name]: checked }))
+    } else {
+      setForm(prev => ({ ...prev, [name]: value }))
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,6 +89,8 @@ export default function CreateSubscriptionPage() {
       data.append('billingCycle', form.billingCycle)
       data.append('branchId', form.branchId)
       data.append('status', form.status)
+      data.append('includesSeat', String(form.includesSeat))
+      data.append('includesLocker', String(form.includesLocker))
       
       if (form.category === 'flexible') {
         data.append('hoursPerDay', form.hoursPerDay)
@@ -382,19 +391,35 @@ export default function CreateSubscriptionPage() {
             </div>
           </div>
 
-          <FormSelect
-            label="Billing Cycle"
-            name="billingCycle"
-            icon={IndianRupee}
-            value={form.billingCycle}
-            onChange={handleChange}
-            options={[
-              { label: 'Per Month', value: 'per_month' },
-              { label: 'One Time', value: 'one_time' },
-              { label: 'After Plan End', value: 'after_plan_end' }
-            ]}
-            required
-          />
+          <div className="flex gap-6 pt-2">
+            <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex-1">
+              <input
+                type="checkbox"
+                name="includesSeat"
+                checked={form.includesSeat}
+                onChange={handleChange}
+                className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500 border-gray-300 dark:border-gray-600"
+              />
+              <div>
+                <span className="block text-sm font-medium text-gray-900 dark:text-white">Reserve Seat</span>
+                <span className="block text-xs text-gray-500 dark:text-gray-400">Includes a dedicated seat</span>
+              </div>
+            </label>
+
+            <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex-1">
+              <input
+                type="checkbox"
+                name="includesLocker"
+                checked={form.includesLocker}
+                onChange={handleChange}
+                className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500 border-gray-300 dark:border-gray-600"
+              />
+              <div>
+                <span className="block text-sm font-medium text-gray-900 dark:text-white">Include Locker</span>
+                <span className="block text-xs text-gray-500 dark:text-gray-400">Access to locker facility</span>
+              </div>
+            </label>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormInput

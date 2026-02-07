@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { getOwnerProfile } from './owner'
+import { Prisma } from '@prisma/client'
 
 export async function getOwnerPlans() {
   const owner = await getOwnerProfile()
@@ -71,6 +72,8 @@ export async function createPlan(formData: FormData) {
     const hoursPerDayRaw = formData.get('hoursPerDay') as string | null
     const shiftStart = formData.get('shiftStart') as string | null
     const shiftEnd = formData.get('shiftEnd') as string | null
+    const includesSeat = formData.get('includesSeat') === 'true'
+    const includesLocker = formData.get('includesLocker') === 'true'
 
     if (!name || !priceRaw || !durationRaw || !category || !durationUnit || !billingCycle) {
       return { success: false, error: 'All required fields must be provided' }
@@ -119,7 +122,9 @@ export async function createPlan(formData: FormData) {
         hoursPerDay,
         shiftStart: category === 'fixed' ? shiftStart : null,
         shiftEnd: category === 'fixed' ? shiftEnd : null,
-        isActive: status === 'active'
+        isActive: status === 'active',
+        includesSeat,
+        includesLocker
       }
     })
 
@@ -156,8 +161,10 @@ export async function updatePlan(formData: FormData) {
     const hoursPerDayRaw = formData.get('hoursPerDay') as string | null
     const shiftStart = formData.get('shiftStart') as string | null
     const shiftEnd = formData.get('shiftEnd') as string | null
+    const includesSeat = formData.get('includesSeat')
+    const includesLocker = formData.get('includesLocker')
 
-    const data: any = {}
+    const data: Prisma.PlanUncheckedUpdateInput = {}
 
     if (name !== null) data.name = name
     if (description !== null) data.description = description && description.trim().length > 0 ? description : null
@@ -225,6 +232,14 @@ export async function updatePlan(formData: FormData) {
       data.isActive = status === 'active'
     }
 
+    if (includesSeat !== null) {
+      data.includesSeat = includesSeat === 'true'
+    }
+
+    if (includesLocker !== null) {
+      data.includesLocker = includesLocker === 'true'
+    }
+
     await prisma.plan.update({
       where: {
         id
@@ -255,11 +270,11 @@ export async function deletePlan(id: string) {
     })
     revalidatePath('/owner/plans')
     return { success: true }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error deleting plan:', error)
     
     // Check for Foreign Key constraint violation (P2003)
-    if (error.code === 'P2003') {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
       try {
         // Soft delete (archive) instead
         await prisma.plan.update({

@@ -287,7 +287,9 @@ model Plan {
 
   // Config
   isActive     Boolean  @default(true)
-  billingCycle String // 'one_time', 'recurring'
+  billingCycle String   @default("one_time") // 'one_time', 'recurring'
+  includesSeat Boolean  @default(false)
+  includesLocker Boolean @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
