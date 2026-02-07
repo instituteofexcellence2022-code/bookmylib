@@ -19,10 +19,19 @@ import { Branch, Seat, Plan, AdditionalFee } from '@prisma/client'
 import PublicBranchHeader, { PublicOffer } from './PublicBranchHeader'
 import PublicBookingPayment from './PublicBookingPayment'
 
+type ExtendedPlan = Plan & {
+    includesSeat: boolean
+    includesLocker: boolean
+}
+
+type SeatWithOccupancy = Seat & {
+    isOccupied: boolean
+}
+
 type BranchWithDetails = Branch & {
     library: { name: string }
-    seats: (Seat & { isOccupied: boolean })[]
-    plans: Plan[]
+    seats: SeatWithOccupancy[]
+    plans: ExtendedPlan[]
     fees: AdditionalFee[]
 }
 
@@ -71,8 +80,8 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
     }, [])
 
     // Selection State
-    const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
-    const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null)
+    const [selectedPlan, setSelectedPlan] = useState<ExtendedPlan | null>(null)
+    const [selectedSeat, setSelectedSeat] = useState<SeatWithOccupancy | null>(null)
     const [selectedFees, setSelectedFees] = useState<string[]>([])
     const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0])
     
@@ -183,7 +192,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
         }
     }, [isSeatSelectionEnabled, selectedSeat])
 
-    const handlePlanSelect = (plan: Plan) => {
+    const handlePlanSelect = (plan: ExtendedPlan) => {
         setSelectedPlan(plan)
         setSelectedSeat(null)
         setSelectedFees([])
@@ -196,6 +205,36 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                 : [...prev, feeId]
         )
     }
+
+    // Check if seat is mandatory
+    const isSeatMandatory = React.useMemo(() => {
+        if (!selectedPlan) return false
+        
+        // If plan includes seat, it is mandatory
+        if (selectedPlan.includesSeat) return true
+        
+        // If seat fee is selected, it is mandatory
+        return selectedFees.some(id => {
+            const fee = branch.fees.find(f => f.id === id)
+            return fee && (
+                fee.name.toLowerCase().includes('seat') || 
+                fee.name.toLowerCase().includes('reservation')
+            )
+        })
+    }, [selectedPlan, selectedFees, branch.fees])
+    
+    // Check if locker is mandatory (if fee selected)
+    const isLockerMandatory = React.useMemo(() => {
+        if (!selectedPlan) return false
+        
+        // If plan includes locker, we don't have locker selection yet, but good to track
+        if (selectedPlan.includesLocker) return true
+        
+        return selectedFees.some(id => {
+            const fee = branch.fees.find(f => f.id === id)
+            return fee && fee.name.toLowerCase().includes('locker')
+        })
+    }, [selectedPlan, selectedFees, branch.fees])
 
     const handleEmailBlur = async () => {
         if (!studentDetails.email || !studentDetails.email.includes('@')) return
@@ -232,15 +271,6 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
             toast.error('Please fill in all details')
             return
         }
-        
-        // Check if seat is mandatory
-        const isSeatMandatory = selectedPlan && (selectedPlan.includesSeat || selectedFees.some(id => {
-            const fee = branch.fees.find(f => f.id === id)
-            return fee && (
-                fee.name.toLowerCase().includes('seat') || 
-                fee.name.toLowerCase().includes('reservation')
-            )
-        }))
         
         if (isSeatMandatory && !selectedSeat) {
             toast.error('Please select a seat')

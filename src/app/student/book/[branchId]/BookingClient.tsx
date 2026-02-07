@@ -70,8 +70,9 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
 
     // Filter plans based on action
     const visiblePlans = React.useMemo(() => {
-        if (action === 'upgrade' && currentSubscription?.plan) {
-             return branch.plans.filter(p => p.price > currentSubscription.plan.price)
+        const currentPlan = currentSubscription?.plan
+        if (action === 'upgrade' && currentPlan) {
+             return branch.plans.filter(p => p.price > currentPlan.price)
         }
         return branch.plans
     }, [action, currentSubscription, branch.plans])
@@ -250,7 +251,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
     }
 
     // Helper to format 24h time to 12h
-    const formatTime = (timeStr?: string) => {
+    const formatTime = (timeStr?: string | null) => {
         if (!timeStr) return '-'
         const [hours, minutes] = timeStr.split(':')
         const h = parseInt(hours)
@@ -496,7 +497,9 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                                         </div>
                                         <div>
                                             <p className="font-medium text-sm text-gray-900 dark:text-white">{fee.name}</p>
-                                            <p className="text-xs text-gray-500 capitalize">{fee.type.replace(/_/g, ' ')}</p>
+                                            {fee.description && (
+                                                <p className="text-xs text-gray-500 capitalize">{fee.description}</p>
+                                            )}
                                         </div>
                                     </div>
                                     <span className="font-semibold text-sm text-gray-900 dark:text-white">

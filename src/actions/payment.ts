@@ -122,23 +122,8 @@ export async function getStudentBookingStatus() {
       id: true,
       branchId: true,
       planId: true,
-      plan: {
-        select: {
-          id: true,
-          name: true,
-          price: true,
-          duration: true,
-          durationUnit: true,
-          description: true,
-          category: true,
-          shiftStart: true,
-          shiftEnd: true,
-          hoursPerDay: true,
-          billingCycle: true,
-          includesSeat: true,
-          includesLocker: true
-        }
-      },
+      seatId: true,
+      plan: true,
       branch: {
         select: {
           name: true,

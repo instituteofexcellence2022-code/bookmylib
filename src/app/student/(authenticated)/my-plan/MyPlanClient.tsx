@@ -21,11 +21,16 @@ interface SubscriptionDetails {
   plan: {
     id: string
     name: string
+    description?: string | null
     price: number
     duration: number
     durationUnit: string
     includesSeat: boolean
     includesLocker: boolean
+    category?: string | null
+    shiftStart?: string | null
+    shiftEnd?: string | null
+    hoursPerDay?: number | null
   }
   branch: {
     name: string
@@ -37,6 +42,7 @@ interface SubscriptionDetails {
   hasLocker: boolean
   seat: {
     number: string
+    section?: string | null
   } | null
   payment: {
     id: string
@@ -45,14 +51,14 @@ interface SubscriptionDetails {
     method: string
     student: {
       name: string
-      email: string
-      phone: string
+      email: string | null
+      phone: string | null
     }
     branch?: {
       name: string
       address: string | null
       city: string | null
-    }
+    } | null
   } | null
 }
 
@@ -109,14 +115,14 @@ export default function MyPlanClient() {
     router.push('/student/book')
   }
 
-  const calculateProgress = (start: string, end: string) => {
+  const calculateProgress = (start: string | Date, end: string | Date) => {
     const total = new Date(end).getTime() - new Date(start).getTime()
     const current = new Date().getTime() - new Date(start).getTime()
     const percentage = (current / total) * 100
     return Math.min(Math.max(percentage, 0), 100)
   }
 
-  const getDaysRemaining = (end: string) => {
+  const getDaysRemaining = (end: string | Date) => {
     const diff = new Date(end).getTime() - new Date().getTime()
     return Math.ceil(diff / (1000 * 60 * 60 * 24))
   }
@@ -320,15 +326,15 @@ export default function MyPlanClient() {
               <div className="flex items-center gap-4 pt-3 border-t border-white/10">
                 <div className="flex-1 space-y-1.5">
                    <div className="flex justify-between text-sm font-medium text-purple-200/70">
-                    <span>{new Date(sub?.startDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                    <span>{sub?.startDate ? new Date(sub.startDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}</span>
                     <span className="text-purple-200/40 uppercase tracking-widest text-xs">Validity</span>
-                    <span>{new Date(sub?.endDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                    <span>{sub?.endDate ? new Date(sub.endDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}</span>
                   </div>
-                  <div className="h-1.5 bg-black/20 rounded-full overflow-hidden" title={`${calculateProgress(sub?.startDate, sub?.endDate).toFixed(0)}% Completed`}>
-                    <div 
+                  <div className="h-1.5 bg-black/20 rounded-full overflow-hidden" title={`${calculateProgress(sub?.startDate ?? new Date(), sub?.endDate ?? new Date()).toFixed(0)}% Completed`}>
+                    <div
                       className={`h-full rounded-full transition-all duration-1000 ease-out relative
                         ${isUrgent ? 'bg-yellow-400' : 'bg-green-400'}`}
-                      style={{ width: `${calculateProgress(sub?.startDate, sub?.endDate)}%` }}
+                      style={{ width: `${calculateProgress(sub?.startDate ?? new Date(), sub?.endDate ?? new Date())}%` }}
                     />
                   </div>
                 </div>
