@@ -82,7 +82,6 @@ export default function MyPlanClient() {
     setLoading(true)
     try {
       const status = await getStudentBookingStatus()
-      // @ts-expect-error - Type mismatch in booking status
       setBookingStatus(status)
     } catch (error) {
       console.error('Error loading data:', error)

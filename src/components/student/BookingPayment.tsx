@@ -51,6 +51,7 @@ interface BookingPaymentProps {
   upiId?: string
   payeeName?: string
   startDate: string
+  quantity?: number
   onSuccess: (paymentId?: string, status?: 'completed' | 'pending_verification', proofUrl?: string) => void
   onBack: () => void
 }
@@ -76,6 +77,7 @@ export default function BookingPayment({
   upiId,
   payeeName,
   startDate,
+  quantity = 1,
   onSuccess, 
   onBack 
 }: BookingPaymentProps) {
@@ -103,7 +105,7 @@ export default function BookingPayment({
 
   // Calculate Base Total (Plan + Fees)
   const feesTotal = fees.reduce((sum: number, fee) => sum + Number(fee.amount), 0)
-  const baseTotal = Number(plan.price) + feesTotal
+  const baseTotal = (Number(plan.price) + feesTotal) * quantity
   const subTotal = Math.round(Math.max(0, baseTotal - adjustmentAmount))
   
   // Calculate Final Amount
@@ -284,7 +286,7 @@ export default function BookingPayment({
     const amount = subTotal
     
     // Construct description
-    let description = `Booking: ${plan.name}`
+    let description = `Booking: ${plan.name} (x${quantity})`
     if (seat) description += ` (Seat ${formatSeatNumber(seat.number)})`
     if (fees.length > 0) description += ` + ${fees.length} Fees`
 
@@ -667,6 +669,13 @@ export default function BookingPayment({
                    </span>
                </div>
             </div>
+
+            {quantity > 1 && (
+               <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Quantity</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{quantity} Cycles</span>
+               </div>
+            )}
 
             {/* Seat */}
             {seat && (

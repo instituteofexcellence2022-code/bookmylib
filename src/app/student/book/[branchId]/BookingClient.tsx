@@ -6,7 +6,7 @@ import { toast } from 'react-hot-toast'
 import { 
     Check, Armchair, Calendar, 
     CreditCard, Clock, MapPin, Info,
-    ChevronRight, ChevronLeft,
+    ChevronRight, ChevronLeft, ChevronDown,
     LayoutGrid, List, Loader2, Library as LibraryIcon,
     Lock
 } from 'lucide-react'
@@ -55,6 +55,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
     const [step, setStep] = useState<'selection' | 'payment' | 'success'>('selection')
     const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null)
     const [selectedPlan, setSelectedPlan] = useState<ExtendedPlan | null>(null)
+    const [quantity, setQuantity] = useState(1)
     const [selectedFees, setSelectedFees] = useState<string[]>([])
     const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0])
     const [isLoading, setIsLoading] = useState(false)
@@ -109,9 +110,9 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
     }, [])
 
     // Calculate total
-    const totalAmount = Math.round((Number(selectedPlan?.price) || 0) + 
+    const totalAmount = Math.round(((Number(selectedPlan?.price) || 0) + 
         (branch.fees || []).filter(f => selectedFees.includes(String(f.id)))
-            .reduce((sum: number, f) => sum + Number(f.amount), 0))
+            .reduce((sum: number, f) => sum + Number(f.amount), 0)) * quantity)
 
     // Sort seats naturally
     const sortedSeats = React.useMemo(() => {
@@ -224,6 +225,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                 planId: selectedPlan.id,
                 seatId: selectedSeat?.id,
                 startDate: bookingDate,
+                quantity,
                 additionalFeeIds: selectedFees,
                 paymentId,
                 paymentDetails: proofUrl ? {
@@ -344,6 +346,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                     upiId={(branch as unknown as { upiId?: string }).upiId || undefined}
                     payeeName={(branch as unknown as { payeeName?: string }).payeeName || undefined}
                     startDate={bookingDate}
+                    quantity={quantity}
                     onSuccess={handlePaymentSuccess}
                     onBack={() => setStep('selection')}
                 />
@@ -459,6 +462,46 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                         )}
                     </div>
                 </div>
+
+                 {/* Quantity Selection */}
+                 {selectedPlan && (
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-300">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                            <Calendar className="w-5 h-5 text-indigo-500" />
+                            Select Duration
+                        </h3>
+                        
+                        <div className="flex flex-wrap items-center gap-6">
+                            <div className="relative">
+                                <select
+                                    value={quantity}
+                                    onChange={(e) => setQuantity(Number(e.target.value))}
+                                    className="appearance-none bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 pr-10 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer min-w-[240px] font-medium"
+                                >
+                                    {[1, 2, 3, 4, 5, 6, 12].map(num => {
+                                        let label = `${num} Cycle${num > 1 ? 's' : ''}`
+                                        if (selectedPlan.durationUnit === 'months') {
+                                            label = `${num} Month${num > 1 ? 's' : ''}`
+                                        } else if (selectedPlan.durationUnit === 'days') {
+                                            label = `${num * selectedPlan.duration} Days`
+                                        }
+                                        return (
+                                            <option key={num} value={num}>
+                                                {label}
+                                            </option>
+                                        )
+                                    })}
+                                </select>
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                            </div>
+                            
+                            <div className="flex items-center gap-3 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800">
+                                <span className="text-sm text-indigo-600 dark:text-indigo-300 font-medium">Total Amount:</span>
+                                <span className="text-xl font-bold text-indigo-700 dark:text-indigo-200">₹{totalAmount}</span>
+                            </div>
+                        </div>
+                    </div>
+                 )}
 
                 {/* Additional Fees (Step 2) */}
                 {(branch.fees?.length > 0) && (
@@ -794,13 +837,37 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                         <Calendar className="w-5 h-5 text-orange-500" />
                         Start Date
                     </h3>
-                    <input
-                        type="date"
-                        value={bookingDate}
-                        min={new Date().toISOString().split('T')[0]}
-                        onChange={(e) => setBookingDate(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                    />
+                    <div className="flex gap-4">
+                    <div className="w-1/3 space-y-1.5">
+                        <label className="text-xs font-medium text-gray-500 dark:text-gray-400 ml-1">
+                            Quantity
+                        </label>
+                        <select
+                            value={quantity}
+                            onChange={(e) => setQuantity(Number(e.target.value))}
+                            className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 outline-none focus:ring-2 focus:ring-emerald-500 transition-all appearance-none cursor-pointer"
+                        >
+                            {[1, 2, 3, 4, 5, 6, 12].map(num => (
+                                <option key={num} value={num}>
+                                    {num} {selectedPlan?.durationUnit === 'months' && num > 1 ? 'Months' : 'Cycle'}{num > 1 ? 's' : ''}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="flex-1 space-y-1.5">
+                        <label className="text-xs font-medium text-gray-500 dark:text-gray-400 ml-1">
+                            Start Date
+                        </label>
+                        <input
+                            type="date"
+                            value={bookingDate}
+                            min={new Date().toISOString().split('T')[0]}
+                            onChange={(e) => setBookingDate(e.target.value)}
+                            className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                        />
+                    </div>
+                </div>
                 </div>
 
                 {/* Action Button */}

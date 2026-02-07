@@ -126,6 +126,7 @@ export async function createBooking(data: {
     planId: string
     seatId?: string
     startDate: string // ISO string
+    quantity?: number // Number of cycles/months
     additionalFeeIds?: string[]
     paymentId?: string
     paymentDetails?: {
@@ -136,9 +137,9 @@ export async function createBooking(data: {
         discount?: number
         proofUrl?: string
     }
-}): Promise<{ success: true; subscriptionId: string; paymentId?: string; invoiceNo?: string | null; seatNumber?: string; amount?: number; discount?: number; method?: string; status?: string } | { success: false; error: string }> {
+}): Promise<{ success: true; subscriptionIds: string[]; subscriptionId?: string; paymentId?: string; invoiceNo?: string | null; seatNumber?: string; amount?: number; discount?: number; method?: string; status?: string } | { success: false; error: string }> {
     try {
-        const { studentId, branchId, planId, seatId, startDate, additionalFeeIds = [], paymentId, paymentDetails } = data
+        const { studentId, branchId, planId, seatId, startDate, quantity = 1, additionalFeeIds = [], paymentId, paymentDetails } = data
 
         // 1. Validate Student
         const student = await prisma.student.findUnique({ where: { id: studentId } })
@@ -167,8 +168,8 @@ export async function createBooking(data: {
             if (!existingPayment) return { success: false as const, error: 'Payment record not found' }
         }
 
-        // 6. Calculate Dates (Chain if active subscription exists)
-        // Find latest active or pending subscription for this student & branch
+        // 6. Calculate Dates & Check Conflicts
+        // Find latest active or pending subscription for this student & branch to chain dates
         const lastSubscription = await prisma.studentSubscription.findFirst({
             where: {
                 studentId,
@@ -179,22 +180,32 @@ export async function createBooking(data: {
             orderBy: { endDate: 'desc' }
         })
 
-        let start = new Date(startDate)
+        let initialStart = new Date(startDate)
         // If there's an active/pending subscription, start the new one after it ends
         if (lastSubscription) {
-            start = new Date(lastSubscription.endDate)
+            initialStart = new Date(lastSubscription.endDate)
         }
 
-        const end = new Date(start)
-        
-        // Add duration based on plan
-        if (plan.durationUnit === 'days') {
-            end.setDate(end.getDate() + plan.duration)
-        } else if (plan.durationUnit === 'weeks') {
-            end.setDate(end.getDate() + (plan.duration * 7))
-        } else if (plan.durationUnit === 'months') {
-            end.setMonth(end.getMonth() + plan.duration)
+        // Pre-calculate dates for all cycles to check conflicts
+        const subscriptionPeriods: { start: Date, end: Date }[] = []
+        let currentStart = new Date(initialStart)
+
+        for (let i = 0; i < quantity; i++) {
+            const end = new Date(currentStart)
+            // Add duration based on plan
+            if (plan.durationUnit === 'days') {
+                end.setDate(end.getDate() + plan.duration)
+            } else if (plan.durationUnit === 'weeks') {
+                end.setDate(end.getDate() + (plan.duration * 7))
+            } else if (plan.durationUnit === 'months') {
+                end.setMonth(end.getMonth() + plan.duration)
+            }
+            subscriptionPeriods.push({ start: new Date(currentStart), end: new Date(end) })
+            // Next cycle starts when this one ends
+            currentStart = new Date(end)
         }
+
+        const finalEndDate = subscriptionPeriods[subscriptionPeriods.length - 1].end
 
         // Determine hasLocker status
         let hasLocker = plan.includesLocker || false
@@ -211,8 +222,9 @@ export async function createBooking(data: {
                 where: {
                     seatId,
                     status: { in: ['active', 'pending'] },
-                    startDate: { lt: end },
-                    endDate: { gt: start }
+                    // Check if any existing sub overlaps with our FULL range (initialStart to finalEndDate)
+                    startDate: { lt: finalEndDate },
+                    endDate: { gt: initialStart }
                 }
             })
 
@@ -255,8 +267,9 @@ export async function createBooking(data: {
                 }
             } else {
                 // 5. Calculate Total Amount & Validate Fees (Only needed if creating new payment)
-                let totalAmount = plan.price
-                feeDescription = `Plan: ${plan.name}`
+                // Base amount for ONE cycle
+                let cycleAmount = plan.price
+                feeDescription = `Plan: ${plan.name} (x${quantity})`
 
                 if (additionalFeeIds.length > 0) {
                     const fees = await tx.additionalFee.findMany({
@@ -267,10 +280,13 @@ export async function createBooking(data: {
                     })
 
                     fees.forEach(fee => {
-                        totalAmount += fee.amount
+                        cycleAmount += fee.amount
                         feeDescription += `, ${fee.name}`
                     })
                 }
+                
+                // Total for ALL cycles
+                let totalAmount = cycleAmount * quantity
                 
                 // Override with manual details if provided
                 if (paymentDetails) {
@@ -309,27 +325,38 @@ export async function createBooking(data: {
                 invoiceNoToUse = generatedInvoiceNo
             }
 
-            // 7. Create Subscription
-            const subscription = await tx.studentSubscription.create({
-                data: {
-                    libraryId: plan.libraryId,
-                    studentId,
-                    branchId,
-                    planId,
-                    seatId,
-                    status: subscriptionStatus,
-                    startDate: start,
-                    endDate: end,
-                    amount: finalAmount,
-                    hasLocker
-                }
-            })
+            // 7. Create Subscriptions Loop
+            const createdSubscriptionIds: string[] = []
             
-            // 8. Link Payment to Subscription
-            if (paymentIdToUse) {
+            // Calculate per-subscription amount for record keeping
+            const perSubAmount = finalAmount / quantity
+
+            for (let i = 0; i < quantity; i++) {
+                const period = subscriptionPeriods[i]
+                
+                const subscription = await tx.studentSubscription.create({
+                    data: {
+                        libraryId: plan.libraryId,
+                        studentId,
+                        branchId,
+                        planId,
+                        seatId,
+                        status: subscriptionStatus,
+                        startDate: period.start,
+                        endDate: period.end,
+                        amount: perSubAmount,
+                        hasLocker
+                    }
+                })
+                
+                createdSubscriptionIds.push(subscription.id)
+            }
+            
+            // 8. Link Payment to First Subscription
+            if (paymentIdToUse && createdSubscriptionIds.length > 0) {
                 await tx.payment.update({
                     where: { id: paymentIdToUse },
-                    data: { subscriptionId: subscription.id }
+                    data: { subscriptionId: createdSubscriptionIds[0] }
                 })
             }
             
@@ -346,7 +373,7 @@ export async function createBooking(data: {
             
             return { 
                 success: true as const, 
-                subscriptionId: subscription.id, 
+                subscriptionIds: createdSubscriptionIds, // Return Array
                 paymentId: paymentIdToUse,
                 invoiceNo: invoiceNoToUse,
                 seatNumber,
@@ -382,21 +409,21 @@ export async function createBooking(data: {
                     branchAddress: `${branch.address}, ${branch.city}`,
                     planName: plan.name,
                     planType: plan.category,
-                    planDuration: `${plan.duration} ${plan.durationUnit}`,
+                    planDuration: `${plan.duration} ${plan.durationUnit} (x${quantity})`, // Update duration display
                     planHours: plan.hoursPerDay ? `${plan.hoursPerDay} Hrs/Day` : undefined,
                     seatNumber: result.seatNumber ? formatSeatNumber(result.seatNumber) : undefined,
-                    startDate: start,
-                    endDate: end,
+                    startDate: subscriptionPeriods[0].start, // First start
+                    endDate: subscriptionPeriods[subscriptionPeriods.length - 1].end, // Last end
                     amount: result.amount || 0,
                     paymentMethod: result.method || 'unknown',
                     subTotal: (result.amount || 0) + (result.discount || 0),
                     discount: result.discount || 0,
                     items: [
                         {
-                            description: `Plan: ${plan.name}`,
-                            amount: plan.price
+                            description: `Plan: ${plan.name} (x${quantity})`,
+                            amount: plan.price * quantity
                         },
-                        ...feeItems
+                        ...feeItems.map(f => ({ ...f, amount: f.amount * quantity, description: `${f.description} (x${quantity})` }))
                     ]
                 }
                 
@@ -412,7 +439,10 @@ export async function createBooking(data: {
         revalidatePath('/student/book')
         revalidatePath('/owner/finance')
         revalidatePath('/owner/students')
-        return result
+        return {
+            ...result,
+            subscriptionId: result.subscriptionIds[0] // Backward compatibility for return type if needed, but we changed return type
+        }
     } catch (error) {
         console.error('Booking error:', error)
         const errorMessage = error instanceof Error ? error.message : 'Failed to create booking'
@@ -427,6 +457,7 @@ export async function checkStudentSubscription(studentId: string, branchId: stri
                 studentId,
                 branchId,
                 status: 'active',
+                startDate: { lte: new Date() },
                 endDate: { gt: new Date() }
             }
         })
@@ -450,6 +481,7 @@ export async function verifyBranchSubscription(branchId: string) {
                 studentId: student.id,
                 branchId,
                 status: 'active',
+                startDate: { lte: new Date() },
                 endDate: { gt: new Date() }
             }
         })

@@ -408,25 +408,24 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                         {[
                             { id: 'selection', label: '1. Select Plan' },
                             { id: 'details', label: '2. Your Details' },
-                            { id: 'verification', label: '3. Verify' },
-                            { id: 'payment', label: '4. Payment' }
+                            { id: 'payment', label: '3. Payment' }
                         ].map((s, idx) => (
                             <React.Fragment key={s.id}>
                                 <div className={cn(
                                     "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
-                                    step === s.id 
+                                    step === s.id || (step === 'verification' && s.id === 'details')
                                         ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 ring-1 ring-purple-500/20" 
                                         : idx < ['selection', 'details', 'verification', 'payment'].indexOf(step)
                                             ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/10"
                                             : "text-gray-400 dark:text-gray-600"
                                 )}>
-                                    {idx < ['selection', 'details', 'verification', 'payment'].indexOf(step) ? (
+                                    {idx < ['selection', 'details', 'verification', 'payment'].indexOf(step) && !(step === 'verification' && s.id === 'details') ? (
                                         <Check className="w-4 h-4" />
                                     ) : (
                                         <span>{s.label}</span>
                                     )}
                                 </div>
-                                {idx < 3 && (
+                                {idx < 2 && (
                                     <div className="w-8 h-px bg-gray-200 dark:bg-gray-700" />
                                 )}
                             </React.Fragment>
