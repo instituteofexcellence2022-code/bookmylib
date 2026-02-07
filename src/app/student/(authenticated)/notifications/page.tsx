@@ -2,6 +2,8 @@ import React from 'react'
 import { getStudentAnnouncements } from '@/actions/announcement'
 import { NotificationsClient } from '@/components/student/NotificationsClient'
 
+export const dynamic = 'force-dynamic'
+
 export default async function NotificationsPage() {
   const announcements = await getStudentAnnouncements()
 

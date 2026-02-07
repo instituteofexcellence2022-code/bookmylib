@@ -16,7 +16,8 @@ import {
   CalendarCheck,
   User,
   ShieldCheck,
-  BookOpen
+  BookOpen,
+  Clock
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
@@ -32,6 +33,7 @@ const navItems = [
   { href: '/owner/staff', label: 'Staff', icon: Users, group: 'Operations' },
   { href: '/owner/students', label: 'Students', icon: GraduationCap, group: 'Operations' },
   { href: '/owner/attendance', label: 'Attendance', icon: CalendarCheck, group: 'Operations' },
+  { href: '/owner/expiries', label: 'Expiries', icon: Clock, group: 'Operations' },
   { href: '/owner/verification', label: 'Verification', icon: ShieldCheck, group: 'Operations' },
   
   { href: '/owner/plans', label: 'Plans & Fees', icon: CreditCard, group: 'Business' },

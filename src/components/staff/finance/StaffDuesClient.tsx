@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
-import { getBranchDues } from '@/actions/staff/finance'
+import { getUpcomingExpiries, getOverdueSubscriptions } from '@/actions/subscriptions'
 import { checkAndSendExpiryReminders } from '@/actions/cron'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormSelect } from '@/components/ui/FormSelect'
@@ -63,10 +63,17 @@ export function StaffDuesClient() {
         try {
             setLoading(true)
             const days = selectedDays === 'custom' ? (parseInt(customDays) || 7) : parseInt(selectedDays)
-            const res = await getBranchDues(days)
-            if (res.success && res.data) {
-                setUpcoming(res.data.expiries)
-                setOverdue(res.data.overdue)
+            
+            const [upcomingRes, overdueRes] = await Promise.all([
+                getUpcomingExpiries(days),
+                getOverdueSubscriptions(days)
+            ])
+
+            if (upcomingRes.success && upcomingRes.data) {
+                setUpcoming(upcomingRes.data as unknown as SubscriptionItem[])
+            }
+            if (overdueRes.success && overdueRes.data) {
+                setOverdue(overdueRes.data as unknown as SubscriptionItem[])
             }
         } catch {
             toast.error('Failed to fetch dues')

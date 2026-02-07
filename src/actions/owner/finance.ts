@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { startOfMonth, endOfMonth, subMonths, format, startOfDay, endOfDay } from 'date-fns'
 import { sendReceiptEmail } from '@/actions/email'
 import { formatSeatNumber } from '@/lib/utils'
+
 import { getAuthenticatedOwner } from '@/lib/auth/owner'
 
 export async function getFinanceStats() {
@@ -135,7 +136,7 @@ export async function getTransactions(filters: TransactionFilters = {}, limit = 
   if (!owner) return { success: false, error: 'Unauthorized' }
 
   try {
-      const whereClause: any = {
+      const whereClause: Prisma.PaymentWhereInput = {
           libraryId: owner.libraryId
       }
 
@@ -402,55 +403,7 @@ export async function getRevenueDistribution() {
     }
 }
 
-export async function getUpcomingExpiries(days = 7, branchId?: string) {
-    const owner = await getAuthenticatedOwner()
-    if (!owner) return { success: false, error: 'Unauthorized' }
 
-    try {
-        const now = new Date()
-        const futureDate = new Date(now)
-        futureDate.setDate(now.getDate() + days)
-
-        const where: any = {
-            libraryId: owner.libraryId,
-            status: 'active',
-            endDate: {
-                gte: now,
-                lte: futureDate
-            }
-        }
-
-        if (branchId && branchId !== 'all') {
-            where.branchId = branchId
-        }
-
-        const expiries = await prisma.studentSubscription.findMany({
-            where,
-            include: {
-                student: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        phone: true,
-                        image: true
-                    }
-                },
-                plan: true,
-                seat: true,
-                branch: { select: { name: true } }
-            },
-            orderBy: {
-                endDate: 'asc'
-            }
-        })
-
-        return { success: true, data: expiries }
-    } catch (error) {
-        console.error('Error fetching upcoming expiries:', error)
-        return { success: false, error: 'Failed to fetch upcoming expiries' }
-    }
-}
 
 export async function updatePaymentStatus(paymentId: string, status: 'completed' | 'failed') {
     const owner = await getAuthenticatedOwner()
@@ -469,7 +422,7 @@ export async function updatePaymentStatus(paymentId: string, status: 'completed'
 
         await prisma.$transaction(async (tx) => {
             // Update Payment
-            const updateData: any = {
+            const updateData: Prisma.PaymentUpdateInput = {
                 status,
                 verifiedBy: owner.id,
                 verifierRole: 'owner',
@@ -504,58 +457,7 @@ export async function updatePaymentStatus(paymentId: string, status: 'completed'
     }
 }
 
-export async function getOverdueSubscriptions(days = 30, branchId?: string) {
-    const owner = await getAuthenticatedOwner()
-    if (!owner) return { success: false, error: 'Unauthorized' }
 
-    try {
-        const now = new Date()
-        const pastDate = new Date(now)
-        pastDate.setDate(now.getDate() - days)
-
-        const where: any = {
-            libraryId: owner.libraryId,
-            endDate: {
-                lt: now,
-                gte: pastDate
-            },
-            // We include both 'active' (overdue but not updated) and 'expired'
-            status: { in: ['active', 'expired'] }
-        }
-
-        if (branchId && branchId !== 'all') {
-            where.branchId = branchId
-        }
-
-        // Find subscriptions that expired recently
-        // We want to target students who might need renewal
-        const overdue = await prisma.studentSubscription.findMany({
-            where,
-            include: {
-                student: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        phone: true,
-                        image: true
-                    }
-                },
-                plan: true,
-                seat: true,
-                branch: { select: { name: true } }
-            },
-            orderBy: {
-                endDate: 'desc'
-            }
-        })
-
-        return { success: true, data: overdue }
-    } catch (error) {
-        console.error('Error fetching overdue subscriptions:', error)
-        return { success: false, error: 'Failed to fetch overdue subscriptions' }
-    }
-}
 
 export async function createManualPayment(data: {
     studentId: string
@@ -710,7 +612,7 @@ export async function verifyPayment(paymentId: string, action: 'approve' | 'reje
                     
                     if (plan) {
                         const startDate = new Date()
-                        let endDate = new Date()
+                        const endDate = new Date()
                         
                         if (plan.durationUnit === 'months') {
                             endDate.setMonth(endDate.getMonth() + plan.duration)
@@ -796,7 +698,7 @@ export async function verifyPayment(paymentId: string, action: 'approve' | 'reje
                 if (enrichedPayment && enrichedPayment.student.email) {
                     let planName = 'N/A'
                     let duration = 'N/A'
-                    let items: Array<{ description: string, amount: number }> = []
+                    const items: Array<{ description: string, amount: number }> = []
                     const subTotal = enrichedPayment.amount + (enrichedPayment.discountAmount || 0)
 
                     if (enrichedPayment.subscription?.plan) {

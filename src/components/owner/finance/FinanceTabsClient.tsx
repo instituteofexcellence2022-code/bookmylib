@@ -7,16 +7,15 @@ import { RevenueChartClient } from '@/components/owner/finance/RevenueChartClien
 import { RevenueDistributionClient } from '@/components/owner/finance/RevenueDistributionClient'
 import { PaymentHistoryClient } from '@/components/owner/finance/PaymentHistoryClient'
 import { AcceptPaymentClient } from '@/components/owner/finance/AcceptPaymentClient'
-import { DuesAndExpiriesClient } from '@/components/owner/finance/DuesAndExpiriesClient'
 import { HandoverVerificationClient } from '@/components/owner/finance/HandoverVerificationClient'
-import { LayoutDashboard, PlusCircle, AlertCircle, Wallet } from 'lucide-react'
+import { LayoutDashboard, PlusCircle, Wallet } from 'lucide-react'
 
 export function FinanceTabsClient() {
     const router = useRouter()
     const searchParams = useSearchParams()
-    const activeTab = (searchParams.get('tab') as 'overview' | 'accept' | 'dues' | 'handovers') || 'overview'
+    const activeTab = (searchParams.get('tab') as 'overview' | 'accept' | 'handovers') || 'overview'
 
-    const setActiveTab = (tab: 'overview' | 'accept' | 'dues' | 'handovers') => {
+    const setActiveTab = (tab: 'overview' | 'accept' | 'handovers') => {
         router.push(`/owner/finance?tab=${tab}`)
     }
 
@@ -34,18 +33,6 @@ export function FinanceTabsClient() {
                 >
                     <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">Overview</span>
-                </button>
-                <button
-                    onClick={() => setActiveTab('dues')}
-                    className={`flex-1 min-w-[100px] flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all duration-200 ${
-                        activeTab === 'dues'
-                            ? 'bg-white text-blue-600 shadow-sm dark:bg-gray-950 dark:text-blue-400'
-                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700/50'
-                    }`}
-                >
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden sm:inline truncate">Dues & Expiries</span>
-                    <span className="sm:hidden truncate">Dues</span>
                 </button>
                 <button
                     onClick={() => setActiveTab('accept')}
@@ -89,12 +76,6 @@ export function FinanceTabsClient() {
                         </div>
 
                         <PaymentHistoryClient />
-                    </div>
-                )}
-
-                {activeTab === 'dues' && (
-                    <div className="mt-2">
-                        <DuesAndExpiriesClient />
                     </div>
                 )}
                 

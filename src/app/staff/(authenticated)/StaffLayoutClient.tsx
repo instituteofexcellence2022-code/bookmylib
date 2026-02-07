@@ -14,7 +14,8 @@ import {
   Settings,
   NotebookTabs,
   ShieldCheck,
-  ScanLine
+  ScanLine,
+  AlertCircle
 } from 'lucide-react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { TopBar } from '@/components/layout/TopBar'
@@ -36,6 +37,7 @@ const navItems = [
 
   // Finance
   { href: '/staff/finance', label: 'Finance', icon: IndianRupee, group: 'Finance' },
+  { href: '/staff/expiries', label: 'Dues & Expiries', icon: AlertCircle, group: 'Finance' },
   { href: '/staff/verification', label: 'Verification', icon: ShieldCheck, group: 'Finance' },
   { href: '/staff/khatabook', label: 'Khatabook', icon: NotebookTabs, group: 'Finance' },
 

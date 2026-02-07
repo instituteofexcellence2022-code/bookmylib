@@ -2,9 +2,190 @@
 
 import { prisma } from '@/lib/prisma'
 import { cookies } from 'next/headers'
-import { startOfMonth, endOfMonth, subMonths, format, startOfDay, endOfDay, addDays } from 'date-fns'
+import { startOfMonth, endOfMonth, subMonths, format, startOfDay, endOfDay, addDays, subDays } from 'date-fns'
 import { formatRelativeTime } from '@/lib/utils'
 import { getAuthenticatedOwner } from '@/lib/auth/owner'
+
+export async function getExpiringSubscriptions(
+    filter: string,
+    page: number = 1,
+    limit: number = 30,
+    branchId?: string
+) {
+    const owner = await getAuthenticatedOwner()
+    if (!owner) return { success: false, error: 'Unauthorized' }
+    const libraryId = owner.libraryId
+    const whereBranch = branchId && branchId !== 'All Branches' ? { branchId } : {}
+    
+    const now = new Date()
+    let startDate = now
+    let endDate = addDays(now, 7) // Default
+
+    switch (filter) {
+        case 'today':
+            startDate = now
+            endDate = endOfDay(now)
+            break
+        case 'tomorrow':
+            startDate = startOfDay(addDays(now, 1))
+            endDate = endOfDay(addDays(now, 1))
+            break
+        default:
+            // For "Next X days"
+            const days = parseInt(filter) || 7
+            // Start date is now, but we want to include overdue active subscriptions too
+            // So we effectively look for anything active with endDate <= target date
+            // However, for "Expiring Soon", we usually want from NOW onwards.
+            // But if users want to see "Overdue", we should include past dates.
+            // Let's set startDate to a past date to include overdue items.
+            startDate = subMonths(now, 12) // Include up to 1 year overdue
+            endDate = endOfDay(addDays(now, days))
+    }
+
+    try {
+        console.log(`[getExpiring] Filter: ${filter}, Branch: ${branchId}, Lib: ${libraryId}`)
+        console.log(`[getExpiring] Range: ${startDate.toISOString()} - ${endDate.toISOString()}`)
+        
+        const subscriptions = await prisma.studentSubscription.findMany({
+            where: {
+                libraryId,
+                ...whereBranch,
+                status: 'active',
+                endDate: { gte: startDate, lte: endDate }
+            },
+            orderBy: { endDate: 'asc' },
+            skip: (page - 1) * limit,
+            take: limit,
+            include: { 
+                student: { select: { name: true, image: true, phone: true, email: true } }, 
+                plan: { select: { name: true } } 
+            }
+        })
+
+        console.log(`[getExpiring] Found: ${subscriptions.length}`)
+
+        const studentIds = subscriptions.map(s => s.studentId)
+        const presentStudentIds = await getAttendanceStatus(studentIds, libraryId)
+
+        const total = await prisma.studentSubscription.count({
+             where: {
+                libraryId,
+                ...whereBranch,
+                status: 'active',
+                endDate: { gte: startDate, lte: endDate }
+            }
+        })
+
+        return {
+            success: true,
+            data: subscriptions.map(s => ({
+                id: s.id,
+                studentId: s.studentId,
+                studentName: s.student.name,
+                studentImage: s.student.image,
+                planName: s.plan.name,
+                startDate: s.startDate,
+                endDate: s.endDate,
+                phone: s.student.phone,
+                email: s.student.email,
+                amount: s.amount,
+                isPresentToday: presentStudentIds.has(s.studentId)
+            })),
+            hasMore: (page * limit) < total
+        }
+    } catch (error) {
+        console.error('Error fetching expiring subscriptions:', error)
+        return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch subscriptions' }
+    }
+}
+
+export async function getExpiredSubscriptions(
+    filter: string,
+    page: number = 1,
+    limit: number = 30,
+    branchId?: string
+) {
+    const owner = await getAuthenticatedOwner()
+    if (!owner) return { success: false, error: 'Unauthorized' }
+    const libraryId = owner.libraryId
+    const whereBranch = branchId && branchId !== 'All Branches' ? { branchId } : {}
+    
+    const now = new Date()
+    let startDate = subMonths(now, 1) // Default
+    let endDate = now
+
+    switch (filter) {
+        case 'today':
+            startDate = startOfDay(now)
+            endDate = now
+            break
+        case 'yesterday':
+            startDate = startOfDay(subDays(now, 1))
+            endDate = endOfDay(subDays(now, 1))
+            break
+        default:
+            // For "Last X days"
+            const days = parseInt(filter) || 7
+            startDate = startOfDay(subDays(now, days))
+            endDate = now
+    }
+
+    try {
+        console.log(`[getExpired] Filter: ${filter}, Branch: ${branchId}, Lib: ${libraryId}`)
+        console.log(`[getExpired] Range: ${startDate.toISOString()} - ${endDate.toISOString()}`)
+
+        const subscriptions = await prisma.studentSubscription.findMany({
+            where: {
+                libraryId,
+                ...whereBranch,
+                status: { in: ['expired', 'active'] },
+                endDate: { gte: startDate, lte: endDate }
+            },
+            orderBy: { endDate: 'desc' },
+            skip: (page - 1) * limit,
+            take: limit,
+            include: { 
+                student: { select: { name: true, image: true, phone: true, email: true } }, 
+                plan: { select: { name: true } } 
+            }
+        })
+
+        console.log(`[getExpired] Found: ${subscriptions.length}`)
+
+        const studentIds = subscriptions.map(s => s.studentId)
+        const presentStudentIds = await getAttendanceStatus(studentIds, libraryId)
+
+        const total = await prisma.studentSubscription.count({
+             where: {
+                libraryId,
+                ...whereBranch,
+                status: { in: ['expired', 'active'] },
+                endDate: { gte: startDate, lte: endDate }
+            }
+        })
+
+        return {
+            success: true,
+            data: subscriptions.map(s => ({
+                id: s.id,
+                studentId: s.studentId,
+                studentName: s.student.name,
+                studentImage: s.student.image,
+                planName: s.plan.name,
+                startDate: s.startDate,
+                endDate: s.endDate,
+                phone: s.student.phone,
+                email: s.student.email,
+                amount: s.amount,
+                isPresentToday: presentStudentIds.has(s.studentId)
+            })),
+            hasMore: (page * limit) < total
+        }
+    } catch (error) {
+        console.error('Error fetching expired subscriptions:', error)
+        return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch subscriptions' }
+    }
+}
 
 export async function getDashboardStats(branchId?: string) {
   const owner = await getAuthenticatedOwner()
@@ -143,21 +324,21 @@ export async function getDashboardStats(branchId?: string) {
     // Combine Payments, Check-ins, and Tickets
     const recentPayments = await prisma.payment.findMany({
         where: { libraryId, ...whereBranch },
-        take: 5,
+        take: 20,
         orderBy: { date: 'desc' },
         include: { student: { select: { name: true } }, branch: { select: { name: true } } }
     })
 
     const recentAttendance = await prisma.attendance.findMany({
         where: { libraryId, ...whereBranch },
-        take: 5,
+        take: 20,
         orderBy: { checkIn: 'desc' },
         include: { student: { select: { name: true } }, branch: { select: { name: true } } }
     })
 
     const recentTickets = await prisma.supportTicket.findMany({
         where: { libraryId, ...whereBranch },
-        take: 5,
+        take: 10,
         orderBy: { createdAt: 'desc' },
         include: { student: { select: { name: true } }, branch: { select: { name: true } } }
     })
@@ -189,7 +370,7 @@ export async function getDashboardStats(branchId?: string) {
             branch: t.branch?.name
         }))
     ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-    .slice(0, 10) // Take top 10
+    .slice(0, 50) // Take top 50
 
     // 6. Revenue Chart Data
     // Reusing getRevenueAnalytics logic but with branch filter
@@ -203,83 +384,52 @@ export async function getDashboardStats(branchId?: string) {
             status: 'completed',
             date: { gte: startDate }
         },
-        select: {
-            amount: true,
-            date: true
-        }
+        orderBy: { date: 'asc' }
     })
 
-    const monthlyData: Record<string, number> = {}
+    const revenueMap = new Map<string, number>()
+    // Initialize months
     for (let i = 0; i < monthsToFetch; i++) {
-        const d = subMonths(now, i)
-        const key = format(d, 'MMM') // Short month name
-        monthlyData[key] = 0
+        const d = subMonths(now, monthsToFetch - 1 - i)
+        revenueMap.set(format(d, 'MMM yyyy'), 0)
     }
 
     chartPayments.forEach(p => {
-        const key = format(p.date, 'MMM')
-        if (monthlyData[key] !== undefined) {
-            monthlyData[key] += p.amount
-        }
+        const monthKey = format(p.date, 'MMM yyyy')
+        revenueMap.set(monthKey, (revenueMap.get(monthKey) || 0) + p.amount)
     })
 
-    const revenueChartData = Object.entries(monthlyData)
-        .map(([name, amount]) => ({ name, amount }))
-        .reverse()
+    const revenueChart = Array.from(revenueMap.entries()).map(([name, amount]) => ({ name, amount }))
 
-
-    // 7. Upcoming Expirations (Next 30 days)
+    // 7. Upcoming Expirations
     const upcomingExpirations = await prisma.studentSubscription.findMany({
         where: {
             libraryId,
             ...whereBranch,
             status: 'active',
-            endDate: {
-                gte: now,
-                lte: addDays(now, 30)
-            }
-        },
-        include: {
-            student: { select: { name: true, image: true } },
-            plan: { select: { name: true } }
+            endDate: { lte: addDays(now, 7), gt: now }
         },
         orderBy: { endDate: 'asc' },
-        take: 20
+        take: 5,
+        include: { student: { select: { name: true, image: true, phone: true, email: true } }, plan: { select: { name: true } } }
     })
 
-    // Recently Expired (Last 30 days)
-    const recentlyExpired = await prisma.studentSubscription.findMany({
-        where: {
-            libraryId,
-            ...whereBranch,
-            endDate: {
-                gte: addDays(now, -30),
-                lt: now
-            },
-            status: { not: 'cancelled' }
-        },
-        include: {
-            student: { select: { name: true, image: true, phone: true } },
-            plan: { select: { name: true } }
-        },
-        orderBy: { endDate: 'desc' },
-        take: 20
-    })
+    const upcomingStudentIds = upcomingExpirations.map(s => s.studentId)
+    const presentUpcomingIds = await getAttendanceStatus(upcomingStudentIds, libraryId)
 
-    // 8. Today's Attendance
-    const todayStart = startOfDay(now)
-    const todayEnd = endOfDay(now)
+    // 8. Attendance Today Stats
+    const startOfToday = startOfDay(now)
+    const endOfToday = endOfDay(now)
     
-    const todayAttendanceCount = await prisma.attendance.count({
+    const attendanceToday = await prisma.attendance.count({
         where: {
             libraryId,
             ...whereBranch,
-            // Checkin time is reliable for "present today"
-            checkIn: { gte: todayStart, lte: todayEnd }
+            checkIn: { gte: startOfToday, lte: endOfToday }
         }
     })
 
-    // 9. Revenue Distribution by Method (This Month)
+    // 9. Revenue by Method (All Time or This Month? Let's do This Month for relevance)
     const revenueByMethodData = await prisma.payment.groupBy({
         by: ['method'],
         where: {
@@ -291,59 +441,45 @@ export async function getDashboardStats(branchId?: string) {
         _sum: { amount: true }
     })
 
-    const revenueByMethod = revenueByMethodData.map(item => ({
-        name: item.method,
-        value: item._sum.amount || 0
+    const revenueByMethod = revenueByMethodData.map(r => ({
+        name: r.method.charAt(0).toUpperCase() + r.method.slice(1),
+        value: r._sum.amount || 0
     }))
 
-  // 10. Generate Alerts
-    const alerts: Array<{ id: string; type: 'error' | 'warning' | 'info'; title: string; desc: string }> = []
-
-    if (occupancyRate >= 90) {
+    // 10. Alerts (Custom logic - e.g. low occupancy, high issues)
+    const alerts: { id: string; type: 'warning' | 'error' | 'info'; title: string; desc: string }[] = []
+    if (occupancyRate > 90) {
         alerts.push({
-            id: 'high-occupancy',
+            id: 'alert_occ_high',
             type: 'warning',
             title: 'High Occupancy',
-            desc: `Occupancy is at ${occupancyRate}%. Consider adding more seats or a new branch.`
+            desc: `Occupancy is at ${occupancyRate}%. Consider adding more seats.`
         })
     }
-
-    if (reportedStudentIssues > 0) {
-        alerts.push({
-            id: 'reported-students',
-            type: 'error',
-            title: 'Reported Students',
-            desc: `There are ${reportedStudentIssues} active student reports requiring immediate attention.`
-        })
-    }
-
     if (pendingIssues > 5) {
         alerts.push({
-            id: 'high-pending-issues',
+            id: 'alert_issues',
             type: 'error',
-            title: 'High Pending Issues',
-            desc: `You have ${pendingIssues} pending support tickets requiring attention.`
+            title: 'Pending Issues',
+            desc: `You have ${pendingIssues} pending support tickets.`
         })
     }
 
-    if (revenueTrend < -10) {
-        alerts.push({
-            id: 'revenue-drop',
-            type: 'warning',
-            title: 'Revenue Drop',
-            desc: 'Revenue is down by more than 10% compared to last month.'
-        })
-    }
-    
-    // Add a default welcome/info alert if no critical alerts
-    if (alerts.length === 0) {
-        alerts.push({
-            id: 'system-nominal',
-            type: 'info',
-            title: 'System Nominal',
-            desc: 'All systems are running smoothly. No critical alerts.'
-        })
-    }
+    // 11. Recently Expired
+    const recentlyExpired = await prisma.studentSubscription.findMany({
+        where: {
+            libraryId,
+            ...whereBranch,
+            status: 'expired',
+            endDate: { gte: subMonths(now, 1), lte: now }
+        },
+        orderBy: { endDate: 'desc' },
+        take: 5,
+        include: { student: { select: { name: true, image: true, phone: true } }, plan: { select: { name: true } } }
+    })
+
+    const expiredStudentIds = recentlyExpired.map(s => s.studentId)
+    const presentExpiredIds = await getAttendanceStatus(expiredStudentIds, libraryId)
 
     return {
         success: true,
@@ -354,40 +490,125 @@ export async function getDashboardStats(branchId?: string) {
                 occupancy: { value: occupancyRate, trend: occupancyTrend },
                 issues: { value: openIssues, pending: pendingIssues }
             },
-            recentActivity: activities.map(a => ({
-                ...a,
-                time: formatTimeAgo(new Date(a.time))
-            })),
-            revenueChart: revenueChartData,
-            upcomingExpirations: upcomingExpirations.map(sub => ({
-                id: sub.id,
-                studentName: sub.student.name,
-                studentImage: sub.student.image,
-                planName: sub.plan.name,
-                endDate: sub.endDate
-            })),
-            recentlyExpired: recentlyExpired.map(sub => ({
-                id: sub.id,
-                studentName: sub.student.name,
-                studentImage: sub.student.image,
-                planName: sub.plan.name,
-                endDate: sub.endDate,
-                phone: sub.student.phone
+            recentActivity: activities,
+            revenueChart,
+            upcomingExpirations: upcomingExpirations.map(s => ({
+                id: s.id,
+                studentId: s.studentId,
+                studentName: s.student.name,
+                studentImage: s.student.image,
+                planName: s.plan.name,
+                startDate: s.startDate,
+                endDate: s.endDate,
+                phone: s.student.phone,
+                email: s.student.email,
+                amount: s.amount,
+                isPresentToday: presentUpcomingIds.has(s.studentId)
             })),
             attendance: {
-                today: todayAttendanceCount,
-                totalActive: activeStudents,
-                percentage: activeStudents > 0 ? Math.round((todayAttendanceCount / activeStudents) * 100) : 0
+                today: attendanceToday,
+                totalActive: activeStudents, // Using active students as base
+                percentage: activeStudents > 0 ? Math.round((attendanceToday / activeStudents) * 100) : 0
             },
             revenueByMethod,
-            alerts
+            alerts,
+            recentlyExpired: recentlyExpired.map(s => ({
+                id: s.id,
+                studentId: s.studentId,
+                studentName: s.student.name,
+                studentImage: s.student.image,
+                planName: s.plan.name,
+                startDate: s.startDate,
+                endDate: s.endDate,
+                phone: s.student.phone,
+                amount: s.amount,
+                isPresentToday: presentExpiredIds.has(s.studentId)
+            }))
         }
     }
 
   } catch (error) {
     console.error('Error fetching dashboard stats:', error)
-    return { success: false, error: 'Failed to load dashboard data' }
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch dashboard statistics' }
   }
+}
+
+export async function getAttendanceStatus(studentIds: string[], libraryId: string) {
+    const today = startOfDay(new Date())
+    const attendance = await prisma.attendance.findMany({
+        where: {
+            libraryId,
+            studentId: { in: studentIds },
+            date: { gte: today }
+        },
+        select: { studentId: true }
+    })
+    return new Set(attendance.map(a => a.studentId))
+}
+
+export async function getMoreActivities(before: string, branchId?: string) {
+    const owner = await getAuthenticatedOwner()
+    if (!owner) return { success: false, error: 'Unauthorized' }
+    const libraryId = owner.libraryId
+    const whereBranch = branchId && branchId !== 'All Branches' ? { branchId } : {}
+    const beforeDate = new Date(before)
+
+    try {
+        const recentPayments = await prisma.payment.findMany({
+            where: { libraryId, ...whereBranch, date: { lt: beforeDate } },
+            take: 20,
+            orderBy: { date: 'desc' },
+            include: { student: { select: { name: true } }, branch: { select: { name: true } } }
+        })
+    
+        const recentAttendance = await prisma.attendance.findMany({
+            where: { libraryId, ...whereBranch, checkIn: { lt: beforeDate } },
+            take: 20,
+            orderBy: { checkIn: 'desc' },
+            include: { student: { select: { name: true } }, branch: { select: { name: true } } }
+        })
+    
+        const recentTickets = await prisma.supportTicket.findMany({
+            where: { libraryId, ...whereBranch, createdAt: { lt: beforeDate } },
+            take: 10,
+            orderBy: { createdAt: 'desc' },
+            include: { student: { select: { name: true } }, branch: { select: { name: true } } }
+        })
+    
+        // Merge and sort
+        const activities = [
+            ...recentPayments.map(p => ({
+                id: `pay_${p.id}`,
+                type: 'payment',
+                user: p.student?.name || 'Unknown',
+                action: `paid ₹${p.amount}`,
+                time: p.date,
+                branch: p.branch?.name
+            })),
+            ...recentAttendance.map(a => ({
+                id: `att_${a.id}`,
+                type: 'attendance',
+                user: a.student?.name || 'Unknown',
+                action: a.checkOut ? 'checked out' : 'checked in',
+                time: a.checkOut || a.checkIn,
+                branch: a.branch?.name
+            })),
+            ...recentTickets.map(t => ({
+                id: `tkt_${t.id}`,
+                type: 'ticket',
+                user: t.student?.name || 'Unknown',
+                action: `reported issue: ${t.subject}`,
+                time: t.createdAt,
+                branch: t.branch?.name
+            }))
+        ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+        .slice(0, 50)
+        
+        return { success: true, data: activities }
+    } catch (error) {
+        console.error('Error fetching more activities:', error)
+        return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch more activities' }
+    }
 }
 
 function formatTimeAgo(date: Date) {

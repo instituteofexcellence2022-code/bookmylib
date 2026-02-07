@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
-import { getUpcomingExpiries, getOverdueSubscriptions } from '@/actions/owner/finance'
+import { getUpcomingExpiries, getOverdueSubscriptions } from '@/actions/subscriptions'
 import { getOwnerBranches } from '@/actions/branch'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
@@ -35,6 +35,7 @@ interface SubscriptionItem {
     branch: {
         name: string
     }
+    isPresentToday?: boolean
 }
 
 export function DuesAndExpiriesClient() {
@@ -102,13 +103,28 @@ export function DuesAndExpiriesClient() {
             return
         }
 
-        const days = differenceInDays(new Date(item.endDate), new Date())
+        const endDate = new Date(item.endDate)
+        const today = new Date()
         let message = ''
 
         if (type === 'upcoming') {
-            message = `Hello ${item.student.name}, this is a gentle reminder from ${item.branch.name}. Your subscription for ${item.plan.name} is expiring in ${days} days (on ${format(new Date(item.endDate), 'dd MMM yyyy')}). Please renew to continue your access.`
+            const daysLeft = differenceInDays(endDate, today)
+            message = `Hello ${item.student.name}, gentle reminder from ${item.branch.name}. Your subscription expires in ${daysLeft} days (${format(endDate, 'dd MMM')}). Please renew to avoid interruption.`
         } else {
-            message = `Hello ${item.student.name}, this is a reminder from ${item.branch.name}. Your subscription for ${item.plan.name} has expired on ${format(new Date(item.endDate), 'dd MMM yyyy')}. Please renew your subscription to reactivate your access.`
+            // Overdue logic
+            const daysSinceExpiry = differenceInDays(today, endDate)
+            
+            if (item.isPresentToday) {
+                 message = `Hello ${item.student.name}, we noticed you are currently at the library, but your subscription has expired. Please renew at the front desk before leaving to ensure seamless access next time. Thank you!`
+            } else if (daysSinceExpiry <= 3) {
+                message = `Hello ${item.student.name}, your subscription expired recently on ${format(endDate, 'dd MMM')}. Please renew to continue accessing the library.`
+            } else if (daysSinceExpiry <= 7) {
+                message = `Hello ${item.student.name}, it's been a week since your subscription expired. We miss you at the library! Renew now to keep your spot.`
+            } else if (daysSinceExpiry <= 30) {
+                 message = `Hello ${item.student.name}, your subscription has been expired for a while now. We hope to see you back soon! Let us know if you'd like to renew.`
+            } else {
+                 message = `Hello ${item.student.name}, it's been over a month since we last saw you. We have new plans available that might suit you. Visit us or reply to know more!`
+            }
         }
 
         const encodedMessage = encodeURIComponent(message)
