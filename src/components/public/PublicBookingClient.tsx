@@ -13,7 +13,7 @@ import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
-import { cn, formatSeatNumber } from '@/lib/utils'
+import { cn, formatSeatNumber, formatLockerNumber } from '@/lib/utils'
 import { checkPublicStudentByEmail } from '@/actions/student'
 import { initiatePublicBookingVerification, confirmEmailVerification } from '@/actions/auth'
 import { Branch, Seat, Plan, AdditionalFee, Locker } from '@prisma/client'
@@ -689,7 +689,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                     {/* Locker Section */}
                                     {(selectedPlan?.includesLocker || branch.fees.some(f => f.name.toLowerCase().includes('locker'))) && (
                                         <div>
-                                            <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2 text-xs uppercase tracking-wider text-purple-600 dark:text-purple-400 whitespace-nowrap">
+                                            <h4 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2 text-xs uppercase tracking-wider text-purple-600 dark:text-purple-400 whitespace-nowrap">
                                                 <Lock className="w-3.5 h-3.5" />
                                                 Locker Facility
                                             </h4>
@@ -737,7 +737,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                     {/* Seat Section */}
                                     {(selectedPlan?.includesSeat || branch.fees.some(f => f.name.toLowerCase().includes('seat') || f.name.toLowerCase().includes('reservation'))) && (
                                         <div>
-                                            <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2 text-xs uppercase tracking-wider text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                                            <h4 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2 text-xs uppercase tracking-wider text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                                                 <Armchair className="w-3.5 h-3.5" />
                                                 Seat Reservation
                                             </h4>
@@ -789,7 +789,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                     return !name.includes('locker') && !name.includes('seat') && !name.includes('reservation')
                                 }) && (
                                     <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                                        <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2 text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                                        <h4 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2 text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400">
                                             Other Add-ons
                                         </h4>
                                         <div className="space-y-2">
@@ -1114,15 +1114,24 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                         {/* 4. Select Locker (if applicable) */}
                         {isLockerSelectionEnabled && (
                         <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col relative z-10">
-                            <div className="p-4 md:p-6 border-b border-gray-100 dark:border-gray-700 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50 dark:bg-gray-800/50">
+                            <div className="p-3 md:p-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-3 bg-gray-50/50 dark:bg-gray-800/50">
                                 <div>
-                                    <h2 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                                        <Lock className="w-5 h-5 text-purple-500" />
-                                        Select Your Preferred Locker
+                                    <h2 className="text-sm md:text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                        <Lock className="w-4 h-4 md:w-5 md:h-5 text-purple-500" />
+                                        {selectedLocker ? (
+                                            <span className="flex items-center gap-2">
+                                                Selected: <span className="text-purple-600 dark:text-purple-400">{formatLockerNumber(selectedLocker.number)}</span>
+                                                <button onClick={() => setSelectedLocker(null)} className="text-xs text-gray-400 hover:text-gray-600 underline ml-2">Change</button>
+                                            </span>
+                                        ) : (
+                                            "Select Locker"
+                                        )}
                                     </h2>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                        Choose an available locker from the layout below
-                                    </p>
+                                    {!selectedLocker && (
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                            Select your preferred locker
+                                        </p>
+                                    )}
                                 </div>
                                 
                                 <div className="flex items-center gap-2 bg-white dark:bg-gray-900 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
@@ -1211,38 +1220,38 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                         style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
                                                     >
                                                         {currentLockers.map((locker) => (
-                                                            <motion.button
-                                                                key={locker.id}
-                                                                whileHover={!locker.isOccupied ? { scale: 1.05 } : {}}
-                                                                whileTap={!locker.isOccupied ? { scale: 0.95 } : {}}
-                                                                onClick={() => !locker.isOccupied && setSelectedLocker(selectedLocker?.id === locker.id ? null : locker)}
-                                                                disabled={locker.isOccupied}
-                                                                className={cn(
-                                                                    "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative group",
-                                                                    locker.isOccupied
-                                                                        ? "bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60 text-gray-400 dark:text-gray-500"
-                                                                        : selectedLocker?.id === locker.id
-                                                                            ? "bg-purple-500 border-purple-600 text-white shadow-md shadow-purple-500/20"
-                                                                            : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
-                                                                )}
-                                                            >
-                                                                <Lock className={cn(
-                                                                    "w-5 h-5 md:w-6 md:h-6",
-                                                                    locker.isOccupied ? "opacity-50" : ""
-                                                                )} />
-                                                                <span className="text-sm md:text-base font-semibold truncate w-full text-center px-1">
-                                                                    {locker.number}
-                                                                </span>
-                                                                {selectedLocker?.id === locker.id && (
-                                                                    <motion.div
-                                                                        layoutId="check-locker"
-                                                                        className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm"
-                                                                    >
-                                                                        <Check className="w-2 h-2 md:w-2.5 md:h-2.5" />
-                                                                    </motion.div>
-                                                                )}
-                                                            </motion.button>
-                                                        ))}
+                                                        <motion.button
+                                                            key={locker.id}
+                                                            whileHover={!locker.isOccupied ? { scale: 1.05 } : {}}
+                                                            whileTap={!locker.isOccupied ? { scale: 0.95 } : {}}
+                                                            onClick={() => !locker.isOccupied && setSelectedLocker(selectedLocker?.id === locker.id ? null : locker)}
+                                                            disabled={locker.isOccupied}
+                                                            className={cn(
+                                                                "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-200 relative group border-2",
+                                                                locker.isOccupied
+                                                                    ? "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60 text-gray-400 dark:text-gray-500"
+                                                                    : selectedLocker?.id === locker.id
+                                                                        ? "bg-purple-500 border-purple-600 text-white shadow-md transform scale-[1.02]"
+                                                                        : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
+                                                            )}
+                                                        >
+                                                            <Lock className={cn(
+                                                                "w-5 h-5 md:w-6 md:h-6",
+                                                                locker.isOccupied ? "opacity-50" : ""
+                                                            )} />
+                                                            <span className="text-sm md:text-base font-semibold truncate w-full text-center px-1">
+                                                                {formatLockerNumber(locker.number)}
+                                                            </span>
+                                                            {selectedLocker?.id === locker.id && (
+                                                                <motion.div
+                                                                    layoutId="check-locker"
+                                                                    className="absolute -top-2 -right-2 w-5 h-5 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm"
+                                                                >
+                                                                    <Check className="w-3 h-3" />
+                                                                </motion.div>
+                                                            )}
+                                                        </motion.button>
+                                                    ))}
                                                     </div>
                                                 </div>
                                             )
@@ -1274,12 +1283,12 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                             onClick={() => !locker.isOccupied && setSelectedLocker(selectedLocker?.id === locker.id ? null : locker)}
                                                             disabled={locker.isOccupied}
                                                             className={cn(
-                                                                "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative",
+                                                                "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-200 relative group border-2",
                                                                 locker.isOccupied
-                                                                    ? "bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60 text-gray-400 dark:text-gray-500"
+                                                                    ? "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60 text-gray-400 dark:text-gray-500"
                                                                     : selectedLocker?.id === locker.id
-                                                                        ? "bg-purple-500 border-purple-600 text-white shadow-md shadow-purple-500/20"
-                                                                        : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
+                                                                        ? "bg-purple-500 border-purple-600 text-white shadow-md transform scale-[1.02]"
+                                                                        : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
                                                             )}
                                                         >
                                                             <Lock className={cn(
@@ -1287,12 +1296,15 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                                 locker.isOccupied ? "opacity-50" : ""
                                                             )} />
                                                             <span className="text-sm md:text-base font-semibold truncate w-full text-center px-1">
-                                                                {locker.number}
+                                                                {formatLockerNumber(locker.number)}
                                                             </span>
                                                             {selectedLocker?.id === locker.id && (
-                                                                <div className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm">
-                                                                    <Check className="w-2 h-2 md:w-2.5 md:h-2.5" />
-                                                                </div>
+                                                                <motion.div
+                                                                    layoutId="check-locker"
+                                                                    className="absolute -top-2 -right-2 w-5 h-5 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm"
+                                                                >
+                                                                    <Check className="w-3 h-3" />
+                                                                </motion.div>
                                                             )}
                                                         </motion.button>
                                                     ))}
@@ -1304,21 +1316,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                             </div>
 
                             {selectedLocker && (
-                                <div className="p-4 bg-purple-50 dark:bg-purple-900/20 border-t border-purple-100 dark:border-purple-800/50 flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center">
-                                        <Check className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-900 dark:text-white">Selected Locker</p>
-                                        <p className="text-xs text-purple-600 dark:text-purple-400 font-bold">{selectedLocker.number}</p>
-                                    </div>
-                                    <button 
-                                        onClick={() => setSelectedLocker(null)}
-                                        className="ml-auto text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 hover:underline"
-                                    >
-                                        Change
-                                    </button>
-                                </div>
+                                <div className="hidden"></div>
                             )}
                         </section>
                         )}

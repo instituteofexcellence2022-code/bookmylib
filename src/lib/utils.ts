@@ -64,6 +64,13 @@ export function formatSeatNumber(number: number | string | null | undefined): st
   return `S-${numStr.padStart(2, '0')}`
 }
 
+export function formatLockerNumber(number: number | string | null | undefined): string {
+  if (number === null || number === undefined) return 'N/A'
+  const numStr = String(number)
+  if (numStr.startsWith('L-')) return numStr
+  return `L-${numStr.padStart(2, '0')}`
+}
+
 export function generateId(length = 12) {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
   let result = ''

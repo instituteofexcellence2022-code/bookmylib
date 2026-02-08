@@ -12,7 +12,7 @@ interface BranchHeaderProps {
         address: string
         city: string
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        operatingHours?: string | Record<string, any>
+        operatingHours?: any
     }
     images: string[]
     amenities?: string[]
