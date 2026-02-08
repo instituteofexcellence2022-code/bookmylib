@@ -90,6 +90,8 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
     const [quantity, setQuantity] = useState(1)
     const [selectedSeat, setSelectedSeat] = useState<SeatWithOccupancy | null>(null)
     const [selectedLocker, setSelectedLocker] = useState<LockerWithOccupancy | null>(null)
+    const [seatFilter, setSeatFilter] = useState<'all' | 'available' | 'occupied' | 'selected'>('all')
+    const [lockerFilter, setLockerFilter] = useState<'all' | 'available' | 'occupied' | 'selected'>('all')
     const [selectedFees, setSelectedFees] = useState<string[]>([])
     const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0])
     
@@ -105,7 +107,8 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
     // Pagination state
     const [pageBySection, setPageBySection] = useState<Record<string, number>>({})
     const [columns, setColumns] = useState(4)
-    const [viewMode, setViewMode] = useState<'pagination' | 'scroll'>('pagination')
+    const [seatViewMode, setSeatViewMode] = useState<'pagination' | 'scroll'>('pagination')
+    const [lockerViewMode, setLockerViewMode] = useState<'pagination' | 'scroll'>('pagination')
 
     // Filter State
     const [filterCategory, setFilterCategory] = useState<string>('all')
@@ -873,10 +876,10 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                     {/* View Toggle (Mobile Only) */}
                                     <div className="flex md:hidden bg-white dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
                                         <button
-                                            onClick={() => setViewMode('pagination')}
+                                            onClick={() => setSeatViewMode('pagination')}
                                             className={cn(
                                                 "p-1.5 rounded-md transition-all",
-                                                viewMode === 'pagination' 
+                                                seatViewMode === 'pagination' 
                                                     ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" 
                                                     : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
                                             )}
@@ -884,10 +887,10 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                             <LayoutGrid className="w-4 h-4" />
                                         </button>
                                         <button
-                                            onClick={() => setViewMode('scroll')}
+                                            onClick={() => setSeatViewMode('scroll')}
                                             className={cn(
                                                 "p-1.5 rounded-md transition-all",
-                                                viewMode === 'scroll' 
+                                                seatViewMode === 'scroll' 
                                                     ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" 
                                                     : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
                                             )}
@@ -901,10 +904,10 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                     {/* View Toggle (Desktop) */}
                                     <div className="hidden md:flex bg-white dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
                                         <button
-                                            onClick={() => setViewMode('pagination')}
+                                            onClick={() => setSeatViewMode('pagination')}
                                             className={cn(
                                                 "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-                                                viewMode === 'pagination' 
+                                                seatViewMode === 'pagination' 
                                                     ? "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 shadow-sm" 
                                                     : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                                             )}
@@ -913,10 +916,10 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                             Paged
                                         </button>
                                         <button
-                                            onClick={() => setViewMode('scroll')}
+                                            onClick={() => setSeatViewMode('scroll')}
                                             className={cn(
                                                 "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
-                                                viewMode === 'scroll' 
+                                                seatViewMode === 'scroll' 
                                                     ? "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 shadow-sm" 
                                                     : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                                             )}
@@ -927,44 +930,62 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                     </div>
 
                                     {/* Legend */}
-                                    <div className="flex flex-wrap gap-3 text-xs">
-                                        <div className="flex items-center gap-1.5">
-                                            <div className="w-3 h-3 bg-white dark:bg-gray-800 border border-purple-500 rounded" />
-                                            <span className="text-gray-600 dark:text-gray-300">Available</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5">
+                                    <div className="flex flex-wrap gap-2 text-xs">
+                                        <button 
+                                            onClick={() => setSeatFilter(seatFilter === 'available' ? 'all' : 'available')}
+                                            className={cn(
+                                                "flex items-center gap-1.5 px-2 py-1 rounded-md transition-all border",
+                                                seatFilter === 'available' 
+                                                    ? "bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800 ring-1 ring-purple-200 dark:ring-purple-800" 
+                                                    : "border-transparent hover:bg-gray-100 dark:hover:bg-gray-800"
+                                            )}
+                                        >
+                                            <div className="w-3 h-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded" />
+                                            <span className={cn("font-medium", seatFilter === 'available' ? "text-purple-700 dark:text-purple-300" : "text-gray-600 dark:text-gray-300")}>Available</span>
+                                        </button>
+
+                                        <button 
+                                            onClick={() => setSeatFilter(seatFilter === 'selected' ? 'all' : 'selected')}
+                                            className={cn(
+                                                "flex items-center gap-1.5 px-2 py-1 rounded-md transition-all border",
+                                                seatFilter === 'selected' 
+                                                    ? "bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800 ring-1 ring-purple-200 dark:ring-purple-800" 
+                                                    : "border-transparent hover:bg-gray-100 dark:hover:bg-gray-800"
+                                            )}
+                                        >
                                             <div className="w-3 h-3 bg-purple-500 rounded" />
-                                            <span className="text-gray-600 dark:text-gray-300">Selected</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5">
+                                            <span className={cn("font-medium", seatFilter === 'selected' ? "text-purple-700 dark:text-purple-300" : "text-gray-600 dark:text-gray-300")}>Selected</span>
+                                        </button>
+
+                                        <button 
+                                            onClick={() => setSeatFilter(seatFilter === 'occupied' ? 'all' : 'occupied')}
+                                            className={cn(
+                                                "flex items-center gap-1.5 px-2 py-1 rounded-md transition-all border",
+                                                seatFilter === 'occupied' 
+                                                    ? "bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800 ring-1 ring-purple-200 dark:ring-purple-800" 
+                                                    : "border-transparent hover:bg-gray-100 dark:hover:bg-gray-800"
+                                            )}
+                                        >
                                             <div className="w-3 h-3 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded" />
-                                            <span className="text-gray-600 dark:text-gray-300">Occupied</span>
-                                        </div>
+                                            <span className={cn("font-medium", seatFilter === 'occupied' ? "text-purple-700 dark:text-purple-300" : "text-gray-600 dark:text-gray-300")}>Occupied</span>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="p-4 md:p-6 bg-white dark:bg-gray-800 min-h-[300px]">
-                                {/* Legend */}
-                                <div className="flex items-center gap-4 mb-6 text-xs md:text-sm border-b border-gray-100 dark:border-gray-700 pb-4">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-4 h-4 rounded border-2 border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700"></div>
-                                        <span className="text-gray-600 dark:text-gray-400">Available</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-4 h-4 rounded border-2 border-purple-600 bg-purple-500"></div>
-                                        <span className="text-gray-600 dark:text-gray-400">Selected</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-4 h-4 rounded border-2 border-gray-200 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 opacity-60"></div>
-                                        <span className="text-gray-600 dark:text-gray-400">Occupied</span>
-                                    </div>
-                                </div>
-
-                                {viewMode === 'pagination' ? (
+                                {seatViewMode === 'pagination' ? (
                                     <div className="space-y-8">
                                         {Object.entries(seatsBySection).map(([section, seats]) => {
-                                            const sectionSeats = seats
+                                            const filteredSeats = seats.filter(seat => {
+                                                if (seatFilter === 'all') return true
+                                                if (seatFilter === 'available') return !seat.isOccupied
+                                                if (seatFilter === 'occupied') return seat.isOccupied
+                                                if (seatFilter === 'selected') return selectedSeat?.id === seat.id
+                                                return true
+                                            })
+                                            
+                                            const sectionSeats = filteredSeats
                                             const currentPage = pageBySection[section] || 0
                                             const totalPages = Math.ceil(sectionSeats.length / (columns * 4)) // 4 rows
                                             
@@ -1024,7 +1045,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                                 className={cn(
                                                                     "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative group",
                                                                     seat.isOccupied
-                                                                        ? "bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60 text-gray-400 dark:text-gray-500"
+                                                                        ? "bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 cursor-not-allowed opacity-70 text-gray-500 dark:text-gray-400"
                                                                         : selectedSeat?.id === seat.id
                                                                             ? "bg-purple-500 border-purple-600 text-white shadow-md shadow-purple-500/20"
                                                                             : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
@@ -1058,8 +1079,19 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                         )}
                                     </div>
                                 ) : (
-                                    <div className="space-y-8 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                                        {Object.entries(seatsBySection).map(([section, seats]) => (
+                                    <div className="space-y-8 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                        {Object.entries(seatsBySection).map(([section, seats]) => {
+                                            const filteredSeats = seats.filter(seat => {
+                                                if (seatFilter === 'all') return true
+                                                if (seatFilter === 'available') return !seat.isOccupied
+                                                if (seatFilter === 'occupied') return seat.isOccupied
+                                                if (seatFilter === 'selected') return selectedSeat?.id === seat.id
+                                                return true
+                                            })
+
+                                            if (filteredSeats.length === 0 && seatFilter !== 'all') return null
+
+                                            return (
                                             <div key={section} className="space-y-3">
                                                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2 sticky top-0 bg-white dark:bg-gray-800 z-10 py-2">
                                                     <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
@@ -1070,7 +1102,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                     className="grid gap-2 md:gap-3"
                                                     style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
                                                 >
-                                                    {seats.map((seat) => (
+                                                    {filteredSeats.map((seat) => (
                                                         <motion.button
                                                             key={seat.id}
                                                             whileHover={!seat.isOccupied ? { scale: 1.05 } : {}}
@@ -1080,7 +1112,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                             className={cn(
                                                                 "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative",
                                                                 seat.isOccupied
-                                                                    ? "bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60 text-gray-400 dark:text-gray-500"
+                                                                    ? "bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 cursor-not-allowed opacity-70 text-gray-500 dark:text-gray-400"
                                                                     : selectedSeat?.id === seat.id
                                                                         ? "bg-purple-500 border-purple-600 text-white shadow-md shadow-purple-500/20"
                                                                         : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
@@ -1102,7 +1134,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                     ))}
                                                 </div>
                                             </div>
-                                        ))}
+                                        )})}
                                     </div>
                                 )}
                             </div>
@@ -1130,59 +1162,113 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                         {/* 4. Select Locker (if applicable) */}
                         {isLockerSelectionEnabled && (
                         <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col relative z-10">
-                            <div className="p-3 md:p-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-3 bg-gray-50/50 dark:bg-gray-800/50">
-                                <div>
-                                    <h2 className="text-sm md:text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                                        <Lock className="w-4 h-4 md:w-5 md:h-5 text-purple-500" />
-                                        {selectedLocker ? (
-                                            <span className="flex items-center gap-2">
-                                                Selected: <span className="text-purple-600 dark:text-purple-400">{formatLockerNumber(selectedLocker.number)}</span>
-                                                <button onClick={() => setSelectedLocker(null)} className="text-xs text-gray-400 hover:text-gray-600 underline ml-2">Change</button>
-                                            </span>
-                                        ) : (
-                                            "Select Locker"
+                            <div className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700">
+                                <div className="p-3 md:p-4 flex items-center justify-between gap-3">
+                                    <div>
+                                        <h2 className="text-sm md:text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                            <Lock className="w-4 h-4 md:w-5 md:h-5 text-purple-500" />
+                                            {selectedLocker ? (
+                                                <span className="flex items-center gap-2">
+                                                    Selected: <span className="text-purple-600 dark:text-purple-400">{formatLockerNumber(selectedLocker.number)}</span>
+                                                    <button onClick={() => setSelectedLocker(null)} className="text-xs text-gray-400 hover:text-gray-600 underline ml-2">Change</button>
+                                                </span>
+                                            ) : (
+                                                "Select Locker"
+                                            )}
+                                        </h2>
+                                        {!selectedLocker && (
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                Select your preferred locker
+                                            </p>
                                         )}
-                                    </h2>
-                                    {!selectedLocker && (
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                            Select your preferred locker
-                                        </p>
-                                    )}
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-2 bg-white dark:bg-gray-900 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
+                                        <button
+                                            onClick={() => setLockerViewMode('pagination')}
+                                            className={cn(
+                                                "p-2 rounded-md transition-all",
+                                                lockerViewMode === 'pagination' 
+                                                    ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" 
+                                                    : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                            )}
+                                            title="Pagination View"
+                                        >
+                                            <LayoutGrid className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => setLockerViewMode('scroll')}
+                                            className={cn(
+                                                "p-2 rounded-md transition-all",
+                                                lockerViewMode === 'scroll' 
+                                                    ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" 
+                                                    : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                            )}
+                                            title="Scroll View"
+                                        >
+                                            <List className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
-                                
-                                <div className="flex items-center gap-2 bg-white dark:bg-gray-900 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
-                                    <button
-                                        onClick={() => setViewMode('pagination')}
-                                        className={cn(
-                                            "p-2 rounded-md transition-all",
-                                            viewMode === 'pagination' 
-                                                ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" 
-                                                : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                                        )}
-                                        title="Pagination View"
-                                    >
-                                        <LayoutGrid className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        onClick={() => setViewMode('scroll')}
-                                        className={cn(
-                                            "p-2 rounded-md transition-all",
-                                            viewMode === 'scroll' 
-                                                ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" 
-                                                : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                                        )}
-                                        title="Scroll View"
-                                    >
-                                        <List className="w-4 h-4" />
-                                    </button>
+
+                                {/* Legend */}
+                                <div className="px-3 md:px-4 pb-3 flex justify-end">
+                                    <div className="flex flex-wrap gap-2 text-xs">
+                                        <button 
+                                            onClick={() => setLockerFilter(lockerFilter === 'available' ? 'all' : 'available')}
+                                            className={cn(
+                                                "flex items-center gap-1.5 px-2 py-1 rounded-md transition-all border",
+                                                lockerFilter === 'available' 
+                                                    ? "bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800 ring-1 ring-purple-200 dark:ring-purple-800" 
+                                                    : "border-transparent hover:bg-gray-100 dark:hover:bg-gray-800"
+                                            )}
+                                        >
+                                            <div className="w-3 h-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded" />
+                                            <span className={cn("font-medium", lockerFilter === 'available' ? "text-purple-700 dark:text-purple-300" : "text-gray-600 dark:text-gray-300")}>Available</span>
+                                        </button>
+
+                                        <button 
+                                            onClick={() => setLockerFilter(lockerFilter === 'selected' ? 'all' : 'selected')}
+                                            className={cn(
+                                                "flex items-center gap-1.5 px-2 py-1 rounded-md transition-all border",
+                                                lockerFilter === 'selected' 
+                                                    ? "bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800 ring-1 ring-purple-200 dark:ring-purple-800" 
+                                                    : "border-transparent hover:bg-gray-100 dark:hover:bg-gray-800"
+                                            )}
+                                        >
+                                            <div className="w-3 h-3 bg-purple-500 rounded" />
+                                            <span className={cn("font-medium", lockerFilter === 'selected' ? "text-purple-700 dark:text-purple-300" : "text-gray-600 dark:text-gray-300")}>Selected</span>
+                                        </button>
+
+                                        <button 
+                                            onClick={() => setLockerFilter(lockerFilter === 'occupied' ? 'all' : 'occupied')}
+                                            className={cn(
+                                                "flex items-center gap-1.5 px-2 py-1 rounded-md transition-all border",
+                                                lockerFilter === 'occupied' 
+                                                    ? "bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800 ring-1 ring-purple-200 dark:ring-purple-800" 
+                                                    : "border-transparent hover:bg-gray-100 dark:hover:bg-gray-800"
+                                            )}
+                                        >
+                                            <div className="w-3 h-3 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded" />
+                                            <span className={cn("font-medium", lockerFilter === 'occupied' ? "text-purple-700 dark:text-purple-300" : "text-gray-600 dark:text-gray-300")}>Occupied</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
                             <div className="p-4 md:p-6 bg-white dark:bg-gray-800 min-h-[300px]">
-                                {viewMode === 'pagination' ? (
+                                {lockerViewMode === 'pagination' ? (
                                     <div className="space-y-8">
                                         {Object.entries(lockersBySection).map(([section, lockers]) => {
-                                            const sectionLockers = lockers
+                                            const filteredLockers = lockers.filter(locker => {
+                                                if (lockerFilter === 'all') return true
+                                                if (lockerFilter === 'available') return !locker.isOccupied
+                                                if (lockerFilter === 'occupied') return locker.isOccupied
+                                                if (lockerFilter === 'selected') return selectedLocker?.id === locker.id
+                                                return true
+                                            })
+                                            
+                                            const sectionLockers = filteredLockers
                                             const totalPages = Math.ceil(sectionLockers.length / (columns * 4)) // 4 rows per page
                                             const currentPage = pageBySection[section] || 0
                                             
@@ -1245,7 +1331,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                             className={cn(
                                                                 "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-200 relative group border-2",
                                                                 locker.isOccupied
-                                                                    ? "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60 text-gray-400 dark:text-gray-500"
+                                                                    ? "bg-gray-200 dark:bg-gray-700 border-gray-300 dark:border-gray-600 cursor-not-allowed opacity-70 text-gray-500 dark:text-gray-400"
                                                                     : selectedLocker?.id === locker.id
                                                                         ? "bg-purple-500 border-purple-600 text-white shadow-md transform scale-[1.02] ring-2 ring-purple-200 dark:ring-purple-900"
                                                                         : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
@@ -1282,8 +1368,19 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                         )}
                                     </div>
                                 ) : (
-                                    <div className="space-y-8 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                                        {Object.entries(lockersBySection).map(([section, lockers]) => (
+                                    <div className="space-y-8 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                        {Object.entries(lockersBySection).map(([section, lockers]) => {
+                                            const filteredLockers = lockers.filter(locker => {
+                                                if (lockerFilter === 'all') return true
+                                                if (lockerFilter === 'available') return !locker.isOccupied
+                                                if (lockerFilter === 'occupied') return locker.isOccupied
+                                                if (lockerFilter === 'selected') return selectedLocker?.id === locker.id
+                                                return true
+                                            })
+
+                                            if (filteredLockers.length === 0 && lockerFilter !== 'all') return null
+
+                                            return (
                                             <div key={section} className="space-y-3">
                                                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2 sticky top-0 bg-white dark:bg-gray-800 z-10 py-2">
                                                     <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
@@ -1294,7 +1391,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                     className="grid gap-2 md:gap-3"
                                                     style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
                                                 >
-                                                    {lockers.map((locker) => (
+                                                    {filteredLockers.map((locker) => (
                                                         <motion.button
                                                             key={locker.id}
                                                             whileHover={!locker.isOccupied ? { scale: 1.05 } : {}}
@@ -1304,7 +1401,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                             className={cn(
                                                                 "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-200 relative group border-2",
                                                                 locker.isOccupied
-                                                                    ? "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60 text-gray-400 dark:text-gray-500"
+                                                                    ? "bg-gray-200 dark:bg-gray-700 border-gray-300 dark:border-gray-600 cursor-not-allowed opacity-70 text-gray-500 dark:text-gray-400"
                                                                     : selectedLocker?.id === locker.id
                                                                         ? "bg-purple-500 border-purple-600 text-white shadow-md transform scale-[1.02] ring-2 ring-purple-200 dark:ring-purple-900"
                                                                         : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
@@ -1332,7 +1429,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                     ))}
                                                 </div>
                                             </div>
-                                        ))}
+                                        )})}
                                     </div>
                                 )}
                             </div>
