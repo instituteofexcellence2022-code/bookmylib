@@ -23,6 +23,8 @@ interface OperatingHours {
     is247?: boolean
     start?: string
     end?: string
+    openingTime?: string
+    closingTime?: string
     staffAvailableStart?: string
     staffAvailableEnd?: string
 }
@@ -125,12 +127,15 @@ export default function PublicBranchHeader({ branch, images, amenities = [], sho
                 return { isOpen: true, text: 'Open 24/7' }
             }
             
-            if (hours.start && hours.end) {
+            const start = hours.start || hours.openingTime
+            const end = hours.end || hours.closingTime
+            
+            if (start && end) {
                 const now = new Date()
                 const currentMinutes = now.getHours() * 60 + now.getMinutes()
                 
-                const [startH, startM] = hours.start.split(':').map(Number)
-                const [endH, endM] = hours.end.split(':').map(Number)
+                const [startH, startM] = start.split(':').map(Number)
+                const [endH, endM] = end.split(':').map(Number)
                 
                 const startTotal = startH * 60 + startM
                 const endTotal = endH * 60 + endM

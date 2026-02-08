@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { MapPin, Building2, Clock, Star, Wifi, Zap, Wind, Droplets, Car, ChevronLeft, ChevronRight, Info, Coffee, Printer, Camera, Armchair, Fan, Thermometer, Utensils, BatteryCharging, Lightbulb, Bath, Lock, Newspaper, BookOpen, ShieldCheck } from 'lucide-react'
+import { MapPin, Building2, Clock, Star, Wifi, Zap, Wind, Droplets, Car, ChevronLeft, ChevronRight, Info, Coffee, Printer, Camera, Armchair, Fan, Thermometer, Utensils, BatteryCharging, Lightbulb, Bath, Lock, Newspaper, BookOpen, ShieldCheck, type LucideIcon } from 'lucide-react'
 
 interface BranchHeaderProps {
     branch: {
@@ -11,7 +11,8 @@ interface BranchHeaderProps {
         name: string
         address: string
         city: string
-        operatingHours?: any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        operatingHours?: string | Record<string, any>
     }
     images: string[]
     amenities?: string[]
@@ -19,7 +20,7 @@ interface BranchHeaderProps {
     backLink?: string
 }
 
-const AMENITY_ICONS: Record<string, any> = {
+const AMENITY_ICONS: Record<string, LucideIcon> = {
     'wifi': Wifi,
     'ac': Wind,
     'coffee': Coffee,
@@ -100,12 +101,15 @@ export default function BranchHeader({ branch, images, amenities = [], showDetai
                 return { isOpen: true, text: 'Open 24/7' }
             }
             
-            if (hours.start && hours.end) {
+            const start = hours.start || hours.openingTime
+            const end = hours.end || hours.closingTime
+            
+            if (start && end) {
                 const now = new Date()
                 const currentMinutes = now.getHours() * 60 + now.getMinutes()
                 
-                const [startH, startM] = hours.start.split(':').map(Number)
-                const [endH, endM] = hours.end.split(':').map(Number)
+                const [startH, startM] = start.split(':').map(Number)
+                const [endH, endM] = end.split(':').map(Number)
                 
                 const startTotal = startH * 60 + startM
                 const endTotal = endH * 60 + endM
@@ -126,7 +130,7 @@ export default function BranchHeader({ branch, images, amenities = [], showDetai
             }
             
             return { isOpen: false, text: 'Closed' }
-        } catch (e) {
+        } catch {
             return { isOpen: false, text: 'Closed' }
         }
     }
@@ -142,7 +146,7 @@ export default function BranchHeader({ branch, images, amenities = [], showDetai
             
             if (hours.staffAvailableStart && hours.staffAvailableEnd) {
                 const formatTime = (time: string) => {
-                    const [h, m] = time.split(':')
+                    const [h] = time.split(':')
                     const hour = parseInt(h)
                     const ampm = hour >= 12 ? 'PM' : 'AM'
                     const hour12 = hour % 12 || 12
@@ -151,7 +155,7 @@ export default function BranchHeader({ branch, images, amenities = [], showDetai
                 staffAvailability = `${formatTime(hours.staffAvailableStart)} - ${formatTime(hours.staffAvailableEnd)}`
             }
         }
-    } catch (e) {
+    } catch {
         // Fallback to default
     }
 
