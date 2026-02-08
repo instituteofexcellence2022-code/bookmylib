@@ -73,6 +73,7 @@ export async function createPlan(formData: FormData) {
     const shiftStart = formData.get('shiftStart') as string | null
     const shiftEnd = formData.get('shiftEnd') as string | null
     const includesSeat = formData.get('includesSeat') === 'true'
+    const allowSeatReservation = formData.get('allowSeatReservation') === 'true'
     const includesLocker = formData.get('includesLocker') === 'true'
 
     if (!name || !priceRaw || !durationRaw || !category || !durationUnit || !billingCycle) {
@@ -124,6 +125,7 @@ export async function createPlan(formData: FormData) {
         shiftEnd: category === 'fixed' ? shiftEnd : null,
         isActive: status === 'active',
         includesSeat,
+        allowSeatReservation,
         includesLocker
       }
     })
@@ -162,6 +164,7 @@ export async function updatePlan(formData: FormData) {
     const shiftStart = formData.get('shiftStart') as string | null
     const shiftEnd = formData.get('shiftEnd') as string | null
     const includesSeat = formData.get('includesSeat')
+    const allowSeatReservation = formData.get('allowSeatReservation')
     const includesLocker = formData.get('includesLocker')
 
     const data: Prisma.PlanUncheckedUpdateInput = {}
@@ -234,6 +237,10 @@ export async function updatePlan(formData: FormData) {
 
     if (includesSeat !== null) {
       data.includesSeat = includesSeat === 'true'
+    }
+
+    if (allowSeatReservation !== null) {
+      data.allowSeatReservation = allowSeatReservation === 'true'
     }
 
     if (includesLocker !== null) {

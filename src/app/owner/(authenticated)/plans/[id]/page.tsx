@@ -41,6 +41,7 @@ export default function SubscriptionDetailsPage({ params }: PlanDetailsPageProps
     shiftEnd: '',
     status: 'active',
     includesSeat: false,
+    allowSeatReservation: true,
     includesLocker: false
   })
 
@@ -83,6 +84,7 @@ export default function SubscriptionDetailsPage({ params }: PlanDetailsPageProps
           shiftEnd: data.shiftEnd || '',
           status: data.isActive ? 'active' : 'inactive',
           includesSeat: data.includesSeat ?? false,
+          allowSeatReservation: data.allowSeatReservation ?? true,
           includesLocker: data.includesLocker ?? false
         })
       } catch (error) {
@@ -101,7 +103,11 @@ export default function SubscriptionDetailsPage({ params }: PlanDetailsPageProps
     const { name, value, type } = e.target
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked
-      setForm(prev => ({ ...prev, [name]: checked }))
+      if (name === 'includesSeat' && checked) {
+        setForm(prev => ({ ...prev, [name]: checked, allowSeatReservation: true }))
+      } else {
+        setForm(prev => ({ ...prev, [name]: checked }))
+      }
     } else {
       setForm(prev => ({ ...prev, [name]: value }))
     }
@@ -143,6 +149,7 @@ export default function SubscriptionDetailsPage({ params }: PlanDetailsPageProps
       data.append('branchId', form.branchId)
       data.append('status', form.status)
       data.append('includesSeat', String(form.includesSeat))
+      data.append('allowSeatReservation', String(form.allowSeatReservation))
       data.append('includesLocker', String(form.includesLocker))
       
       if (form.category === 'flexible') {
@@ -490,34 +497,56 @@ export default function SubscriptionDetailsPage({ params }: PlanDetailsPageProps
             </div>
           </div>
 
-          <div className="flex gap-6 pt-2">
-            <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex-1">
-              <input
-                type="checkbox"
-                name="includesSeat"
-                checked={form.includesSeat}
-                onChange={handleChange}
-                className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500 border-gray-300 dark:border-gray-600"
-              />
-              <div>
-                <span className="block text-sm font-medium text-gray-900 dark:text-white">Reserve Seat</span>
-                <span className="block text-xs text-gray-500 dark:text-gray-400">Includes a dedicated seat</span>
-              </div>
-            </label>
+          <div className="flex flex-col gap-2 pt-2">
+            <div className="flex gap-6">
+              <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex-1">
+                <input
+                  type="checkbox"
+                  name="includesSeat"
+                  checked={form.includesSeat}
+                  onChange={handleChange}
+                  className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500 border-gray-300 dark:border-gray-600"
+                />
+                <div>
+                  <span className="block text-sm font-medium text-gray-900 dark:text-white">Includes Seat</span>
+                  <span className="block text-xs text-gray-500 dark:text-gray-400">Plan comes with a dedicated seat</span>
+                </div>
+              </label>
 
-            <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex-1">
-              <input
-                type="checkbox"
-                name="includesLocker"
-                checked={form.includesLocker}
-                onChange={handleChange}
-                className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500 border-gray-300 dark:border-gray-600"
-              />
-              <div>
-                <span className="block text-sm font-medium text-gray-900 dark:text-white">Include Locker</span>
-                <span className="block text-xs text-gray-500 dark:text-gray-400">Access to locker facility</span>
-              </div>
-            </label>
+              <label className={`flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer transition-colors flex-1 ${
+                form.includesSeat ? 'opacity-50 cursor-not-allowed bg-gray-50 dark:bg-gray-800/50' : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}>
+                <input
+                  type="checkbox"
+                  name="allowSeatReservation"
+                  checked={form.allowSeatReservation}
+                  onChange={handleChange}
+                  disabled={form.includesSeat}
+                  className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500 border-gray-300 dark:border-gray-600"
+                />
+                <div>
+                  <span className="block text-sm font-medium text-gray-900 dark:text-white">Allow Seat Selection</span>
+                  <span className="block text-xs text-gray-500 dark:text-gray-400">User can choose to reserve a seat</span>
+                </div>
+              </label>
+            </div>
+
+            <div className="flex gap-6">
+              <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex-1">
+                <input
+                  type="checkbox"
+                  name="includesLocker"
+                  checked={form.includesLocker}
+                  onChange={handleChange}
+                  className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500 border-gray-300 dark:border-gray-600"
+                />
+                <div>
+                  <span className="block text-sm font-medium text-gray-900 dark:text-white">Include Locker</span>
+                  <span className="block text-xs text-gray-500 dark:text-gray-400">Access to locker facility</span>
+                </div>
+              </label>
+              <div className="flex-1"></div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

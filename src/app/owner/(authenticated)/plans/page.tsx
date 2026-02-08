@@ -539,6 +539,9 @@ export default function PlansAndFeesPage() {
                         maximumFractionDigits: 0
                         })}
                     </p>
+                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400 ml-1">
+                        {fee.billType === 'MONTHLY' ? '/ month' : '(One-time)'}
+                    </span>
                     </div>
                     {fee.description && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 line-clamp-3">
@@ -633,7 +636,15 @@ export default function PlansAndFeesPage() {
                             defaultValue={editingFee?.amount}
                             required
                         />
-
+                        <FormSelect
+                            name="billType"
+                            label="Bill Type"
+                            defaultValue={editingFee?.billType || 'ONE_TIME'}
+                            options={[
+                                { label: 'One Time', value: 'ONE_TIME' },
+                                { label: 'Monthly', value: 'MONTHLY' }
+                            ]}
+                        />
                     </div>
 
                     <FormSelect

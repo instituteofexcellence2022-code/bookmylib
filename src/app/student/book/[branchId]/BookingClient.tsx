@@ -163,6 +163,9 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
     const isSeatSelectionEnabled = React.useMemo(() => {
         if (!selectedPlan) return false
         
+        // Check if seat reservation is explicitly disallowed
+        if (selectedPlan.allowSeatReservation === false) return false
+
         // Check if plan includes seat
         if (selectedPlan.includesSeat) return true
 
@@ -563,6 +566,9 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                                     (selectedPlan.includesSeat && isSeatFee) ||
                                     (selectedPlan.includesLocker && isLockerFee)
                                 )
+
+                                // If plan explicitly disallows seat reservation, hide seat fees
+                                if (selectedPlan && selectedPlan.allowSeatReservation === false && isSeatFee) return null
 
                                 if (isIncluded) return null
 

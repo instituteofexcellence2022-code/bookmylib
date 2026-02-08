@@ -41,7 +41,7 @@ export async function createFee(formData: FormData) {
   try {
     const name = formData.get('name') as string
     const amountRaw = formData.get('amount') as string
-    // const type = formData.get('type') as string // Removed as not in schema
+    const billType = formData.get('billType') as string || 'ONE_TIME'
     const description = formData.get('description') as string | null
     const branchId = formData.get('branchId') as string | null
 
@@ -59,7 +59,7 @@ export async function createFee(formData: FormData) {
         libraryId: owner.libraryId,
         name,
         amount,
-        // type, // Removed
+        billType,
         description,
         branchId: branchId && branchId !== 'all' ? branchId : null,
         isActive: true
@@ -98,7 +98,7 @@ export async function updateFee(formData: FormData) {
     // If full update
     const name = formData.get('name') as string
     const amountRaw = formData.get('amount') as string
-    // const type = formData.get('type') as string
+    const billType = formData.get('billType') as string || 'ONE_TIME'
     const description = formData.get('description') as string | null
     const branchId = formData.get('branchId') as string | null
 
@@ -116,7 +116,7 @@ export async function updateFee(formData: FormData) {
       data: {
         name,
         amount,
-        // type,
+        billType,
         description,
         branchId: branchId && branchId !== 'all' ? branchId : null
       }
