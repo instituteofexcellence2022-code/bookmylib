@@ -111,7 +111,10 @@ export default function AddBranchPage() {
     upiId: '',
     payeeName: '',
     latitude: '',
-    longitude: ''
+    longitude: '',
+    hasLockers: false,
+    isLockerSeparate: false,
+    totalLockers: ''
   }
 
   const [formData, setFormData] = useState(initialFormData)
@@ -415,6 +418,11 @@ export default function AddBranchPage() {
       formDataToSend.append('upiId', formData.upiId)
       formDataToSend.append('payeeName', formData.payeeName)
 
+      // Locker fields
+      formDataToSend.append('hasLockers', String(formData.hasLockers))
+      formDataToSend.append('isLockerSeparate', String(formData.isLockerSeparate))
+      formDataToSend.append('totalLockers', formData.totalLockers)
+
       // Append image files
       formData.imageFiles.forEach(file => {
         formDataToSend.append('imageFiles', file)
@@ -682,6 +690,109 @@ export default function AddBranchPage() {
                 onChange={e => setFormData({...formData, phone: e.target.value})}
                 placeholder="+91 98765 43210"
               />
+            </div>
+          </div>
+        </CompactCard>
+
+        <CompactCard>
+          <div className="space-y-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <Lock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              Locker Facilities
+            </h2>
+
+            <div className="space-y-6">
+              {/* Enable Lockers Toggle */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                <div>
+                  <h3 className="font-medium text-gray-900 dark:text-white">Enable Lockers</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Does this branch have locker facilities?</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer"
+                    checked={formData.hasLockers}
+                    onChange={e => setFormData({ ...formData, hasLockers: e.target.checked })}
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+                </label>
+              </div>
+
+              {formData.hasLockers && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                  {/* Locker Type Selection */}
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 block">Locker Configuration</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <label className={`
+                        flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all border
+                        ${!formData.isLockerSeparate 
+                          ? 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800' 
+                          : 'bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700'
+                        }
+                      `}>
+                        <input
+                          type="radio"
+                          name="lockerType"
+                          checked={!formData.isLockerSeparate}
+                          onChange={() => setFormData({ ...formData, isLockerSeparate: false })}
+                          className="sr-only"
+                        />
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${!formData.isLockerSeparate ? 'border-purple-600 bg-purple-600' : 'border-gray-400'}`}>
+                          {!formData.isLockerSeparate && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                        <div>
+                          <span className="block text-sm font-medium text-gray-900 dark:text-white">Part of Seat</span>
+                          <span className="block text-xs text-gray-500">Each seat has its own dedicated locker</span>
+                        </div>
+                      </label>
+
+                      <label className={`
+                        flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all border
+                        ${formData.isLockerSeparate 
+                          ? 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800' 
+                          : 'bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700'
+                        }
+                      `}>
+                        <input
+                          type="radio"
+                          name="lockerType"
+                          checked={formData.isLockerSeparate}
+                          onChange={() => setFormData({ ...formData, isLockerSeparate: true })}
+                          className="sr-only"
+                        />
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${formData.isLockerSeparate ? 'border-purple-600 bg-purple-600' : 'border-gray-400'}`}>
+                          {formData.isLockerSeparate && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                        <div>
+                          <span className="block text-sm font-medium text-gray-900 dark:text-white">Separate Facility</span>
+                          <span className="block text-xs text-gray-500">Lockers are in a separate area</span>
+                        </div>
+                      </label>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Note: Locker fees and availability are configured within Subscription Plans and Additional Fees.
+                    </p>
+                  </div>
+
+                  {/* Total Lockers Input (Only if separate) */}
+                  {formData.isLockerSeparate && (
+                    <div className="animate-in fade-in slide-in-from-top-2">
+                      <FormInput
+                        label="Total Number of Lockers"
+                        type="number"
+                        min="0"
+                        icon={Lock}
+                        required
+                        value={formData.totalLockers}
+                        onChange={e => setFormData({ ...formData, totalLockers: e.target.value })}
+                        placeholder="e.g. 50"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </CompactCard>

@@ -210,6 +210,11 @@ export async function createBranch(formData: FormData) {
     const upiId = formData.get('upiId') as string
     const payeeName = formData.get('payeeName') as string
 
+    // Locker fields
+    const hasLockers = formData.get('hasLockers') === 'true'
+    const isLockerSeparate = formData.get('isLockerSeparate') === 'true'
+    const totalLockers = parseInt(formData.get('totalLockers') as string) || 0
+
     // Validate UPI ID if provided
     if (upiId && !/^[\w.-]+@[\w.-]+$/.test(upiId)) {
       return { success: false, error: 'Invalid UPI ID format (e.g. username@bank)' }
@@ -269,7 +274,10 @@ export async function createBranch(formData: FormData) {
         wifiDetails,
         libraryRules,
         upiId,
-        payeeName
+        payeeName,
+        hasLockers,
+        isLockerSeparate,
+        totalLockers
       }
     })
 
@@ -290,6 +298,26 @@ export async function createBranch(formData: FormData) {
       await prisma.$transaction(
         seats.map(seat => prisma.seat.create({ data: seat }))
       )
+    }
+
+    // Auto-generate lockers if separate or part of seat
+    if (hasLockers) {
+      const targetLockerCount = isLockerSeparate ? totalLockers : seatCount
+      
+      if (targetLockerCount > 0) {
+        const lockers = []
+        for (let i = 1; i <= targetLockerCount; i++) {
+          lockers.push({
+            branchId: branch.id,
+            number: String(i),
+            isActive: true
+          })
+        }
+        
+        await prisma.$transaction(
+          lockers.map(locker => prisma.locker.create({ data: locker }))
+        )
+      }
     }
 
     revalidatePath('/owner/branches')
@@ -356,6 +384,11 @@ export async function updateBranch(formData: FormData) {
     const upiId = formData.get('upiId') as string
     const payeeName = formData.get('payeeName') as string
 
+    // Locker fields
+    const hasLockers = formData.get('hasLockers') === 'true'
+    const isLockerSeparate = formData.get('isLockerSeparate') === 'true'
+    const totalLockers = parseInt(formData.get('totalLockers') as string) || 0
+
     // Validate UPI ID if provided
     if (upiId && !/^[\w.-]+@[\w.-]+$/.test(upiId)) {
       return { success: false, error: 'Invalid UPI ID format (e.g. username@bank)' }
@@ -419,9 +452,41 @@ export async function updateBranch(formData: FormData) {
         wifiDetails,
         libraryRules,
         upiId,
-        payeeName
+        payeeName,
+        hasLockers,
+        isLockerSeparate,
+        totalLockers
       }
     })
+
+    // Handle Locker Generation/Cleanup on Update
+    if (hasLockers) {
+      const targetLockerCount = isLockerSeparate ? totalLockers : seatCount
+      
+      if (targetLockerCount > 0) {
+        // Check existing lockers
+        const existingLockers = await prisma.locker.findMany({
+          where: { branchId: id }
+        })
+        
+        const existingCount = existingLockers.length
+        
+        if (existingCount < targetLockerCount) {
+          // Create new lockers
+          const lockersToCreate = []
+          for (let i = existingCount + 1; i <= targetLockerCount; i++) {
+            lockersToCreate.push({
+              branchId: id,
+              number: String(i),
+              isActive: true
+            })
+          }
+          await prisma.$transaction(
+            lockersToCreate.map(locker => prisma.locker.create({ data: locker }))
+          )
+        }
+      }
+    }
 
     revalidatePath('/owner/branches')
     revalidatePath(`/owner/branches/${id}`)

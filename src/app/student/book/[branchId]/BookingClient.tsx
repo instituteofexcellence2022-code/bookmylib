@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { createBooking } from '@/actions/booking'
 import { cn, formatSeatNumber } from '@/lib/utils'
 
-import { Branch, Seat, Plan, AdditionalFee } from '@prisma/client'
+import { Branch, Seat, Plan, AdditionalFee, Locker } from '@prisma/client'
 import BookingPayment from '@/components/student/BookingPayment'
 import BranchHeader from './BranchHeader'
 
@@ -28,9 +28,14 @@ type SeatWithOccupancy = Seat & {
     isOccupied: boolean
 }
 
+type LockerWithOccupancy = Locker & {
+    isOccupied: boolean
+}
+
 type BranchWithDetails = Branch & {
     library: { name: string }
     seats: SeatWithOccupancy[]
+    lockers: LockerWithOccupancy[]
     plans: ExtendedPlan[]
     fees: AdditionalFee[]
 }
@@ -54,6 +59,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
 
     const [step, setStep] = useState<'selection' | 'payment' | 'success'>('selection')
     const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null)
+    const [selectedLocker, setSelectedLocker] = useState<Locker | null>(null)
     const [selectedPlan, setSelectedPlan] = useState<ExtendedPlan | null>(null)
     const [quantity, setQuantity] = useState(1)
     const [selectedFees, setSelectedFees] = useState<string[]>([])
@@ -120,6 +126,38 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
             return a.number.localeCompare(b.number, undefined, { numeric: true, sensitivity: 'base' })
         })
     }, [branch.seats])
+
+    // Sort lockers naturally
+    const sortedLockers = React.useMemo(() => {
+        return [...(branch.lockers || [])].sort((a, b) => {
+            return a.number.localeCompare(b.number, undefined, { numeric: true, sensitivity: 'base' })
+        })
+    }, [branch.lockers])
+
+    // Check if locker selection is visible
+    const shouldShowLockerSelection = React.useMemo(() => {
+        if (!branch.hasLockers) return false
+        
+        const hasLockerFee = selectedFees.some(id => {
+            const fee = branch.fees.find(f => String(f.id) === id)
+            return fee && fee.name.toLowerCase().includes('locker')
+        })
+
+        if (hasLockerFee) return true
+
+        if (selectedPlan?.includesLocker) {
+            return branch.isLockerSeparate
+        }
+
+        return false
+    }, [selectedPlan, branch.isLockerSeparate, selectedFees, branch.fees, branch.hasLockers])
+
+    // Reset locker if hidden
+    React.useEffect(() => {
+        if (!shouldShowLockerSelection && selectedLocker) {
+            setSelectedLocker(null)
+        }
+    }, [shouldShowLockerSelection, selectedLocker])
 
     // Check if seat selection is allowed
     const isSeatSelectionEnabled = React.useMemo(() => {
@@ -189,6 +227,11 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
         setSelectedSeat(seat)
     }
 
+    const handleLockerSelect = (locker: LockerWithOccupancy) => {
+        if (locker.isOccupied) return
+        setSelectedLocker(locker)
+    }
+
     const handleProceedToPayment = () => {
         if (!selectedPlan) {
             toast.error('Please select a plan')
@@ -209,6 +252,11 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
             return
         }
 
+        if (shouldShowLockerSelection && !selectedLocker) {
+            toast.error('Please select a locker')
+            return
+        }
+
         setStep('payment')
     }
 
@@ -224,6 +272,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                 branchId: branch.id,
                 planId: selectedPlan.id,
                 seatId: selectedSeat?.id,
+                lockerId: selectedLocker?.id,
                 startDate: bookingDate,
                 quantity,
                 additionalFeeIds: selectedFees,
@@ -338,6 +387,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                 <BookingPayment 
                     plan={selectedPlan}
                     seat={selectedSeat}
+                    locker={selectedLocker}
                     fees={branch.fees?.filter(f => selectedFees.includes(String(f.id))) || []}
                     branchId={branch.id}
                     branchName={branch.name}
@@ -819,6 +869,64 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                                 ))}
                             </div>
                         )}
+                    </div>
+                </div>
+                )}
+
+                {/* Locker Selection */}
+                {shouldShowLockerSelection && (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col relative z-10">
+                    <div className="p-4 md:p-6 border-b border-gray-100 dark:border-gray-700 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50 dark:bg-gray-800/50">
+                        <div>
+                            <h2 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                <Lock className="w-4 h-4 md:w-5 md:h-5 text-purple-500 shrink-0" />
+                                <span className="line-clamp-1">{branch.name} Lockers</span>
+                            </h2>
+                            <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                Select your preferred locker.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="p-4 md:p-6 bg-white dark:bg-gray-800 min-h-[200px]">
+                        <div 
+                            className="grid gap-2 md:gap-3"
+                            style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+                        >
+                            {sortedLockers.map(locker => (
+                                <motion.button
+                                    key={locker.id}
+                                    whileHover={!locker.isOccupied ? { scale: 1.05 } : {}}
+                                    whileTap={!locker.isOccupied ? { scale: 0.95 } : {}}
+                                    onClick={() => handleLockerSelect(locker)}
+                                    disabled={locker.isOccupied}
+                                    className={cn(
+                                        "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative group",
+                                        locker.isOccupied
+                                            ? "bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60 text-gray-400 dark:text-gray-500"
+                                            : selectedLocker?.id === locker.id
+                                                ? "bg-purple-500 border-purple-600 text-white shadow-md shadow-purple-500/20"
+                                                : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
+                                    )}
+                                >
+                                    <Lock className={cn(
+                                        "w-5 h-5 md:w-6 md:h-6",
+                                        locker.isOccupied ? "opacity-50" : ""
+                                    )} />
+                                    <span className="text-sm md:text-base font-semibold truncate w-full text-center px-1">
+                                        {locker.number}
+                                    </span>
+                                    {selectedLocker?.id === locker.id && (
+                                        <motion.div
+                                            layoutId="check-locker"
+                                            className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm"
+                                        >
+                                            <Check className="w-2 h-2 md:w-2.5 md:h-2.5" />
+                                        </motion.div>
+                                    )}
+                                </motion.button>
+                            ))}
+                        </div>
                     </div>
                 </div>
                 )}

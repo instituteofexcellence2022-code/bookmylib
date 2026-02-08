@@ -16,7 +16,7 @@ import { FormInput } from '@/components/ui/FormInput'
 import { cn, formatSeatNumber } from '@/lib/utils'
 import { checkPublicStudentByEmail } from '@/actions/student'
 import { initiatePublicBookingVerification, confirmEmailVerification } from '@/actions/auth'
-import { Branch, Seat, Plan, AdditionalFee } from '@prisma/client'
+import { Branch, Seat, Plan, AdditionalFee, Locker } from '@prisma/client'
 import PublicBranchHeader, { PublicOffer } from './PublicBranchHeader'
 import PublicBookingPayment from './PublicBookingPayment'
 
@@ -29,9 +29,14 @@ type SeatWithOccupancy = Seat & {
     isOccupied: boolean
 }
 
+type LockerWithOccupancy = Locker & {
+    isOccupied: boolean
+}
+
 type BranchWithDetails = Branch & {
     library: { name: string }
     seats: SeatWithOccupancy[]
+    lockers: LockerWithOccupancy[]
     plans: ExtendedPlan[]
     fees: AdditionalFee[]
 }
@@ -84,6 +89,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
     const [selectedPlan, setSelectedPlan] = useState<ExtendedPlan | null>(null)
     const [quantity, setQuantity] = useState(1)
     const [selectedSeat, setSelectedSeat] = useState<SeatWithOccupancy | null>(null)
+    const [selectedLocker, setSelectedLocker] = useState<LockerWithOccupancy | null>(null)
     const [selectedFees, setSelectedFees] = useState<string[]>([])
     const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0])
     
@@ -163,6 +169,23 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
         }, {})
     }, [sortedSeats])
 
+    // Sort lockers naturally
+    const sortedLockers = React.useMemo(() => {
+        return [...(branch.lockers || [])].sort((a, b) => {
+            return a.number.localeCompare(b.number, undefined, { numeric: true, sensitivity: 'base' })
+        })
+    }, [branch.lockers])
+
+    // Group lockers by section
+    const lockersBySection = React.useMemo(() => {
+        return sortedLockers.reduce<Record<string, typeof sortedLockers>>((acc, locker) => {
+            const section = 'General'
+            if (!acc[section]) acc[section] = []
+            acc[section].push(locker)
+            return acc
+        }, {})
+    }, [sortedLockers])
+
     const isSeatSelectionEnabled = React.useMemo(() => {
         if (!selectedPlan) return false
         
@@ -179,7 +202,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
 
         // If seat fee exists, user must have selected it
         return selectedFees.some(id => {
-            const fee = branch.fees.find(f => f.id === id)
+            const fee = branch.fees.find(f => String(f.id) === id)
             return fee && (
                 fee.name.toLowerCase().includes('seat') || 
                 fee.name.toLowerCase().includes('reservation')
@@ -194,11 +217,41 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
         }
     }, [isSeatSelectionEnabled, selectedSeat])
 
+    const isLockerSelectionEnabled = React.useMemo(() => {
+        // Check for "Locker" fee
+        const hasLockerFee = selectedFees.some(id => {
+            const fee = branch.fees.find(f => String(f.id) === id)
+            return fee && fee.name.toLowerCase().includes('locker')
+        })
+
+        // If user explicitly pays for a locker fee, allow selection
+        if (hasLockerFee) return true
+
+        if (!branch.hasLockers) return false
+
+        // Check if plan includes locker
+        if (selectedPlan?.includesLocker) {
+            // If plan includes locker, only allow selection if lockers are separate
+            // If they are part of seat (not separate), they are auto-assigned
+            return branch.isLockerSeparate
+        }
+
+        return false
+    }, [selectedPlan, selectedFees, branch.fees, branch.hasLockers, branch.isLockerSeparate])
+
+    // Reset locker if selection becomes disabled
+    React.useEffect(() => {
+        if (!isLockerSelectionEnabled && selectedLocker) {
+            setSelectedLocker(null)
+        }
+    }, [isLockerSelectionEnabled, selectedLocker])
+
     const handlePlanSelect = (plan: ExtendedPlan) => {
         if (selectedPlan?.id === plan.id) return // Don't reset if clicking same plan
         setSelectedPlan(plan)
         setQuantity(1)
         setSelectedSeat(null)
+        setSelectedLocker(null)
         setSelectedFees([])
     }
 
@@ -219,7 +272,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
         
         // If seat fee is selected, it is mandatory
         return selectedFees.some(id => {
-            const fee = branch.fees.find(f => f.id === id)
+            const fee = branch.fees.find(f => String(f.id) === id)
             return fee && (
                 fee.name.toLowerCase().includes('seat') || 
                 fee.name.toLowerCase().includes('reservation')
@@ -230,15 +283,19 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
     // Check if locker is mandatory (if fee selected)
     const isLockerMandatory = React.useMemo(() => {
         if (!selectedPlan) return false
+        if (!branch.hasLockers) return false
         
-        // If plan includes locker, we don't have locker selection yet, but good to track
+        // Only mandatory if user MUST select it (separate locker)
+        if (!branch.isLockerSeparate) return false
+        
+        // If plan includes locker
         if (selectedPlan.includesLocker) return true
         
         return selectedFees.some(id => {
-            const fee = branch.fees.find(f => f.id === id)
+            const fee = branch.fees.find(f => String(f.id) === id)
             return fee && fee.name.toLowerCase().includes('locker')
         })
-    }, [selectedPlan, selectedFees, branch.fees])
+    }, [selectedPlan, selectedFees, branch.fees, branch.isLockerSeparate, branch.hasLockers])
 
     const handleEmailBlur = async () => {
         if (!studentDetails.email || !studentDetails.email.includes('@')) return
@@ -278,6 +335,11 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
         
         if (isSeatMandatory && !selectedSeat) {
             toast.error('Please select a seat')
+            return
+        }
+
+        if (isLockerMandatory && !selectedLocker) {
+            toast.error('Please select a locker')
             return
         }
 
@@ -364,10 +426,10 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
             const isLockerFee = name.includes('locker')
 
             if (selectedPlan.includesSeat && isSeatFee) {
-                if (selectedFees.includes(f.id)) feesToRemove.push(f.id)
+                if (selectedFees.includes(String(f.id))) feesToRemove.push(String(f.id))
             }
             if (selectedPlan.includesLocker && isLockerFee) {
-                if (selectedFees.includes(f.id)) feesToRemove.push(f.id)
+                if (selectedFees.includes(String(f.id))) feesToRemove.push(String(f.id))
             }
         })
 
@@ -380,14 +442,14 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
         if (selectedPlan && selectedPlan.includesSeat) return true
         
         return selectedFees.some(feeId => {
-            const fee = branch.fees.find(f => f.id === feeId)
+            const fee = branch.fees.find(f => String(f.id) === feeId)
             return fee?.name.toLowerCase().includes('seat reservation')
         })
     }, [selectedFees, branch.fees, selectedPlan])
 
     // Calculate Total for display
     const feesTotal = branch.fees
-        .filter(f => selectedFees.includes(f.id))
+        .filter(f => selectedFees.includes(String(f.id)))
         .reduce((sum, f) => sum + Number(f.amount), 0)
     const totalAmount = Math.round(((Number(selectedPlan?.price) || 0) * quantity) + feesTotal)
 
@@ -623,109 +685,111 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                     Customize Plan
                                 </h3>
 
-                                {/* Locker Section */}
-                                {(selectedPlan?.includesLocker || branch.fees.some(f => f.name.toLowerCase().includes('locker'))) && (
-                                    <div>
-                                        <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2 text-xs uppercase tracking-wider text-purple-600 dark:text-purple-400">
-                                            <Lock className="w-3.5 h-3.5" />
-                                            Locker Facility
-                                        </h4>
-                                        
-                                        {selectedPlan?.includesLocker ? (
-                                            <div className="flex items-center gap-3 p-3 rounded-xl border border-purple-200 bg-purple-50 dark:bg-purple-900/10 dark:border-purple-800">
-                                                <div className="w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
-                                                    <Check className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Locker Section */}
+                                    {(selectedPlan?.includesLocker || branch.fees.some(f => f.name.toLowerCase().includes('locker'))) && (
+                                        <div>
+                                            <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2 text-xs uppercase tracking-wider text-purple-600 dark:text-purple-400">
+                                                <Lock className="w-3.5 h-3.5" />
+                                                Locker Facility
+                                            </h4>
+                                            
+                                            {selectedPlan?.includesLocker ? (
+                                                <div className="flex items-center gap-3 p-3 rounded-xl border border-purple-200 bg-purple-50 dark:bg-purple-900/10 dark:border-purple-800">
+                                                    <div className="w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
+                                                        <Check className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-sm text-purple-900 dark:text-purple-100">Locker Included</p>
+                                                        <p className="text-xs text-purple-700 dark:text-purple-300">Part of your plan</p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="font-medium text-sm text-purple-900 dark:text-purple-100">Locker Included</p>
-                                                    <p className="text-xs text-purple-700 dark:text-purple-300">Part of your plan</p>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-2">
-                                                {branch.fees.filter(f => f.name.toLowerCase().includes('locker')).map(fee => (
-                                                    <label key={fee.id} className={cn(
-                                                        "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
-                                                        selectedFees.includes(fee.id)
-                                                            ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 ring-1 ring-purple-500/20"
-                                                            : "border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                                                    )}>
-                                                        <div className="flex items-center gap-3">
-                                                            <div className={cn(
-                                                                "w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0",
-                                                                selectedFees.includes(fee.id)
-                                                                    ? "bg-purple-500 border-purple-500 text-white"
-                                                                    : "border-gray-300 dark:border-gray-600"
-                                                            )}>
-                                                                {selectedFees.includes(fee.id) && <Check className="w-3 h-3" />}
-                                                            </div>
-                                                            <input 
-                                                                type="checkbox" 
-                                                                className="hidden"
-                                                                checked={selectedFees.includes(fee.id)}
-                                                                onChange={() => toggleFee(fee.id)}
-                                                            />
-                                                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fee.name}</span>
-                                                        </div>
-                                                        <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Seat Section */}
-                                {(selectedPlan?.includesSeat || branch.fees.some(f => f.name.toLowerCase().includes('seat') || f.name.toLowerCase().includes('reservation'))) && (
-                                    <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                                        <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2 text-xs uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                                            <Armchair className="w-3.5 h-3.5" />
-                                            Seat Reservation
-                                        </h4>
-
-                                        {selectedPlan?.includesSeat ? (
-                                                <div className="flex items-center gap-3 p-3 rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-900/10 dark:border-emerald-800">
-                                                <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
-                                                    <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-sm text-emerald-900 dark:text-emerald-100">Seat Included</p>
-                                                    <p className="text-xs text-emerald-700 dark:text-emerald-300">Select seat below</p>
-                                                </div>
-                                            </div>
-                                        ) : (
+                                            ) : (
                                                 <div className="space-y-2">
-                                                {branch.fees.filter(f => f.name.toLowerCase().includes('seat') || f.name.toLowerCase().includes('reservation')).map(fee => (
-                                                    <label key={fee.id} className={cn(
-                                                        "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
-                                                        selectedFees.includes(fee.id)
-                                                            ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 ring-1 ring-emerald-500/20"
-                                                            : "border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                                                    )}>
-                                                        <div className="flex items-center gap-3">
-                                                            <div className={cn(
-                                                                "w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0",
-                                                                selectedFees.includes(fee.id)
-                                                                    ? "bg-emerald-500 border-emerald-500 text-white"
-                                                                    : "border-gray-300 dark:border-gray-600"
-                                                            )}>
-                                                                {selectedFees.includes(fee.id) && <Check className="w-3 h-3" />}
+                                                    {branch.fees.filter(f => f.name.toLowerCase().includes('locker')).map(fee => (
+                                                        <label key={fee.id} className={cn(
+                                                            "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
+                                                            selectedFees.includes(String(fee.id))
+                                                                ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 ring-1 ring-purple-500/20"
+                                                                : "border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                                                        )}>
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={cn(
+                                                                    "w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0",
+                                                                    selectedFees.includes(String(fee.id))
+                                                                        ? "bg-purple-500 border-purple-500 text-white"
+                                                                        : "border-gray-300 dark:border-gray-600"
+                                                                )}>
+                                                                    {selectedFees.includes(String(fee.id)) && <Check className="w-3 h-3" />}
+                                                                </div>
+                                                                <input 
+                                                                    type="checkbox" 
+                                                                    className="hidden"
+                                                                    checked={selectedFees.includes(String(fee.id))}
+                                                                    onChange={() => toggleFee(String(fee.id))}
+                                                                />
+                                                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fee.name}</span>
                                                             </div>
-                                                            <input 
-                                                                type="checkbox" 
-                                                                className="hidden"
-                                                                checked={selectedFees.includes(fee.id)}
-                                                                onChange={() => toggleFee(fee.id)}
-                                                            />
-                                                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fee.name}</span>
-                                                        </div>
-                                                        <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
+                                                            <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Seat Section */}
+                                    {(selectedPlan?.includesSeat || branch.fees.some(f => f.name.toLowerCase().includes('seat') || f.name.toLowerCase().includes('reservation'))) && (
+                                        <div>
+                                            <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2 text-xs uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                                                <Armchair className="w-3.5 h-3.5" />
+                                                Seat Reservation
+                                            </h4>
+
+                                            {selectedPlan?.includesSeat ? (
+                                                    <div className="flex items-center gap-3 p-3 rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-900/10 dark:border-emerald-800">
+                                                    <div className="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+                                                        <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-sm text-emerald-900 dark:text-emerald-100">Seat Included</p>
+                                                        <p className="text-xs text-emerald-700 dark:text-emerald-300">Select seat below</p>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                    <div className="space-y-2">
+                                                    {branch.fees.filter(f => f.name.toLowerCase().includes('seat') || f.name.toLowerCase().includes('reservation')).map(fee => (
+                                                        <label key={fee.id} className={cn(
+                                                            "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
+                                                            selectedFees.includes(String(fee.id))
+                                                                ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 ring-1 ring-emerald-500/20"
+                                                                : "border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                                                        )}>
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={cn(
+                                                                    "w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0",
+                                                                    selectedFees.includes(String(fee.id))
+                                                                        ? "bg-emerald-500 border-emerald-500 text-white"
+                                                                        : "border-gray-300 dark:border-gray-600"
+                                                                )}>
+                                                                    {selectedFees.includes(String(fee.id)) && <Check className="w-3 h-3" />}
+                                                                </div>
+                                                                <input 
+                                                                    type="checkbox" 
+                                                                    className="hidden"
+                                                                    checked={selectedFees.includes(String(fee.id))}
+                                                                    onChange={() => toggleFee(String(fee.id))}
+                                                                />
+                                                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fee.name}</span>
+                                                            </div>
+                                                            <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
 
                                 {/* Other Add-ons */}
                                 {branch.fees.some(f => {
@@ -743,24 +807,24 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                             }).map(fee => (
                                                 <label key={fee.id} className={cn(
                                                     "flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all",
-                                                    selectedFees.includes(fee.id)
+                                                    selectedFees.includes(String(fee.id))
                                                         ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-500/20"
                                                         : "border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
                                                 )}>
                                                     <div className="flex items-center gap-3">
                                                         <div className={cn(
                                                             "w-5 h-5 rounded border flex items-center justify-center transition-colors shrink-0",
-                                                            selectedFees.includes(fee.id)
+                                                            selectedFees.includes(String(fee.id))
                                                                 ? "bg-blue-500 border-blue-500 text-white"
                                                                 : "border-gray-300 dark:border-gray-600"
                                                         )}>
-                                                            {selectedFees.includes(fee.id) && <Check className="w-3 h-3" />}
+                                                            {selectedFees.includes(String(fee.id)) && <Check className="w-3 h-3" />}
                                                         </div>
                                                         <input 
                                                             type="checkbox" 
                                                             className="hidden"
-                                                            checked={selectedFees.includes(fee.id)}
-                                                            onChange={() => toggleFee(fee.id)}
+                                                            checked={selectedFees.includes(String(fee.id))}
+                                                            onChange={() => toggleFee(String(fee.id))}
                                                         />
                                                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fee.name}</span>
                                                     </div>
@@ -1055,6 +1119,218 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                         </section>
                         )}
 
+                        {/* 4. Select Locker (if applicable) */}
+                        {isLockerSelectionEnabled && (
+                        <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col relative z-10">
+                            <div className="p-4 md:p-6 border-b border-gray-100 dark:border-gray-700 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50 dark:bg-gray-800/50">
+                                <div>
+                                    <h2 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                        <Lock className="w-5 h-5 text-purple-500" />
+                                        Select Your Preferred Locker
+                                    </h2>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                        Choose an available locker from the layout below
+                                    </p>
+                                </div>
+                                
+                                <div className="flex items-center gap-2 bg-white dark:bg-gray-900 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
+                                    <button
+                                        onClick={() => setViewMode('pagination')}
+                                        className={cn(
+                                            "p-2 rounded-md transition-all",
+                                            viewMode === 'pagination' 
+                                                ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" 
+                                                : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                        )}
+                                        title="Pagination View"
+                                    >
+                                        <LayoutGrid className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode('scroll')}
+                                        className={cn(
+                                            "p-2 rounded-md transition-all",
+                                            viewMode === 'scroll' 
+                                                ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" 
+                                                : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                                        )}
+                                        title="Scroll View"
+                                    >
+                                        <List className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="p-4 md:p-6 bg-white dark:bg-gray-800 min-h-[300px]">
+                                {viewMode === 'pagination' ? (
+                                    <div className="space-y-8">
+                                        {Object.entries(lockersBySection).map(([section, lockers]) => {
+                                            const sectionLockers = lockers
+                                            const totalPages = Math.ceil(sectionLockers.length / (columns * 4)) // 4 rows per page
+                                            const currentPage = pageBySection[section] || 0
+                                            
+                                            const currentLockers = sectionLockers.slice(
+                                                currentPage * (columns * 4),
+                                                (currentPage + 1) * (columns * 4)
+                                            )
+
+                                            if (lockers.length === 0) return null
+
+                                            return (
+                                                <div key={section} className="space-y-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                            {section} Section
+                                                            <span className="text-xs font-normal text-gray-400">({lockers.filter(l => !l.isOccupied).length} available)</span>
+                                                        </h3>
+                                                        
+                                                        {totalPages > 1 && (
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    onClick={() => setPageBySection(prev => ({
+                                                                        ...prev,
+                                                                        [section]: Math.max(0, (prev[section] || 0) - 1)
+                                                                    }))}
+                                                                    disabled={currentPage === 0}
+                                                                    className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 transition-colors"
+                                                                >
+                                                                    <ChevronLeft className="w-4 h-4" />
+                                                                </button>
+                                                                <span className="text-xs font-medium text-gray-500">
+                                                                    {currentPage + 1} / {totalPages}
+                                                                </span>
+                                                                <button
+                                                                    onClick={() => setPageBySection(prev => ({
+                                                                        ...prev,
+                                                                        [section]: Math.min(totalPages - 1, (prev[section] || 0) + 1)
+                                                                    }))}
+                                                                    disabled={currentPage === totalPages - 1}
+                                                                    className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 transition-colors"
+                                                                >
+                                                                    <ChevronRight className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div 
+                                                        className="grid gap-2 md:gap-3"
+                                                        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+                                                    >
+                                                        {currentLockers.map((locker) => (
+                                                            <motion.button
+                                                                key={locker.id}
+                                                                whileHover={!locker.isOccupied ? { scale: 1.05 } : {}}
+                                                                whileTap={!locker.isOccupied ? { scale: 0.95 } : {}}
+                                                                onClick={() => !locker.isOccupied && setSelectedLocker(selectedLocker?.id === locker.id ? null : locker)}
+                                                                disabled={locker.isOccupied}
+                                                                className={cn(
+                                                                    "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative group",
+                                                                    locker.isOccupied
+                                                                        ? "bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60 text-gray-400 dark:text-gray-500"
+                                                                        : selectedLocker?.id === locker.id
+                                                                            ? "bg-purple-500 border-purple-600 text-white shadow-md shadow-purple-500/20"
+                                                                            : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
+                                                                )}
+                                                            >
+                                                                <Lock className={cn(
+                                                                    "w-5 h-5 md:w-6 md:h-6",
+                                                                    locker.isOccupied ? "opacity-50" : ""
+                                                                )} />
+                                                                <span className="text-sm md:text-base font-semibold truncate w-full text-center px-1">
+                                                                    {locker.number}
+                                                                </span>
+                                                                {selectedLocker?.id === locker.id && (
+                                                                    <motion.div
+                                                                        layoutId="check-locker"
+                                                                        className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm"
+                                                                    >
+                                                                        <Check className="w-2 h-2 md:w-2.5 md:h-2.5" />
+                                                                    </motion.div>
+                                                                )}
+                                                            </motion.button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
+                                        {branch.lockers.length === 0 && (
+                                            <div className="text-center text-gray-500 py-8">
+                                                No lockers configuration found.
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-8 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                                        {Object.entries(lockersBySection).map(([section, lockers]) => (
+                                            <div key={section} className="space-y-3">
+                                                <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2 sticky top-0 bg-white dark:bg-gray-800 z-10 py-2">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                    {section} Section
+                                                    <span className="text-xs font-normal text-gray-400">({lockers.filter(l => !l.isOccupied).length} available)</span>
+                                                </h3>
+                                                <div 
+                                                    className="grid gap-2 md:gap-3"
+                                                    style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+                                                >
+                                                    {lockers.map((locker) => (
+                                                        <motion.button
+                                                            key={locker.id}
+                                                            whileHover={!locker.isOccupied ? { scale: 1.05 } : {}}
+                                                            whileTap={!locker.isOccupied ? { scale: 0.95 } : {}}
+                                                            onClick={() => !locker.isOccupied && setSelectedLocker(selectedLocker?.id === locker.id ? null : locker)}
+                                                            disabled={locker.isOccupied}
+                                                            className={cn(
+                                                                "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative",
+                                                                locker.isOccupied
+                                                                    ? "bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60 text-gray-400 dark:text-gray-500"
+                                                                    : selectedLocker?.id === locker.id
+                                                                        ? "bg-purple-500 border-purple-600 text-white shadow-md shadow-purple-500/20"
+                                                                        : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
+                                                            )}
+                                                        >
+                                                            <Lock className={cn(
+                                                                "w-5 h-5 md:w-6 md:h-6",
+                                                                locker.isOccupied ? "opacity-50" : ""
+                                                            )} />
+                                                            <span className="text-sm md:text-base font-semibold truncate w-full text-center px-1">
+                                                                {locker.number}
+                                                            </span>
+                                                            {selectedLocker?.id === locker.id && (
+                                                                <div className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm">
+                                                                    <Check className="w-2 h-2 md:w-2.5 md:h-2.5" />
+                                                                </div>
+                                                            )}
+                                                        </motion.button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {selectedLocker && (
+                                <div className="p-4 bg-purple-50 dark:bg-purple-900/20 border-t border-purple-100 dark:border-purple-800/50 flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center">
+                                        <Check className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-900 dark:text-white">Selected Locker</p>
+                                        <p className="text-xs text-purple-600 dark:text-purple-400 font-bold">{selectedLocker.number}</p>
+                                    </div>
+                                    <button 
+                                        onClick={() => setSelectedLocker(null)}
+                                        className="ml-auto text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 hover:underline"
+                                    >
+                                        Change
+                                    </button>
+                                </div>
+                            )}
+                        </section>
+                        )}
+
                         {/* Moved to top */}
 
                         {/* Action Bar */}
@@ -1266,6 +1542,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                         <PublicBookingPayment 
                             plan={selectedPlan}
                         seat={selectedSeat}
+                        locker={selectedLocker}
                         quantity={quantity}
                         fees={branch.fees.filter(f => selectedFees.includes(f.id))}
                         branchId={branch.id}

@@ -176,6 +176,7 @@ export async function createStaffPayment(data: {
     feeId?: string
     additionalFeeIds?: string[]
     seatId?: string
+    lockerId?: string
     discount?: number
     promoCode?: string
 }) {
@@ -208,6 +209,11 @@ export async function createStaffPayment(data: {
         if (data.seatId) {
             const seat = await prisma.seat.findUnique({ where: { id: data.seatId } })
             if (!seat) return { success: false, error: 'Seat not found' }
+        }
+
+        if (data.lockerId) {
+            const locker = await prisma.locker.findUnique({ where: { id: data.lockerId } })
+            if (!locker) return { success: false, error: 'Locker not found' }
         }
 
         // Calculate Dates and Check Conflicts outside transaction
@@ -253,6 +259,19 @@ export async function createStaffPayment(data: {
                 if (conflictingSub) return { success: false, error: 'Seat is already occupied for the selected dates' }
             }
 
+            if (data.lockerId) {
+                const conflictingSub = await prisma.studentSubscription.findFirst({
+                    where: {
+                        lockerId: data.lockerId,
+                        status: { in: ['active', 'pending'] },
+                        startDate: { lt: end },
+                        endDate: { gt: start }
+                    }
+                })
+
+                if (conflictingSub) return { success: false, error: 'Locker is already occupied for the selected dates' }
+            }
+
             // Determine hasLocker status
             hasLocker = plan.includesLocker || false
             const feeIds = data.additionalFeeIds || (data.feeId ? [data.feeId] : [])
@@ -262,6 +281,10 @@ export async function createStaffPayment(data: {
                     where: { id: { in: feeIds } }
                 })
                 hasLocker = fees.some(f => f.name.toLowerCase().includes('locker'))
+            }
+
+            if (data.lockerId) {
+                hasLocker = true
             }
         }
 
@@ -276,6 +299,7 @@ export async function createStaffPayment(data: {
                         branchId: staff.branchId,
                         planId: plan.id,
                         seatId: data.seatId,
+                        lockerId: data.lockerId,
                         startDate: start,
                         endDate: end,
                         amount: data.amount,
@@ -470,6 +494,17 @@ export async function getStaffBranchDetails() {
                     },
                     orderBy: { number: 'asc' }
                 },
+                lockers: {
+                    include: {
+                        subscriptions: {
+                            where: {
+                                status: 'active',
+                                endDate: { gt: new Date() }
+                            }
+                        }
+                    },
+                    orderBy: { number: 'asc' }
+                },
                 plans: {
                     where: { isActive: true }
                 },
@@ -496,6 +531,13 @@ export async function getStaffBranchDetails() {
             subscriptions: undefined // Remove detailed subscription info
         }))
 
+        // Transform lockers to add isOccupied flag
+        const lockersWithStatus = branch.lockers.map(locker => ({
+            ...locker,
+            isOccupied: locker.subscriptions.length > 0,
+            subscriptions: undefined
+        }))
+
         // Combine branch-specific and global items
         const allPlans = [
             ...branch.plans,
@@ -511,6 +553,7 @@ export async function getStaffBranchDetails() {
             success: true,
             data: {
                 seats: seatsWithStatus,
+                lockers: lockersWithStatus,
                 plans: allPlans,
                 fees: allFees,
                 branch: {
@@ -518,7 +561,9 @@ export async function getStaffBranchDetails() {
                     name: branch.name,
                     address: branch.address,
                     city: branch.city,
-                    phone: branch.contactPhone
+                    phone: branch.contactPhone,
+                    hasLockers: branch.hasLockers,
+                    isLockerSeparate: branch.isLockerSeparate
                 }
             }
         }

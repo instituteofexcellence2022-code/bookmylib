@@ -71,6 +71,17 @@ export async function getBranchDetails(branchId: string) {
                     },
                     orderBy: { number: 'asc' }
                 },
+                lockers: {
+                    include: {
+                        subscriptions: {
+                            where: {
+                                status: 'active',
+                                endDate: { gt: new Date() }
+                            }
+                        }
+                    },
+                    orderBy: { number: 'asc' }
+                },
                 plans: {
                     where: { isActive: true }
                 },
@@ -93,6 +104,13 @@ export async function getBranchDetails(branchId: string) {
             subscriptions: undefined
         }))
 
+        // Transform lockers to add isOccupied flag
+        const lockersWithStatus = branch.lockers.map(locker => ({
+            ...locker,
+            isOccupied: locker.subscriptions.length > 0,
+            subscriptions: undefined
+        }))
+
         // Combine branch-specific and global fees
         const allFees = [
             ...branch.additionalFees,
@@ -110,6 +128,7 @@ export async function getBranchDetails(branchId: string) {
             branch: {
                 ...branch,
                 seats: seatsWithStatus,
+                lockers: lockersWithStatus,
                 fees: allFees,
                 plans: allPlans
             }
@@ -125,6 +144,7 @@ export async function createBooking(data: {
     branchId: string
     planId: string
     seatId?: string
+    lockerId?: string
     startDate: string // ISO string
     quantity?: number // Number of cycles/months
     additionalFeeIds?: string[]
@@ -161,7 +181,33 @@ export async function createBooking(data: {
             seatNumber = seat.number
         }
 
-        // 5. Validate Payment (if provided) - Check existence early
+        // 5. Validate Locker
+        let finalLockerId = data.lockerId
+
+        if (finalLockerId) {
+             const locker = await prisma.locker.findUnique({ where: { id: finalLockerId } })
+             if (!locker) return { success: false as const, error: 'Locker not found' }
+        } else if (plan.includesLocker && branch.hasLockers) {
+             if (!branch.isLockerSeparate) {
+                 // Part of seat - auto assign
+                 if (!seatNumber) return { success: false as const, error: 'Seat selection required for this plan' }
+                 
+                 const locker = await prisma.locker.findFirst({
+                     where: {
+                         branchId: branch.id,
+                         number: seatNumber
+                     }
+                 })
+                 
+                 if (!locker) return { success: false as const, error: `Locker ${seatNumber} not found` }
+                 finalLockerId = locker.id
+             } else {
+                 // Separate - user must select
+                 return { success: false as const, error: 'Locker selection required' }
+             }
+        }
+
+        // 6. Validate Payment (if provided) - Check existence early
         let existingPayment = null
         if (paymentId) {
             existingPayment = await prisma.payment.findUnique({ where: { id: paymentId } })
@@ -230,6 +276,22 @@ export async function createBooking(data: {
 
             if (conflictingSub) {
                 return { success: false, error: 'Seat is already occupied for the selected dates' }
+            }
+        }
+
+        // Check for overlapping subscriptions on this locker (Outside transaction)
+        if (finalLockerId) {
+            const conflictingSub = await prisma.studentSubscription.findFirst({
+                where: {
+                    lockerId: finalLockerId,
+                    status: { in: ['active', 'pending'] },
+                    startDate: { lt: finalEndDate },
+                    endDate: { gt: initialStart }
+                }
+            })
+
+            if (conflictingSub) {
+                return { success: false, error: 'Locker is already occupied for the selected dates' }
             }
         }
 
@@ -341,6 +403,7 @@ export async function createBooking(data: {
                         branchId,
                         planId,
                         seatId,
+                        lockerId: finalLockerId,
                         status: subscriptionStatus,
                         startDate: period.start,
                         endDate: period.end,

@@ -55,6 +55,12 @@ interface Seat {
     isOccupied: boolean
 }
 
+interface Locker {
+    id: string
+    number: string
+    isOccupied: boolean
+}
+
 interface Promotion {
     id: string
     code: string
@@ -95,12 +101,15 @@ export function StaffAcceptPaymentForm() {
     const [plans, setPlans] = useState<Plan[]>([])
     const [fees, setFees] = useState<Fee[]>([])
     const [seats, setSeats] = useState<Seat[]>([])
+    const [lockers, setLockers] = useState<Locker[]>([])
     const [branchDetails, setBranchDetails] = useState<{
         id: string
         name: string
         address: string | null
         city: string
         phone: string | null
+        hasLockers: boolean
+        isLockerSeparate: boolean
     } | null>(null)
     
     // Booking State
@@ -133,6 +142,7 @@ export function StaffAcceptPaymentForm() {
 
     const [selectedFees, setSelectedFees] = useState<string[]>([])
     const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null)
+    const [selectedLocker, setSelectedLocker] = useState<Locker | null>(null)
     const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0])
 
     // Seat View State
@@ -163,6 +173,7 @@ export function StaffAcceptPaymentForm() {
                     setPlans(res.data.plans || [])
                     setFees(res.data.fees || [])
                     setSeats(res.data.seats || [])
+                    setLockers(res.data.lockers || [])
                     setBranchDetails(res.data.branch)
                 }
             } catch (error) {
@@ -244,6 +255,28 @@ export function StaffAcceptPaymentForm() {
         }, {})
     }, [sortedSeats])
 
+    // Check if locker selection is allowed
+    const isLockerSelectionEnabled = useMemo(() => {
+        // Check for "Locker" fee
+        const hasLockerFee = selectedFees.some(id => {
+            const fee = fees.find(f => String(f.id) === id)
+            return fee && fee.name.toLowerCase().includes('locker')
+        })
+
+        // If user explicitly pays for a locker fee, allow selection
+        if (hasLockerFee) return true
+
+        if (!branchDetails?.hasLockers) return false
+        
+        // Check if plan includes locker
+        if (selectedPlan?.includesLocker) {
+            // If plan includes locker, only allow selection if lockers are separate
+            return branchDetails.isLockerSeparate
+        }
+
+        return false
+    }, [selectedPlan, selectedFees, fees, branchDetails])
+
     // Check if seat selection is allowed
     const isSeatSelectionEnabled = useMemo(() => {
         if (!selectedPlan) return false
@@ -287,12 +320,18 @@ export function StaffAcceptPaymentForm() {
         })
     }
 
-    // Reset seat if selection becomes disabled
+    // Reset seat/locker if selection becomes disabled
     useEffect(() => {
         if (!isSeatSelectionEnabled && selectedSeat) {
             setSelectedSeat(null)
         }
     }, [isSeatSelectionEnabled, selectedSeat])
+
+    useEffect(() => {
+        if (!isLockerSelectionEnabled && selectedLocker) {
+            setSelectedLocker(null)
+        }
+    }, [isLockerSelectionEnabled, selectedLocker])
 
     const validateCouponCode = async () => {
         if (!couponCode) return
@@ -372,6 +411,7 @@ export function StaffAcceptPaymentForm() {
                 remarks,
                 planId: selectedPlan.id,
                 seatId: selectedSeat?.id,
+                lockerId: selectedLocker?.id,
                 additionalFeeIds: selectedFees,
                 promoCode: appliedCoupon?.code,
                 discount: (appliedCoupon?.discount || 0) + (parseFloat(additionalDiscount) || 0)
@@ -406,6 +446,7 @@ export function StaffAcceptPaymentForm() {
         setSelectedPlan(null)
         setSelectedFees([])
         setSelectedSeat(null)
+        setSelectedLocker(null)
         setAppliedCoupon(null)
         setCouponCode('')
         setAdditionalDiscount('')
@@ -445,6 +486,7 @@ export function StaffAcceptPaymentForm() {
             planHours: selectedPlan.hoursPerDay ? `${selectedPlan.hoursPerDay} Hrs/Day` : 
                       (selectedPlan.shiftStart && selectedPlan.shiftEnd) ? `${formatTime(selectedPlan.shiftStart)} - ${formatTime(selectedPlan.shiftEnd)}` : undefined,
             seatNumber: selectedSeat ? `${formatSeatNumber(selectedSeat.number)} (${selectedSeat.section || 'General'})` : undefined,
+            lockerNumber: selectedLocker ? selectedLocker.number : undefined,
             startDate: new Date(startDate),
             endDate: end,
             amount: parseFloat(amount),
@@ -862,12 +904,58 @@ export function StaffAcceptPaymentForm() {
                             </div>
                         )}
 
+                        {/* Locker Selection */}
+                        {isLockerSelectionEnabled && (
+                            <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                                <h3 className="text-lg font-medium flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                    <Lock className="w-4 h-4 text-purple-500" />
+                                    3. Select Locker (Optional)
+                                </h3>
+                                
+                                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 max-h-[300px] overflow-y-auto p-1 custom-scrollbar">
+                                    {lockers.map(locker => {
+                                        const isSelected = selectedLocker?.id === locker.id
+                                        const isOccupied = locker.isOccupied
+                                        
+                                        return (
+                                            <button
+                                                key={locker.id}
+                                                disabled={isOccupied}
+                                                onClick={() => setSelectedLocker(isSelected ? null : locker)}
+                                                className={cn(
+                                                    "aspect-square rounded-lg flex items-center justify-center text-sm font-medium transition-all relative",
+                                                    isOccupied 
+                                                        ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-500"
+                                                        : isSelected
+                                                            ? "bg-purple-500 text-white shadow-md scale-105 ring-2 ring-purple-500 ring-offset-2 dark:ring-offset-gray-900"
+                                                            : "bg-white text-gray-700 border border-gray-200 hover:border-purple-300 hover:shadow-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:border-purple-700"
+                                                )}
+                                            >
+                                                {locker.number}
+                                                {isSelected && (
+                                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm">
+                                                        <Check size={8} strokeWidth={4} />
+                                                    </div>
+                                                )}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                                {selectedLocker && (
+                                    <div className="flex items-center gap-2 text-sm text-purple-600 bg-purple-50 p-2 rounded-lg border border-purple-100 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800">
+                                        <Lock size={14} />
+                                        Selected Locker: <span className="font-semibold">{selectedLocker.number}</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {/* Seat Selection */}
                         <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-gray-800">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-lg font-medium flex items-center gap-2 text-gray-700 dark:text-gray-300">
                                     <MapPin className="w-4 h-4 text-emerald-500" />
-                                    3. Select Seat (Optional)
+                                    4. Select Seat (Optional)
                                 </h3>
                                 {!isSeatSelectionEnabled && (
                                     <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
@@ -1045,6 +1133,12 @@ export function StaffAcceptPaymentForm() {
                                     <span className="font-medium text-gray-900 dark:text-white">+ ₹{feesTotal.toFixed(2)}</span>
                                 </div>
                             )}
+                            {selectedLocker && (
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-500">Locker</span>
+                                    <span className="font-medium text-purple-600">{selectedLocker.number}</span>
+                                </div>
+                            )}
                             {selectedSeat && (
                                 <div className="flex justify-between text-sm">
                                     <span className="text-gray-500">Seat</span>
@@ -1202,6 +1296,12 @@ export function StaffAcceptPaymentForm() {
                                         <span className="text-gray-500">Plan</span>
                                         <span className="font-medium">{selectedPlan.name} ({selectedPlan.duration} {selectedPlan.durationUnit})</span>
                                     </div>
+                                    {selectedLocker && (
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-500">Locker</span>
+                                            <span className="font-medium text-purple-600">{selectedLocker.number}</span>
+                                        </div>
+                                    )}
                                     {selectedSeat && (
                                         <div className="flex justify-between">
                                             <span className="text-gray-500">Seat</span>

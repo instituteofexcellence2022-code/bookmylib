@@ -4,7 +4,6 @@ import { prisma } from '@/lib/prisma'
 import { createSession } from '@/lib/auth/session'
 import { initiatePayment } from '@/actions/payment'
 import { sendWelcomeEmail } from '@/actions/email'
-import { addDays, addMonths } from 'date-fns'
 
 export async function initiatePublicBooking(data: {
     // Student Details
@@ -17,6 +16,7 @@ export async function initiatePublicBooking(data: {
     amount: number
     planId: string
     seatId?: string // Optional
+    lockerId?: string // Optional
     fees: string[] // Fee IDs
     quantity?: number // Number of cycles/months
     startDate?: string // YYYY-MM-DD
@@ -29,7 +29,7 @@ export async function initiatePublicBooking(data: {
     }
 }) {
     try {
-        const { name, email, phone, dob, amount, planId, seatId, fees, quantity = 1, branchId, gatewayProvider, couponCode, manualPaymentData } = data
+        const { name, email, phone, dob, amount, planId, seatId, lockerId, fees, quantity = 1, branchId, gatewayProvider, couponCode, manualPaymentData } = data
 
         // 0. Verify Email Verification Status
         // We strictly require email verification for public bookings to prevent spam and unauthorized usage
@@ -123,22 +123,30 @@ export async function initiatePublicBooking(data: {
         const plan = await prisma.plan.findUnique({ where: { id: planId } })
         if (!plan) return { success: false, error: 'Plan not found' }
 
+        const branch = await prisma.branch.findUnique({ where: { id: branchId } })
+        if (!branch) return { success: false, error: 'Branch not found' }
+
         let description = `Booking: ${plan.name}`
         if (quantity > 1) {
             description += ` (x${quantity})`
         }
         
+        let seatNumber: string | undefined
         if (seatId) {
             const seat = await prisma.seat.findUnique({ where: { id: seatId } })
-            if (seat) description += ` (Seat ${seat.number})`
+            if (seat) {
+                description += ` (Seat ${seat.number})`
+                seatNumber = seat.number
+            }
         }
         
+        // Handle Locker Logic
         let hasLocker = plan.includesLocker
+        let finalLockerId = lockerId
+        let lockerNumber: string | undefined
 
+        // Check additional fees for locker
         if (fees.length > 0) {
-            description += ` + ${fees.length} Fees`
-            
-            // Check if any selected fee is for Locker
             const selectedFees = await prisma.additionalFee.findMany({
                 where: { id: { in: fees } }
             })
@@ -146,6 +154,39 @@ export async function initiatePublicBooking(data: {
             if (lockerFee) {
                 hasLocker = true
             }
+        }
+
+        if (finalLockerId) {
+             const locker = await prisma.locker.findUnique({ where: { id: finalLockerId } })
+             if (!locker) return { success: false, error: 'Locker not found' }
+             lockerNumber = locker.number
+        } else if (hasLocker && branch.hasLockers) {
+             if (!branch.isLockerSeparate) {
+                 // Part of seat - auto assign
+                 if (!seatNumber) return { success: false, error: 'Seat selection required for this plan' }
+                 
+                 const locker = await prisma.locker.findFirst({
+                     where: {
+                         branchId: branch.id,
+                         number: seatNumber
+                     }
+                 })
+                 
+                 if (!locker) return { success: false, error: `Locker ${seatNumber} not found` }
+                 finalLockerId = locker.id
+                 lockerNumber = locker.number
+             } else {
+                 // Separate - user must select
+                 return { success: false, error: 'Locker selection required' }
+             }
+        }
+
+        if (lockerNumber) {
+            description += ` (Locker ${lockerNumber})`
+        }
+
+        if (fees.length > 0) {
+            description += ` + ${fees.length} Fees`
         }
 
         // Calculate Dates & Create Subscriptions
@@ -179,6 +220,7 @@ export async function initiatePublicBooking(data: {
                     studentId: student.id,
                     planId: plan.id,
                     seatId: seatId || undefined,
+                    lockerId: finalLockerId,
                     hasLocker,
                     startDate: period.start,
                     endDate: period.end,

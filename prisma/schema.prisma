@@ -112,6 +112,9 @@ model Branch {
   upiId          String?
   payeeName      String?
   qrCode         String?  @unique // Unique token for QR code attendance
+  hasLockers     Boolean  @default(false)
+  isLockerSeparate Boolean @default(false)
+  totalLockers   Int      @default(0)
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -122,6 +125,7 @@ model Branch {
   staff           Staff[]
   students        Student[]
   seats           Seat[]
+  lockers         Locker[]
   subscriptions   StudentSubscription[]
   attendance      Attendance[]
   plans           Plan[]
@@ -309,6 +313,7 @@ model StudentSubscription {
   studentId String
   planId    String
   seatId    String?
+  lockerId  String?
   hasLocker Boolean @default(false)
 
   // Dates
@@ -327,6 +332,7 @@ model StudentSubscription {
   student  Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   plan     Plan      @relation(fields: [planId], references: [id])
   seat     Seat?     @relation(fields: [seatId], references: [id])
+  locker   Locker?   @relation(fields: [lockerId], references: [id])
   payments Payment[] // Payments linked to this subscription
 
   @@index([libraryId])
@@ -354,6 +360,20 @@ model Seat {
   @@index([libraryId])
   @@index([branchId])
   @@map("seats")
+}
+
+model Locker {
+  id        String   @id @default(uuid())
+  branchId  String
+  number    String
+  isActive  Boolean  @default(true)
+  
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  subscriptions StudentSubscription[]
+
+  @@unique([branchId, number])
+  @@index([branchId])
+  @@map("lockers")
 }
 
 model Attendance {

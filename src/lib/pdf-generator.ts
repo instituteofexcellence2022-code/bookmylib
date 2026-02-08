@@ -20,6 +20,7 @@ export interface ReceiptData {
     planDuration?: string | null
     planHours?: string | null
     seatNumber?: string | null
+    lockerNumber?: string | null
     time?: string | null
     startDate?: Date
     endDate?: Date
@@ -131,7 +132,7 @@ export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob
     const headerY = detailsY + 7
     doc.text('Plan Details', 20, headerY)
     doc.text('Duration', 90, headerY)
-    doc.text('Seat & Time', 150, headerY)
+    doc.text('Seat / Locker', 150, headerY)
     
     // Values
     const valueY = headerY + 7
@@ -182,9 +183,16 @@ export const generateReceiptPDF = (data: ReceiptData, action: 'download' | 'blob
     doc.setFont('helvetica', 'bold')
     let seatY = valueY
     if (data.seatNumber) {
-        doc.text(formatSeatNumber(data.seatNumber), 150, seatY)
+        doc.text(`Seat: ${formatSeatNumber(data.seatNumber)}`, 150, seatY)
         seatY += 5
-    } else {
+    }
+
+    if (data.lockerNumber) {
+        doc.text(`Locker: ${data.lockerNumber}`, 150, seatY)
+        seatY += 5
+    }
+
+    if (!data.seatNumber && !data.lockerNumber) {
         doc.text('-', 150, seatY)
         seatY += 5
     }

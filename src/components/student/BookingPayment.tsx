@@ -39,6 +39,9 @@ interface BookingPaymentProps {
   seat?: {
     number: string | number
   } | null
+  locker?: {
+    number: string | number
+  } | null
   fees: {
     id: string
     name: string
@@ -68,7 +71,8 @@ const formatTime = (timeStr?: string | null) => {
 
 export default function BookingPayment({ 
   plan, 
-  seat, 
+  seat,
+  locker, 
   fees, 
   branchId,
   branchName, 
@@ -288,6 +292,7 @@ export default function BookingPayment({
     // Construct description
     let description = `Booking: ${plan.name} (x${quantity})`
     if (seat) description += ` (Seat ${formatSeatNumber(seat.number)})`
+    if (locker) description += ` (Locker ${locker.number})`
     if (fees.length > 0) description += ` + ${fees.length} Fees`
 
     try {

@@ -36,6 +36,10 @@ interface PublicBookingPaymentProps {
     number: string | number
     id?: string
   } | null
+  locker?: {
+    number: string | number
+    id?: string
+  } | null
   fees: {
     id: string
     name: string
@@ -100,7 +104,8 @@ interface CashfreeCheckoutResult {
 
 export default function PublicBookingPayment({ 
   plan, 
-  seat, 
+  seat,
+  locker, 
   fees, 
   branchId, 
   branchName = 'Library',
@@ -311,6 +316,7 @@ export default function PublicBookingPayment({
             quantity,
             startDate,
             seatId: seat?.id ? String(seat.id) : undefined, // Ensure seat ID is string
+            lockerId: locker?.id ? String(locker.id) : undefined,
             fees: fees.map(f => String(f.id)),
             branchId,
             gatewayProvider: paymentMethod, 
