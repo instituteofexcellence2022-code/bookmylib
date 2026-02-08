@@ -945,6 +945,22 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                             </div>
 
                             <div className="p-4 md:p-6 bg-white dark:bg-gray-800 min-h-[300px]">
+                                {/* Legend */}
+                                <div className="flex items-center gap-4 mb-6 text-xs md:text-sm border-b border-gray-100 dark:border-gray-700 pb-4">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-4 h-4 rounded border-2 border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700"></div>
+                                        <span className="text-gray-600 dark:text-gray-400">Available</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-4 h-4 rounded border-2 border-purple-600 bg-purple-500"></div>
+                                        <span className="text-gray-600 dark:text-gray-400">Selected</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-4 h-4 rounded border-2 border-gray-200 bg-gray-100 dark:bg-gray-800 dark:border-gray-700 opacity-60"></div>
+                                        <span className="text-gray-600 dark:text-gray-400">Occupied</span>
+                                    </div>
+                                </div>
+
                                 {viewMode === 'pagination' ? (
                                     <div className="space-y-8">
                                         {Object.entries(seatsBySection).map(([section, seats]) => {
@@ -1231,23 +1247,26 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                                 locker.isOccupied
                                                                     ? "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60 text-gray-400 dark:text-gray-500"
                                                                     : selectedLocker?.id === locker.id
-                                                                        ? "bg-purple-500 border-purple-600 text-white shadow-md transform scale-[1.02]"
+                                                                        ? "bg-purple-500 border-purple-600 text-white shadow-md transform scale-[1.02] ring-2 ring-purple-200 dark:ring-purple-900"
                                                                         : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
                                                             )}
                                                         >
-                                                            <Lock className={cn(
-                                                                "w-5 h-5 md:w-6 md:h-6",
-                                                                locker.isOccupied ? "opacity-50" : ""
-                                                            )} />
+                                                            {locker.isOccupied ? (
+                                                                <Lock className="w-5 h-5 md:w-6 md:h-6 opacity-50" />
+                                                            ) : selectedLocker?.id === locker.id ? (
+                                                                <Lock className="w-5 h-5 md:w-6 md:h-6 fill-current" />
+                                                            ) : (
+                                                                <Lock className="w-5 h-5 md:w-6 md:h-6 text-gray-400 group-hover:text-purple-500 transition-colors" />
+                                                            )}
                                                             <span className="text-sm md:text-base font-semibold truncate w-full text-center px-1">
                                                                 {formatLockerNumber(locker.number)}
                                                             </span>
                                                             {selectedLocker?.id === locker.id && (
                                                                 <motion.div
                                                                     layoutId="check-locker"
-                                                                    className="absolute -top-2 -right-2 w-5 h-5 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm"
+                                                                    className="absolute -top-2 -right-2 w-5 h-5 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm border border-purple-100"
                                                                 >
-                                                                    <Check className="w-3 h-3" />
+                                                                    <Check className="w-3 h-3 stroke-[3]" />
                                                                 </motion.div>
                                                             )}
                                                         </motion.button>
@@ -1287,23 +1306,26 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                                 locker.isOccupied
                                                                     ? "bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60 text-gray-400 dark:text-gray-500"
                                                                     : selectedLocker?.id === locker.id
-                                                                        ? "bg-purple-500 border-purple-600 text-white shadow-md transform scale-[1.02]"
+                                                                        ? "bg-purple-500 border-purple-600 text-white shadow-md transform scale-[1.02] ring-2 ring-purple-200 dark:ring-purple-900"
                                                                         : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
                                                             )}
                                                         >
-                                                            <Lock className={cn(
-                                                                "w-5 h-5 md:w-6 md:h-6",
-                                                                locker.isOccupied ? "opacity-50" : ""
-                                                            )} />
+                                                            {locker.isOccupied ? (
+                                                                <Lock className="w-5 h-5 md:w-6 md:h-6 opacity-50" />
+                                                            ) : selectedLocker?.id === locker.id ? (
+                                                                <Lock className="w-5 h-5 md:w-6 md:h-6 fill-current" />
+                                                            ) : (
+                                                                <Lock className="w-5 h-5 md:w-6 md:h-6 text-gray-400 group-hover:text-purple-500 transition-colors" />
+                                                            )}
                                                             <span className="text-sm md:text-base font-semibold truncate w-full text-center px-1">
                                                                 {formatLockerNumber(locker.number)}
                                                             </span>
                                                             {selectedLocker?.id === locker.id && (
                                                                 <motion.div
                                                                     layoutId="check-locker"
-                                                                    className="absolute -top-2 -right-2 w-5 h-5 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm"
+                                                                    className="absolute -top-2 -right-2 w-5 h-5 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm border border-purple-100"
                                                                 >
-                                                                    <Check className="w-3 h-3" />
+                                                                    <Check className="w-3 h-3 stroke-[3]" />
                                                                 </motion.div>
                                                             )}
                                                         </motion.button>
