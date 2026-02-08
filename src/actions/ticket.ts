@@ -1,0 +1,687 @@
+'use server'
+
+import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
+import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
+import { getAuthenticatedOwner } from '@/lib/auth/owner'
+import { getAuthenticatedStaff } from '@/lib/auth/staff'
+import { getAuthenticatedStudent } from '@/lib/auth/student'
+import { uploadFile } from './upload'
+import { sendTicketUpdateEmail } from './email'
+
+// Student Actions
+
+export async function createTicket(formData: FormData) {
+  const student = await getAuthenticatedStudent()
+
+  if (!student) {
+    return { success: false, error: 'Unauthorized' }
+  }
+  const studentId = student.id
+
+  try {
+
+    if (!student) {
+      console.error('Student not found for ID:', studentId)
+      return { success: false, error: 'Student not found' }
+    }
+
+    if (student.isBlocked) {
+      return { success: false, error: 'Your account is blocked. Please contact the administration.' }
+    }
+
+    let libraryId = student.libraryId
+    let branchId = student.branchId
+
+    // Fallback 1: Try to get libraryId from branch if missing
+    if (!libraryId && student.branch?.libraryId) {
+      libraryId = student.branch.libraryId
+    }
+
+    // Fallback 2: Try to get context from active subscription
+    if ((!libraryId || !branchId) && student.subscriptions.length > 0) {
+      const activeSub = student.subscriptions[0]
+      if (!libraryId) libraryId = activeSub.libraryId
+      if (!branchId) branchId = activeSub.branchId
+    }
+
+    // Auto-heal: Update student record if we found missing context
+    if ((!student.libraryId && libraryId) || (!student.branchId && branchId)) {
+      try {
+        await prisma.student.update({
+          where: { id: studentId },
+          data: { 
+            libraryId: libraryId || undefined,
+            branchId: branchId || undefined
+          }
+        })
+      } catch (e) {
+        console.warn('Failed to auto-heal student context:', e)
+      }
+    }
+
+    if (!libraryId) {
+      console.error('Student has no library assigned:', studentId)
+      return { success: false, error: 'Student not assigned to a library' }
+    }
+
+    if (!branchId) {
+       console.error('Student has no branch assigned:', studentId)
+       return { success: false, error: 'Could not determine your branch. Please contact support.' }
+    }
+
+    const subject = formData.get('subject') as string
+    const description = formData.get('description') as string
+    const category = formData.get('category') as string
+    const priority = (formData.get('priority') as string) || 'medium'
+    const attachment = formData.get('attachment') as File
+
+    let attachmentUrl = null
+    if (attachment && attachment.size > 0) {
+      try {
+        const uploadRes = await uploadFile(attachment)
+        if (uploadRes.success) {
+           attachmentUrl = uploadRes.data
+        } else {
+           console.error('Attachment upload failed:', uploadRes.error)
+        }
+      } catch (e) {
+        console.error('Attachment upload failed:', e)
+      }
+    }
+
+    const ticket = await prisma.supportTicket.create({
+      data: {
+        libraryId,
+        studentId,
+        branchId, // Link ticket to specific branch
+        subject,
+        description,
+        category,
+        priority,
+        status: 'open',
+        attachmentUrl
+      },
+      include: {
+        student: true,
+        branch: true
+      }
+    })
+
+    // Send Ticket Received Email
+    if (ticket.student?.email) {
+       await sendTicketUpdateEmail({
+        studentName: ticket.student.name,
+        studentEmail: ticket.student.email,
+        ticketId: ticket.id,
+        ticketSubject: ticket.subject,
+        type: 'created',
+        branchName: ticket.branch?.name
+      })
+    }
+
+    revalidatePath('/student/issues')
+    return { success: true, ticket }
+  } catch (error) {
+    console.error('Error creating ticket:', error)
+    return { success: false, error: 'Failed to create ticket' }
+  }
+}
+
+export async function getStudentTickets() {
+  const student = await getAuthenticatedStudent()
+
+  if (!student) return []
+  const studentId = student.id
+
+  try {
+    const tickets = await prisma.supportTicket.findMany({
+      where: { studentId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        comments: true
+      }
+    })
+    return tickets
+  } catch (error) {
+    console.error('Error fetching tickets:', error)
+    return []
+  }
+}
+
+export async function createOwnerTicket(formData: FormData) {
+  const owner = await getAuthenticatedOwner()
+
+  if (!owner) {
+    return { success: false, error: 'Unauthorized' }
+  }
+
+  const studentId = formData.get('studentId') as string
+  if (!studentId) {
+    return { success: false, error: 'Student ID is required' }
+  }
+
+  const student = await prisma.student.findUnique({
+    where: { id: studentId },
+    select: { 
+        libraryId: true,
+        branchId: true 
+    }
+  })
+
+  if (!student) {
+      return { success: false, error: 'Student not found' }
+  }
+
+  // Ensure student belongs to owner's library
+  if (student.libraryId !== owner.libraryId) {
+      return { success: false, error: 'Student does not belong to your library' }
+  }
+
+  const subject = formData.get('subject') as string
+  const description = formData.get('description') as string
+  const category = formData.get('category') as string
+  const priority = (formData.get('priority') as string) || 'medium'
+  const attachment = formData.get('attachment') as File
+
+  let attachmentUrl = null
+  if (attachment && attachment.size > 0) {
+    try {
+      const uploadRes = await uploadFile(attachment)
+      if (uploadRes.success) {
+          attachmentUrl = uploadRes.data
+      } else {
+          console.error('Attachment upload failed:', uploadRes.error)
+      }
+    } catch (e) {
+      console.error('Attachment upload failed:', e)
+    }
+  }
+
+  try {
+    const ticket = await prisma.supportTicket.create({
+      data: {
+        libraryId: owner.libraryId,
+        studentId,
+        branchId: student.branchId,
+        subject,
+        description,
+        category,
+        priority,
+        status: 'open',
+        attachmentUrl
+      },
+      include: {
+        student: true,
+        branch: true
+      }
+    })
+
+    // Send Ticket Received Email
+    if (ticket.student?.email) {
+       await sendTicketUpdateEmail({
+        studentName: ticket.student.name,
+        studentEmail: ticket.student.email,
+        ticketId: ticket.id,
+        ticketSubject: ticket.subject,
+        type: 'created',
+        branchName: ticket.branch?.name
+      })
+    }
+
+    revalidatePath('/owner/issues')
+    return { success: true, ticket }
+  } catch (error) {
+    console.error('Error creating ticket:', error)
+    return { success: false, error: 'Failed to create ticket' }
+  }
+}
+
+// Owner Actions
+
+export async function getOwnerTickets(filters: { status?: string; category?: string } = {}) {
+  const owner = await getAuthenticatedOwner()
+  if (!owner || !owner.libraryId) return []
+
+  try {
+    const whereClause: Prisma.SupportTicketWhereInput = {
+      libraryId: owner.libraryId
+    }
+
+    if (filters.status && filters.status !== 'all') {
+      whereClause.status = filters.status
+    }
+    
+    if (filters.category && filters.category !== 'all') {
+      whereClause.category = filters.category
+    }
+
+    const tickets = await prisma.supportTicket.findMany({
+      where: whereClause,
+      include: {
+        student: {
+          select: {
+            name: true,
+            email: true,
+            image: true,
+            branchId: true,
+            branch: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        },
+        staff: {
+            select: {
+                name: true
+            }
+        },
+        comments: true
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    return tickets
+  } catch (error) {
+    console.error('Error fetching owner tickets:', error)
+    return []
+  }
+}
+
+export async function getStaffTickets(filters: { status?: string; category?: string } = {}) {
+  const staff = await getAuthenticatedStaff()
+  if (!staff || !staff.libraryId || !staff.branchId) return []
+
+  try {
+    const whereClause: Prisma.SupportTicketWhereInput = {
+      libraryId: staff.libraryId,
+      student: {
+        branchId: staff.branchId
+      },
+      category: { not: 'staff' } // Staff cannot view staff-related issues (handled by owner)
+    }
+
+    if (filters.status && filters.status !== 'all') {
+      whereClause.status = filters.status
+    }
+    
+    if (filters.category && filters.category !== 'all') {
+      whereClause.category = filters.category
+    }
+
+    const tickets = await prisma.supportTicket.findMany({
+      where: whereClause,
+      include: {
+        student: {
+          select: {
+            name: true,
+            email: true,
+            image: true,
+            branchId: true
+          }
+        },
+        staff: {
+            select: {
+                name: true
+            }
+        },
+        comments: true
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    return tickets
+  } catch (error) {
+    console.error('Error fetching staff tickets:', error)
+    return []
+  }
+}
+
+export async function updateTicketStatus(ticketId: string, status: string) {
+  const owner = await getAuthenticatedOwner()
+  const staff = await getAuthenticatedStaff()
+  
+  const libraryId = owner?.libraryId || staff?.libraryId
+  
+  if (!libraryId) return { success: false, error: 'Unauthorized' }
+
+  try {
+    // If staff, ensure ticket belongs to their branch and is not staff-related
+    if (staff) {
+        const ticket = await prisma.supportTicket.findUnique({
+            where: { id: ticketId },
+            include: { student: true }
+        })
+        if (!ticket || ticket.student?.branchId !== staff.branchId || ticket.category === 'staff') {
+            return { success: false, error: 'Unauthorized' }
+        }
+    }
+
+    const updatedTicket = await prisma.supportTicket.update({
+      where: { 
+        id: ticketId,
+        libraryId // Security check
+      },
+      data: { status },
+      include: { student: true }
+    })
+
+    // Notify Student (Background)
+    after(async () => {
+        if (updatedTicket.student?.email) {
+            try {
+              // Fetch branch name if available
+              let branchName = undefined
+              if (updatedTicket.student?.branchId) {
+                const branch = await prisma.branch.findUnique({
+                    where: { id: updatedTicket.student.branchId },
+                    select: { name: true }
+                })
+                if (branch) branchName = branch.name
+              }
+
+              await sendTicketUpdateEmail({
+                studentName: updatedTicket.student.name,
+                studentEmail: updatedTicket.student.email,
+                ticketId: updatedTicket.id,
+                ticketSubject: updatedTicket.subject,
+                type: 'status_change',
+                status: status,
+                updatedBy: staff ? staff.name : (owner ? owner.name : 'System'),
+                branchName
+              })
+            } catch (error) {
+                console.error('Failed to send status update email:', error)
+            }
+        }
+    })
+
+    revalidatePath('/owner/issues')
+    revalidatePath('/staff/issues')
+    revalidatePath(`/owner/issues/${ticketId}`)
+    revalidatePath(`/staff/issues/${ticketId}`)
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating ticket:', error)
+    return { success: false, error: 'Failed to update ticket' }
+  }
+}
+
+export async function getTicketDetails(ticketId: string) {
+    const owner = await getAuthenticatedOwner()
+    const staff = await getAuthenticatedStaff()
+    
+    const libraryId = owner?.libraryId || staff?.libraryId
+    
+    if (!libraryId) return null
+
+    try {
+        const ticket = await prisma.supportTicket.findUnique({
+            where: { 
+                id: ticketId,
+                libraryId
+            },
+            include: {
+                student: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        phone: true,
+                        image: true,
+                        branchId: true
+                    }
+                },
+                comments: {
+                    orderBy: {
+                        createdAt: 'asc'
+                    }
+                }
+            }
+        })
+
+        // If staff, verify branch access and ensure not staff-related
+        if (staff && (ticket?.student?.branchId !== staff.branchId || ticket?.category === 'staff')) {
+            return null
+        }
+
+        return ticket
+    } catch (error) {
+        console.error('Error fetching ticket details:', error)
+        return null
+    }
+}
+
+export async function getStudentTicketDetails(ticketId: string) {
+    const student = await getAuthenticatedStudent()
+
+    if (!student) return null
+    const studentId = student.id
+
+    try {
+        const ticket = await prisma.supportTicket.findUnique({
+            where: { 
+                id: ticketId,
+                studentId // Security check: ensure ticket belongs to student
+            },
+            include: {
+                comments: {
+                    orderBy: {
+                        createdAt: 'asc'
+                    }
+                }
+            }
+        })
+        return ticket
+    } catch (error) {
+        console.error('Error fetching student ticket details:', error)
+        return null
+    }
+}
+
+export async function addTicketComment(formData: FormData) {
+    const content = formData.get('content') as string
+    const ticketId = formData.get('ticketId') as string
+    
+    console.log('[addTicketComment] Starting with:', { ticketId, contentLen: content?.length })
+
+    if (!content || !ticketId) {
+        console.error('[addTicketComment] Missing fields')
+        return { success: false, error: 'Missing required fields' }
+    }
+
+    // Determine user context (Owner, Staff, or Student)
+    const owner = await getAuthenticatedOwner()
+    const staff = await getAuthenticatedStaff()
+    const student = await getAuthenticatedStudent()
+    const studentId = student?.id
+
+    console.log('[addTicketComment] Context:', { 
+        isOwner: !!owner, 
+        isStaff: !!staff, 
+        studentId,
+        ownerId: owner?.id,
+        staffId: staff?.id
+    })
+
+    let userId = ''
+    let userType = ''
+    let libraryId = ''
+
+    if (owner && owner.libraryId) {
+        userId = owner.id
+        userType = 'owner'
+        libraryId = owner.libraryId
+    } else if (staff && staff.libraryId) {
+        // Verify ticket belongs to staff's branch and is not staff-related
+        const ticket = await prisma.supportTicket.findUnique({
+            where: { id: ticketId },
+            include: { student: true }
+        })
+        
+        if (!ticket || ticket.student?.branchId !== staff.branchId || ticket.category === 'staff') {
+            console.error('[addTicketComment] Staff unauthorized for this ticket')
+            return { success: false, error: 'Unauthorized' }
+        }
+
+        userId = staff.id
+        userType = 'staff'
+        libraryId = staff.libraryId
+    } else if (studentId) {
+        // Fetch student to get libraryId
+        const student = await prisma.student.findUnique({
+            where: { id: studentId },
+            select: { libraryId: true }
+        })
+        if (!student || !student.libraryId) {
+             console.error('[addTicketComment] Student unauthorized or no library')
+             return { success: false, error: 'Unauthorized' }
+        }
+        
+        userId = studentId
+        userType = 'student'
+        libraryId = student.libraryId
+    } else {
+        console.error('[addTicketComment] No valid user context found')
+        return { success: false, error: 'Unauthorized' }
+    }
+
+    try {
+        console.log('[addTicketComment] Attempting create:', {
+            ticketId,
+            userId,
+            userType,
+            libraryId
+        })
+
+        const comment = await prisma.ticketComment.create({
+            data: {
+                ticketId,
+                userId,
+                userType,
+                content,
+                libraryId
+            }
+        })
+        
+        console.log('[addTicketComment] Success:', comment.id)
+
+        // If owner or staff comments, update status to 'in_progress' if it was 'open'
+        if (userType === 'owner' || userType === 'staff') {
+             const ticket = await prisma.supportTicket.findUnique({
+                where: { id: ticketId },
+                include: { student: true }
+             })
+             
+             if (ticket) {
+                 if (ticket.status === 'open') {
+                     await prisma.supportTicket.update({
+                         where: { id: ticketId },
+                         data: { status: 'in_progress' }
+                     })
+                 }
+
+                 // Notify Student of new comment
+                 if (ticket.student?.email) {
+                    const studentName = ticket.student.name
+                    const studentEmail = ticket.student.email
+                    const ticketId = ticket.id
+                    const ticketSubject = ticket.subject
+                    const updatedByName = userType === 'owner' ? owner?.name || 'Admin' : staff?.name || 'Staff'
+
+                    after(async () => {
+                        try {
+                            await sendTicketUpdateEmail({
+                                studentName,
+                                studentEmail,
+                                ticketId,
+                                ticketSubject,
+                                type: 'new_comment',
+                                comment: content,
+                                updatedBy: updatedByName
+                            })
+                        } catch (emailError) {
+                            console.error('[addTicketComment] Failed to send email notification (background):', emailError)
+                        }
+                    })
+                 }
+             }
+        }
+
+        // If student comments on a resolved ticket, reopen it
+        if (userType === 'student') {
+            const ticket = await prisma.supportTicket.findUnique({
+               where: { id: ticketId },
+               select: { status: true }
+            })
+            if (ticket?.status === 'resolved') {
+                await prisma.supportTicket.update({
+                    where: { id: ticketId },
+                    data: { status: 'open' }
+                })
+            }
+       }
+
+        revalidatePath(`/student/issues/${ticketId}`)
+        revalidatePath(`/owner/issues/${ticketId}`)
+        revalidatePath(`/staff/issues/${ticketId}`)
+        return { success: true, comment }
+    } catch (error) {
+        console.error('Error adding comment:', error)
+        return { success: false, error: 'Failed to add comment' }
+    }
+}
+
+export async function reopenTicket(ticketId: string) {
+    const student = await getAuthenticatedStudent()
+
+    if (!student) {
+        return { success: false, error: 'Unauthorized' }
+    }
+    const studentId = student.id
+
+    try {
+        const ticket = await prisma.supportTicket.findUnique({
+            where: { 
+                id: ticketId,
+                studentId 
+            },
+            include: { student: true } // Need student to get libraryId for comment
+        })
+
+        if (!ticket) {
+            return { success: false, error: 'Ticket not found' }
+        }
+
+        if (ticket.status !== 'resolved' && ticket.status !== 'closed') {
+            return { success: false, error: 'Ticket is already active' }
+        }
+
+        // Update ticket status to request reopen
+        await prisma.supportTicket.update({
+            where: { id: ticketId },
+            data: { status: 'reopen_requested' }
+        })
+
+        // Add system comment
+        await prisma.ticketComment.create({
+            data: {
+                ticketId,
+                userId: studentId,
+                userType: 'student',
+                content: 'Request to reopen ticket sent to admin',
+                libraryId: ticket.libraryId
+            }
+        })
+
+        revalidatePath(`/student/issues/${ticketId}`)
+        revalidatePath('/student/issues')
+        return { success: true }
+    } catch (error) {
+        console.error('Error reopening ticket:', error)
+        return { success: false, error: 'Failed to reopen ticket' }
+    }
+}
