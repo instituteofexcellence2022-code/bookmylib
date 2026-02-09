@@ -381,87 +381,42 @@ function StatCard({ label, value, icon: Icon, color }: any) {
   )
 }
 
-import { differenceInDays } from 'date-fns'
-
 function LockerGridItem({ locker, onClick }: any) {
   const activeSubscription = locker.subscriptions && locker.subscriptions.length > 0 ? locker.subscriptions[0] : null
   const isOccupied = !!activeSubscription
   const isMaintenance = !locker.isActive
-  
-  const daysRemaining = activeSubscription 
-    ? differenceInDays(new Date(activeSubscription.endDate), new Date()) 
-    : 0
 
   return (
     <button
       onClick={onClick}
-      className={`relative group w-full p-2 md:p-2.5 rounded-lg border transition-all duration-200 flex flex-col gap-2 text-left
+      className={`relative group p-3 rounded-xl border-2 transition-all duration-200 flex flex-col items-center gap-2
         ${isMaintenance 
-          ? 'bg-gray-50 border-gray-200 dark:bg-gray-800/50 dark:border-gray-700 opacity-75' 
+          ? 'bg-gray-100 border-gray-200 dark:bg-gray-800 dark:border-gray-700 opacity-75' 
           : isOccupied 
-            ? 'bg-white border-red-200 shadow-sm dark:bg-gray-800 dark:border-red-900/30 hover:border-red-300 dark:hover:border-red-800' 
-            : 'bg-white border-green-200 shadow-sm dark:bg-gray-800 dark:border-green-900/30 hover:border-green-300 dark:hover:border-green-800'
+            ? 'bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-900/30 hover:border-red-300' 
+            : 'bg-green-50 border-green-200 dark:bg-green-900/10 dark:border-green-900/30 hover:border-green-300'
         }
       `}
     >
-      <div className="flex justify-between items-center w-full">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className={`flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${
-            isMaintenance ? 'bg-gray-200 text-gray-500' :
-            isOccupied ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
-          }`}>
-            <Lock className="w-4 h-4" />
-          </div>
-          <span className="font-bold text-base text-gray-900 dark:text-gray-100 truncate leading-none">
-            {locker.number}
-          </span>
-        </div>
-        
-        <div className={`flex items-center justify-center w-5 h-5 rounded-full ${
-          isMaintenance ? 'bg-gray-100 text-gray-400' :
-          isOccupied ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'
-        }`}>
-          {isMaintenance ? <Ban className="w-2.5 h-2.5" /> : 
-           isOccupied ? <Lock className="w-2.5 h-2.5" /> : 
-           <CheckCircle2 className="w-2.5 h-2.5" />}
-        </div>
+      <div className={`p-2 rounded-full ${
+        isMaintenance ? 'bg-gray-200 text-gray-500' :
+        isOccupied ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+      }`}>
+        {isMaintenance ? <Ban className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
       </div>
-
-      <div className="space-y-0.5">
-        {isOccupied ? (
-          <>
-            <div className="flex items-center gap-1.5 min-w-0">
-              <div className="w-3.5 h-3.5 rounded-full bg-gray-100 dark:bg-gray-700 flex-shrink-0 flex items-center justify-center overflow-hidden">
-                {activeSubscription.student.image ? (
-                  <img src={activeSubscription.student.image} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-[8px] font-medium">{activeSubscription.student.name[0]}</span>
-                )}
-              </div>
-              <p className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">
-                {activeSubscription.student.name}
-              </p>
-            </div>
-            <p className={`text-[10px] ${daysRemaining <= 3 ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
-              {daysRemaining} days left
-            </p>
-          </>
-        ) : isMaintenance ? (
-          <>
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Maintenance</p>
-            <p className="text-[10px] text-gray-400">Unavailable</p>
-          </>
-        ) : (
-          <>
-            <p className="text-xs font-medium text-green-600 dark:text-green-400">Available</p>
-            <p className="text-[10px] text-gray-400 truncate">
-              {locker.section ? `Sec ${locker.section}` : ''}
-              {locker.section && locker.type ? ' • ' : ''}
-              {locker.type || (locker.section ? '' : 'Standard')}
-            </p>
-          </>
-        )}
+      <div className="text-center">
+        <span className="block font-bold text-gray-900 dark:text-gray-100">{locker.number}</span>
+        {locker.section && <span className="text-[10px] text-gray-500 uppercase tracking-wide">{locker.section}</span>}
       </div>
+      
+      {isOccupied && !isMaintenance && (
+        <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-gray-800" />
+      )}
+      {locker.type && locker.type !== 'standard' && (
+        <div className="absolute -top-1 -left-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-bold rounded-full border border-purple-200">
+          {locker.type[0].toUpperCase()}
+        </div>
+      )}
     </button>
   )
 }
