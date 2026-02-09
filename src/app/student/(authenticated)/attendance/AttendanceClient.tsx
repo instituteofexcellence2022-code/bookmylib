@@ -1,12 +1,102 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { QrCode, MapPin, Clock, Timer, AlertTriangle, CheckCircle2, Flame } from 'lucide-react'
+import { QrCode, MapPin, Clock, Timer, AlertTriangle, CheckCircle2, Flame, Loader2, X } from 'lucide-react'
 import Link from 'next/link'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { format } from 'date-fns'
 import HistoryClient from './history/HistoryClient'
 import { motion } from 'framer-motion'
+import { getManualCheckInOptions, markManualAttendance } from '@/actions/attendance'
+import { toast } from 'sonner'
+
+import { useRouter } from 'next/navigation'
+
+function ManualCheckInModal({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) {
+  const [loading, setLoading] = useState(true)
+  const [branches, setBranches] = useState<{id: string, name: string}[]>([])
+  const [marking, setMarking] = useState<string | null>(null)
+
+  useEffect(() => {
+    getManualCheckInOptions().then(res => {
+      if (res.success && res.branches) {
+        setBranches(res.branches)
+      } else {
+        toast.error(res.error || "Failed to load branches")
+        // onClose() // Don't close immediately so user sees error? Actually maybe better to show empty state or error in modal
+      }
+      setLoading(false)
+    })
+  }, [])
+
+  const handleCheckIn = async (branchId: string) => {
+    setMarking(branchId)
+    try {
+      const res = await markManualAttendance(branchId)
+      if (res.success) {
+        toast.success(res.type === 'check-in' ? "Checked in successfully" : "Checked out successfully")
+        onSuccess()
+        onClose()
+      } else {
+        toast.error(res.error || "Failed to mark attendance")
+      }
+    } catch (e) {
+      toast.error("Something went wrong")
+    } finally {
+      setMarking(null)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+          <h3 className="font-semibold text-gray-900 dark:text-white">Manual Check-In</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+        
+        <div className="p-4">
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+          ) : branches.length === 0 ? (
+            <div className="text-center py-6 space-y-2">
+                <p className="text-gray-500">No active subscriptions found.</p>
+                <p className="text-xs text-gray-400">Please ensure you have an active plan.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                Select your branch to mark attendance:
+              </p>
+              {branches.map(branch => (
+                <button
+                  key={branch.id}
+                  disabled={!!marking}
+                  onClick={() => handleCheckIn(branch.id)}
+                  className="w-full flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/50 transition-colors">
+                      <MapPin className="w-4 h-4" />
+                    </div>
+                    <span className="font-medium text-gray-900 dark:text-white">{branch.name}</span>
+                  </div>
+                  {marking === branch.id && (
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 interface AttendanceClientProps {
   todayAttendance: any
@@ -169,10 +259,20 @@ function ActiveSessionCard({ attendance }: { attendance: any }) {
 
 export default function AttendanceClient({ todayAttendance, recentActivity, history, stats }: AttendanceClientProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'history'>('overview')
+  const [showManualModal, setShowManualModal] = useState(false)
+  const router = useRouter()
   const isCheckedIn = !!todayAttendance && !todayAttendance.checkOut
 
   return (
     <div className="space-y-6">
+      {showManualModal && (
+        <ManualCheckInModal 
+          onClose={() => setShowManualModal(false)} 
+          onSuccess={() => {
+            router.refresh()
+          }}
+        />
+      )}
       {/* Header with Status */}
       <div className="flex flex-col gap-4">
         <div className="flex justify-between items-center">
@@ -251,6 +351,15 @@ export default function AttendanceClient({ todayAttendance, recentActivity, hist
               </div>
             </AnimatedCard>
           </Link>
+
+          <div className="text-center">
+            <button 
+                onClick={() => setShowManualModal(true)}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+            >
+                Scanner not working? Manual Check-in
+            </button>
+          </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-100 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Activity</h2>

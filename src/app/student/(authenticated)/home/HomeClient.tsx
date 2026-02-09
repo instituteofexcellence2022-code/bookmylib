@@ -28,7 +28,8 @@ import { formatSeatNumber, getGreeting } from '@/lib/utils'
 
 export default function HomeClient({ student, stats, todayAttendance, quotes, likedQuoteIds }: HomeClientProps) {
   const router = useRouter()
-  const activeSubscription = student.subscriptions[0]
+  // Prioritize active subscription, otherwise fall back to the most recent one (which might be pending)
+  const activeSubscription = student.subscriptions.find((s: any) => s.status === 'active') || student.subscriptions[0]
   const isCheckedIn = !!todayAttendance && !todayAttendance.checkOut
   const isPending = activeSubscription?.status === 'pending'
   

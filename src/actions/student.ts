@@ -72,6 +72,15 @@ export async function getStudentProfile() {
             }
         })
 
+        if (student && student.subscriptions) {
+            // Manually sort to prioritize active subscriptions
+            student.subscriptions.sort((a, b) => {
+                if (a.status === 'active' && b.status !== 'active') return -1
+                if (a.status !== 'active' && b.status === 'active') return 1
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            })
+        }
+
         if (!student) {
             redirect('/student/logout')
         }

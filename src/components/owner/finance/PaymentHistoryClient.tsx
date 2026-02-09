@@ -190,8 +190,12 @@ function StudentTransactionHistory({
             setLoading(false)
             return
         }
-        getTransactions({ studentId }).then(data => {
-            setTransactions(data as unknown as Transaction[])
+        getTransactions({ studentId }).then(result => {
+            if (result.success && Array.isArray(result.data)) {
+                setTransactions(result.data as unknown as Transaction[])
+            } else {
+                setTransactions([])
+            }
             setLoading(false)
         })
     }, [studentId])

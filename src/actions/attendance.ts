@@ -443,3 +443,61 @@ export async function getAttendanceStats() {
         return null
     }
 }
+
+export async function getManualCheckInOptions() {
+    const studentId = await getStudentSession()
+    if (!studentId) return { success: false, error: 'Unauthorized' }
+
+    try {
+        const today = new Date()
+        
+        const subscriptions = await prisma.studentSubscription.findMany({
+            where: {
+                studentId,
+                status: 'active',
+                startDate: { lte: today },
+                endDate: { gte: today }
+            },
+            include: {
+                branch: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                }
+            }
+        })
+
+        const branches = subscriptions.map(sub => ({
+            id: sub.branch.id,
+            name: sub.branch.name
+        }))
+
+        // Deduplicate branches (in case of multiple subs to same branch)
+        const uniqueBranches = Array.from(new Map(branches.map(b => [b.id, b])).values())
+
+        return { success: true, branches: uniqueBranches }
+    } catch (error) {
+        console.error('Error fetching manual options:', error)
+        return { success: false, error: 'Failed to fetch options' }
+    }
+}
+
+export async function markManualAttendance(branchId: string) {
+    const studentId = await getStudentSession()
+    if (!studentId) return { success: false, error: 'Unauthorized' }
+
+    try {
+        const branch = await prisma.branch.findUnique({
+            where: { id: branchId }
+        })
+
+        if (!branch) return { success: false, error: 'Branch not found' }
+        if (!branch.qrCode) return { success: false, error: 'Branch not configured for attendance' }
+
+        return await markAttendance(branch.qrCode)
+    } catch (error) {
+        console.error('Error marking manual attendance:', error)
+        return { success: false, error: 'Failed to mark attendance' }
+    }
+}

@@ -267,23 +267,138 @@ export async function verifyPayment(paymentId: string, action: 'approve' | 'reje
             return { success: true }
         }
 
-        const payment = await prisma.payment.update({
-            where: { id: paymentId, libraryId: owner.libraryId },
-            data: {
-                status: 'completed',
-                verifiedAt: new Date(),
-                verifiedBy: owner.id,
-                verifierRole: 'owner'
-            },
-            include: {
-                student: true,
-                branch: true,
-                subscription: {
-                    include: {
-                        plan: true
+        const payment = await prisma.$transaction(async (tx) => {
+            let updatedPayment = await tx.payment.update({
+                where: { id: paymentId, libraryId: owner.libraryId },
+                data: {
+                    status: 'completed',
+                    verifiedAt: new Date(),
+                    verifiedBy: owner.id,
+                    verifierRole: 'owner'
+                },
+                include: {
+                    student: true,
+                    branch: true,
+                    subscription: {
+                        include: {
+                            plan: true
+                        }
+                    }
+                }
+            })
+
+            // Check for remarks (Lockers or Multi-quantity)
+            let lockerIdToAdd: string | null = null
+            let activatedIds: string[] = []
+            
+            if (updatedPayment.remarks) {
+                try {
+                    const parsed = JSON.parse(updatedPayment.remarks)
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        // Activate all listed subscriptions
+                        await tx.studentSubscription.updateMany({
+                            where: { id: { in: parsed } },
+                            data: { status: 'active' }
+                        })
+                        activatedIds = parsed
+                    } else if (typeof parsed === 'object' && parsed !== null) {
+                        if (parsed.lockerId) lockerIdToAdd = parsed.lockerId
+                    }
+                } catch (e) {
+                    // Ignore parsing error
+                }
+            }
+
+            if (updatedPayment.subscriptionId && !activatedIds.includes(updatedPayment.subscriptionId)) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const updateData: any = { status: 'active' }
+                
+                if (lockerIdToAdd) {
+                    updateData.hasLocker = true
+                    updateData.lockerId = lockerIdToAdd
+                }
+
+                await tx.studentSubscription.update({
+                    where: { id: updatedPayment.subscriptionId },
+                    data: updateData
+                })
+            } else if (updatedPayment.type === 'subscription' && updatedPayment.relatedId && activatedIds.length === 0) {
+                // If no subscription is linked, try to create/link one based on the plan (relatedId)
+                const plan = await tx.plan.findUnique({ where: { id: updatedPayment.relatedId } })
+                
+                if (plan) {
+                    const startDate = new Date()
+                    const endDate = new Date()
+                    
+                    if (plan.durationUnit === 'months') {
+                        endDate.setMonth(endDate.getMonth() + plan.duration)
+                    } else if (plan.durationUnit === 'days') {
+                        endDate.setDate(endDate.getDate() + (plan.duration || 30))
+                    } else {
+                        // Default to 30 days if unit unknown
+                         endDate.setDate(endDate.getDate() + 30)
+                    }
+
+                    const branchId = updatedPayment.branchId || plan.branchId
+
+                    if (branchId) {
+                         // Check for existing pending subscription to reuse
+                         const existing = await tx.studentSubscription.findFirst({
+                             where: {
+                                 studentId: updatedPayment.studentId,
+                                 branchId: branchId,
+                                 status: 'pending'
+                             }
+                         })
+                         
+                         let subId = ''
+                         if (existing) {
+                             const sub = await tx.studentSubscription.update({
+                                 where: { id: existing.id },
+                                 data: {
+                                     status: 'active',
+                                     startDate,
+                                     endDate,
+                                     planId: plan.id,
+                                     amount: updatedPayment.amount
+                                 }
+                             })
+                             subId = sub.id
+                         } else {
+                             const sub = await tx.studentSubscription.create({
+                                 data: {
+                                     studentId: updatedPayment.studentId,
+                                     branchId: branchId,
+                                     libraryId: updatedPayment.libraryId,
+                                     planId: plan.id,
+                                     startDate,
+                                     endDate,
+                                     status: 'active',
+                                     amount: updatedPayment.amount
+                                 }
+                             })
+                             subId = sub.id
+                         }
+                         
+                         // Link payment to subscription
+                         updatedPayment = await tx.payment.update({
+                             where: { id: updatedPayment.id },
+                             data: { subscriptionId: subId },
+                             include: {
+                                student: true,
+                                branch: true,
+                                subscription: {
+                                    include: {
+                                        plan: true
+                                    }
+                                }
+                            }
+                         })
                     }
                 }
             }
+
+            return updatedPayment
         })
 
         if (payment.student.email) {
@@ -307,6 +422,8 @@ export async function verifyPayment(paymentId: string, action: 'approve' | 'reje
         }
 
         revalidatePath('/owner/finance')
+        revalidatePath('/student/home')
+        revalidatePath('/student/attendance')
         return { success: true }
     } catch (error) {
         console.error('Error verifying payment:', error)
