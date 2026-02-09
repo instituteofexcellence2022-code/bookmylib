@@ -36,6 +36,7 @@ model Library {
   students           Student[]
   subscriptions      StudentSubscription[]
   seats              Seat[]
+  lockers            Locker[]
   attendance         Attendance[]
   payments           Payment[]
   studentWallets     StudentWallet[]
@@ -365,15 +366,20 @@ model Seat {
 
 model Locker {
   id        String   @id @default(uuid())
+  libraryId String
   branchId  String
   number    String
+  section   String?
+  type      String?
   isActive  Boolean  @default(true)
   
+  library   Library? @relation(fields: [libraryId], references: [id], onDelete: Cascade)
   branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
   subscriptions StudentSubscription[]
 
   @@unique([branchId, number])
   @@index([branchId])
+  @@index([libraryId])
   @@map("lockers")
 }
 

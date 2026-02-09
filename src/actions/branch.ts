@@ -309,6 +309,7 @@ export async function createBranch(formData: FormData) {
         for (let i = 1; i <= targetLockerCount; i++) {
           lockers.push({
             branchId: branch.id,
+            libraryId: owner.libraryId,
             number: String(i),
             isActive: true
           })
@@ -477,6 +478,7 @@ export async function updateBranch(formData: FormData) {
           for (let i = existingCount + 1; i <= targetLockerCount; i++) {
             lockersToCreate.push({
               branchId: id,
+              libraryId: owner.libraryId,
               number: String(i),
               isActive: true
             })

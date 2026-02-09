@@ -10,8 +10,6 @@ export async function getLockers(branchId?: string) {
   if (!owner) return { success: false, error: 'Unauthorized' }
 
   try {
-    // Lockers don't have libraryId directly, they are linked via Branch
-    // So we need to filter by branches that belong to the owner's library
     const where: Prisma.LockerWhereInput = {
       branch: {
         libraryId: owner.libraryId,
@@ -32,9 +30,10 @@ export async function getLockers(branchId?: string) {
           },
           select: {
             id: true,
-            student: { select: { name: true, image: true } },
+            student: { select: { name: true, image: true, email: true } },
             startDate: true,
-            endDate: true
+            endDate: true,
+            plan: { select: { name: true } }
           }
         }
       },
@@ -54,6 +53,8 @@ export async function getLockers(branchId?: string) {
 export async function createLocker(data: {
   branchId: string
   number: string
+  section?: string
+  type?: string
 }) {
   const owner = await getAuthenticatedOwner()
   if (!owner) return { success: false, error: 'Unauthorized' }
@@ -75,7 +76,10 @@ export async function createLocker(data: {
     const locker = await prisma.locker.create({
       data: {
         branchId: data.branchId,
-        number: data.number
+        number: data.number,
+        section: data.section,
+        type: data.type,
+        libraryId: owner.libraryId
       }
     })
 
@@ -93,9 +97,77 @@ export async function createLocker(data: {
   }
 }
 
+export async function createBulkLockers(data: {
+  branchId: string
+  prefix?: string
+  start: number
+  end: number
+  section?: string
+  type?: string
+}) {
+  const owner = await getAuthenticatedOwner()
+  if (!owner) return { success: false, error: 'Unauthorized' }
+
+  try {
+    const lockersToCreate = []
+    const existingLockers = []
+
+    for (let i = data.start; i <= data.end; i++) {
+      const lockerNumber = `${data.prefix || ''}${i.toString().padStart(2, '0')}`
+      
+      const existing = await prisma.locker.findUnique({
+        where: {
+          branchId_number: {
+            branchId: data.branchId,
+            number: lockerNumber
+          }
+        }
+      })
+
+      if (existing) {
+        existingLockers.push(lockerNumber)
+        continue
+      }
+
+      lockersToCreate.push({
+        branchId: data.branchId,
+        number: lockerNumber,
+        section: data.section,
+        type: data.type,
+        libraryId: owner.libraryId
+      })
+    }
+
+    if (lockersToCreate.length === 0) {
+      return { success: false, error: 'All lockers in this range already exist' }
+    }
+
+    await prisma.locker.createMany({
+      data: lockersToCreate
+    })
+
+    await prisma.branch.update({
+      where: { id: data.branchId },
+      data: { totalLockers: { increment: lockersToCreate.length } }
+    })
+
+    revalidatePath('/owner/lockers')
+    return { 
+      success: true, 
+      count: lockersToCreate.length,
+      skipped: existingLockers
+    }
+  } catch (error) {
+    console.error('Error creating bulk lockers:', error)
+    return { success: false, error: 'Failed to create lockers' }
+  }
+}
+
 export async function updateLocker(id: string, data: {
   number?: string
   isActive?: boolean
+  section?: string
+  type?: string
 }) {
   const owner = await getAuthenticatedOwner()
   if (!owner) return { success: false, error: 'Unauthorized' }
@@ -123,7 +195,6 @@ export async function deleteLocker(id: string) {
       where: { id }
     })
 
-    // Update branch locker count
     await prisma.branch.update({
       where: { id: locker.branchId },
       data: { totalLockers: { decrement: 1 } }
@@ -134,5 +205,109 @@ export async function deleteLocker(id: string) {
   } catch (error) {
     console.error('Error deleting locker:', error)
     return { success: false, error: 'Failed to delete locker' }
+  }
+}
+
+export async function getLockerHistory(lockerId: string) {
+  const owner = await getAuthenticatedOwner()
+  if (!owner) return { success: false, error: 'Unauthorized' }
+
+  try {
+    const history = await prisma.studentSubscription.findMany({
+      where: {
+        lockerId: lockerId,
+      },
+      include: {
+        student: { select: { name: true, image: true, email: true } },
+        plan: { select: { name: true } }
+      },
+      orderBy: { endDate: 'desc' },
+      take: 10
+    })
+
+    return { success: true, data: history }
+  } catch (error) {
+    console.error('Error fetching locker history:', error)
+    return { success: false, error: 'Failed to fetch history' }
+  }
+}
+
+export async function getEligibleStudentsForLocker(branchId: string) {
+  const owner = await getAuthenticatedOwner()
+  if (!owner) return { success: false, error: 'Unauthorized' }
+
+  try {
+    const subscriptions = await prisma.studentSubscription.findMany({
+      where: {
+        branchId: branchId,
+        status: 'active',
+        endDate: { gte: new Date() },
+        lockerId: null
+      },
+      include: {
+        student: { select: { id: true, name: true, image: true } },
+        plan: { select: { name: true } }
+      },
+      orderBy: { student: { name: 'asc' } }
+    })
+
+    return { success: true, data: subscriptions }
+  } catch (error) {
+    console.error('Error fetching eligible students:', error)
+    return { success: false, error: 'Failed to fetch eligible students' }
+  }
+}
+
+export async function assignLocker(lockerId: string, subscriptionId: string) {
+  const owner = await getAuthenticatedOwner()
+  if (!owner) return { success: false, error: 'Unauthorized' }
+
+  try {
+    const existing = await prisma.studentSubscription.findFirst({
+      where: {
+        lockerId: lockerId,
+        status: 'active',
+        endDate: { gte: new Date() }
+      }
+    })
+
+    if (existing) {
+      return { success: false, error: 'Locker is already occupied' }
+    }
+
+    await prisma.studentSubscription.update({
+      where: { id: subscriptionId },
+      data: { 
+        lockerId,
+        hasLocker: true 
+      }
+    })
+
+    revalidatePath('/owner/lockers')
+    return { success: true }
+  } catch (error) {
+    console.error('Error assigning locker:', error)
+    return { success: false, error: 'Failed to assign locker' }
+  }
+}
+
+export async function unassignLocker(subscriptionId: string) {
+  const owner = await getAuthenticatedOwner()
+  if (!owner) return { success: false, error: 'Unauthorized' }
+
+  try {
+    await prisma.studentSubscription.update({
+      where: { id: subscriptionId },
+      data: { 
+        lockerId: null,
+        hasLocker: false
+      }
+    })
+
+    revalidatePath('/owner/lockers')
+    return { success: true }
+  } catch (error) {
+    console.error('Error unassigning locker:', error)
+    return { success: false, error: 'Failed to unassign locker' }
   }
 }
