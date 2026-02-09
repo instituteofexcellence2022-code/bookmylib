@@ -157,9 +157,11 @@ export async function createBooking(data: {
         discount?: number
         proofUrl?: string
     }
-}): Promise<{ success: true; subscriptionIds: string[]; subscriptionId?: string; paymentId?: string; invoiceNo?: string | null; seatNumber?: string; amount?: number; discount?: number; method?: string; status?: string } | { success: false; error: string }> {
+    isAddOn?: boolean
+    activeSubscriptionId?: string
+}): Promise<{ success: true; subscriptionIds?: string[]; subscriptionId?: string; paymentId?: string; invoiceNo?: string | null; seatNumber?: string; amount?: number; discount?: number; method?: string; status?: string } | { success: false; error: string }> {
     try {
-        const { studentId, branchId, planId, seatId, startDate, quantity = 1, additionalFeeIds = [], paymentId, paymentDetails } = data
+        const { studentId, branchId, planId, seatId, startDate, quantity = 1, additionalFeeIds = [], paymentId, paymentDetails, isAddOn, activeSubscriptionId } = data
 
         // 1. Validate Student
         const student = await prisma.student.findUnique({ where: { id: studentId } })
@@ -228,7 +230,8 @@ export async function createBooking(data: {
 
         let initialStart = new Date(startDate)
         // If there's an active/pending subscription, start the new one after it ends
-        if (lastSubscription) {
+        // BUT if it's an add-on, we want to start immediately (or at specified date)
+        if (lastSubscription && !isAddOn) {
             initialStart = new Date(lastSubscription.endDate)
         }
 
@@ -330,8 +333,8 @@ export async function createBooking(data: {
             } else {
                 // 5. Calculate Total Amount & Validate Fees (Only needed if creating new payment)
                 // Base amount for ONE cycle
-                let cycleAmount = plan.price
-                feeDescription = `Plan: ${plan.name} (x${quantity})`
+                let cycleAmount = isAddOn ? 0 : plan.price
+                feeDescription = isAddOn ? `Add-on: Locker` : `Plan: ${plan.name} (x${quantity})`
 
                 if (additionalFeeIds.length > 0) {
                     const fees = await tx.additionalFee.findMany({

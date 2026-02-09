@@ -58,6 +58,7 @@ export default async function BranchBookingPage({ params }: { params: Promise<{ 
                 branch={branch} 
                 studentId={student.id} 
                 currentSubscription={bookingStatus.lastSubscription || undefined}
+                activeSubscription={bookingStatus.activeSubscription || undefined}
                 images={images}
                 amenities={amenities}
             />

@@ -20,7 +20,7 @@ import {
 import Script from 'next/script'
 import { Button } from '@/components/ui/button'
 import { FormInput } from '@/components/ui/FormInput'
-import { formatSeatNumber, cn } from '@/lib/utils'
+import { formatSeatNumber, formatLockerNumber, cn } from '@/lib/utils'
 
 interface BookingPaymentProps {
   plan: {
@@ -46,6 +46,7 @@ interface BookingPaymentProps {
     id: string
     name: string
     amount: number
+    billType?: string
   }[]
   branchId: string
   branchName: string
@@ -55,6 +56,8 @@ interface BookingPaymentProps {
   payeeName?: string
   startDate: string
   quantity?: number
+  activeSubscriptionId?: string
+  lockerIdForAddOn?: string
   onSuccess: (paymentId?: string, status?: 'completed' | 'pending_verification', proofUrl?: string) => void
   onBack: () => void
 }
@@ -82,6 +85,8 @@ export default function BookingPayment({
   payeeName,
   startDate,
   quantity = 1,
+  activeSubscriptionId,
+  lockerIdForAddOn,
   onSuccess, 
   onBack 
 }: BookingPaymentProps) {
@@ -108,8 +113,18 @@ export default function BookingPayment({
   }
 
   // Calculate Base Total (Plan + Fees)
-  const feesTotal = fees.reduce((sum: number, fee) => sum + Number(fee.amount), 0)
-  const baseTotal = (Number(plan.price) + feesTotal) * quantity
+  const feesTotal = fees.reduce((sum: number, fee) => {
+    let amount = Number(fee.amount)
+    // Handle monthly fees if billType is present (matches BookingClient logic)
+    if (fee.billType === 'MONTHLY' && plan.durationUnit === 'months') {
+        amount *= (plan.duration || 1)
+    }
+    return sum + amount
+  }, 0)
+  
+  // If adding to active subscription (e.g. locker add-on), don't charge plan price
+  const planPrice = activeSubscriptionId ? 0 : Number(plan.price)
+  const baseTotal = (planPrice + feesTotal) * quantity
   const subTotal = Math.round(Math.max(0, baseTotal - adjustmentAmount))
   
   // Calculate Final Amount
@@ -292,7 +307,7 @@ export default function BookingPayment({
     // Construct description
     let description = `Booking: ${plan.name} (x${quantity})`
     if (seat) description += ` (Seat ${formatSeatNumber(seat.number)})`
-    if (locker) description += ` (Locker ${locker.number})`
+    if (locker) description += ` (Locker ${formatLockerNumber(locker.number)})`
     if (fees.length > 0) description += ` + ${fees.length} Fees`
 
     try {
@@ -305,7 +320,11 @@ export default function BookingPayment({
           description,
           paymentMethod as 'razorpay' | 'cashfree',
           branchId,
-          appliedCoupon?.code
+          appliedCoupon?.code,
+          undefined,
+          undefined,
+          activeSubscriptionId,
+          JSON.stringify(lockerIdForAddOn ? { lockerId: lockerIdForAddOn } : {})
         )
         
         if (result.success) {
@@ -433,6 +452,10 @@ export default function BookingPayment({
         if (proofUrl) formData.append('proofUrl', proofUrl)
         if (transactionId) formData.append('transactionId', transactionId)
         if (appliedCoupon) formData.append('couponCode', appliedCoupon.code)
+        if (activeSubscriptionId) formData.append('activeSubscriptionId', activeSubscriptionId)
+        if (lockerIdForAddOn) {
+            formData.append('remarks', JSON.stringify({ lockerId: lockerIdForAddOn }))
+        }
 
         const result = await createManualPayment(formData)
         
@@ -687,6 +710,14 @@ export default function BookingPayment({
                <div className="flex justify-between">
                   <span className="text-gray-500 dark:text-gray-400">Seat</span>
                   <span className="font-medium text-emerald-600">No. {formatSeatNumber(seat.number)}</span>
+               </div>
+            )}
+
+            {/* Locker */}
+            {locker && (
+               <div className="flex justify-between">
+                  <span className="text-gray-500 dark:text-gray-400">Locker</span>
+                  <span className="font-medium text-purple-600">No. {formatLockerNumber(locker.number)}</span>
                </div>
             )}
 

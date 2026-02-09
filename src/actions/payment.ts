@@ -629,33 +629,42 @@ async function activateSubscription(paymentId: string) {
 
   if (!payment || payment.type !== 'subscription' || payment.status !== 'completed') return
 
-  // 0. Check for multi-quantity subscriptions in remarks
+  // 0. Check for multi-quantity subscriptions or locker add-on in remarks
   let activatedIds: string[] = []
+  let lockerIdToAdd: string | null = null
   
   if (payment.remarks) {
       try {
-          const ids = JSON.parse(payment.remarks)
-          if (Array.isArray(ids) && ids.length > 0) {
+          const parsed = JSON.parse(payment.remarks)
+          if (Array.isArray(parsed) && parsed.length > 0) {
               // Activate all listed subscriptions
               await prisma.studentSubscription.updateMany({
-                  where: { id: { in: ids } },
+                  where: { id: { in: parsed } },
                   data: { status: 'active' }
               })
-              activatedIds = ids
-              console.log('Activated multi-quantity subscriptions:', ids)
+              activatedIds = parsed
+              console.log('Activated multi-quantity subscriptions:', parsed)
+          } else if (typeof parsed === 'object' && parsed !== null) {
+              if (parsed.lockerId) lockerIdToAdd = parsed.lockerId
           }
       } catch (e) {
-          // Remarks was not a JSON array of IDs, ignore
+          // Remarks was not a JSON array/object, ignore
       }
   }
 
   // 1. Try to use linked subscription (if not already activated via remarks)
   if (payment.subscriptionId && !activatedIds.includes(payment.subscriptionId)) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateData: any = { status: 'active' }
+    
+    if (lockerIdToAdd) {
+        updateData.hasLocker = true
+        updateData.lockerId = lockerIdToAdd
+    }
+
     await prisma.studentSubscription.update({
       where: { id: payment.subscriptionId },
-      data: { 
-        status: 'active'
-      }
+      data: updateData
     })
   } 
   // 2. Fallback: Try to find by relatedId (Plan) or Branch
@@ -858,6 +867,8 @@ export async function createManualPayment(formData: FormData) {
   const transactionId = formData.get('transactionId') as string
   const proofUrl = formData.get('proofUrl') as string // In real app, upload file and get URL
   const branchId = formData.get('branchId') as string
+  const activeSubscriptionId = formData.get('activeSubscriptionId') as string
+  const remarks = formData.get('remarks') as string
 
     // Resolve libraryId from related entity
   let libraryId = ''
@@ -934,8 +945,11 @@ export async function createManualPayment(formData: FormData) {
   }
 
   // Create pending subscription if needed
-  let subscriptionId = null
-  if (type === 'subscription' && relatedId) {
+  let subscriptionId: string | null = null
+  
+  if (activeSubscriptionId) {
+      subscriptionId = activeSubscriptionId
+  } else if (type === 'subscription' && relatedId) {
     try {
       const plan = await prisma.plan.findUnique({ where: { id: relatedId } })
       if (plan) {
@@ -982,7 +996,9 @@ export async function createManualPayment(formData: FormData) {
         transactionId,
         proofUrl,
         promotionId,
-        discountAmount
+        discountAmount,
+        subscriptionId,
+        remarks
       }
     })
 
