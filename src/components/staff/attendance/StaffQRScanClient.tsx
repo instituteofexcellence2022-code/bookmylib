@@ -1,12 +1,13 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Camera, CheckCircle, AlertCircle, Loader2, RefreshCcw, Volume2, VolumeX, LogOut } from 'lucide-react'
+import { Camera, CheckCircle, AlertCircle, Loader2, RefreshCcw, Volume2, VolumeX, LogOut, Zap, ZapOff } from 'lucide-react'
 import { Html5Qrcode } from 'html5-qrcode'
 import { verifyStaffStudentQR } from '@/actions/staff/attendance'
 import { toast } from 'sonner'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
+import { SCANNER_CONFIG } from '@/lib/scanner'
 
 export function StaffQRScanClient() {
   const [scanning, setScanning] = useState(false)
@@ -16,6 +17,8 @@ export function StaffQRScanClient() {
   const [cameras, setCameras] = useState<Array<{ id: string; label: string }>>([])
   const [currentCameraId, setCurrentCameraId] = useState<string | null>(null)
   const [soundEnabled, setSoundEnabled] = useState(true)
+  const [torchEnabled, setTorchEnabled] = useState(false)
+  const [hasTorch, setHasTorch] = useState(false)
   
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const mountedRef = useRef(false)
@@ -88,16 +91,7 @@ export function StaffQRScanClient() {
             if (!scannerRef.current.isScanning) {
                  await scannerRef.current.start(
                     currentCameraId, 
-                    {
-                        fps: 20,
-                        qrbox: { width: 250, height: 250 },
-                        aspectRatio: 1.0,
-                        videoConstraints: {
-                            width: { min: 640, ideal: 1280, max: 1920 },
-                            height: { min: 480, ideal: 720, max: 1080 },
-                            facingMode: "environment"
-                        }
-                    },
+                    SCANNER_CONFIG,
                     (decodedText) => {
                         handleScan(decodedText)
                     },
@@ -105,6 +99,14 @@ export function StaffQRScanClient() {
                         // ignore
                     }
                 )
+
+                // Check capabilities
+                try {
+                    const capabilities = scannerRef.current.getRunningTrackCameraCapabilities() as any
+                    setHasTorch(!!capabilities.torch)
+                } catch (e) {
+                    console.warn("Could not get camera capabilities", e)
+                }
             }
         } catch (err) {
             console.error("Scanner init error", err)
@@ -179,6 +181,19 @@ export function StaffQRScanClient() {
     }, 100)
   }
 
+  const toggleTorch = async () => {
+      if (!scannerRef.current) return
+      try {
+          await scannerRef.current.applyVideoConstraints({
+              advanced: [{ torch: !torchEnabled }] as any
+          })
+          setTorchEnabled(!torchEnabled)
+      } catch (err) {
+          console.error("Torch toggle failed", err)
+          toast.error("Failed to toggle flashlight")
+      }
+  }
+
   const handleScan = async (studentId: string) => {
       if (processing || !mountedRef.current) return
       setProcessing(true)
@@ -237,6 +252,15 @@ export function StaffQRScanClient() {
                     >
                         {soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
                     </button>
+                    {hasTorch && scanning && (
+                        <button
+                            onClick={toggleTorch}
+                            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                            title="Toggle Flashlight"
+                        >
+                            {torchEnabled ? <ZapOff size={20} /> : <Zap size={20} />}
+                        </button>
+                    )}
                     {cameras.length > 1 && scanning && (
                         <button
                             onClick={switchCamera}

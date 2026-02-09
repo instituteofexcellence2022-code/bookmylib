@@ -23,6 +23,8 @@ export function OwnerScannerClient() {
     const [error, setError] = useState<string | null>(null)
     const [cameras, setCameras] = useState<Array<{ id: string; label: string }>>([])
     const [currentCameraId, setCurrentCameraId] = useState<string | null>(null)
+    const [torchEnabled, setTorchEnabled] = useState(false)
+    const [hasTorch, setHasTorch] = useState(false)
     const scannerRef = useRef<Html5Qrcode | null>(null)
     const mountedRef = useRef(false)
     
@@ -145,6 +147,14 @@ export function OwnerScannerClient() {
                     (decodedText) => handleScan(decodedText),
                     (errorMessage) => { /* ignore */ }
                 )
+
+                // Check capabilities
+                try {
+                    const capabilities = scannerRef.current.getRunningTrackCameraCapabilities() as any
+                    setHasTorch(!!capabilities.torch)
+                } catch (e) {
+                    console.warn("Could not get camera capabilities", e)
+                }
             }
         } catch (err) {
             console.error("Scanner init error", err)
@@ -290,6 +300,19 @@ export function OwnerScannerClient() {
         const currentIndex = cameras.findIndex(c => c.id === currentCameraId)
         const nextIndex = (currentIndex + 1) % cameras.length
         setCurrentCameraId(cameras[nextIndex].id)
+    }
+
+    const toggleTorch = async () => {
+        if (!scannerRef.current) return
+        try {
+            await scannerRef.current.applyVideoConstraints({
+                advanced: [{ torch: !torchEnabled }] as any
+            })
+            setTorchEnabled(!torchEnabled)
+        } catch (err) {
+            console.error("Torch toggle failed", err)
+            toast.error("Failed to toggle flashlight")
+        }
     }
 
     // Branch Selection View Removed
@@ -807,9 +830,16 @@ export function OwnerScannerClient() {
                         <h1 className="font-medium">Master Scanner</h1>
                         <p className="text-xs text-gray-400">Scan Student QR</p>
                     </div>
-                    <button onClick={switchCamera} className="p-2 bg-white/20 rounded-full backdrop-blur-md">
-                        <RefreshCw className="w-5 h-5" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {hasTorch && (
+                            <button onClick={toggleTorch} className="p-2 bg-white/20 rounded-full backdrop-blur-md">
+                                {torchEnabled ? <ZapOff className="w-5 h-5 text-yellow-300" /> : <Zap className="w-5 h-5" />}
+                            </button>
+                        )}
+                        <button onClick={switchCamera} className="p-2 bg-white/20 rounded-full backdrop-blur-md">
+                            <RefreshCw className="w-5 h-5" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Scan Frame Overlay */}

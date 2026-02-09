@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Camera, CheckCircle, Loader2, ArrowLeft, AlertCircle, Volume2, VolumeX, RefreshCw } from 'lucide-react'
+import { Camera, CheckCircle, Loader2, ArrowLeft, AlertCircle, Volume2, VolumeX, RefreshCw, Zap, ZapOff } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -25,6 +25,8 @@ export default function ScanPage() {
   const [initializing, setInitializing] = useState(true)
   const [isIOS, setIsIOS] = useState(false)
   const [isAndroid, setIsAndroid] = useState(false)
+  const [torchEnabled, setTorchEnabled] = useState(false)
+  const [hasTorch, setHasTorch] = useState(false)
 
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const scannerContainerId = "reader"
@@ -229,6 +231,14 @@ export default function ScanPage() {
                     // ignore frame errors
                 }
             )
+
+            // Check capabilities
+            try {
+                const capabilities = scannerRef.current.getRunningTrackCameraCapabilities() as any
+                setHasTorch(!!capabilities.torch)
+            } catch (e) {
+                console.warn("Could not get camera capabilities", e)
+            }
         } catch (err) {
             console.error("Scanner start error", err)
             if (!ignore) {
@@ -276,6 +286,19 @@ export default function ScanPage() {
     const nextIndex = (currentIndex + 1) % cameras.length
     setCurrentCameraId(cameras[nextIndex].id)
     // The useEffect will trigger restart
+  }
+
+  const toggleTorch = async () => {
+    if (!scannerRef.current) return
+    try {
+        await scannerRef.current.applyVideoConstraints({
+            advanced: [{ torch: !torchEnabled }] as any
+        })
+        setTorchEnabled(!torchEnabled)
+    } catch (err) {
+        console.error("Torch toggle failed", err)
+        toast.error("Failed to toggle flashlight")
+    }
   }
 
   const handleReset = () => {
@@ -446,6 +469,17 @@ export default function ScanPage() {
                         {soundEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
                     </Button>
                     
+                    {hasTorch && (
+                        <Button
+                            variant="secondary"
+                            size="icon"
+                            className="rounded-full h-12 w-12 bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border-0"
+                            onClick={toggleTorch}
+                        >
+                            {torchEnabled ? <ZapOff className="h-5 w-5" /> : <Zap className="h-5 w-5" />}
+                        </Button>
+                    )}
+
                     {cameras.length > 1 && (
                         <Button
                             variant="secondary"

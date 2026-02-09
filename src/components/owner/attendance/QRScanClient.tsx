@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Camera, CheckCircle, AlertCircle, Loader2, RefreshCw, Volume2, VolumeX, LogOut } from 'lucide-react'
+import { Camera, CheckCircle, AlertCircle, Loader2, RefreshCw, Volume2, VolumeX, LogOut, Zap, ZapOff } from 'lucide-react'
 import { Html5Qrcode } from 'html5-qrcode'
 import { verifyStudentQR } from '@/actions/owner/attendance'
 import { getOwnerBranches } from '@/actions/branch'
@@ -25,6 +25,8 @@ export function QRScanClient() {
   const [processing, setProcessing] = useState(false)
   const [cameras, setCameras] = useState<Array<{ id: string; label: string }>>([])
   const [currentCameraId, setCurrentCameraId] = useState<string | null>(null)
+  const [torchEnabled, setTorchEnabled] = useState(false)
+  const [hasTorch, setHasTorch] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
 
   const scannerRef = useRef<Html5Qrcode | null>(null)
@@ -128,6 +130,14 @@ export function QRScanClient() {
                         // ignore
                     }
                 )
+
+                // Check capabilities
+                try {
+                    const capabilities = scannerRef.current.getRunningTrackCameraCapabilities() as any
+                    setHasTorch(!!capabilities.torch)
+                } catch (e) {
+                    console.warn("Could not get camera capabilities", e)
+                }
             }
         } catch (err) {
             console.error("Scanner init error", err)
@@ -142,6 +152,19 @@ export function QRScanClient() {
       startScannerWithId(currentCameraId)
     } else {
       setError("No camera available")
+    }
+  }
+
+  const toggleTorch = async () => {
+    if (!scannerRef.current) return
+    try {
+        await scannerRef.current.applyVideoConstraints({
+            advanced: [{ torch: !torchEnabled }] as any
+        })
+        setTorchEnabled(!torchEnabled)
+    } catch (err) {
+        console.error("Torch toggle failed", err)
+        toast.error("Failed to toggle flashlight")
     }
   }
 
@@ -235,6 +258,15 @@ export function QRScanClient() {
                 </h3>
                 
                 <div className="flex gap-2">
+                    {hasTorch && scanning && (
+                        <button
+                            onClick={toggleTorch}
+                            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+                            title="Toggle Flashlight"
+                        >
+                            {torchEnabled ? <ZapOff size={20} className="text-yellow-500" /> : <Zap size={20} />}
+                        </button>
+                    )}
                     <button
                         onClick={() => setSoundEnabled(!soundEnabled)}
                         className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"

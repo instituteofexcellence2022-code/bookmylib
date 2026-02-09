@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
-import { X, Camera, RefreshCw, User, CheckCircle, AlertTriangle, CreditCard, FileText, ArrowLeft, ArrowRight, ShieldCheck, LogIn, LogOut, ExternalLink } from 'lucide-react'
+import { X, Camera, RefreshCw, User, CheckCircle, AlertTriangle, CreditCard, FileText, ArrowLeft, ArrowRight, ShieldCheck, LogIn, LogOut, ExternalLink, Zap, ZapOff } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { getStudentDetailsForScanner } from '@/actions/staff/students'
@@ -22,6 +22,8 @@ export function ScannerClient({ initialCode }: { initialCode?: string }) {
     const [error, setError] = useState<string | null>(null)
     const [cameras, setCameras] = useState<Array<{ id: string; label: string }>>([])
     const [currentCameraId, setCurrentCameraId] = useState<string | null>(null)
+    const [torchEnabled, setTorchEnabled] = useState(false)
+    const [hasTorch, setHasTorch] = useState(false)
     const scannerRef = useRef<Html5Qrcode | null>(null)
     const mountedRef = useRef(false)
     const initialProcessed = useRef(false)
@@ -85,6 +87,14 @@ export function ScannerClient({ initialCode }: { initialCode?: string }) {
                     (decodedText) => handleScan(decodedText),
                     (errorMessage) => { /* ignore */ }
                 )
+
+                // Check capabilities
+                try {
+                    const capabilities = scannerRef.current.getRunningTrackCameraCapabilities() as any
+                    setHasTorch(!!capabilities.torch)
+                } catch (e) {
+                    console.warn("Could not get camera capabilities", e)
+                }
             }
         } catch (err) {
             console.error("Scanner init error", err)
@@ -98,6 +108,19 @@ export function ScannerClient({ initialCode }: { initialCode?: string }) {
             return () => clearTimeout(timer)
         }
     }, [currentCameraId, scanning, loading, studentData])
+
+    const toggleTorch = async () => {
+        if (!scannerRef.current) return
+        try {
+            await scannerRef.current.applyVideoConstraints({
+                advanced: [{ torch: !torchEnabled }] as any
+            })
+            setTorchEnabled(!torchEnabled)
+        } catch (err) {
+            console.error("Torch toggle failed", err)
+            toast.error("Failed to toggle flashlight")
+        }
+    }
 
     const handleScan = async (decodedText: string) => {
         if (loading || !mountedRef.current) return
@@ -396,10 +419,20 @@ export function ScannerClient({ initialCode }: { initialCode?: string }) {
                 
                 {/* Header Overlay */}
                 <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/80 to-transparent z-10 flex justify-between items-center text-white">
-                    <h1 className="font-medium">Master Scanner</h1>
-                    <button onClick={switchCamera} className="p-2 bg-white/20 rounded-full backdrop-blur-md">
-                        <RefreshCw className="w-5 h-5" />
-                    </button>
+                    <div className="flex flex-col">
+                        <h1 className="font-medium">Master Scanner</h1>
+                        <p className="text-xs text-gray-400">Scan Student QR</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {hasTorch && (
+                            <button onClick={toggleTorch} className="p-2 bg-white/20 rounded-full backdrop-blur-md">
+                                {torchEnabled ? <ZapOff className="w-5 h-5 text-yellow-300" /> : <Zap className="w-5 h-5" />}
+                            </button>
+                        )}
+                        <button onClick={switchCamera} className="p-2 bg-white/20 rounded-full backdrop-blur-md">
+                            <RefreshCw className="w-5 h-5" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Scan Frame Overlay */}
