@@ -752,7 +752,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                             <span className={cn(
                                                                 "text-lg font-bold transition-colors",
                                                                 selectedFees.includes(String(fee.id)) ? "text-purple-900 dark:text-white" : "text-gray-900 dark:text-white"
-                                                            )}>₹{fee.amount}</span>
+                                                            )}>₹{fee.amount}{selectedPlan?.durationUnit?.toLowerCase().startsWith('m') ? '/m' : ''}</span>
                                                         </label>
                                                     ))}
                                                 </div>
@@ -800,7 +800,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                             <span className={cn(
                                                                 "text-lg font-bold transition-colors",
                                                                 selectedFees.includes(String(fee.id)) ? "text-emerald-900 dark:text-white" : "text-gray-900 dark:text-white"
-                                                            )}>₹{fee.amount}</span>
+                                                            )}>₹{fee.amount}{selectedPlan?.durationUnit?.toLowerCase().startsWith('m') ? '/m' : ''}</span>
                                                         </label>
                                                     ))}
                                                 </div>
