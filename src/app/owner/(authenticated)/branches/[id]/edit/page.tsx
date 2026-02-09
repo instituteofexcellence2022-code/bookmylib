@@ -116,6 +116,7 @@ export default function EditBranchPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isFetchingPincode, setIsFetchingPincode] = useState(false)
   const [isDetectingLocation, setIsDetectingLocation] = useState(false)
+  const [permissionState, setPermissionState] = useState<'granted' | 'denied' | 'prompt' | 'unknown'>('unknown')
   const [showMapPicker, setShowMapPicker] = useState(false)
   const [availableAreas, setAvailableAreas] = useState<string[]>([])
   const [isDeleting, setIsDeleting] = useState(false)
@@ -292,6 +293,19 @@ export default function EditBranchPage() {
     fetchBranch()
   }, [branchId, router])
 
+  useEffect(() => {
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'geolocation' as PermissionName })
+        .then(status => {
+          setPermissionState(status.state as any)
+          status.onchange = () => {
+            setPermissionState(status.state as any)
+          }
+        })
+        .catch(() => setPermissionState('unknown'))
+    }
+  }, [])
+
   const handleCancel = () => {
     router.push('/owner/branches')
   }
@@ -452,10 +466,35 @@ export default function EditBranchPage() {
     }
   }
 
-  const handleDetectLocation = () => {
+  const handleDetectLocation = async () => {
     if (!('geolocation' in navigator)) {
       toast.error('Geolocation is not supported by your browser')
       return
+    }
+
+    // Check permissions first to provide better feedback
+    if (navigator.permissions && navigator.permissions.query) {
+      try {
+        const permissionStatus = await navigator.permissions.query({ name: 'geolocation' as PermissionName })
+        if (permissionStatus.state === 'denied') {
+          toast.error((t) => (
+            <div className="flex flex-col gap-2">
+              <span className="font-semibold">Location access is blocked</span>
+              <span className="text-sm">Please enable location permissions in your browser settings (usually the lock icon in the address bar) to use this feature.</span>
+              <button 
+                onClick={() => toast.dismiss(t.id)}
+                className="text-xs bg-white text-black px-2 py-1 rounded border mt-1 w-fit"
+              >
+                Dismiss
+              </button>
+            </div>
+          ), { duration: 6000 })
+          return
+        }
+      } catch (e) {
+        // Fallback if permission query fails, just proceed to try detecting
+        console.warn('Permission query failed:', e)
+      }
     }
 
     setIsDetectingLocation(true)
@@ -477,11 +516,25 @@ export default function EditBranchPage() {
       (error) => {
         console.error('Geolocation error:', error)
         let errorMessage = 'Failed to detect location.'
-        if (error.code === 1) errorMessage = 'Location permission denied'
-        else if (error.code === 2) errorMessage = 'Location unavailable'
-        else if (error.code === 3) errorMessage = 'Location request timed out'
+        let errorDescription = ''
+
+        if (error.code === 1) {
+          errorMessage = 'Location permission denied'
+          errorDescription = 'Please allow location access in your browser settings.'
+        } else if (error.code === 2) {
+          errorMessage = 'Location unavailable'
+          errorDescription = 'Your location could not be determined. Please check your GPS/network.'
+        } else if (error.code === 3) {
+          errorMessage = 'Location request timed out'
+          errorDescription = 'Request took too long. Please try again.'
+        }
         
-        toast.error(errorMessage)
+        toast.error((t) => (
+          <div className="flex flex-col gap-1">
+            <span className="font-medium">{errorMessage}</span>
+            {errorDescription && <span className="text-xs opacity-90">{errorDescription}</span>}
+          </div>
+        ))
         setIsDetectingLocation(false)
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }

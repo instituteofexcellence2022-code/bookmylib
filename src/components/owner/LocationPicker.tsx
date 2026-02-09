@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap, LayersControl } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { X, Check, MapPin, Search, Crosshair, Loader2, Navigation, Layers } from 'lucide-react'
+import { X, Check, MapPin, Search, Loader2, Navigation } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { useDebounce } from 'use-debounce'
 
