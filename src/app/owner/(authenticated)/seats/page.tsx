@@ -13,7 +13,7 @@ export default async function SeatsPage() {
   const branches = branchesResult.success && branchesResult.data ? branchesResult.data : []
 
   return (
-    <div className="p-2 space-y-2 md:space-y-6 md:p-6">
+    <div className="space-y-2 md:space-y-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold tracking-tight">Seat Management</h1>
         <p className="text-gray-500 dark:text-gray-400">
