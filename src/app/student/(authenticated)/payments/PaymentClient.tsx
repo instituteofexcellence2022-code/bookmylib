@@ -62,8 +62,13 @@ export default function PaymentClient() {
     let discount = 0
     const items = []
 
-    if (payment.subscription) {
-        // If it's a subscription payment
+    if (payment.description) {
+        items.push({
+            description: payment.description,
+            amount: payment.amount
+        })
+    } else if (payment.subscription) {
+        // If it's a subscription payment but no description
         subTotal = payment.subscription.plan.price
         
         // Calculate discount if paid amount is less than plan price
@@ -75,6 +80,16 @@ export default function PaymentClient() {
             description: `${payment.subscription.plan.name} Plan`,
             amount: subTotal
         })
+        
+        // Handle overpayment (fees)
+        if (payment.amount > subTotal) {
+             const extra = payment.amount - subTotal
+             items.push({
+                 description: 'Additional Fees / Services',
+                 amount: extra
+             })
+             subTotal += extra
+        }
     } else {
         // Fallback for other payments
         items.push({

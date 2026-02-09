@@ -146,15 +146,30 @@ export async function initiatePublicBooking(data: {
         let lockerNumber: string | undefined
 
         // Check additional fees for locker
+        let selectedFeeObjects: any[] = []
         if (fees.length > 0) {
-            const selectedFees = await prisma.additionalFee.findMany({
+            selectedFeeObjects = await prisma.additionalFee.findMany({
                 where: { id: { in: fees } }
             })
-            const lockerFee = selectedFees.find(f => f.name.toLowerCase().includes('locker'))
+            const lockerFee = selectedFeeObjects.find(f => f.name.toLowerCase().includes('locker'))
             if (lockerFee) {
                 hasLocker = true
             }
         }
+
+        // Recalculate Total Amount to ensure validity
+        let calculatedTotal = plan.price * quantity
+        for (const fee of selectedFeeObjects) {
+             let feeAmount = fee.amount
+             // Apply monthly multiplier if applicable
+             if (fee.billType === 'MONTHLY' && plan.durationUnit === 'months') {
+                 feeAmount = fee.amount * plan.duration
+             }
+             calculatedTotal += (feeAmount * quantity)
+        }
+        
+        // Use the calculated total for payment (overriding client input for security)
+        const finalAmount = Math.round(calculatedTotal)
 
         if (finalLockerId) {
              const locker = await prisma.locker.findUnique({ where: { id: finalLockerId } })
@@ -185,8 +200,31 @@ export async function initiatePublicBooking(data: {
             description += ` (Locker ${lockerNumber})`
         }
 
-        if (fees.length > 0) {
-            description += ` + ${fees.length} Fees`
+        if (selectedFeeObjects.length > 0) {
+            const feeDetails = selectedFeeObjects.map((f: any) => {
+                let feeTotal = f.amount
+                let detail = ''
+                
+                if (f.billType === 'MONTHLY' && plan.durationUnit === 'months') {
+                    const durationMult = plan.duration
+                    feeTotal = f.amount * durationMult
+                    if (quantity > 1) {
+                        feeTotal *= quantity
+                        detail = ` (₹${f.amount} x ${durationMult}mo x ${quantity})`
+                    } else {
+                        detail = ` (₹${f.amount} x ${durationMult}mo)`
+                    }
+                } else {
+                    if (quantity > 1) {
+                        feeTotal *= quantity
+                        detail = ` (₹${f.amount} x ${quantity})`
+                    }
+                }
+                
+                return `${f.name}${detail}`
+            }).join(', ')
+            
+            description += ` + Fees [${feeDetails}]`
         }
 
         // Calculate Dates & Create Subscriptions
@@ -209,7 +247,7 @@ export async function initiatePublicBooking(data: {
         // Create Pending Subscriptions
         const createdSubscriptionIds: string[] = []
         // Calculate per-subscription amount for record keeping
-        const perSubAmount = amount / quantity
+        const perSubAmount = finalAmount / quantity
 
         for (let i = 0; i < quantity; i++) {
             const period = subscriptionPeriods[i]
@@ -235,7 +273,7 @@ export async function initiatePublicBooking(data: {
         // We explicitly pass studentId to ensure it uses the student we just handled
         // We link to the FIRST subscription.
         const paymentResult = await initiatePayment(
-            amount,
+            finalAmount,
             'subscription',
             planId,
             description,

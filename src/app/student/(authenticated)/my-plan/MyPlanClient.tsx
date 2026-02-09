@@ -60,6 +60,7 @@ interface SubscriptionDetails {
       address: string | null
       city: string | null
     } | null
+    description?: string | null
   } | null
 }
 
@@ -135,16 +136,37 @@ export default function MyPlanClient() {
     if (!payment) return
 
     // Calculate details
-    const subTotal = subscription.plan.price
+    let items = []
+    let subTotal = 0
     let discount = 0
-    if (subTotal > payment.amount) {
-        discount = subTotal - payment.amount
+
+    if (payment.description) {
+        subTotal = payment.amount
+        items.push({
+            description: payment.description,
+            amount: payment.amount
+        })
+    } else {
+        subTotal = subscription.plan.price
+        if (subTotal > payment.amount) {
+            discount = subTotal - payment.amount
+        }
+        
+        items.push({
+            description: `${subscription.plan.name} Plan`,
+            amount: subTotal
+        })
+
+        // Handle case where payment is more than plan (e.g. fees included but no description)
+        if (payment.amount > subTotal) {
+            const extra = payment.amount - subTotal
+            items.push({
+                description: 'Additional Fees / Services',
+                amount: extra
+            })
+            subTotal += extra
+        }
     }
-    
-    const items = [{
-        description: `${subscription.plan.name} Plan`,
-        amount: subTotal
-    }]
 
     const receiptData = {
         invoiceNo: payment.id.slice(0, 8).toUpperCase(),

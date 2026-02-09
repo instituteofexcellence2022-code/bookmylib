@@ -116,15 +116,36 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
     const [isBreakdownOpen, setIsBreakdownOpen] = useState(false)
 
     // Derived Filters
-    const uniqueDurations = React.useMemo(() => {
-        const set = new Set(branch.plans.map(p => `${p.duration} ${p.durationUnit}`))
-        return ['all', ...Array.from(set)]
-    }, [branch.plans])
+    const DURATION_FILTERS = [
+        { id: 'all', label: 'All Plans' },
+        { id: '1mo', label: '1 Mo' },
+        { id: '3mo', label: '3 Mo' },
+        { id: '6mo', label: '6 Mo' },
+        { id: 'other', label: 'Other' }
+    ]
 
     const filteredPlans = React.useMemo(() => {
         return branch.plans.filter(plan => {
             const matchCategory = filterCategory === 'all' || plan.category === filterCategory
-            const matchDuration = filterDuration === 'all' || `${plan.duration} ${plan.durationUnit}` === filterDuration
+            
+            let matchDuration = true
+            if (filterDuration !== 'all') {
+                if (filterDuration === '1mo') {
+                    matchDuration = plan.duration === 1 && plan.durationUnit.toLowerCase().startsWith('month')
+                } else if (filterDuration === '3mo') {
+                    matchDuration = plan.duration === 3 && plan.durationUnit.toLowerCase().startsWith('month')
+                } else if (filterDuration === '6mo') {
+                    matchDuration = plan.duration === 6 && plan.durationUnit.toLowerCase().startsWith('month')
+                } else if (filterDuration === 'other') {
+                    const isStandard = (
+                        (plan.duration === 1 && plan.durationUnit.toLowerCase().startsWith('month')) ||
+                        (plan.duration === 3 && plan.durationUnit.toLowerCase().startsWith('month')) ||
+                        (plan.duration === 6 && plan.durationUnit.toLowerCase().startsWith('month'))
+                    )
+                    matchDuration = !isStandard
+                }
+            }
+            
             return matchCategory && matchDuration
         })
     }, [branch.plans, filterCategory, filterDuration])
@@ -461,9 +482,18 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
     }, [selectedFees, branch.fees, selectedPlan])
 
     // Calculate Total for display
+    const calculateFeeTotal = (fee: AdditionalFee) => {
+        let amount = Number(fee.amount)
+        if (fee.billType === 'MONTHLY' && selectedPlan?.durationUnit === 'months') {
+            amount *= (selectedPlan.duration || 1)
+        }
+        return amount * quantity
+    }
+
     const feesTotal = branch.fees
         .filter(f => selectedFees.includes(String(f.id)))
-        .reduce((sum, f) => sum + Number(f.amount), 0)
+        .reduce((sum, f) => sum + calculateFeeTotal(f), 0)
+
     const totalAmount = Math.round(((Number(selectedPlan?.price) || 0) * quantity) + feesTotal)
 
     return (
@@ -552,24 +582,22 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                 </div>
 
                                 {/* Duration Filter - Row 2 */}
-                                {uniqueDurations.length > 2 && (
-                                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-                                        {uniqueDurations.map(dur => (
-                                            <button
-                                                key={dur}
-                                                onClick={() => setFilterDuration(dur)}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-full text-xs font-medium transition-all border whitespace-nowrap",
-                                                    filterDuration === dur
-                                                        ? "bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-300"
-                                                        : "bg-white border-gray-200 text-gray-600 hover:border-purple-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
-                                                )}
-                                            >
-                                                {dur === 'all' ? 'Any Duration' : dur.toLowerCase().replace(/ months?/, ' Mo').replace(/ days?/, ' Days')}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
+                                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                                    {DURATION_FILTERS.map(filter => (
+                                        <button
+                                            key={filter.id}
+                                            onClick={() => setFilterDuration(filter.id)}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-full text-xs font-medium transition-all border whitespace-nowrap",
+                                                filterDuration === filter.id
+                                                    ? "bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-300"
+                                                    : "bg-white border-gray-200 text-gray-600 hover:border-purple-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
+                                            )}
+                                        >
+                                            {filter.label}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
                             <div className="space-y-2 max-h-[400px] overflow-y-auto px-1 -mx-1 custom-scrollbar">
@@ -1531,8 +1559,16 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                         .filter(f => selectedFees.includes(String(f.id)))
                                                         .map(fee => (
                                                             <div key={fee.id} className="flex justify-between text-sm">
-                                                                <span className="text-gray-600 dark:text-gray-400">{fee.name}</span>
-                                                                <span className="font-medium text-gray-900 dark:text-white">₹{fee.amount}</span>
+                                                                <span className="text-gray-600 dark:text-gray-400">
+                                                                    {fee.name}
+                                                                    {fee.billType === 'MONTHLY' && selectedPlan?.durationUnit === 'months' && (
+                                                                        <span className="text-xs text-gray-400"> ({quantity} × {selectedPlan.duration}mo × ₹{fee.amount})</span>
+                                                                    )}
+                                                                    {(fee.billType !== 'MONTHLY' || selectedPlan?.durationUnit !== 'months') && quantity > 1 && (
+                                                                         <span className="text-xs text-gray-400"> ({quantity} × ₹{fee.amount})</span>
+                                                                    )}
+                                                                </span>
+                                                                <span className="font-medium text-gray-900 dark:text-white">₹{calculateFeeTotal(fee)}</span>
                                                             </div>
                                                         ))
                                                     }

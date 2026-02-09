@@ -153,6 +153,7 @@ export async function getStudentBookingStatus() {
         select: {
           id: true,
           amount: true,
+          description: true,
           createdAt: true,
           method: true,
           student: {
