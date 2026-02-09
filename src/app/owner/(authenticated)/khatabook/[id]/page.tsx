@@ -101,9 +101,15 @@ export default function StaffLedgerPage() {
             }
 
             const result = await getStaffLedgerForOwner(staffId, 100, range)
-            setData(result as unknown as StaffLedgerData)
+            if (result.success && result.data) {
+                setData(result.data as unknown as StaffLedgerData)
+            } else {
+                toast.error(result.error || 'Failed to load staff ledger')
+                setData(null)
+            }
         } catch (error) {
             toast.error('Failed to load staff ledger')
+            setData(null)
         } finally {
             setLoading(false)
         }
@@ -141,7 +147,7 @@ export default function StaffLedgerPage() {
         }
     }
 
-    const filteredTransactions = data?.transactions.filter(tx => {
+    const filteredTransactions = (data?.transactions || []).filter(tx => {
         const matchesType = filter === 'ALL' || tx.type === filter
         const matchesSearch = searchQuery === '' || 
             tx.description.toLowerCase().includes(searchQuery.toLowerCase()) ||

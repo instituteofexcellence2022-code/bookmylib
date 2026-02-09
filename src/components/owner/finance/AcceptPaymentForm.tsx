@@ -938,48 +938,49 @@ Thank you!`
 
                                 {/* 1. Plan Selection */}
                                 <div className="space-y-4">
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                        <h3 className="text-lg font-medium flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                            <Clock className="w-4 h-4 text-blue-500" />
-                                            1. Select Plan
-                                        </h3>
-                                        
-                                        {/* Filters */}
-                                        <div className="flex flex-col sm:flex-row gap-3">
-                                            <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg self-start">
+                                    <div className="flex flex-col gap-3 mb-4">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <h3 className="text-lg font-medium flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                                <Clock className="w-4 h-4 text-blue-500" />
+                                                1. Select Plan
+                                            </h3>
+                                            
+                                            {/* Category Filter */}
+                                            <div className="flex items-center p-1 bg-gray-100 dark:bg-gray-900 rounded-lg shrink-0">
                                                 {['all', 'fixed', 'flexible'].map((cat) => (
                                                     <button
                                                         key={cat}
                                                         onClick={() => setFilterCategory(cat)}
                                                         className={cn(
-                                                            "px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-all",
+                                                            "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all capitalize",
                                                             filterCategory === cat
-                                                                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
-                                                                : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300"
+                                                                ? "bg-white dark:bg-gray-800 text-purple-600 dark:text-purple-400 shadow-sm"
+                                                                : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
                                                         )}
                                                     >
-                                                        {cat}
+                                                        {cat === 'all' ? 'All' : cat}
                                                     </button>
                                                 ))}
                                             </div>
+                                        </div>
 
-                                            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
-                                                <Filter className="w-4 h-4 text-gray-400 shrink-0" />
-                                                {DURATION_FILTERS.map((filter) => (
-                                                    <button
-                                                        key={filter.id}
-                                                        onClick={() => setFilterDuration(filter.id as any)}
-                                                        className={cn(
-                                                            "px-3 py-1.5 text-xs font-medium rounded-full border whitespace-nowrap transition-all",
-                                                            filterDuration === filter.id
-                                                                ? "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300"
-                                                                : "border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400"
-                                                        )}
-                                                    >
-                                                        {filter.label}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                        {/* Duration Filter */}
+                                        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
+                                            <Filter className="w-4 h-4 text-gray-400 shrink-0" />
+                                            {DURATION_FILTERS.map((filter) => (
+                                                <button
+                                                    key={filter.id}
+                                                    onClick={() => setFilterDuration(filter.id as any)}
+                                                    className={cn(
+                                                        "px-3 py-1.5 text-xs font-medium rounded-full border whitespace-nowrap transition-all",
+                                                        filterDuration === filter.id
+                                                            ? "bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-300"
+                                                            : "border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400"
+                                                    )}
+                                                >
+                                                    {filter.label}
+                                                </button>
+                                            ))}
                                         </div>
                                     </div>
 

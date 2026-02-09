@@ -46,11 +46,19 @@ export default function OwnerKhatabookPage() {
 
     const loadData = async () => {
         try {
-            const data = await getStaffBalances()
-            setBalances(data as unknown as StaffBalance[])
-            setFilteredBalances(data as unknown as StaffBalance[])
+            const response = await getStaffBalances()
+            if (response.success && Array.isArray(response.data)) {
+                setBalances(response.data as unknown as StaffBalance[])
+                setFilteredBalances(response.data as unknown as StaffBalance[])
+            } else {
+                toast.error(response.error || 'Failed to load staff balances')
+                setBalances([])
+                setFilteredBalances([])
+            }
         } catch (error) {
             toast.error('Failed to load staff balances')
+            setBalances([])
+            setFilteredBalances([])
         } finally {
             setLoading(false)
         }
