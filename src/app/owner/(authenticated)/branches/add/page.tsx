@@ -130,12 +130,36 @@ export default function AddBranchPage() {
     }
   }
 
+  const fetchAddressFromCoords = async (lat: number, lng: number) => {
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+      const data = await response.json()
+      
+      if (data && data.address) {
+        setFormData(prev => ({
+          ...prev,
+          zipCode: data.address.postcode || prev.zipCode,
+          state: data.address.state || prev.state,
+          district: data.address.state_district || data.address.county || prev.district,
+          city: data.address.city || data.address.town || data.address.village || prev.city,
+          // Only set street/area if empty to avoid overwriting user's specific input
+          street: prev.street || (data.display_name ? data.display_name.split(',').slice(0, 2).join(',') : ''),
+          area: prev.area || data.address.suburb || data.address.neighbourhood || ''
+        }))
+        toast.success('Address details updated from location')
+      }
+    } catch (error) {
+      console.error('Error fetching address:', error)
+    }
+  }
+
   const handleLocationSelect = (lat: number, lng: number) => {
     setFormData(prev => ({
       ...prev,
       latitude: lat.toString(),
       longitude: lng.toString()
     }))
+    fetchAddressFromCoords(lat, lng)
     toast.success('Location selected from map')
   }
 
@@ -292,17 +316,27 @@ export default function AddBranchPage() {
     setIsDetectingLocation(true)
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        const lat = position.coords.latitude
+        const lng = position.coords.longitude
+        
         setFormData(prev => ({
           ...prev,
-          latitude: position.coords.latitude.toString(),
-          longitude: position.coords.longitude.toString()
+          latitude: lat.toString(),
+          longitude: lng.toString()
         }))
+        
+        fetchAddressFromCoords(lat, lng)
         toast.success('Location detected successfully')
         setIsDetectingLocation(false)
       },
       (error) => {
         console.error('Geolocation error:', error)
-        toast.error('Failed to detect location. Please enter manually.')
+        let errorMessage = 'Failed to detect location.'
+        if (error.code === 1) errorMessage = 'Location permission denied'
+        else if (error.code === 2) errorMessage = 'Location unavailable'
+        else if (error.code === 3) errorMessage = 'Location request timed out'
+        
+        toast.error(errorMessage)
         setIsDetectingLocation(false)
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -1244,14 +1278,6 @@ export default function AddBranchPage() {
         </div>
       </form>
 
-      {showMapPicker && (
-        <LocationPicker
-          initialLat={formData.latitude ? parseFloat(formData.latitude) : undefined}
-          initialLng={formData.longitude ? parseFloat(formData.longitude) : undefined}
-          onLocationSelect={handleLocationSelect}
-          onClose={() => setShowMapPicker(false)}
-        />
-      )}
       {showMapPicker && (
         <LocationPicker
           initialLat={formData.latitude ? parseFloat(formData.latitude) : undefined}
