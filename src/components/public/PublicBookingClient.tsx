@@ -7,7 +7,7 @@ import {
     User, Mail, Phone, Cake,
     Armchair, Lock,
     LayoutGrid, List, ChevronLeft, ChevronRight, Clock, Filter,
-    Plus, Minus
+    Plus, Minus, ChevronUp, ChevronDown
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -113,6 +113,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
     // Filter State
     const [filterCategory, setFilterCategory] = useState<string>('all')
     const [filterDuration, setFilterDuration] = useState<string>('all')
+    const [isBreakdownOpen, setIsBreakdownOpen] = useState(false)
 
     // Derived Filters
     const uniqueDurations = React.useMemo(() => {
@@ -1482,20 +1483,94 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                         )}
 
                         {/* Action Bar */}
-                        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-t border-gray-200 dark:border-gray-800 z-40">
-                            <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
-                                <div>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">Total Payable</p>
-                                    <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">₹{totalAmount}</p>
+                        <div className="fixed bottom-0 left-0 right-0 z-40">
+                            <AnimatePresence>
+                                {isBreakdownOpen && (
+                                    <>
+                                        {/* Backdrop to close */}
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            onClick={() => setIsBreakdownOpen(false)}
+                                            className="fixed inset-0 bg-black/20 dark:bg-black/50 backdrop-blur-sm z-30"
+                                        />
+                                        
+                                        {/* Breakdown Panel */}
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 100 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: 100 }}
+                                            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                                            className="absolute bottom-full left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-xl z-40"
+                                        >
+                                            <div className="max-w-4xl mx-auto p-6 space-y-4">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <h3 className="font-bold text-gray-900 dark:text-white">Payment Breakdown</h3>
+                                                    <button 
+                                                        onClick={() => setIsBreakdownOpen(false)}
+                                                        className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+                                                    >
+                                                        <ChevronDown className="w-5 h-5 text-gray-500" />
+                                                    </button>
+                                                </div>
+                                                
+                                                <div className="space-y-2">
+                                                    {/* Plan */}
+                                                    <div className="flex justify-between text-sm">
+                                                        <span className="text-gray-600 dark:text-gray-400">
+                                                            {selectedPlan?.name} <span className="text-xs text-gray-400">({quantity} × ₹{selectedPlan?.price})</span>
+                                                        </span>
+                                                        <span className="font-medium text-gray-900 dark:text-white">
+                                                            ₹{(Number(selectedPlan?.price) || 0) * quantity}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Fees */}
+                                                    {branch.fees
+                                                        .filter(f => selectedFees.includes(String(f.id)))
+                                                        .map(fee => (
+                                                            <div key={fee.id} className="flex justify-between text-sm">
+                                                                <span className="text-gray-600 dark:text-gray-400">{fee.name}</span>
+                                                                <span className="font-medium text-gray-900 dark:text-white">₹{fee.amount}</span>
+                                                            </div>
+                                                        ))
+                                                    }
+                                                </div>
+
+                                                <div className="h-px bg-gray-100 dark:bg-gray-800" />
+                                                
+                                                <div className="flex justify-between text-base font-bold">
+                                                    <span className="text-gray-900 dark:text-white">Total Amount</span>
+                                                    <span className="text-purple-600 dark:text-purple-400">₹{totalAmount}</span>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    </>
+                                )}
+                            </AnimatePresence>
+
+                            <div className="p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-t border-gray-200 dark:border-gray-800 relative z-50">
+                                <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+                                    <button 
+                                        onClick={() => setIsBreakdownOpen(!isBreakdownOpen)}
+                                        className="text-left group outline-none"
+                                    >
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                                            Total Payable
+                                            {isBreakdownOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                                        </p>
+                                        <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">₹{totalAmount}</p>
+                                    </button>
+                                    <AnimatedButton
+                                        onClick={() => setStep('details')}
+                                        disabled={!selectedPlan}
+                                        className="bg-purple-600 hover:bg-purple-700 text-white min-w-[150px]"
+                                        icon="arrowRight"
+                                    >
+                                        Continue
+                                    </AnimatedButton>
                                 </div>
-                                <AnimatedButton
-                                    onClick={() => setStep('details')}
-                                    disabled={!selectedPlan}
-                                    className="bg-purple-600 hover:bg-purple-700 text-white min-w-[150px]"
-                                    icon="arrowRight"
-                                >
-                                    Continue
-                                </AnimatedButton>
                             </div>
                         </div>
                         {/* Spacer for fixed bottom bar */}
