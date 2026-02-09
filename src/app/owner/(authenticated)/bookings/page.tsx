@@ -13,7 +13,7 @@ export default async function BookingsPage() {
   const branches = branchesResult.success && branchesResult.data ? branchesResult.data : []
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-2 md:p-0">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold tracking-tight">Booking Management</h1>
         <p className="text-gray-500 dark:text-gray-400">
