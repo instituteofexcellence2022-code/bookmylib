@@ -1,7 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { Filter, Search, Calendar, User, Armchair, Lock, MoreHorizontal, Check, X, AlertCircle } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { 
+  Filter, Search, Calendar, User, Armchair, Lock, MoreHorizontal, 
+  Check, X, AlertCircle, Wallet, CreditCard, Banknote, Clock, 
+  Activity, CheckCircle, LayoutGrid, List
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { updateBookingStatus } from '@/actions/owner/bookings'
 import { format } from 'date-fns'
@@ -18,15 +22,35 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  const filteredBookings = bookings.filter(booking => {
-    const matchesBranch = selectedBranch === 'all' || booking.branchId === selectedBranch
-    const matchesStatus = statusFilter === 'all' || booking.status === statusFilter
-    const matchesSearch = 
-      booking.student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      booking.student.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      booking.student.phone?.includes(searchQuery)
-    return matchesBranch && matchesStatus && matchesSearch
-  })
+  // Derived State
+  const filteredBookings = useMemo(() => {
+    return bookings.filter(booking => {
+      const matchesBranch = selectedBranch === 'all' || booking.branchId === selectedBranch
+      const matchesStatus = statusFilter === 'all' || booking.status === statusFilter
+      const matchesSearch = 
+        booking.student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        booking.student.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        booking.student.phone?.includes(searchQuery)
+      return matchesBranch && matchesStatus && matchesSearch
+    })
+  }, [bookings, selectedBranch, statusFilter, searchQuery])
+
+  const stats = useMemo(() => {
+    // Calculate stats based on current branch filter (but ignoring status filter to show overview)
+    const relevantBookings = bookings.filter(b => 
+      selectedBranch === 'all' || b.branchId === selectedBranch
+    )
+
+    const total = relevantBookings.length
+    const active = relevantBookings.filter(b => b.status === 'active').length
+    const pending = relevantBookings.filter(b => b.status === 'pending').length
+    // Approximate revenue from active/completed bookings
+    const revenue = relevantBookings
+      .filter(b => ['active', 'completed'].includes(b.status))
+      .reduce((acc, curr) => acc + (curr.plan?.price || 0), 0)
+
+    return { total, active, pending, revenue }
+  }, [bookings, selectedBranch])
 
   const handleStatusUpdate = async (id: string, newStatus: string) => {
     if (!confirm(`Are you sure you want to mark this booking as ${newStatus}?`)) return
@@ -52,11 +76,78 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
     }
   }
 
+  const getPaymentStatus = (booking: any) => {
+    // This assumes booking.payments is populated. If not, it falls back to 'unpaid'
+    const isPaid = booking.payments?.some((p: any) => p.status === 'success' || p.status === 'captured')
+    return isPaid ? 'paid' : 'unpaid'
+  }
+
   return (
     <div className="space-y-6">
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="relative flex-1">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <StatCard 
+          label="Total Bookings" 
+          value={stats.total} 
+          icon={Wallet} 
+          color="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+        />
+        <StatCard 
+          label="Active" 
+          value={stats.active} 
+          icon={Activity} 
+          color="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+        />
+        <StatCard 
+          label="Pending" 
+          value={stats.pending} 
+          icon={Clock} 
+          color="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+        />
+        <StatCard 
+          label="Est. Revenue" 
+          value={`₹${stats.revenue.toLocaleString()}`} 
+          icon={Banknote} 
+          color="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+        />
+      </div>
+
+      {/* Filters and Controls */}
+      <div className="flex flex-col space-y-4 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+          {/* Tabs for Status */}
+          <div className="flex p-1 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-x-auto max-w-full">
+            {['all', 'active', 'pending', 'expired', 'cancelled'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all capitalize whitespace-nowrap ${
+                  statusFilter === status 
+                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
+                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                }`}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-2 w-full md:w-auto">
+            <select
+              value={selectedBranch}
+              onChange={(e) => setSelectedBranch(e.target.value)}
+              className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-500 whitespace-nowrap"
+            >
+              <option value="all">All Branches</option>
+              {branches.map(b => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
@@ -65,29 +156,6 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"
           />
-        </div>
-        <div className="flex gap-2 w-full sm:w-auto overflow-x-auto">
-          <select
-            value={selectedBranch}
-            onChange={(e) => setSelectedBranch(e.target.value)}
-            className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-500 whitespace-nowrap"
-          >
-            <option value="all">All Branches</option>
-            {branches.map(b => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-500 whitespace-nowrap"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="pending">Pending</option>
-            <option value="expired">Expired</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
         </div>
       </div>
 
@@ -101,12 +169,15 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
                 <th className="px-6 py-4 font-medium">Plan Details</th>
                 <th className="px-6 py-4 font-medium">Duration</th>
                 <th className="px-6 py-4 font-medium">Assignment</th>
+                <th className="px-6 py-4 font-medium">Payment</th>
                 <th className="px-6 py-4 font-medium">Status</th>
                 <th className="px-6 py-4 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {filteredBookings.map((booking) => (
+              {filteredBookings.map((booking) => {
+                const paymentStatus = getPaymentStatus(booking)
+                return (
                 <tr key={booking.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -159,6 +230,15 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
                     </div>
                   </td>
                   <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                      paymentStatus === 'paid' 
+                        ? 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/20 dark:border-green-800' 
+                        : 'bg-yellow-50 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800'
+                    }`}>
+                      {paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(booking.status)} capitalize`}>
                       {booking.status}
                     </span>
@@ -186,7 +266,7 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
                     </div>
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
@@ -195,6 +275,20 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
             No bookings found matching your filters.
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+function StatCard({ label, value, icon: Icon, color }: any) {
+  return (
+    <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center gap-4">
+      <div className={`p-3 rounded-lg ${color}`}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <div>
+        <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
+        <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
       </div>
     </div>
   )
