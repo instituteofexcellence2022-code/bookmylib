@@ -259,6 +259,15 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
     }
 
     const toggleFee = (feeId: string) => {
+        // Check if plan is selected before allowing seat reservation fee
+        const fee = branch.fees.find(f => String(f.id) === feeId)
+        if (fee && (fee.name.toLowerCase().includes('seat') || fee.name.toLowerCase().includes('reservation'))) {
+            if (!selectedPlan) {
+                toast.error('Please select a valid plan first')
+                return
+            }
+        }
+
         setSelectedFees(prev => 
             prev.includes(feeId) 
                 ? prev.filter(id => id !== feeId)
@@ -512,9 +521,9 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                         exit={{ opacity: 0, y: -20 }}
                         className="space-y-8"
                     >
-                        <div className="grid lg:grid-cols-3 gap-6">
+                        <div className="space-y-6">
                             {/* 1. Choose Plan */}
-                            <section className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm">
+                            <section className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm">
                             <div className="flex flex-col gap-3 mb-4">
                                 <div className="flex items-center justify-between gap-3">
                                     <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 whitespace-nowrap">
@@ -601,27 +610,26 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                             {selectedPlan?.id === plan.id ? (
                                                 <div className="py-2 mb-2">
                                                     <div className="flex items-center justify-between bg-purple-100/50 dark:bg-purple-900/30 rounded-lg p-2 border border-purple-200 dark:border-purple-800">
-                                                        <span className="text-xs font-medium text-purple-800 dark:text-purple-200">Quantity:</span>
+                                                        <span className="text-xs font-medium text-purple-800 dark:text-purple-200">Quantity</span>
                                                         <div className="flex items-center gap-3">
                                                             <button 
                                                                 onClick={(e) => {
                                                                     e.stopPropagation()
                                                                     setQuantity(Math.max(1, quantity - 1))
                                                                 }}
-                                                                className="p-1 hover:bg-white dark:hover:bg-gray-800 rounded-md transition-colors text-purple-700 dark:text-purple-300 disabled:opacity-50"
-                                                                disabled={quantity <= 1}
+                                                                className="w-6 h-6 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center text-purple-600 dark:text-purple-400 shadow-sm hover:scale-110 transition-transform"
                                                             >
-                                                                <Minus className="w-4 h-4" />
+                                                                <Minus className="w-3 h-3" />
                                                             </button>
-                                                            <span className="text-sm font-bold text-purple-900 dark:text-purple-100 w-4 text-center">{quantity}</span>
+                                                            <span className="text-sm font-bold text-purple-700 dark:text-purple-300 w-4 text-center">{quantity}</span>
                                                             <button 
                                                                 onClick={(e) => {
                                                                     e.stopPropagation()
                                                                     setQuantity(quantity + 1)
                                                                 }}
-                                                                className="p-1 hover:bg-white dark:hover:bg-gray-800 rounded-md transition-colors text-purple-700 dark:text-purple-300"
+                                                                className="w-6 h-6 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center text-purple-600 dark:text-purple-400 shadow-sm hover:scale-110 transition-transform"
                                                             >
-                                                                <Plus className="w-4 h-4" />
+                                                                <Plus className="w-3 h-3" />
                                                             </button>
                                                         </div>
                                                     </div>
@@ -680,9 +688,8 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                             </div>
                         </section>
 
-                        <div className="space-y-6 lg:col-span-1">
-                            {/* Fees & Customization */}
-                            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 h-fit space-y-6">
+                        {/* 2. Customize Plan */}
+                        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 h-fit space-y-6">
                                 <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                                     <Info className="w-5 h-5 text-blue-500" />
                                     Customize Plan
@@ -835,27 +842,32 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                 )}
                             </div>
 
-                            {/* Start Date */}
-                            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 h-fit">
-                                <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                                    <Calendar className="w-5 h-5 text-orange-500" />
+                        {/* 3. Start Date */}
+                        <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm relative z-10">
+                             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                <Calendar className="w-5 h-5 text-orange-500" />
+                                Start Date
+                            </h3>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-gray-500 dark:text-gray-400 ml-1">
                                     Start Date
-                                </h3>
+                                </label>
                                 <input
                                     type="date"
                                     value={bookingDate}
+                                    min={new Date().toISOString().split('T')[0]}
                                     onChange={(e) => setBookingDate(e.target.value)}
                                     className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 outline-none focus:ring-2 focus:ring-purple-500 transition-all"
                                 />
                             </div>
-                        </div>
+                        </section>
                     </div>
 
 
 
 
-                        {/* 2. Select Seat (Optional) */}
-                        {isSeatReservationFeeSelected && (
+                        {/* 4. Select Seat (Optional) */}
+                        {isSeatSelectionEnabled && (
                         <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col relative z-10">
                             
                             <div className="p-4 md:p-6 border-b border-gray-100 dark:border-gray-700 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50 dark:bg-gray-800/50">
@@ -1040,7 +1052,13 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                                 key={seat.id}
                                                                 whileHover={!seat.isOccupied ? { scale: 1.05 } : {}}
                                                                 whileTap={!seat.isOccupied ? { scale: 0.95 } : {}}
-                                                                onClick={() => !seat.isOccupied && setSelectedSeat(selectedSeat?.id === seat.id ? null : seat)}
+                                                                onClick={() => {
+                                                                if (!selectedPlan) {
+                                                                    toast.error("Please select a plan first")
+                                                                    return
+                                                                }
+                                                                !seat.isOccupied && setSelectedSeat(selectedSeat?.id === seat.id ? null : seat)
+                                                            }}
                                                                 disabled={seat.isOccupied}
                                                                 className={cn(
                                                                     "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative group",
@@ -1107,7 +1125,13 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                             key={seat.id}
                                                             whileHover={!seat.isOccupied ? { scale: 1.05 } : {}}
                                                             whileTap={!seat.isOccupied ? { scale: 0.95 } : {}}
-                                                            onClick={() => !seat.isOccupied && setSelectedSeat(selectedSeat?.id === seat.id ? null : seat)}
+                                                            onClick={() => {
+                                                                if (!selectedPlan) {
+                                                                    toast.error("Please select a plan first")
+                                                                    return
+                                                                }
+                                                                !seat.isOccupied && setSelectedSeat(selectedSeat?.id === seat.id ? null : seat)
+                                                            }}
                                                             disabled={seat.isOccupied}
                                                             className={cn(
                                                                 "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative",
@@ -1159,7 +1183,8 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                         </section>
                         )}
 
-                        {/* 4. Select Locker (if applicable) */}
+
+                        {/* 5. Select Locker (if applicable) */}
                         {isLockerSelectionEnabled && (
                         <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col relative z-10">
                             <div className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700">
@@ -1439,8 +1464,6 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                             )}
                         </section>
                         )}
-
-                        {/* Moved to top */}
 
                         {/* Action Bar */}
                         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-t border-gray-200 dark:border-gray-800 z-40">

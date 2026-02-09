@@ -175,7 +175,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
             f.name.toLowerCase().includes('reservation')
         )
 
-        if (!seatFeeExists) return true // If no specific seat fee, allow selection (or maybe disable? assuming allow)
+        if (!seatFeeExists) return false // If no specific seat fee and not included in plan, disable selection
 
         // If seat fee exists, user must have selected it
         return selectedFees.some(id => {
@@ -549,7 +549,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                 </div>
 
                 {/* Additional Fees (Step 2) */}
-                {(branch.fees?.length > 0) && (
+                {selectedPlan && (branch.fees?.length > 0) && (
                     <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                             <Info className="w-5 h-5 text-purple-500" />
@@ -644,7 +644,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                 )}
 
                 {/* Seat Map (Step 3) */}
-                {isSeatSelectionEnabled && (
+                {selectedPlan && isSeatSelectionEnabled && (
                 <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col relative z-10">
                     
                     <div className="p-4 md:p-6 border-b border-gray-100 dark:border-gray-700 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50 dark:bg-gray-800/50">
@@ -880,7 +880,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                 )}
 
                 {/* Locker Selection */}
-                {shouldShowLockerSelection && (
+                {selectedPlan && shouldShowLockerSelection && (
                 <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col relative z-10">
                     <div className="p-4 md:p-6 border-b border-gray-100 dark:border-gray-700 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50 dark:bg-gray-800/50">
                         <div>
@@ -938,6 +938,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                 )}
 
                 {/* Date Selection */}
+                {selectedPlan && (
                 <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                         <Calendar className="w-5 h-5 text-orange-500" />
@@ -975,6 +976,7 @@ export default function BookingClient({ branch, studentId, currentSubscription, 
                     </div>
                 </div>
                 </div>
+                )}
 
                 {/* Action Button */}
                 <Button
