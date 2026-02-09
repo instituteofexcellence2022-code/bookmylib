@@ -59,6 +59,7 @@
     "tailwindcss-animate": "^1.0.7",
     "tesseract.js": "^7.0.0",
     "uploadthing": "^7.7.4",
+    "use-debounce": "^10.1.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
