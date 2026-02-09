@@ -12,7 +12,7 @@ import { toast } from 'sonner'
 
 import { useRouter } from 'next/navigation'
 
-function ManualCheckInModal({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) {
+function ManualCheckInModal({ onClose, onSuccess, currentBranchId }: { onClose: () => void, onSuccess: () => void, currentBranchId?: string }) {
   const [loading, setLoading] = useState(true)
   const [branches, setBranches] = useState<{id: string, name: string}[]>([])
   const [marking, setMarking] = useState<string | null>(null)
@@ -23,7 +23,6 @@ function ManualCheckInModal({ onClose, onSuccess }: { onClose: () => void, onSuc
         setBranches(res.branches)
       } else {
         toast.error(res.error || "Failed to load branches")
-        // onClose() // Don't close immediately so user sees error? Actually maybe better to show empty state or error in modal
       }
       setLoading(false)
     })
@@ -31,27 +30,54 @@ function ManualCheckInModal({ onClose, onSuccess }: { onClose: () => void, onSuc
 
   const handleCheckIn = async (branchId: string) => {
     setMarking(branchId)
-    try {
-      const res = await markManualAttendance(branchId)
-      if (res.success) {
-        toast.success(res.type === 'check-in' ? "Checked in successfully" : "Checked out successfully")
-        onSuccess()
-        onClose()
-      } else {
-        toast.error(res.error || "Failed to mark attendance")
-      }
-    } catch (e) {
-      toast.error("Something went wrong")
-    } finally {
-      setMarking(null)
+    
+    // Get Location
+    if (!navigator.geolocation) {
+        toast.error("Geolocation is not supported by your browser")
+        setMarking(null)
+        return
     }
+
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        const { latitude, longitude } = position.coords
+        try {
+            const res = await markManualAttendance(branchId, { lat: latitude, lng: longitude })
+            if (res.success) {
+                toast.success(res.type === 'check-in' ? "Checked in successfully" : "Checked out successfully")
+                onSuccess()
+                onClose()
+            } else {
+                toast.error(res.error || "Failed to mark attendance")
+            }
+        } catch (e) {
+            toast.error("Something went wrong")
+        } finally {
+            setMarking(null)
+        }
+    }, (error) => {
+        console.error(error)
+        if (error.code === 1) { // PERMISSION_DENIED
+             toast.error("Location permission denied. Please enable location to use manual check-in.")
+        } else if (error.code === 2) { // POSITION_UNAVAILABLE
+             toast.error("Location unavailable. Please check your GPS.")
+        } else {
+             toast.error("Failed to get location")
+        }
+        setMarking(null)
+    }, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+    })
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
         <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-          <h3 className="font-semibold text-gray-900 dark:text-white">Manual Check-In</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-white">
+            {currentBranchId ? 'Manual Check-Out / Switch' : 'Manual Check-In'}
+          </h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
             <X className="w-5 h-5 text-gray-500" />
           </button>
@@ -70,26 +96,42 @@ function ManualCheckInModal({ onClose, onSuccess }: { onClose: () => void, onSuc
           ) : (
             <div className="space-y-3">
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                Select your branch to mark attendance:
+                {currentBranchId 
+                  ? "Select current branch to check out, or another to switch:" 
+                  : "Select your branch to mark attendance:"}
               </p>
-              {branches.map(branch => (
-                <button
-                  key={branch.id}
-                  disabled={!!marking}
-                  onClick={() => handleCheckIn(branch.id)}
-                  className="w-full flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/50 transition-colors">
-                      <MapPin className="w-4 h-4" />
+              {branches.map(branch => {
+                const isCurrent = branch.id === currentBranchId
+                return (
+                  <button
+                    key={branch.id}
+                    disabled={!!marking}
+                    onClick={() => handleCheckIn(branch.id)}
+                    className={`w-full flex items-center justify-between p-4 rounded-lg border transition-all group disabled:opacity-50 disabled:cursor-not-allowed ${
+                        isCurrent 
+                        ? 'border-orange-200 bg-orange-50 hover:border-orange-500 dark:border-orange-900/50 dark:bg-orange-900/20 dark:hover:border-orange-500' 
+                        : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50 dark:border-gray-700 dark:hover:border-blue-500 dark:hover:bg-blue-900/20'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-full transition-colors ${
+                          isCurrent 
+                          ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400' 
+                          : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/50'
+                      }`}>
+                        {isCurrent ? <CheckCircle2 className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}
+                      </div>
+                      <div className="text-left">
+                          <span className="font-medium text-gray-900 dark:text-white block">{branch.name}</span>
+                          {isCurrent && <span className="text-xs text-orange-600 dark:text-orange-400 font-medium">Click to Check Out</span>}
+                      </div>
                     </div>
-                    <span className="font-medium text-gray-900 dark:text-white">{branch.name}</span>
-                  </div>
-                  {marking === branch.id && (
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                  )}
-                </button>
-              ))}
+                    {marking === branch.id && (
+                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                    )}
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>
@@ -263,6 +305,52 @@ export default function AttendanceClient({ todayAttendance, recentActivity, hist
   const router = useRouter()
   const isCheckedIn = !!todayAttendance && !todayAttendance.checkOut
 
+  // Calculate Today's Activity (Expanded Events)
+  const todaysEvents = React.useMemo(() => {
+    const today = new Date().setHours(0,0,0,0)
+    const todayLogs = history.filter(h => {
+        const d = new Date(h.checkIn)
+        d.setHours(0,0,0,0)
+        return d.getTime() === today
+    })
+
+    // Flatten to events
+    const events: { id: string, type: 'check-in' | 'check-out', time: Date, branchName: string }[] = []
+    
+    todayLogs.forEach(log => {
+        // Add Check In
+        events.push({
+            id: log.id + '_in',
+            type: 'check-in',
+            time: new Date(log.checkIn),
+            branchName: log.branch?.name || 'Library'
+        })
+        // Add Check Out if exists
+        if (log.checkOut) {
+            events.push({
+                id: log.id + '_out',
+                type: 'check-out',
+                time: new Date(log.checkOut),
+                branchName: log.branch?.name || 'Library'
+            })
+        }
+    })
+
+    // Sort by time descending
+    return events.sort((a, b) => b.time.getTime() - a.time.getTime())
+  }, [history])
+
+  // Fallback to recent history if no events today (optional, but requested "of the day")
+  // If user strictly wants "of the day", we show empty if none. 
+  // But standard UI usually shows *something*. Let's stick to "Today's Activity" if strict.
+  // Actually, let's keep it "Recent Activity" but prioritize Today's expanded view.
+  // If no today's events, show standard history collapsed view?
+  // User said "recent activity should show all check in check out of the day".
+  // Let's render Today's events if any, otherwise fallback to last 3 sessions.
+  
+  const showExpandedToday = todaysEvents.length > 0
+  const displayActivity = showExpandedToday ? todaysEvents : history.slice(0, 3)
+
   return (
     <div className="space-y-6">
       {showManualModal && (
@@ -271,6 +359,7 @@ export default function AttendanceClient({ todayAttendance, recentActivity, hist
           onSuccess={() => {
             router.refresh()
           }}
+          currentBranchId={isCheckedIn ? todayAttendance?.branchId : undefined}
         />
       )}
       {/* Header with Status */}
@@ -357,37 +446,68 @@ export default function AttendanceClient({ todayAttendance, recentActivity, hist
                 onClick={() => setShowManualModal(true)}
                 className="text-sm text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
             >
-                Scanner not working? Manual Check-in
+                Scanner not working? Manual {isCheckedIn ? 'Check-out' : 'Check-in'}
             </button>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-100 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Activity</h2>
-            {recentActivity.length === 0 ? (
-               <p className="text-sm text-gray-500">No recent activity.</p>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                {showExpandedToday ? "Today's Activity" : "Recent Activity"}
+            </h2>
+            {displayActivity.length === 0 ? (
+               <p className="text-sm text-gray-500">No activity yet.</p>
             ) : (
             <div className="space-y-4">
-              {recentActivity.map((log) => (
-                <div key={log.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className={`p-2 rounded-lg ${log.checkOut ? 'bg-green-100 dark:bg-green-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
-                      <Clock className={`w-4 h-4 ${log.checkOut ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`} />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">
-                        {log.checkOut ? 'Check Out' : 'Check In'}
-                      </p>
-                      <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 space-x-1">
-                        <MapPin className="w-3 h-3" />
-                        <span>{log.branch?.name || 'Library'} • {format(new Date(log.checkOut || log.checkIn), 'hh:mm a')}</span>
+              {showExpandedToday ? (
+                  // Expanded View for Today
+                  (displayActivity as any[]).map((event) => (
+                    <div key={event.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg animate-in fade-in slide-in-from-bottom-2">
+                      <div className="flex items-center space-x-3">
+                        <div className={`p-2 rounded-lg ${event.type === 'check-out' ? 'bg-orange-100 dark:bg-orange-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
+                          {event.type === 'check-out' ? 
+                            <Timer className="w-4 h-4 text-orange-600 dark:text-orange-400" /> : 
+                            <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          }
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {event.type === 'check-out' ? 'Checked Out' : 'Checked In'}
+                          </p>
+                          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 space-x-1">
+                            <MapPin className="w-3 h-3" />
+                            <span>{event.branchName} • {format(event.time, 'hh:mm a')}</span>
+                          </div>
+                        </div>
                       </div>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        {format(event.time, 'MMM dd')}
+                      </span>
                     </div>
-                  </div>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {format(new Date(log.checkIn), 'MMM dd')}
-                  </span>
-                </div>
-              ))}
+                  ))
+              ) : (
+                  // Standard History View (Fallback)
+                  (displayActivity as any[]).map((log) => (
+                    <div key={log.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className={`p-2 rounded-lg ${log.checkOut ? 'bg-green-100 dark:bg-green-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
+                          <Clock className={`w-4 h-4 ${log.checkOut ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`} />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {log.checkOut ? 'Check Out' : 'Check In'}
+                          </p>
+                          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 space-x-1">
+                            <MapPin className="w-3 h-3" />
+                            <span>{log.branch?.name || 'Library'} • {format(new Date(log.checkOut || log.checkIn), 'hh:mm a')}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        {format(new Date(log.checkIn), 'MMM dd')}
+                      </span>
+                    </div>
+                  ))
+              )}
             </div>
             )}
           </div>

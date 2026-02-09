@@ -9,8 +9,6 @@ export default async function AttendancePage() {
     getAttendanceStats()
   ])
   
-  const recentActivity = history.slice(0, 3)
-
   // Serialize
   const serializedAttendance = todayAttendance ? JSON.parse(JSON.stringify(todayAttendance)) : null
   const serializedHistory = JSON.parse(JSON.stringify(history))
@@ -18,7 +16,7 @@ export default async function AttendancePage() {
   return (
     <AttendanceClient 
       todayAttendance={serializedAttendance} 
-      recentActivity={recentActivity}
+      recentActivity={[]} // Deprecated, client calculates from history
       history={serializedHistory}
       stats={stats}
     />

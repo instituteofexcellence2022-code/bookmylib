@@ -451,6 +451,7 @@ export async function getManualCheckInOptions() {
     try {
         const today = new Date()
         
+        // 1. Get Active Subscriptions
         const subscriptions = await prisma.studentSubscription.findMany({
             where: {
                 studentId,
@@ -473,7 +474,32 @@ export async function getManualCheckInOptions() {
             name: sub.branch.name
         }))
 
-        // Deduplicate branches (in case of multiple subs to same branch)
+        // 2. Check for Open Attendance (Current Session)
+        // If checked in, we must allow checking out even if subscription expired/missing
+        const todayStart = new Date()
+        todayStart.setHours(0, 0, 0, 0)
+
+        const openAttendance = await prisma.attendance.findFirst({
+            where: {
+                studentId,
+                checkOut: null,
+                checkIn: { gte: todayStart }
+            },
+            include: {
+                branch: {
+                    select: { id: true, name: true }
+                }
+            }
+        })
+
+        if (openAttendance) {
+            branches.push({
+                id: openAttendance.branch.id,
+                name: openAttendance.branch.name
+            })
+        }
+
+        // Deduplicate branches (in case of multiple subs to same branch or open attendance matches sub)
         const uniqueBranches = Array.from(new Map(branches.map(b => [b.id, b])).values())
 
         return { success: true, branches: uniqueBranches }
@@ -483,7 +509,7 @@ export async function getManualCheckInOptions() {
     }
 }
 
-export async function markManualAttendance(branchId: string) {
+export async function markManualAttendance(branchId: string, location?: { lat: number, lng: number }) {
     const studentId = await getStudentSession()
     if (!studentId) return { success: false, error: 'Unauthorized' }
 
@@ -494,6 +520,59 @@ export async function markManualAttendance(branchId: string) {
 
         if (!branch) return { success: false, error: 'Branch not found' }
         if (!branch.qrCode) return { success: false, error: 'Branch not configured for attendance' }
+
+        // --- Geolocation Validation ---
+        // Only if branch has coordinates configured
+        if (branch.latitude && branch.longitude && location) {
+            const R = 6371e3; // metres
+            const φ1 = branch.latitude * Math.PI/180;
+            const φ2 = location.lat * Math.PI/180;
+            const Δφ = (location.lat - branch.latitude) * Math.PI/180;
+            const Δλ = (location.lng - branch.longitude) * Math.PI/180;
+
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            const distance = R * c; // in metres
+
+            // Check if user is trying to check-out (already checked in)
+            const todayStart = new Date()
+            todayStart.setHours(0,0,0,0)
+            const openAttendance = await prisma.attendance.findFirst({
+                where: {
+                    studentId,
+                    branchId,
+                    checkOut: null,
+                    checkIn: { gte: todayStart }
+                }
+            })
+
+            const MAX_DISTANCE = 75; // meters
+
+            if (openAttendance) {
+                // Trying to Check-Out
+                // Requirement: Must be OUTSIDE 75 meters (Away from library)
+                if (distance <= MAX_DISTANCE) {
+                    return { 
+                        success: false, 
+                        error: `You are still at the library (${Math.round(distance)}m). You must be away from the library (>${MAX_DISTANCE}m) to check out manually.` 
+                    }
+                }
+            } else {
+                // Trying to Check-In
+                // Requirement: Must be WITHIN 75 meters
+                if (distance > MAX_DISTANCE) {
+                    return { 
+                        success: false, 
+                        error: `You are too far from the library (${Math.round(distance)}m). You must be within ${MAX_DISTANCE}m to check in manually.` 
+                    }
+                }
+            }
+        } else if (branch.latitude && branch.longitude && !location) {
+            // Branch has location but user didn't provide it
+            return { success: false, error: 'Location permission required for manual attendance.' }
+        }
 
         return await markAttendance(branch.qrCode)
     } catch (error) {
