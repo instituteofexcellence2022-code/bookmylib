@@ -17,7 +17,10 @@ import {
   User,
   ShieldCheck,
   BookOpen,
-  Clock
+  Clock,
+  Armchair,
+  Lock,
+  Calendar
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
@@ -30,6 +33,9 @@ const navItems = [
   
   { href: '/owner/scanner', label: 'Master Scanner', icon: Scan, group: 'Operations' },
   { href: '/owner/students', label: 'Students', icon: GraduationCap, group: 'Operations' },
+  { href: '/owner/bookings', label: 'Bookings', icon: Calendar, group: 'Operations' },
+  { href: '/owner/seats', label: 'Seats', icon: Armchair, group: 'Operations' },
+  { href: '/owner/lockers', label: 'Lockers', icon: Lock, group: 'Operations' },
   { href: '/owner/verification', label: 'Verification', icon: ShieldCheck, group: 'Operations' },
   { href: '/owner/issues', label: 'Issues', icon: AlertCircle, group: 'Operations', badge: 3, badgeColor: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
   { href: '/owner/expiries', label: 'Expiries', icon: Clock, group: 'Operations' },
