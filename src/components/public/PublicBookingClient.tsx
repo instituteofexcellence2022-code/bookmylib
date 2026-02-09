@@ -589,7 +589,7 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                             key={plan.id}
                                             onClick={() => handlePlanSelect(plan)}
                                             className={cn(
-                                                "p-3 rounded-xl border cursor-pointer transition-all duration-200 relative",
+                                                "p-3 rounded-xl border cursor-pointer transition-all duration-200 relative flex flex-col h-full",
                                                 selectedPlan?.id === plan.id
                                                     ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 shadow-sm ring-1 ring-purple-500/20"
                                                     : "border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-700 hover:shadow-sm"
@@ -607,57 +607,26 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                 <span className="font-bold text-purple-600 dark:text-purple-400 text-sm">₹{plan.price}</span>
                                             </div>
                                             
-                                            {selectedPlan?.id === plan.id ? (
-                                                <div className="py-2 mb-2">
-                                                    <div className="flex items-center justify-between bg-purple-100/50 dark:bg-purple-900/30 rounded-lg p-2 border border-purple-200 dark:border-purple-800">
-                                                        <span className="text-xs font-medium text-purple-800 dark:text-purple-200">Quantity</span>
-                                                        <div className="flex items-center gap-3">
-                                                            <button 
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    setQuantity(Math.max(1, quantity - 1))
-                                                                }}
-                                                                className="w-6 h-6 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center text-purple-600 dark:text-purple-400 shadow-sm hover:scale-110 transition-transform"
-                                                            >
-                                                                <Minus className="w-3 h-3" />
-                                                            </button>
-                                                            <span className="text-sm font-bold text-purple-700 dark:text-purple-300 w-4 text-center">{quantity}</span>
-                                                            <button 
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    setQuantity(quantity + 1)
-                                                                }}
-                                                                className="w-6 h-6 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center text-purple-600 dark:text-purple-400 shadow-sm hover:scale-110 transition-transform"
-                                                            >
-                                                                <Plus className="w-3 h-3" />
-                                                            </button>
-                                                        </div>
-                                                    </div>
+                                            <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{plan.description}</p>
+                                            
+                                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                                                <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
+                                                    <Clock className="w-2.5 h-2.5 text-gray-400" />
+                                                    <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">{plan.duration} {plan.durationUnit}</span>
                                                 </div>
-                                            ) : (
-                                                <>
-                                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{plan.description}</p>
-                                                    
-                                                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                                                        <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
-                                                            <Clock className="w-2.5 h-2.5 text-gray-400" />
-                                                            <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">{plan.duration} {plan.durationUnit}</span>
-                                                        </div>
-                                                        
-                                                        <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
-                                                            <Info className="w-2.5 h-2.5 text-gray-400" />
-                                                            <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
-                                                                {plan.category === 'fixed' 
-                                                                    ? `${formatTime(plan.shiftStart || undefined)} - ${formatTime(plan.shiftEnd || undefined)}`
-                                                                    : `${plan.hoursPerDay} Hrs/Day`
-                                                                }
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </>
-                                            )}
+                                                
+                                                <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
+                                                    <Info className="w-2.5 h-2.5 text-gray-400" />
+                                                    <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
+                                                        {plan.category === 'fixed' 
+                                                            ? `${formatTime(plan.shiftStart || undefined)} - ${formatTime(plan.shiftEnd || undefined)}`
+                                                            : `${plan.hoursPerDay} Hrs/Day`
+                                                        }
+                                                    </span>
+                                                </div>
+                                            </div>
 
-                                            <div className="flex flex-wrap gap-1.5">
+                                            <div className="flex flex-wrap gap-1.5 mb-2">
                                                 <span className={cn(
                                                     "px-1.5 py-0.5 rounded text-[10px] font-medium border capitalize",
                                                     plan.category === 'fixed'
@@ -682,6 +651,53 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                     </span>
                                                 )}
                                             </div>
+
+                                            {selectedPlan?.id === plan.id && (
+                                                <div className="py-2 mt-auto">
+                                                    <div className="flex items-center justify-between bg-purple-100/50 dark:bg-purple-900/30 rounded-lg p-2 border border-purple-200 dark:border-purple-800">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] uppercase tracking-wider font-semibold text-purple-800 dark:text-purple-200">Total Duration</span>
+                                                            <div className="flex items-baseline gap-1">
+                                                                <span className="text-sm font-bold text-purple-950 dark:text-purple-50">
+                                                                    {quantity * plan.duration} {plan.durationUnit?.toLowerCase().startsWith('m') ? (quantity * plan.duration > 1 ? 'Months' : 'Month') : (quantity * plan.duration > 1 ? 'Days' : 'Day')}
+                                                                </span>
+                                                                <span className="text-[10px] text-purple-700 dark:text-purple-300 font-medium">
+                                                                    ({quantity} × {plan.duration} {plan.durationUnit?.toLowerCase().startsWith('m') ? (plan.duration > 1 ? 'Months' : 'Month') : (plan.duration > 1 ? 'Days' : 'Day')})
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center bg-white dark:bg-gray-800 rounded-md border border-purple-200 dark:border-purple-700 shadow-sm">
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    if (quantity > 1) {
+                                                                        setQuantity(quantity - 1)
+                                                                    } else {
+                                                                        setSelectedPlan(null)
+                                                                        setQuantity(1)
+                                                                        setSelectedSeat(null)
+                                                                        setSelectedLocker(null)
+                                                                        setSelectedFees([])
+                                                                    }
+                                                                }}
+                                                                className="w-7 h-7 flex items-center justify-center text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-l-md transition-colors"
+                                                            >
+                                                                <Minus className="w-3 h-3" />
+                                                            </button>
+                                                            <span className="w-6 text-center text-sm font-bold text-gray-900 dark:text-white">{quantity}</span>
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    setQuantity(quantity + 1)
+                                                                }}
+                                                                className="w-7 h-7 flex items-center justify-center text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-r-md transition-colors"
+                                                            >
+                                                                <Plus className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     ))
                                 )}
