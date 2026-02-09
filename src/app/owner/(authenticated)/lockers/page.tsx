@@ -13,8 +13,8 @@ export default async function LockersPage() {
   const branches = branchesResult.success && branchesResult.data ? branchesResult.data : []
 
   return (
-    <div className="space-y-4 md:space-y-6 md:p-6">
-      <div className="flex flex-col gap-1 md:gap-2">
+    <div className="p-2 space-y-4 md:space-y-6 md:p-6">
+      <div className="flex flex-col gap-2">
         <h1 className="text-xl md:text-2xl font-bold tracking-tight">Locker Management</h1>
         <p className="text-sm md:text-base text-gray-500 dark:text-gray-400">
           Manage lockers across all your branches.

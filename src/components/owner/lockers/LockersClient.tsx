@@ -178,7 +178,7 @@ export function LockersClient({ initialLockers, branches }: LockersClientProps) 
   }
 
   return (
-    <div className="space-y-4 md:space-y-6">
+    <div className="space-y-2 md:space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
         <StatCard 
@@ -289,7 +289,7 @@ export function LockersClient({ initialLockers, branches }: LockersClientProps) 
             </div>
 
             {viewMode === 'grid' ? (
-              <div className="grid grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
+              <div className="grid grid-cols-3 md:grid-cols-4 gap-2 md:gap-4">
                 {branchLockers.map((locker) => (
                   <LockerGridItem 
                     key={locker.id} 

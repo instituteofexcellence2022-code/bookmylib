@@ -185,7 +185,7 @@ export function SeatsClient({ initialSeats, branches }: SeatsClientProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2 md:space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <StatCard 
