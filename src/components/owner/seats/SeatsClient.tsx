@@ -308,8 +308,8 @@ export function SeatsClient({ initialSeats, branches }: SeatsClientProps) {
             </div>
 
             {viewMode === 'grid' ? (
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3">
-                {branchSeats.map((seat) => (
+              <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2 md:gap-3">
+            {branchSeats.map((seat) => (
                   <SeatGridItem 
                     key={seat.id} 
                     seat={seat} 
