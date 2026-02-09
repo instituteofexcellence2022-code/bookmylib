@@ -179,6 +179,8 @@ export async function createStaffPayment(data: {
     lockerId?: string
     discount?: number
     promoCode?: string
+    quantity?: number
+    startDate?: string | Date
 }) {
     try {
         const staff = await getAuthenticatedStaff()
@@ -217,8 +219,8 @@ export async function createStaffPayment(data: {
         }
 
         // Calculate Dates and Check Conflicts outside transaction
-        let start = new Date()
-        let end = new Date()
+        let start = data.startDate ? new Date(data.startDate) : new Date()
+        let end = new Date(start)
         let subscriptionId: string | undefined = undefined
         let hasLocker = false
 
@@ -233,17 +235,21 @@ export async function createStaffPayment(data: {
                 orderBy: { endDate: 'desc' }
             })
 
-            if (lastSubscription) {
+            if (!data.startDate && lastSubscription) {
                 start = new Date(lastSubscription.endDate)
+                // Reset end based on new start
+                end = new Date(start)
             }
 
-            end = new Date(start)
+            const qty = data.quantity || 1
+            const durationVal = plan.duration * qty
+
             if (plan.durationUnit === 'days') {
-                end.setDate(end.getDate() + plan.duration)
+                end.setDate(end.getDate() + durationVal)
             } else if (plan.durationUnit === 'weeks') {
-                end.setDate(end.getDate() + (plan.duration * 7))
+                end.setDate(end.getDate() + (durationVal * 7))
             } else if (plan.durationUnit === 'months') {
-                end.setMonth(end.getMonth() + plan.duration)
+                end.setMonth(end.getMonth() + durationVal)
             }
 
             if (data.seatId) {

@@ -1,9 +1,10 @@
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
-import { Search, User, CreditCard, Banknote, Calendar, Check, Loader2, MapPin, Armchair, ChevronRight, Clock, Info, ChevronLeft, LayoutGrid, List, ShieldCheck, Percent, Lock, Plus, Minus } from 'lucide-react'
+import { Search, User, CreditCard, Banknote, Calendar, Check, Loader2, MapPin, Armchair, ChevronRight, Clock, Info, ChevronLeft, LayoutGrid, List, ShieldCheck, Percent, Lock, Plus, Minus, ChevronUp, ChevronDown, Filter, CheckCircle2 } from 'lucide-react'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { Button } from '@/components/ui/button'
 import { FormInput } from '@/components/ui/FormInput'
 import { FormSelect } from '@/components/ui/FormSelect'
 import { getOwnerStudents } from '@/actions/owner/students'
@@ -12,12 +13,11 @@ import { getOwnerBranches } from '@/actions/branch'
 import { getBranchDetails, createBooking } from '@/actions/booking'
 import { validateCoupon } from '@/actions/payment'
 import { generateReceiptPDF } from '@/lib/pdf-generator'
-import { CheckCircle2 } from 'lucide-react'
 
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
-import { cn, formatSeatNumber } from '@/lib/utils'
+import { cn, formatSeatNumber, formatLockerNumber } from '@/lib/utils'
 import { motion } from 'framer-motion'
 import { sendReceiptEmail } from '@/actions/email'
 import { ReceiptData } from '@/lib/pdf-generator'
@@ -27,6 +27,7 @@ interface Student {
     name: string
     email: string | null
     phone: string | null
+    subscriptions?: any[]
 }
 
 interface Branch {
@@ -61,6 +62,7 @@ interface Fee {
     name: string
     amount: number
     type: string
+    billType?: string
 }
 
 interface Seat {
@@ -124,6 +126,78 @@ export function AcceptPaymentForm() {
     const [pageBySection, setPageBySection] = useState<Record<string, number>>({})
     const [columns, setColumns] = useState(4)
     const [viewMode, setViewMode] = useState<'pagination' | 'scroll'>('pagination')
+    const [seatFilter, setSeatFilter] = useState<'all' | 'available' | 'occupied' | 'selected'>('all')
+    const [lockerFilter, setLockerFilter] = useState<'all' | 'available' | 'occupied' | 'selected'>('all')
+    const [lockerViewMode, setLockerViewMode] = useState<'pagination' | 'scroll'>('pagination')
+    const [lockerPage, setLockerPage] = useState(0)
+
+    // Column resize handler
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 640) setColumns(3)
+            else if (window.innerWidth < 768) setColumns(4)
+            else if (window.innerWidth < 1024) setColumns(6)
+            else setColumns(8)
+        }
+        handleResize()
+        window.addEventListener('resize', handleResize)
+        return () => window.removeEventListener('resize', handleResize)
+    }, [])
+
+
+
+    // Helper to format 24h time to 12h
+    const formatTime = (timeStr?: string | null) => {
+        if (!timeStr) return '-'
+        const [hours, minutes] = timeStr.split(':')
+        const h = parseInt(hours)
+        const ampm = h >= 12 ? 'PM' : 'AM'
+        const h12 = h % 12 || 12
+        return `${h12}:${minutes} ${ampm}`
+    }
+
+    // Filters & Add-on Mode
+    const [filterCategory, setFilterCategory] = useState<string>('all')
+    const [filterDuration, setFilterDuration] = useState<number | 'all' | 'other'>('all')
+    const [isLockerAddOnMode, setIsLockerAddOnMode] = useState(false)
+    const activeSubscription = useMemo(() => 
+        selectedStudent?.subscriptions?.find((s: any) => s.status === 'active'), 
+    [selectedStudent])
+
+    const DURATION_FILTERS = [
+        { id: 'all', label: 'All Plans' },
+        { id: 1, label: '1 Mo' },
+        { id: 3, label: '3 Mo' },
+        { id: 6, label: '6 Mo' },
+        { id: 'other', label: 'Other' }
+    ]
+
+    // Filter plans based on filters
+    const filteredPlans = useMemo(() => {
+        return plans.filter(plan => {
+            const matchCategory = filterCategory === 'all' || plan.category === filterCategory
+            
+            let matchDuration = true
+            if (filterDuration !== 'all') {
+                if (filterDuration === 1) {
+                    matchDuration = plan.duration === 1 && plan.durationUnit.toLowerCase().startsWith('month')
+                } else if (filterDuration === 3) {
+                    matchDuration = plan.duration === 3 && plan.durationUnit.toLowerCase().startsWith('month')
+                } else if (filterDuration === 6) {
+                    matchDuration = plan.duration === 6 && plan.durationUnit.toLowerCase().startsWith('month')
+                } else if (filterDuration === 'other') {
+                    const isStandard = (
+                        (plan.duration === 1 && plan.durationUnit.toLowerCase().startsWith('month')) ||
+                        (plan.duration === 3 && plan.durationUnit.toLowerCase().startsWith('month')) ||
+                        (plan.duration === 6 && plan.durationUnit.toLowerCase().startsWith('month'))
+                    )
+                    matchDuration = !isStandard
+                }
+            }
+            
+            return matchCategory && matchDuration
+        })
+    }, [plans, filterCategory, filterDuration])
 
     // Payment State
     const [amount, setAmount] = useState('')
@@ -250,7 +324,8 @@ export function AcceptPaymentForm() {
                             id: s.id,
                             name: s.name,
                             email: s.email,
-                            phone: s.phone
+                            phone: s.phone,
+                            subscriptions: s.subscriptions
                         })
                         // If branch already selected, move forward
                         if (selectedBranch) {
@@ -283,9 +358,30 @@ export function AcceptPaymentForm() {
         .filter(f => selectedFees.includes(String(f.id)))
         .reduce((sum, f) => sum + f.amount, 0)
         
-    const planPrice = selectedPlan?.price || 0
+    const planPrice = isLockerAddOnMode ? 0 : (selectedPlan?.price || 0)
     const subTotal = (planPrice * quantity) + (feesTotal * quantity)
     
+    // Auto-select for Locker Add-on
+    useEffect(() => {
+        if (isLockerAddOnMode && activeSubscription) {
+            // Select the plan
+            const plan = plans.find(p => p.id === activeSubscription.planId)
+            if (plan) {
+                setSelectedPlan(plan)
+            }
+            
+            // Set Date to active plan's start date
+            const start = new Date(activeSubscription.startDate)
+            if (!isNaN(start.getTime())) {
+                setStartDate(start.toISOString().split('T')[0])
+            }
+        } else if (!isLockerAddOnMode && selectedPlan?.id === activeSubscription?.planId && activeSubscription) {
+             // If exiting add-on mode, clear selection if it was the active plan
+             setSelectedPlan(null)
+             setStartDate(new Date().toISOString().split('T')[0])
+        }
+    }, [isLockerAddOnMode, activeSubscription, plans])
+
     // Update Amount when selection changes
     useEffect(() => {
         const calculatedTotal = appliedCoupon ? appliedCoupon.finalAmount : subTotal
@@ -310,8 +406,38 @@ export function AcceptPaymentForm() {
         }, {})
     }, [sortedSeats])
 
+    // Sort lockers naturally
+    const sortedLockers = React.useMemo(() => {
+        return [...(lockers || [])].sort((a, b) => {
+            return a.number.localeCompare(b.number, undefined, { numeric: true, sensitivity: 'base' })
+        })
+    }, [lockers])
+
+    // Group lockers by section
+    const lockersBySection = React.useMemo(() => {
+        return sortedLockers.reduce((acc: Record<string, Locker[]>, locker) => {
+            const section = 'General'
+            if (!acc[section]) acc[section] = []
+            acc[section].push(locker)
+            return acc
+        }, {})
+    }, [sortedLockers])
+
+    const handleSeatSelect = (seat: Seat) => {
+        if (seat.isOccupied) return
+        setSelectedSeat(seat)
+    }
+
+    const handleLockerSelect = (locker: Locker) => {
+        if (locker.isOccupied) return
+        setSelectedLocker(locker)
+    }
+
     // Check if locker selection is allowed
     const isLockerSelectionEnabled = useMemo(() => {
+        // Always enable for locker add-on mode
+        if (isLockerAddOnMode) return true
+
         // Check for "Locker" fee
         const hasLockerFee = selectedFees.some(id => {
             const fee = fees.find(f => String(f.id) === id)
@@ -330,10 +456,11 @@ export function AcceptPaymentForm() {
         }
 
         return false
-    }, [selectedPlan, selectedFees, fees, branchConfig])
+    }, [selectedPlan, selectedFees, fees, branchConfig, isLockerAddOnMode])
     
     // Check if seat selection is allowed
     const isSeatSelectionEnabled = useMemo(() => {
+        if (isLockerAddOnMode) return false
         if (!selectedPlan) return false
         
         if (selectedPlan.includesSeat) return true
@@ -354,7 +481,7 @@ export function AcceptPaymentForm() {
                 fee.name.toLowerCase().includes('reservation')
             )
         })
-    }, [selectedPlan, selectedFees, fees])
+    }, [selectedPlan, selectedFees, fees, isLockerAddOnMode])
 
     // Filter fees
     const lockerFees = useMemo(() => fees.filter(f => f.name.toLowerCase().includes('locker')), [fees])
@@ -379,6 +506,29 @@ export function AcceptPaymentForm() {
             }
         })
     }
+
+    // Remove conflicting fees when plan includes them
+    useEffect(() => {
+        if (!selectedPlan) return
+
+        const feesToRemove: string[] = []
+        fees.forEach(f => {
+            const name = f.name.toLowerCase()
+            const isSeatFee = name.includes('seat') || name.includes('reservation')
+            const isLockerFee = name.includes('locker')
+
+            if (selectedPlan.includesSeat && isSeatFee) {
+                if (selectedFees.includes(String(f.id))) feesToRemove.push(String(f.id))
+            }
+            if (selectedPlan.includesLocker && isLockerFee) {
+                if (selectedFees.includes(String(f.id))) feesToRemove.push(String(f.id))
+            }
+        })
+
+        if (feesToRemove.length > 0) {
+            setSelectedFees(prev => prev.filter(id => !feesToRemove.includes(id)))
+        }
+    }, [selectedPlan, fees, selectedFees])
 
     // Reset seat/locker if selection becomes disabled
     useEffect(() => {
@@ -437,6 +587,8 @@ export function AcceptPaymentForm() {
                 startDate,
                 quantity,
                 additionalFeeIds: selectedFees,
+                isAddOn: isLockerAddOnMode,
+                activeSubscriptionId: isLockerAddOnMode ? activeSubscription?.id : undefined,
                 paymentDetails: {
                     amount: parseFloat(amount) || 0,
                     method,
@@ -609,15 +761,6 @@ Thank you!`
         router.refresh()
     }
 
-    const formatTime = (timeStr?: string | null) => {
-        if (!timeStr) return '-'
-        const [hours, minutes] = timeStr.split(':')
-        const h = parseInt(hours)
-        const ampm = h >= 12 ? 'PM' : 'AM'
-        const h12 = h % 12 || 12
-        return `${h12}:${minutes} ${ampm}`
-    }
-
     return (
         <div className="max-w-4xl mx-auto space-y-6">
             {/* Steps Indicator */}
@@ -745,6 +888,34 @@ Thank you!`
                             </div>
                         ) : (
                             <>
+                                {/* Locker Add-on Card */}
+                                {activeSubscription && (
+                                    <div className="bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800 rounded-xl p-4">
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="flex gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
+                                                    <Lock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-semibold text-purple-900 dark:text-purple-100">Add Locker to Active Plan</h3>
+                                                    <p className="text-sm text-purple-700 dark:text-purple-300 mt-1">
+                                                        Student has an active plan. Enable this to add a locker to their existing subscription.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input 
+                                                    type="checkbox" 
+                                                    className="sr-only peer" 
+                                                    checked={isLockerAddOnMode}
+                                                    onChange={(e) => setIsLockerAddOnMode(e.target.checked)}
+                                                />
+                                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Date Selection */}
                                 <div className="space-y-4">
                                      <h3 className="text-lg font-medium flex items-center gap-2 text-gray-700 dark:text-gray-300">
@@ -755,130 +926,206 @@ Thank you!`
                                         <input 
                                             type="date" 
                                             value={startDate}
+                                            disabled={isLockerAddOnMode}
                                             onChange={(e) => setStartDate(e.target.value)}
-                                            className="w-full pl-4 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                            className={cn(
+                                                "w-full pl-4 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all",
+                                                isLockerAddOnMode && "opacity-60 cursor-not-allowed bg-gray-50 dark:bg-gray-900"
+                                            )}
                                         />
                                     </div>
                                 </div>
 
                                 {/* 1. Plan Selection */}
                                 <div className="space-y-4">
-                                    <h3 className="text-lg font-medium flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                        <Clock className="w-4 h-4 text-blue-500" />
-                                        1. Select Plan
-                                    </h3>
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                        <h3 className="text-lg font-medium flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                            <Clock className="w-4 h-4 text-blue-500" />
+                                            1. Select Plan
+                                        </h3>
+                                        
+                                        {/* Filters */}
+                                        <div className="flex flex-col sm:flex-row gap-3">
+                                            <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg self-start">
+                                                {['all', 'fixed', 'flexible'].map((cat) => (
+                                                    <button
+                                                        key={cat}
+                                                        onClick={() => setFilterCategory(cat)}
+                                                        className={cn(
+                                                            "px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-all",
+                                                            filterCategory === cat
+                                                                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+                                                                : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-300"
+                                                        )}
+                                                    >
+                                                        {cat}
+                                                    </button>
+                                                ))}
+                                            </div>
+
+                                            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
+                                                <Filter className="w-4 h-4 text-gray-400 shrink-0" />
+                                                {DURATION_FILTERS.map((filter) => (
+                                                    <button
+                                                        key={filter.id}
+                                                        onClick={() => setFilterDuration(filter.id as any)}
+                                                        className={cn(
+                                                            "px-3 py-1.5 text-xs font-medium rounded-full border whitespace-nowrap transition-all",
+                                                            filterDuration === filter.id
+                                                                ? "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300"
+                                                                : "border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400"
+                                                        )}
+                                                    >
+                                                        {filter.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <div className="space-y-2 max-h-[400px] overflow-y-auto px-1 -mx-1 custom-scrollbar">
-                                        {plans.map(plan => (
-                                            <div
-                                                key={plan.id}
-                                                onClick={() => {
-                                                    setSelectedPlan(plan)
-                                                    setQuantity(1)
-                                                }}
-                                                className={cn(
-                                                    "p-3 rounded-xl border cursor-pointer transition-all duration-200 relative",
-                                                    selectedPlan?.id === plan.id 
-                                                        ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 shadow-sm ring-1 ring-emerald-500/20" 
-                                                        : "border-gray-200 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-sm"
-                                                )}
-                                            >
-                                                <div className="flex justify-between items-start mb-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{plan.name}</h4>
-                                                        {selectedPlan?.id === plan.id && (
-                                                            <div className="w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center shadow-sm shrink-0">
-                                                                <Check className="w-2.5 h-2.5 text-white" />
+                                        {filteredPlans.length === 0 ? (
+                                            <div className="text-center py-8 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                                                <Filter className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                                                <p className="text-sm font-medium">No plans match your filters.</p>
+                                                <button 
+                                                    onClick={() => { setFilterCategory('all'); setFilterDuration('all'); }}
+                                                    className="text-xs text-purple-600 dark:text-purple-400 mt-2 hover:underline"
+                                                >
+                                                    Clear all filters
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            filteredPlans.map(plan => (
+                                                <div 
+                                                    key={plan.id}
+                                                    onClick={() => setSelectedPlan(plan)}
+                                                    className={cn(
+                                                        "p-3 rounded-xl border cursor-pointer transition-all duration-200 relative",
+                                                        selectedPlan && String(selectedPlan.id) === String(plan.id)
+                                                            ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 shadow-sm ring-1 ring-emerald-500/20"
+                                                            : "border-gray-200 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-sm"
+                                                    )}
+                                                >
+                                                    <div className="flex justify-between items-start mb-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{plan.name}</h4>
+                                                            {selectedPlan && String(selectedPlan.id) === String(plan.id) && (
+                                                                <div className="w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center shadow-sm shrink-0">
+                                                                    <Check className="w-2.5 h-2.5 text-white" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">₹{plan.price}</span>
+                                                    </div>
+                                                    
+                                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{plan.description}</p>
+                                                    
+                                                    <div className="flex items-center gap-2 mb-2 text-[11px] text-gray-600 dark:text-gray-300">
+                                                        <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
+                                                            <Clock className="w-2.5 h-2.5 text-gray-400" />
+                                                            <span className="font-medium">{plan.duration} {plan.durationUnit}</span>
+                                                        </div>
+                                                        
+                                                        <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
+                                                            <Info className="w-2.5 h-2.5 text-gray-400" />
+                                                            <span className="font-medium">
+                                                                {plan.category === 'fixed' 
+                                                                    ? `${formatTime(plan.shiftStart)} - ${formatTime(plan.shiftEnd)}`
+                                                                    : `${plan.hoursPerDay} Hrs/Day`
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                        
+                                                        {plan.includesSeat && (
+                                                            <div className="flex items-center gap-1 bg-purple-50 dark:bg-purple-900/20 px-1.5 py-0.5 rounded border border-purple-100 dark:border-purple-800">
+                                                                <Armchair className="w-2.5 h-2.5 text-purple-500" />
+                                                                <span className="font-medium text-purple-700 dark:text-purple-300">Seat</span>
+                                                            </div>
+                                                        )}
+                                                        {plan.includesLocker && (
+                                                            <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded border border-amber-100 dark:border-amber-800">
+                                                                <Lock className="w-2.5 h-2.5 text-amber-500" />
+                                                                <span className="font-medium text-amber-700 dark:text-amber-300">Locker</span>
                                                             </div>
                                                         )}
                                                     </div>
-                                                    <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">₹{plan.price.toFixed(2)}</span>
-                                                </div>
-                                                
-                                                {selectedPlan?.id !== plan.id ? (
-                                                    <>
-                                                        <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{plan.description}</p>
-                                                        
-                                                        <div className="flex items-center gap-2 mb-2 text-[11px] text-gray-600 dark:text-gray-300">
-                                                            <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
-                                                                <Clock className="w-2.5 h-2.5 text-gray-400" />
-                                                                <span className="font-medium">{plan.duration} {plan.durationUnit}</span>
-                                                            </div>
-                                                            
-                                                            <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
-                                                                <Info className="w-2.5 h-2.5 text-gray-400" />
-                                                                <span className="font-medium">
-                                                                    {plan.category === 'fixed' 
-                                                                        ? `${formatTime(plan.shiftStart)} - ${formatTime(plan.shiftEnd)}`
-                                                                        : `${plan.hoursPerDay} Hrs/Day`
-                                                                    }
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </>
-                                                ) : (
-                                                    <div className="mb-2 pt-2 border-t border-gray-100 dark:border-gray-700/50 animate-in fade-in zoom-in-95 duration-200">
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="flex items-center gap-2 text-[11px] text-gray-600 dark:text-gray-300">
-                                                                <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
-                                                                    <Clock className="w-2.5 h-2.5 text-gray-400" />
-                                                                    <span className="font-medium">{plan.duration} {plan.durationUnit}</span>
-                                                                </div>
-                                                                
-                                                                <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
-                                                                    <Info className="w-2.5 h-2.5 text-gray-400" />
-                                                                    <span className="font-medium">
-                                                                        {plan.category === 'fixed' 
-                                                                            ? `${formatTime(plan.shiftStart)} - ${formatTime(plan.shiftEnd)}`
-                                                                            : `${plan.hoursPerDay} Hrs/Day`
-                                                                        }
-                                                                    </span>
-                                                                </div>
-                                                            </div>
 
-                                                            <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-lg p-0.5 border border-gray-100 dark:border-gray-700 shadow-sm">
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation()
-                                                                        setQuantity(q => Math.max(1, q - 1))
-                                                                    }}
-                                                                    disabled={quantity <= 1}
-                                                                    className="p-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-gray-600 dark:text-gray-400"
-                                                                >
-                                                                    <Minus className="w-3 h-3" />
-                                                                </button>
-                                                                <span className="font-semibold w-3 text-center text-xs text-gray-900 dark:text-white">{quantity}</span>
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation()
-                                                                        setQuantity(q => q + 1)
-                                                                    }}
-                                                                    className="p-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded transition-colors text-gray-600 dark:text-gray-400"
-                                                                >
-                                                                    <Plus className="w-3 h-3" />
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                        <div className="mt-1.5 text-right text-[10px] text-gray-500 font-medium">
-                                                            Total: {quantity} x {plan.duration} {plan.durationUnit}s
-                                                        </div>
+                                                    <div className="flex flex-wrap gap-1.5 mb-2">
+                                                        <span className={cn(
+                                                            "px-1.5 py-0.5 rounded text-[10px] font-medium border capitalize",
+                                                            plan.category === 'fixed'
+                                                                ? "bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/30"
+                                                                : "bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-900/30"
+                                                        )}>
+                                                            {plan.category}
+                                                        </span>
+                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-600 border border-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700 capitalize">
+                                                            {plan.billingCycle.replace(/_/g, ' ')}
+                                                        </span>
+                                                        {plan.includesSeat && (
+                                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900/30 flex items-center gap-1">
+                                                                <Armchair className="w-3 h-3" />
+                                                                Seat
+                                                            </span>
+                                                        )}
+                                                        {plan.includesLocker && (
+                                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-600 border border-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-900/30 flex items-center gap-1">
+                                                                <Lock className="w-3 h-3" />
+                                                                Locker
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                )}
 
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    <span className={cn(
-                                                        "px-1.5 py-0.5 rounded text-[10px] font-medium border capitalize",
-                                                        plan.category === 'fixed'
-                                                            ? "bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/30"
-                                                            : "bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-900/30"
-                                                    )}>
-                                                        {plan.category}
-                                                    </span>
-                                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-600 border border-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700 capitalize">
-                                                        {plan.billingCycle.replace(/_/g, ' ')}
-                                                    </span>
+                                                    {selectedPlan && String(selectedPlan.id) === String(plan.id) && (
+                                                        <div className="py-2 mt-auto">
+                                                            <div className="flex items-center justify-between bg-emerald-100/50 dark:bg-emerald-900/30 rounded-lg p-2 border border-emerald-200 dark:border-emerald-800">
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-[10px] uppercase tracking-wider font-semibold text-emerald-800 dark:text-emerald-200">Total Duration</span>
+                                                                    <div className="flex items-baseline gap-1">
+                                                                        <span className="text-sm font-bold text-emerald-950 dark:text-emerald-50">
+                                                                            {quantity * plan.duration} {plan.durationUnit?.toLowerCase().startsWith('m') ? (quantity * plan.duration > 1 ? 'Months' : 'Month') : (quantity * plan.duration > 1 ? 'Days' : 'Day')}
+                                                                        </span>
+                                                                        <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-medium">
+                                                                            ({quantity} × {plan.duration} {plan.durationUnit?.toLowerCase().startsWith('m') ? (plan.duration > 1 ? 'Months' : 'Month') : (plan.duration > 1 ? 'Days' : 'Day')})
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex items-center bg-white dark:bg-gray-800 rounded-md border border-emerald-200 dark:border-emerald-700 shadow-sm">
+                                                                    <button 
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation()
+                                                                            if (quantity > 1) {
+                                                                                setQuantity(quantity - 1)
+                                                                            } else {
+                                                                                setSelectedPlan(null)
+                                                                                setQuantity(1)
+                                                                                setSelectedSeat(null)
+                                                                                setSelectedLocker(null)
+                                                                                setSelectedFees([])
+                                                                            }
+                                                                        }}
+                                                                        className="w-7 h-7 flex items-center justify-center text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-l-md transition-colors"
+                                                                    >
+                                                                        <Minus className="w-3 h-3" />
+                                                                    </button>
+                                                                    <span className="w-6 text-center text-sm font-bold text-gray-900 dark:text-white">{quantity}</span>
+                                                                    <button 
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation()
+                                                                            setQuantity(quantity + 1)
+                                                                        }}
+                                                                        className="w-7 h-7 flex items-center justify-center text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-r-md transition-colors"
+                                                                    >
+                                                                        <Plus className="w-3 h-3" />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            </div>
-                                        ))}
+                                            ))
+                                        )}
                                     </div>
                                 </div>
 
@@ -933,7 +1180,7 @@ Thank you!`
                                                                         </div>
                                                                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fee.name}</span>
                                                                     </div>
-                                                                    <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
+                                                                    <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}{fee.billType === 'MONTHLY' ? '/m' : ''}</span>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -971,7 +1218,7 @@ Thank you!`
                                                                     </div>
                                                                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fee.name}</span>
                                                                 </div>
-                                                                <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
+                                                                <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}{fee.billType === 'MONTHLY' ? '/m' : ''}</span>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -1012,7 +1259,7 @@ Thank you!`
                                                                     <p className="text-xs text-gray-500 capitalize">{fee.type.replace(/_/g, ' ')}</p>
                                                                 </div>
                                                             </div>
-                                                            <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
+                                                            <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}{fee.billType === 'MONTHLY' ? '/m' : ''}</span>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -1023,42 +1270,281 @@ Thank you!`
 
                                 {/* Locker Selection */}
                                 {isLockerSelectionEnabled && (
-                                    <div className="space-y-4">
-                                        <h3 className="text-lg font-medium flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                            <Lock className="w-4 h-4 text-purple-500" />
-                                            Select Locker (Optional)
-                                        </h3>
-                                        
-                                        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 max-h-[300px] overflow-y-auto p-1 custom-scrollbar">
-                                            {lockers.map(locker => {
-                                                const isSelected = selectedLocker?.id === locker.id
-                                                const isOccupied = locker.isOccupied
-                                                
-                                                return (
-                                                    <button
-                                                        key={locker.id}
-                                                        disabled={isOccupied}
-                                                        onClick={() => setSelectedLocker(isSelected ? null : locker)}
-                                                        className={cn(
-                                                            "aspect-square rounded-lg flex items-center justify-center text-sm font-medium transition-all relative",
-                                                            isOccupied 
-                                                                ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-500"
-                                                                : isSelected
-                                                                    ? "bg-purple-500 text-white shadow-md scale-105 ring-2 ring-purple-500 ring-offset-2 dark:ring-offset-gray-900"
-                                                                    : "bg-white text-gray-700 border border-gray-200 hover:border-purple-300 hover:shadow-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:border-purple-700"
-                                                        )}
-                                                    >
-                                                        {locker.number}
-                                                        {isSelected && (
-                                                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm">
-                                                                <Check size={8} strokeWidth={4} />
-                                                            </div>
-                                                        )}
-                                                    </button>
-                                                )
-                                            })}
+                                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col relative z-10">
+                                    <div className="p-4 md:p-6 border-b border-gray-100 dark:border-gray-700 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gray-50/50 dark:bg-gray-800/50">
+                                        <div className="flex items-center justify-between w-full md:w-auto gap-4">
+                                            <div>
+                                                <h2 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                                    <Lock className="w-4 h-4 md:w-5 md:h-5 text-purple-500 shrink-0" />
+                                                    <span className="line-clamp-1">{selectedBranch?.name} Lockers</span>
+                                                </h2>
+                                                <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                                    Select your preferred locker.
+                                                </p>
+                                            </div>
+
+                                            {/* View Toggle (Mobile Only) */}
+                                            <div className="flex md:hidden bg-white dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
+                                                <button
+                                                    onClick={() => setLockerViewMode('pagination')}
+                                                    className={cn(
+                                                        "p-1.5 rounded-md transition-all",
+                                                        lockerViewMode === 'pagination' 
+                                                            ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" 
+                                                            : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                    )}
+                                                >
+                                                    <LayoutGrid className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => setLockerViewMode('scroll')}
+                                                    className={cn(
+                                                        "p-1.5 rounded-md transition-all",
+                                                        lockerViewMode === 'scroll' 
+                                                            ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" 
+                                                            : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                    )}
+                                                >
+                                                    <List className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-4">
+                                            {/* View Toggle (Desktop) */}
+                                            <div className="hidden md:flex bg-white dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
+                                                <button
+                                                    onClick={() => setLockerViewMode('pagination')}
+                                                    className={cn(
+                                                        "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                                                        lockerViewMode === 'pagination' 
+                                                            ? "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 shadow-sm" 
+                                                            : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                                    )}
+                                                >
+                                                    <LayoutGrid className="w-4 h-4" />
+                                                    Paged
+                                                </button>
+                                                <button
+                                                    onClick={() => setLockerViewMode('scroll')}
+                                                    className={cn(
+                                                        "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                                                        lockerViewMode === 'scroll' 
+                                                            ? "bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 shadow-sm" 
+                                                            : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                                    )}
+                                                >
+                                                    <List className="w-4 h-4" />
+                                                    Scroll
+                                                </button>
+                                            </div>
+
+                                            {/* Legend with Filters */}
+                                            <div className="flex flex-wrap gap-2 text-xs">
+                                                <button 
+                                                    onClick={() => setLockerFilter(lockerFilter === 'available' ? 'all' : 'available')}
+                                                    className={cn(
+                                                        "flex items-center gap-1.5 px-2 py-1 rounded-md transition-all border",
+                                                        lockerFilter === 'available' 
+                                                            ? "bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800 ring-1 ring-purple-200 dark:ring-purple-800" 
+                                                            : "border-transparent hover:bg-gray-100 dark:hover:bg-gray-800"
+                                                    )}
+                                                >
+                                                    <div className="w-3 h-3 bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-700 rounded" />
+                                                    <span className={cn("font-medium", lockerFilter === 'available' ? "text-purple-700 dark:text-purple-300" : "text-gray-600 dark:text-gray-300")}>Available</span>
+                                                </button>
+
+                                                <button 
+                                                    onClick={() => setLockerFilter(lockerFilter === 'selected' ? 'all' : 'selected')}
+                                                    className={cn(
+                                                        "flex items-center gap-1.5 px-2 py-1 rounded-md transition-all border",
+                                                        lockerFilter === 'selected' 
+                                                            ? "bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800 ring-1 ring-purple-200 dark:ring-purple-800" 
+                                                            : "border-transparent hover:bg-gray-100 dark:hover:bg-gray-800"
+                                                    )}
+                                                >
+                                                    <div className="w-3 h-3 bg-purple-500 rounded" />
+                                                    <span className={cn("font-medium", lockerFilter === 'selected' ? "text-purple-700 dark:text-purple-300" : "text-gray-600 dark:text-gray-300")}>Selected</span>
+                                                </button>
+
+                                                <button 
+                                                    onClick={() => setLockerFilter(lockerFilter === 'occupied' ? 'all' : 'occupied')}
+                                                    className={cn(
+                                                        "flex items-center gap-1.5 px-2 py-1 rounded-md transition-all border",
+                                                        lockerFilter === 'occupied' 
+                                                            ? "bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800 ring-1 ring-purple-200 dark:ring-purple-800" 
+                                                            : "border-transparent hover:bg-gray-100 dark:hover:bg-gray-800"
+                                                    )}
+                                                >
+                                                    <div className="w-3 h-3 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded" />
+                                                    <span className={cn("font-medium", lockerFilter === 'occupied' ? "text-purple-700 dark:text-purple-300" : "text-gray-600 dark:text-gray-300")}>Occupied</span>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
+
+                                    <div className="p-4 md:p-6 bg-white dark:bg-gray-800 min-h-[200px]">
+                                        {lockerViewMode === 'pagination' ? (
+                                            <div className="space-y-8">
+                                                {Object.entries(lockersBySection).map(([section, lockers]) => {
+                                                    const filteredLockers = lockers.filter(locker => {
+                                                        if (lockerFilter === 'all') return true
+                                                        if (lockerFilter === 'available') return !locker.isOccupied
+                                                        if (lockerFilter === 'occupied') return locker.isOccupied
+                                                        if (lockerFilter === 'selected') return selectedLocker?.id === locker.id
+                                                        return true
+                                                    })
+                                                    
+                                                    const sectionLockers = filteredLockers
+                                                    const currentPage = pageBySection['locker-' + section] || 0
+                                                    const totalPages = Math.ceil(sectionLockers.length / (columns * 4))
+                                                    
+                                                    const currentLockers = sectionLockers.slice(
+                                                        currentPage * (columns * 4),
+                                                        (currentPage + 1) * (columns * 4)
+                                                    )
+
+                                                    if (filteredLockers.length === 0 && lockerFilter !== 'all') return null
+
+                                                    return (
+                                                        <div key={section} className="space-y-3">
+                                                            <div className="flex items-center justify-between">
+                                                                <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                                    {section} Section
+                                                                    <span className="text-xs font-normal text-gray-400">({lockers.filter(l => !l.isOccupied).length} available)</span>
+                                                                </h3>
+                                                                
+                                                                {totalPages > 1 && (
+                                                                    <div className="flex items-center gap-1">
+                                                                        <button
+                                                                            onClick={() => setPageBySection(prev => ({
+                                                                                ...prev,
+                                                                                ['locker-' + section]: Math.max(0, (prev['locker-' + section] || 0) - 1)
+                                                                            }))}
+                                                                            disabled={currentPage === 0}
+                                                                            className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                                                                        >
+                                                                            <ChevronLeft className="w-4 h-4" />
+                                                                        </button>
+                                                                        <span className="text-xs font-medium text-gray-500 min-w-[3rem] text-center">
+                                                                            {currentPage + 1} / {totalPages}
+                                                                        </span>
+                                                                        <button
+                                                                            onClick={() => setPageBySection(prev => ({
+                                                                                ...prev,
+                                                                                ['locker-' + section]: Math.min(totalPages - 1, (prev['locker-' + section] || 0) + 1)
+                                                                            }))}
+                                                                            disabled={currentPage === totalPages - 1}
+                                                                            className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                                                                        >
+                                                                            <ChevronRight className="w-4 h-4" />
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            <div 
+                                                                className="grid gap-2 md:gap-3"
+                                                                style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+                                                            >
+                                                                {currentLockers.map(locker => (
+                                                                    <motion.button
+                                                                        key={locker.id}
+                                                                        whileHover={!locker.isOccupied ? { scale: 1.05 } : {}}
+                                                                        whileTap={!locker.isOccupied ? { scale: 0.95 } : {}}
+                                                                        onClick={() => handleLockerSelect(locker)}
+                                                                        disabled={locker.isOccupied}
+                                                                        className={cn(
+                                                                            "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative group",
+                                                                            locker.isOccupied
+                                                                                ? "bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60 text-gray-400 dark:text-gray-500"
+                                                                                : selectedLocker?.id === locker.id
+                                                                                    ? "bg-purple-500 border-purple-600 text-white shadow-md shadow-purple-500/20"
+                                                                                    : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
+                                                                        )}
+                                                                    >
+                                                                        <Lock className={cn(
+                                                                            "w-5 h-5 md:w-6 md:h-6",
+                                                                            locker.isOccupied ? "opacity-50" : ""
+                                                                        )} />
+                                                                        <span className="text-sm md:text-base font-semibold truncate w-full text-center px-1">
+                                                                            {formatLockerNumber(locker.number)}
+                                                                        </span>
+                                                                        {selectedLocker?.id === locker.id && (
+                                                                            <motion.div
+                                                                                layoutId="check-locker"
+                                                                                className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm"
+                                                                            >
+                                                                                <Check className="w-2 h-2 md:w-2.5 md:h-2.5" />
+                                                                            </motion.div>
+                                                                        )}
+                                                                    </motion.button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-8">
+                                                {Object.entries(lockersBySection).map(([section, lockers]) => (
+                                                    <div key={section} className="space-y-3">
+                                                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                            {section} Section
+                                                            <span className="text-xs font-normal text-gray-400">({lockers.filter(l => !l.isOccupied).length} available)</span>
+                                                        </h3>
+                                                        <div 
+                                                            className="grid gap-2 md:gap-3"
+                                                            style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+                                                        >
+                                                            {lockers.filter(locker => {
+                                                                if (lockerFilter === 'all') return true
+                                                                if (lockerFilter === 'available') return !locker.isOccupied
+                                                                if (lockerFilter === 'occupied') return locker.isOccupied
+                                                                if (lockerFilter === 'selected') return selectedLocker?.id === locker.id
+                                                                return true
+                                                            }).map(locker => (
+                                                                <motion.button
+                                                                    key={locker.id}
+                                                                    whileHover={!locker.isOccupied ? { scale: 1.05 } : {}}
+                                                                    whileTap={!locker.isOccupied ? { scale: 0.95 } : {}}
+                                                                    onClick={() => handleLockerSelect(locker)}
+                                                                    disabled={locker.isOccupied}
+                                                                    className={cn(
+                                                                        "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative group",
+                                                                        locker.isOccupied
+                                                                            ? "bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60 text-gray-400 dark:text-gray-500"
+                                                                            : selectedLocker?.id === locker.id
+                                                                                ? "bg-purple-500 border-purple-600 text-white shadow-md shadow-purple-500/20"
+                                                                                : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
+                                                                    )}
+                                                                >
+                                                                    <Lock className={cn(
+                                                                        "w-5 h-5 md:w-6 md:h-6",
+                                                                        locker.isOccupied ? "opacity-50" : ""
+                                                                    )} />
+                                                                    <span className="text-sm md:text-base font-semibold truncate w-full text-center px-1">
+                                                                        {formatLockerNumber(locker.number)}
+                                                                    </span>
+                                                                    {selectedLocker?.id === locker.id && (
+                                                                        <motion.div
+                                                                            layoutId="check-locker"
+                                                                            className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm"
+                                                                        >
+                                                                            <Check className="w-2 h-2 md:w-2.5 md:h-2.5" />
+                                                                        </motion.div>
+                                                                    )}
+                                                                </motion.button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                                 )}
 
                                 {/* 3. Seat Selection */}

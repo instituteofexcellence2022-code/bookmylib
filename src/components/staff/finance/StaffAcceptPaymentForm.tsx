@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
-import { Search, User, CreditCard, Banknote, Check, Loader2, ChevronRight, ChevronLeft, Percent, Armchair, Calendar, Info, LayoutGrid, List, ShieldCheck, MapPin, CheckCircle2, Clock, Lock } from 'lucide-react'
+import { Search, User, CreditCard, Banknote, Check, Loader2, ChevronRight, ChevronLeft, Percent, Armchair, Calendar, Info, LayoutGrid, List, ShieldCheck, MapPin, CheckCircle2, Clock, Lock, Filter, Minus, Plus } from 'lucide-react'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormInput } from '@/components/ui/FormInput'
@@ -10,7 +10,7 @@ import { getStaffStudents, getStudentDetails } from '@/actions/staff/students'
 import { getStaffBranchDetails, createStaffPayment } from '@/actions/staff/finance'
 import { toast } from 'react-hot-toast'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { cn, formatSeatNumber } from '@/lib/utils'
+import { cn, formatSeatNumber, formatLockerNumber } from '@/lib/utils'
 import { motion } from 'framer-motion'
 import { validateCoupon } from '@/actions/payment'
 import { generateReceiptPDF } from '@/lib/pdf-generator'
@@ -20,6 +20,7 @@ interface Student {
     name: string
     email: string | null
     phone: string | null
+    subscriptions?: any[]
 }
 
 interface Plan {
@@ -43,6 +44,7 @@ interface Fee {
     name: string
     amount: number
     type?: string
+    billType?: string
     description?: string | null
 }
 
@@ -83,6 +85,14 @@ interface AppliedCoupon {
     details: Promotion
 }
 
+const DURATION_FILTERS = [
+    { id: 'all', label: 'All Plans' },
+    { id: '1mo', label: '1 Mo' },
+    { id: '3mo', label: '3 Mo' },
+    { id: '6mo', label: '6 Mo' },
+    { id: 'other', label: 'Other' }
+]
+
 export function StaffAcceptPaymentForm() {
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -114,7 +124,37 @@ export function StaffAcceptPaymentForm() {
     
     // Booking State
     const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
+    const [quantity, setQuantity] = useState(1)
+    const [filterCategory, setFilterCategory] = useState<string>('all')
+    const [filterDuration, setFilterDuration] = useState<string>('all')
+    const [isLockerAddOnMode, setIsLockerAddOnMode] = useState(false)
     
+    // Derived State
+    const activeSubscription = useMemo(() => 
+        selectedStudent?.subscriptions?.find((s: any) => s.status === 'active'), 
+    [selectedStudent])
+    
+    // Auto-select for Locker Add-on
+    useEffect(() => {
+        if (isLockerAddOnMode && activeSubscription) {
+            // Select the plan
+            const plan = plans.find(p => p.id === activeSubscription.planId)
+            if (plan) {
+                setSelectedPlan(plan)
+            }
+            
+            // Set Date to active plan's start date
+            const start = new Date(activeSubscription.startDate)
+            if (!isNaN(start.getTime())) {
+                setStartDate(start.toISOString().split('T')[0])
+            }
+        } else if (!isLockerAddOnMode && selectedPlan?.id === activeSubscription?.planId && activeSubscription) {
+             // If exiting add-on mode, clear selection if it was the active plan
+             setSelectedPlan(null)
+             setStartDate(new Date().toISOString().split('T')[0])
+        }
+    }, [isLockerAddOnMode, activeSubscription, plans])
+
     // Pre-fill Student from URL
     useEffect(() => {
         const fetchInitialStudent = async () => {
@@ -226,12 +266,41 @@ export function StaffAcceptPaymentForm() {
         setStudents([])
     }
 
+    // Filter Plans
+    const filteredPlans = useMemo(() => {
+        return plans.filter(plan => {
+            // Filter by Category
+            if (filterCategory !== 'all' && plan.category !== filterCategory) return false
+
+            // Filter by Duration
+            let matchDuration = true
+            if (filterDuration !== 'all') {
+                if (filterDuration === '1mo') {
+                    matchDuration = plan.duration === 1 && plan.durationUnit.toLowerCase().startsWith('month')
+                } else if (filterDuration === '3mo') {
+                    matchDuration = plan.duration === 3 && plan.durationUnit.toLowerCase().startsWith('month')
+                } else if (filterDuration === '6mo') {
+                    matchDuration = plan.duration === 6 && plan.durationUnit.toLowerCase().startsWith('month')
+                } else if (filterDuration === 'other') {
+                    const isStandard = (
+                        (plan.duration === 1 && plan.durationUnit.toLowerCase().startsWith('month')) ||
+                        (plan.duration === 3 && plan.durationUnit.toLowerCase().startsWith('month')) ||
+                        (plan.duration === 6 && plan.durationUnit.toLowerCase().startsWith('month'))
+                    )
+                    matchDuration = !isStandard
+                }
+            }
+
+            return matchDuration
+        })
+    }, [plans, filterCategory, filterDuration])
+
     // Calculated Values
     const feesTotal = fees
         .filter(f => selectedFees.includes(String(f.id)))
         .reduce((sum, f) => sum + f.amount, 0)
         
-    const planPrice = selectedPlan?.price || 0
+    const planPrice = (selectedPlan?.price || 0) * quantity
     const subTotal = planPrice + feesTotal
 
 
@@ -414,7 +483,9 @@ export function StaffAcceptPaymentForm() {
                 lockerId: selectedLocker?.id,
                 additionalFeeIds: selectedFees,
                 promoCode: appliedCoupon?.code,
-                discount: (appliedCoupon?.discount || 0) + (parseFloat(additionalDiscount) || 0)
+                discount: (appliedCoupon?.discount || 0) + (parseFloat(additionalDiscount) || 0),
+                quantity: quantity,
+                startDate: startDate
             })
             
             if (result.success && result.data) {
@@ -466,10 +537,14 @@ export function StaffAcceptPaymentForm() {
 
         // Calculate End Date
         const end = new Date(startDate)
+        const totalDuration = selectedPlan.duration * quantity
+        
         if (selectedPlan.durationUnit === 'days') {
-            end.setDate(end.getDate() + selectedPlan.duration)
+            end.setDate(end.getDate() + totalDuration)
+        } else if (selectedPlan.durationUnit === 'weeks') {
+            end.setDate(end.getDate() + (totalDuration * 7))
         } else {
-            end.setMonth(end.getMonth() + selectedPlan.duration)
+            end.setMonth(end.getMonth() + totalDuration)
         }
 
         return {
@@ -482,7 +557,7 @@ export function StaffAcceptPaymentForm() {
             branchAddress: `${branchDetails.address || ''}, ${branchDetails.city}`,
             planName: selectedPlan.name,
             planType: selectedPlan.category,
-            planDuration: `${selectedPlan.duration} ${selectedPlan.durationUnit}`,
+            planDuration: `${totalDuration} ${selectedPlan.durationUnit}`,
             planHours: selectedPlan.hoursPerDay ? `${selectedPlan.hoursPerDay} Hrs/Day` : 
                       (selectedPlan.shiftStart && selectedPlan.shiftEnd) ? `${formatTime(selectedPlan.shiftStart)} - ${formatTime(selectedPlan.shiftEnd)}` : undefined,
             seatNumber: selectedSeat ? `${formatSeatNumber(selectedSeat.number)} (${selectedSeat.section || 'General'})` : undefined,
@@ -495,8 +570,8 @@ export function StaffAcceptPaymentForm() {
             discount: (appliedCoupon?.discount || 0) + (parseFloat(additionalDiscount) || 0),
             items: [
                 {
-                    description: `Plan: ${selectedPlan.name}`,
-                    amount: selectedPlan.price
+                    description: `Plan: ${selectedPlan.name}${quantity > 1 ? ` (x${quantity})` : ''}`,
+                    amount: selectedPlan.price * quantity
                 },
                 ...feeItems
             ]
@@ -700,68 +775,227 @@ export function StaffAcceptPaymentForm() {
 
                         {/* 1. Plan Selection */}
                         <div className="space-y-4">
-                            <h3 className="text-lg font-medium flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                                <Clock className="w-4 h-4 text-blue-500" />
-                                1. Select Plan
-                            </h3>
-                            <div className="space-y-2 max-h-[400px] overflow-y-auto px-1 -mx-1 custom-scrollbar">
-                                {plans.map(plan => (
-                                    <div
-                                        key={plan.id}
-                                        onClick={() => setSelectedPlan(plan)}
-                                        className={cn(
-                                            "p-3 rounded-xl border cursor-pointer transition-all duration-200 relative",
-                                            selectedPlan?.id === plan.id 
-                                                ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 shadow-sm ring-1 ring-emerald-500/20" 
-                                                : "border-gray-200 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-sm"
-                                        )}
+                            <div className="flex flex-col gap-3 mb-4">
+                                <div className="flex items-center justify-between gap-3">
+                                    <h3 className="text-lg font-medium flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                                        <Clock className="w-4 h-4 text-blue-500" />
+                                        1. Select Plan
+                                    </h3>
+                                    
+                                    {/* Category Filter */}
+                                    <div className="flex items-center p-1 bg-gray-100 dark:bg-gray-900 rounded-lg shrink-0">
+                                        {['all', 'fixed', 'flexible'].map(cat => (
+                                            <button
+                                                key={cat}
+                                                onClick={() => setFilterCategory(cat)}
+                                                className={cn(
+                                                    "px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all capitalize",
+                                                    filterCategory === cat
+                                                        ? "bg-white dark:bg-gray-800 text-purple-600 dark:text-purple-400 shadow-sm"
+                                                        : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                                                )}
+                                            >
+                                                {cat === 'all' ? 'All' : cat}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                
+                                {/* Duration Filter */}
+                                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                                    {DURATION_FILTERS.map(filter => (
+                                        <button
+                                            key={filter.id}
+                                            onClick={() => setFilterDuration(filter.id)}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-full text-xs font-medium transition-all border whitespace-nowrap",
+                                                filterDuration === filter.id
+                                                    ? "bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-300"
+                                                    : "bg-white border-gray-200 text-gray-600 hover:border-purple-200 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
+                                            )}
+                                        >
+                                            {filter.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Active Plan Offer Card */}
+                            {activeSubscription && !isLockerAddOnMode && (
+                                <div className="mb-4 p-4 rounded-xl border border-purple-200 bg-purple-50 dark:bg-purple-900/20 dark:border-purple-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center shrink-0">
+                                            <Lock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-gray-900 dark:text-white text-sm">Need a locker for your active plan?</h4>
+                                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                                                Add a locker to your <span className="font-semibold text-purple-700 dark:text-purple-300">{activeSubscription.planName || 'Current Plan'}</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <AnimatedButton 
+                                        onClick={() => setIsLockerAddOnMode(true)}
+                                        className="whitespace-nowrap bg-purple-600 hover:bg-purple-700 text-white text-xs py-2 px-4 h-auto"
                                     >
-                                        <div className="flex justify-between items-start mb-1">
-                                            <div className="flex items-center gap-2">
-                                                <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{plan.name}</h4>
-                                                {selectedPlan?.id === plan.id && (
-                                                    <div className="w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center shadow-sm shrink-0">
-                                                        <Check className="w-2.5 h-2.5 text-white" />
+                                        Add Locker Only
+                                    </AnimatedButton>
+                                </div>
+                            )}
+
+                            {isLockerAddOnMode && (
+                                <div className="mb-4 p-4 rounded-xl border border-purple-200 bg-purple-50 dark:bg-purple-900/20 dark:border-purple-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center shrink-0">
+                                            <Lock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-gray-900 dark:text-white text-sm">Locker Add-on Mode</h4>
+                                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                                                Adding locker to <span className="font-semibold text-purple-700 dark:text-purple-300">{selectedPlan?.name}</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => setIsLockerAddOnMode(false)}
+                                        className="text-xs text-red-500 hover:underline"
+                                    >
+                                        Cancel Add-on Mode
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="space-y-2 max-h-[500px] overflow-y-auto px-1 -mx-1 custom-scrollbar">
+                                {filteredPlans.length === 0 ? (
+                                    <div className="text-center py-8 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                                        <Filter className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                                        <p className="text-sm font-medium">No plans match your filters.</p>
+                                        <button 
+                                            onClick={() => { setFilterCategory('all'); setFilterDuration('all'); }}
+                                            className="text-xs text-blue-600 dark:text-blue-400 mt-2 hover:underline"
+                                        >
+                                            Clear all filters
+                                        </button>
+                                    </div>
+                                ) : (
+                                    filteredPlans.map(plan => (
+                                        <div 
+                                            key={plan.id}
+                                            onClick={() => setSelectedPlan(plan)}
+                                            className={cn(
+                                                "p-3 rounded-xl border cursor-pointer transition-all duration-200 relative",
+                                                selectedPlan && String(selectedPlan.id) === String(plan.id)
+                                                    ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 shadow-sm ring-1 ring-emerald-500/20"
+                                                    : "border-gray-200 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-sm"
+                                            )}
+                                        >
+                                            <div className="flex justify-between items-start mb-1">
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{plan.name}</h4>
+                                                    {selectedPlan && String(selectedPlan.id) === String(plan.id) && (
+                                                        <div className="w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center shadow-sm shrink-0">
+                                                            <Check className="w-2.5 h-2.5 text-white" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">₹{plan.price}</span>
+                                            </div>
+                                            
+                                            <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{plan.description}</p>
+                                            
+                                            <div className="flex items-center gap-2 mb-2 text-[11px] text-gray-600 dark:text-gray-300">
+                                                <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
+                                                    <Clock className="w-2.5 h-2.5 text-gray-400" />
+                                                    <span className="font-medium">{plan.duration} {plan.durationUnit}</span>
+                                                </div>
+                                                
+                                                <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
+                                                    <Info className="w-2.5 h-2.5 text-gray-400" />
+                                                    <span className="font-medium">
+                                                        {plan.category === 'fixed' 
+                                                            ? `${formatTime(plan.shiftStart)} - ${formatTime(plan.shiftEnd)}`
+                                                            : `${plan.hoursPerDay} Hrs/Day`
+                                                        }
+                                                    </span>
+                                                </div>
+                                                
+                                                {plan.includesSeat && (
+                                                    <div className="flex items-center gap-1 bg-purple-50 dark:bg-purple-900/20 px-1.5 py-0.5 rounded border border-purple-100 dark:border-purple-800">
+                                                        <Armchair className="w-2.5 h-2.5 text-purple-500" />
+                                                        <span className="font-medium text-purple-700 dark:text-purple-300">Seat</span>
+                                                    </div>
+                                                )}
+                                                {plan.includesLocker && (
+                                                    <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded border border-amber-100 dark:border-amber-800">
+                                                        <Lock className="w-2.5 h-2.5 text-amber-500" />
+                                                        <span className="font-medium text-amber-700 dark:text-amber-300">Locker</span>
                                                     </div>
                                                 )}
                                             </div>
-                                            <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">₹{Number(plan.price || 0).toFixed(2)}</span>
-                                        </div>
-                                        
-                                        <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{plan.description}</p>
-                                        
-                                        <div className="flex items-center gap-2 mb-2 text-[11px] text-gray-600 dark:text-gray-300">
-                                            <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
-                                                <Clock className="w-2.5 h-2.5 text-gray-400" />
-                                                <span className="font-medium">{plan.duration} {plan.durationUnit}</span>
-                                            </div>
-                                            
-                                            <div className="flex items-center gap-1 bg-white dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-100 dark:border-gray-700">
-                                                <Info className="w-2.5 h-2.5 text-gray-400" />
-                                                <span className="font-medium">
-                                                    {plan.category === 'fixed' 
-                                                        ? `${formatTime(plan.shiftStart)} - ${formatTime(plan.shiftEnd)}`
-                                                        : `${plan.hoursPerDay || 0} Hrs/Day`
-                                                    }
+
+                                            <div className="flex flex-wrap gap-1.5 mb-2">
+                                                <span className={cn(
+                                                    "px-1.5 py-0.5 rounded text-[10px] font-medium border capitalize",
+                                                    plan.category === 'fixed'
+                                                        ? "bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/30"
+                                                        : "bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-900/30"
+                                                )}>
+                                                    {plan.category}
+                                                </span>
+                                                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-600 border border-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700 capitalize">
+                                                    {plan.billingCycle.replace(/_/g, ' ')}
                                                 </span>
                                             </div>
-                                        </div>
 
-                                        <div className="flex flex-wrap gap-1.5">
-                                            <span className={cn(
-                                                "px-1.5 py-0.5 rounded text-[10px] font-medium border capitalize",
-                                                plan.category === 'fixed'
-                                                    ? "bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/30"
-                                                    : "bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-900/30"
-                                            )}>
-                                                {plan.category || 'Standard'}
-                                            </span>
-                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-600 border border-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700 capitalize">
-                                                {(plan.billingCycle || '').replace(/_/g, ' ')}
-                                            </span>
+                                            {selectedPlan && String(selectedPlan.id) === String(plan.id) && (
+                                                <div className="py-2 mt-auto">
+                                                    <div className="flex items-center justify-between bg-emerald-100/50 dark:bg-emerald-900/30 rounded-lg p-2 border border-emerald-200 dark:border-emerald-800">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] uppercase tracking-wider font-semibold text-emerald-800 dark:text-emerald-200">Total Duration</span>
+                                                            <div className="flex items-baseline gap-1">
+                                                                <span className="text-sm font-bold text-emerald-950 dark:text-emerald-50">
+                                                                    {quantity * plan.duration} {plan.durationUnit?.toLowerCase().startsWith('m') ? (quantity * plan.duration > 1 ? 'Months' : 'Month') : (quantity * plan.duration > 1 ? 'Days' : 'Day')}
+                                                                </span>
+                                                                <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-medium">
+                                                                    ({quantity} × {plan.duration} {plan.durationUnit?.toLowerCase().startsWith('m') ? (plan.duration > 1 ? 'Months' : 'Month') : (plan.duration > 1 ? 'Days' : 'Day')})
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center bg-white dark:bg-gray-800 rounded-md border border-emerald-200 dark:border-emerald-700 shadow-sm">
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    if (quantity > 1) {
+                                                                        setQuantity(quantity - 1)
+                                                                    } else {
+                                                                        setSelectedPlan(null)
+                                                                        setQuantity(1)
+                                                                        setSelectedSeat(null)
+                                                                        setSelectedLocker(null)
+                                                                        setSelectedFees([])
+                                                                    }
+                                                                }}
+                                                                className="w-7 h-7 flex items-center justify-center text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-l-md transition-colors"
+                                                            >
+                                                                <Minus className="w-3 h-3" />
+                                                            </button>
+                                                            <span className="w-6 text-center text-sm font-bold text-gray-900 dark:text-white">{quantity}</span>
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    setQuantity(quantity + 1)
+                                                                }}
+                                                                className="w-7 h-7 flex items-center justify-center text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-r-md transition-colors"
+                                                            >
+                                                                <Plus className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
-                                    </div>
-                                ))}
+                                    ))
+                                )}
                             </div>
                         </div>
 
@@ -815,7 +1049,7 @@ export function StaffAcceptPaymentForm() {
                                                             </div>
                                                             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fee.name}</span>
                                                         </div>
-                                                        <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
+                                                        <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}{fee.billType === 'MONTHLY' ? '/m' : ''}</span>
                                                     </div>
                                                 ))}
                                             </div>
@@ -853,7 +1087,7 @@ export function StaffAcceptPaymentForm() {
                                                         </div>
                                                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{fee.name}</span>
                                                     </div>
-                                                    <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
+                                                    <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}{fee.billType === 'MONTHLY' ? '/m' : ''}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -895,7 +1129,7 @@ export function StaffAcceptPaymentForm() {
                                                             )}
                                                         </div>
                                                     </div>
-                                                    <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}</span>
+                                                    <span className="text-sm font-bold text-gray-900 dark:text-white">₹{fee.amount}{fee.billType === 'MONTHLY' ? '/m' : ''}</span>
                                                 </div>
                                             ))}
                                         </div>
