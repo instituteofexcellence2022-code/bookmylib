@@ -310,7 +310,7 @@ export async function createBranch(formData: FormData) {
           lockers.push({
             branchId: branch.id,
             libraryId: owner.libraryId,
-            number: String(i),
+            number: 'L-' + String(i).padStart(2, '0'),
             isActive: true
           })
         }
@@ -479,7 +479,7 @@ export async function updateBranch(formData: FormData) {
             lockersToCreate.push({
               branchId: id,
               libraryId: owner.libraryId,
-              number: String(i),
+              number: `L-${String(i).padStart(2, '0')}`,
               isActive: true
             })
           }

@@ -20,6 +20,7 @@ import {
   Trash2,
   Edit
 } from 'lucide-react'
+
 import { toast } from 'sonner'
 import { 
   createLocker, 
@@ -177,9 +178,9 @@ export function LockersClient({ initialLockers, branches }: LockersClientProps) 
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
         <StatCard 
           label="Total Lockers" 
           value={stats.total} 
@@ -207,7 +208,7 @@ export function LockersClient({ initialLockers, branches }: LockersClientProps) 
       </div>
 
       {/* Controls */}
-      <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="flex flex-col lg:flex-row gap-3 md:gap-4 justify-between items-start lg:items-center bg-white dark:bg-gray-800 p-3 md:p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
         <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 w-full lg:w-auto">
           <div className="relative col-span-2 sm:col-span-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -277,9 +278,9 @@ export function LockersClient({ initialLockers, branches }: LockersClientProps) 
       </div>
 
       {/* Main Content */}
-      <div className="space-y-8">
+      <div className="space-y-4 md:space-y-8">
         {Object.entries(groupedLockers).map(([branchName, branchLockers]) => (
-          <div key={branchName} className="space-y-4">
+          <div key={branchName} className="space-y-3 md:space-y-4">
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">{branchName}</h3>
               <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 text-xs rounded-full">
@@ -288,7 +289,7 @@ export function LockersClient({ initialLockers, branches }: LockersClientProps) 
             </div>
 
             {viewMode === 'grid' ? (
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3">
+              <div className="grid grid-cols-3 md:grid-cols-4 gap-2 md:gap-3">
                 {branchLockers.map((locker) => (
                   <LockerGridItem 
                     key={locker.id} 
@@ -368,47 +369,99 @@ export function LockersClient({ initialLockers, branches }: LockersClientProps) 
 
 function StatCard({ label, value, icon: Icon, color }: any) {
   return (
-    <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center gap-4">
-      <div className={`p-3 rounded-lg ${color}`}>
-        <Icon className="w-5 h-5" />
+    <div className="bg-white dark:bg-gray-800 p-3 md:p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center gap-3 md:gap-4">
+      <div className={`p-2 md:p-3 rounded-lg ${color}`}>
+        <Icon className="w-4 h-4 md:w-5 md:h-5" />
       </div>
       <div>
-        <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-        <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
+        <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">{label}</p>
+        <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
       </div>
     </div>
   )
 }
 
+import { differenceInDays } from 'date-fns'
+
 function LockerGridItem({ locker, onClick }: any) {
-  const isOccupied = locker.subscriptions && locker.subscriptions.length > 0
+  const activeSubscription = locker.subscriptions && locker.subscriptions.length > 0 ? locker.subscriptions[0] : null
+  const isOccupied = !!activeSubscription
   const isMaintenance = !locker.isActive
+  
+  const daysRemaining = activeSubscription 
+    ? differenceInDays(new Date(activeSubscription.endDate), new Date()) 
+    : 0
 
   return (
     <button
       onClick={onClick}
-      className={`relative group p-3 rounded-xl border-2 transition-all duration-200 flex flex-col items-center gap-2
+      className={`relative group w-full p-2 md:p-2.5 rounded-lg border transition-all duration-200 flex flex-col gap-2 text-left
         ${isMaintenance 
-          ? 'bg-gray-100 border-gray-200 dark:bg-gray-800 dark:border-gray-700 opacity-75' 
+          ? 'bg-gray-50 border-gray-200 dark:bg-gray-800/50 dark:border-gray-700 opacity-75' 
           : isOccupied 
-            ? 'bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-900/30 hover:border-red-300' 
-            : 'bg-green-50 border-green-200 dark:bg-green-900/10 dark:border-green-900/30 hover:border-green-300'
+            ? 'bg-white border-red-200 shadow-sm dark:bg-gray-800 dark:border-red-900/30 hover:border-red-300 dark:hover:border-red-800' 
+            : 'bg-white border-green-200 shadow-sm dark:bg-gray-800 dark:border-green-900/30 hover:border-green-300 dark:hover:border-green-800'
         }
       `}
     >
-      <div className={`p-2 rounded-full ${
-        isMaintenance ? 'bg-gray-200 text-gray-500' :
-        isOccupied ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
-      }`}>
-        {isMaintenance ? <Ban className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
+      <div className="flex justify-between items-center w-full">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className={`flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 ${
+            isMaintenance ? 'bg-gray-200 text-gray-500' :
+            isOccupied ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+          }`}>
+            <Lock className="w-4 h-4" />
+          </div>
+          <span className="font-bold text-base text-gray-900 dark:text-gray-100 truncate leading-none">
+            {locker.number}
+          </span>
+        </div>
+        
+        <div className={`flex items-center justify-center w-5 h-5 rounded-full ${
+          isMaintenance ? 'bg-gray-100 text-gray-400' :
+          isOccupied ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'
+        }`}>
+          {isMaintenance ? <Ban className="w-2.5 h-2.5" /> : 
+           isOccupied ? <Lock className="w-2.5 h-2.5" /> : 
+           <CheckCircle2 className="w-2.5 h-2.5" />}
+        </div>
       </div>
-      <div className="text-center">
-        <span className="block font-bold text-gray-900 dark:text-gray-100">{locker.number}</span>
+
+      <div className="space-y-0.5">
+        {isOccupied ? (
+          <>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div className="w-3.5 h-3.5 rounded-full bg-gray-100 dark:bg-gray-700 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                {activeSubscription.student.image ? (
+                  <img src={activeSubscription.student.image} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-[8px] font-medium">{activeSubscription.student.name[0]}</span>
+                )}
+              </div>
+              <p className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">
+                {activeSubscription.student.name}
+              </p>
+            </div>
+            <p className={`text-[10px] ${daysRemaining <= 3 ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
+              {daysRemaining} days left
+            </p>
+          </>
+        ) : isMaintenance ? (
+          <>
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Maintenance</p>
+            <p className="text-[10px] text-gray-400">Unavailable</p>
+          </>
+        ) : (
+          <>
+            <p className="text-xs font-medium text-green-600 dark:text-green-400">Available</p>
+            <p className="text-[10px] text-gray-400 truncate">
+              {locker.section ? `Sec ${locker.section}` : ''}
+              {locker.section && locker.type ? ' • ' : ''}
+              {locker.type || (locker.section ? '' : 'Standard')}
+            </p>
+          </>
+        )}
       </div>
-      
-      {isOccupied && !isMaintenance && (
-        <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-gray-800" />
-      )}
     </button>
   )
 }
@@ -475,8 +528,8 @@ function CreateLockerModal({ branches, onClose, onSubmit, isLoading }: any) {
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Locker Number</label>
-            <input name="number" required placeholder="e.g. L-01" className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent" />
-          </div>
+                <input name="number" required defaultValue="L-" placeholder="e.g. L-01" className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent" />
+              </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
