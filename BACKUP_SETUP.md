@@ -75,3 +75,16 @@ Follow these steps to configure the automated daily backups to Google Cloud Stor
 3.  Click **Run workflow** > **Run workflow**.
 4.  Wait for it to complete (green checkmark).
 5.  Check your Google Cloud Bucket to see the `.dump` file.
+
+## Phase 4: How to Restore (Emergency Only)
+
+If you ever need to restore your database from a backup:
+
+1.  **Download the backup file** (`.dump`) from your Google Cloud Bucket.
+2.  **Install PostgreSQL tools** (if you haven't already) to get the `pg_restore` command.
+3.  **Run the restore command** in your terminal:
+
+```bash
+# WARNING: This will overwrite data. Be careful.
+pg_restore -d "YOUR_DATABASE_URL" --clean --if-exists --no-owner --no-privileges backup_file_name.dump
+```
