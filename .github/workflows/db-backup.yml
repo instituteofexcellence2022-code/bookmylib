@@ -85,7 +85,7 @@ jobs:
         echo "Upload complete: gs://${BUCKET}/backups/${FILENAME}"
 
     # Optional: Add notification step here (e.g., Slack, Discord, Email)
-    - name: Notify on Failure
-      if: failure()
-      run: |
-        curl -X POST -H 'Content-type: application/json' --data '{"text":"❌ Database Backup Failed!"}' ${{ secrets.SLACK_WEBHOOK_URL }}
+    # - name: Notify on Failure
+    #   if: failure()
+    #   run: |
+    #     curl -X POST -H 'Content-type: application/json' --data '{"text":"❌ Database Backup Failed!"}' ${{ secrets.SLACK_WEBHOOK_URL }}
