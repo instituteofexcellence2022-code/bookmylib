@@ -64,7 +64,7 @@ Follow these steps to configure the automated daily backups to Google Cloud Stor
 
     | Name | Value |
     |------|-------|
-    | `GCP_SA_KEY` | Open the JSON file you downloaded in Step 5. Copy the **entire content** and paste it here. |
+    | `GCP_SA_KEY` | **Open the JSON file** you downloaded in Step 5 with Notepad. Copy the **entire content** (starting with `{` and ending with `}`) and paste it here.<br><br>It should look like this:<br>`{"type": "service_account", "project_id": "...", ...}`<br><br>⚠️ **Do NOT paste just the ID.** |
     | `GCP_BACKUP_BUCKET` | The name of the bucket you created (e.g., `bookmylib-backup-prod`). |
     | `DATABASE_URL` | Your Neon database connection string (likely already exists). |
 
