@@ -31,22 +31,27 @@ Follow these steps to configure the automated daily backups to Google Cloud Stor
         *   **Select object conditions**: Check **Age** and enter **365**.
         *   Click **CREATE**.
 
-4.  **Create a Service Account**
-    *   Navigate to **IAM & Admin** > **Service Accounts**.
-    *   Click **Create Service Account**.
-    *   Name: `github-actions-backup`.
-    *   Click **Create and Continue**.
+4.  **Create Service Account & Get Key (The "Login" for GitHub)**
+    *   In the Google Cloud Console search bar (top), type **"Service Accounts"** and select it (under IAM & Admin).
+    *   Click **+ CREATE SERVICE ACCOUNT** (top button).
+    *   **Step 1: Service account details**
+        *   **Service account name**: `github-actions-backup`.
+        *   Click **CREATE AND CONTINUE**.
+    *   **Step 2: Grant this service account access to project**
+        *   Click the **Select a role** dropdown.
+        *   Type **"Storage Object Admin"** in the filter and select it. (This gives permission to upload files).
+        *   Click **CONTINUE**.
+    *   **Step 3: Grant users access...**
+        *   Skip this (leave blank).
+        *   Click **DONE**.
 
-4.  **Assign Permissions**
-    *   Role 1: **Storage Object Admin** (Full control over objects).
-    *   Click **Done**.
-
-5.  **Generate Key**
-    *   Click on the newly created service account email.
-    *   Go to the **Keys** tab.
-    *   Click **Add Key** > **Create new key**.
-    *   Type: **JSON**.
-    *   Click **Create**. A file will download to your computer.
+5.  **Generate the Key File**
+    *   You will now see a list of service accounts. Click on the **Email address** of the one you just created (`github-actions-backup@...`).
+    *   Click on the **KEYS** tab (top menu row).
+    *   Click **ADD KEY** > **Create new key**.
+    *   Select **JSON** (default).
+    *   Click **CREATE**.
+    *   **IMPORTANT**: A file will download to your computer. **Keep this safe.** This is the "password" GitHub needs to upload backups.
 
 ## Phase 2: GitHub Repository Setup
 
