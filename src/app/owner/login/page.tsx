@@ -195,6 +195,7 @@ function OwnerLoginForm() {
                                     <AnimatedButton
                                         type="submit"
                                         isLoading={loading}
+                                        loadingText="Verifying..."
                                         className="w-full justify-center bg-amber-600 hover:bg-amber-700 text-white h-10"
                                         icon="logIn"
                                     >

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { 
     Settings, Bell, Moon, Globe, 
-    Save, Loader2, Smartphone, Mail, Shield, CheckCircle, XCircle
+    Save, Loader2, Smartphone, Mail, Shield, CheckCircle, XCircle, Database, Download
 } from 'lucide-react'
 import { Prisma } from '@prisma/client'
 import { FormSelect } from '@/components/ui/FormSelect'
@@ -13,6 +13,7 @@ import {
     getOwnerProfile, updateOwnerPreferences, 
     generateTwoFactorSecret, enableTwoFactor, disableTwoFactor 
 } from '@/actions/owner'
+import { exportDatabaseData } from '@/actions/owner/backup'
 import { toast } from 'react-hot-toast'
 import { useTheme } from 'next-themes'
 import Image from 'next/image'
@@ -21,6 +22,7 @@ export default function SettingsPage() {
     const { setTheme, theme: currentTheme } = useTheme()
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
+    const [exporting, setExporting] = useState(false)
     const [owner, setOwner] = useState<Prisma.OwnerGetPayload<{include: { library: true }}> | null>(null)
     
     const [preferences, setPreferences] = useState({
@@ -162,6 +164,29 @@ export default function SettingsPage() {
             setOwner({ ...owner, twoFactorEnabled: false })
         } else {
             toast.error(result.error || 'Failed to disable 2FA')
+        }
+    }
+
+    const handleExportData = async () => {
+        setExporting(true)
+        try {
+            const result = await exportDatabaseData()
+            if (result.success && result.data) {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(result.data, null, 2))
+                const downloadAnchorNode = document.createElement('a')
+                downloadAnchorNode.setAttribute("href", dataStr)
+                downloadAnchorNode.setAttribute("download", `library_backup_${new Date().toISOString().split('T')[0]}.json`)
+                document.body.appendChild(downloadAnchorNode)
+                downloadAnchorNode.click()
+                downloadAnchorNode.remove()
+                toast.success('Data exported successfully')
+            } else {
+                toast.error(result.error || 'Failed to export data')
+            }
+        } catch (error) {
+            toast.error('An unexpected error occurred')
+        } finally {
+            setExporting(false)
         }
     }
 
@@ -332,6 +357,42 @@ export default function SettingsPage() {
                             </div>
                         </div>
                     )}
+                </div>
+
+                {/* Data Management */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 bg-indigo-100 dark:bg-indigo-900/20 rounded-lg">
+                            <Database className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Data Management</h2>
+                            <p className="text-sm text-gray-500">Manage your library data and backups</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center gap-4">
+                            <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-full">
+                                <Download className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                            </div>
+                            <div>
+                                <div className="font-medium text-gray-900 dark:text-white">Export Data</div>
+                                <div className="text-sm text-gray-500">Download a JSON backup of your students, payments, and subscriptions</div>
+                            </div>
+                        </div>
+                        
+                        <AnimatedButton
+                            type="button"
+                            onClick={handleExportData}
+                            isLoading={exporting}
+                            variant="secondary"
+                            className="!py-2 !px-4 !text-sm"
+                        >
+                            <Download className="w-4 h-4 mr-2" />
+                            Export JSON
+                        </AnimatedButton>
+                    </div>
                 </div>
 
                 {/* Notifications */}

@@ -158,9 +158,9 @@ export async function loginOwner(formData: FormData) {
         return { success: true }
 
     } catch (error) {
-        console.error('Owner login error:', error)
-        return { success: false, error: 'An error occurred during login' }
-    }
+    console.error('Owner login error:', error)
+    return { success: false, error: 'Login error: ' + (error instanceof Error ? error.message : String(error)) }
+  }
 }
 
 export async function verifyOwnerTwoFactor(ownerId: string, code: string) {
