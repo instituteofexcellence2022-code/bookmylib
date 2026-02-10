@@ -18,7 +18,10 @@ Follow these steps to configure the automated daily backups to Google Cloud Stor
     *   **Protection**: Leave defaults (Soft delete: Default, Versioning: Disabled).
     *   Click **Create**.
 
-    > **Pro Tip:** To save costs, go to the Bucket's **Lifecycle** tab after creation. Add a rule to "Delete objects" where "Age" is greater than **30 days**. This prevents paying for old backups forever.
+    > **Safer Cost-Saving Strategy (Recommended):**
+    > Instead of deleting backups immediately, use a **Tiered Strategy** in the **Lifecycle** tab:
+    > 1.  **Rule 1 (Archive):** Action: "Set to Archive storage class". Condition: Age > **30 days**. (This makes older backups extremely cheap to store).
+    > 2.  **Rule 2 (Cleanup):** Action: "Delete". Condition: Age > **365 days**. (Keeps a full year of history safely).
 
 3.  **Create a Service Account**
     *   Navigate to **IAM & Admin** > **Service Accounts**.
