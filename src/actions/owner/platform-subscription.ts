@@ -69,3 +69,14 @@ export async function requestPlatformSubscriptionChange(planId: string) {
 
     return { success: true }
 }
+
+export async function getOwnerPlatformTickets() {
+    const owner = await getOwnerProfile()
+    if (!owner) return []
+
+    return prisma.platformSupportTicket.findMany({
+        where: { libraryId: owner.libraryId },
+        orderBy: { createdAt: 'desc' },
+        take: 10 // Limit to recent 10
+    })
+}

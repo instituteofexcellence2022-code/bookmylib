@@ -21,6 +21,7 @@ export async function getAuthenticatedAdmin() {
       name: true,
       email: true,
       role: true,
+      image: true,
       // exclude password
     }
   })

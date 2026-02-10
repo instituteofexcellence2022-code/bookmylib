@@ -1,12 +1,13 @@
 import React from 'react'
-import { getPlatformSubscription, getPlatformPayments, getAvailableSaasPlans } from '@/actions/owner/platform-subscription'
+import { getPlatformSubscription, getPlatformPayments, getAvailableSaasPlans, getOwnerPlatformTickets } from '@/actions/owner/platform-subscription'
 import { PlatformSubscriptionPageClient } from '@/components/owner/platform-subscription/PlatformSubscriptionPageClient'
 
 export default async function OwnerPlatformSubscriptionPage() {
-    const [currentSubscription, availablePlans, payments] = await Promise.all([
+    const [currentSubscription, availablePlans, payments, tickets] = await Promise.all([
         getPlatformSubscription(),
         getAvailableSaasPlans(),
-        getPlatformPayments()
+        getPlatformPayments(),
+        getOwnerPlatformTickets()
     ])
 
     return (
@@ -20,6 +21,7 @@ export default async function OwnerPlatformSubscriptionPage() {
                 currentSubscription={currentSubscription}
                 availablePlans={availablePlans}
                 payments={payments}
+                tickets={tickets}
             />
         </div>
     )

@@ -876,6 +876,12 @@ model PlatformUser {
   role      String   // 'super_admin', 'support', 'sales', 'developer'
   isActive  Boolean  @default(true)
   
+  // Profile Details
+  phone     String?
+  image     String?
+  bio       String?
+  preferences Json?  // { "theme": "dark", "notifications": true }
+
   // Security & Auditing
   lastLogin   DateTime?
   loginIp     String?

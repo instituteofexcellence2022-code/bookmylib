@@ -11,7 +11,8 @@ import {
   TicketCheck, 
   ShieldAlert, 
   Settings, 
-  Users
+  Users,
+  MessageSquare
 } from 'lucide-react'
 import { logoutAdmin } from '@/actions/admin/platform-auth'
 
@@ -19,6 +20,7 @@ const adminNavItems: NavItem[] = [
   { href: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard },
   { href: '/admin/libraries', label: 'Libraries', icon: Building2 },
   { href: '/admin/plans', label: 'SaaS Plans', icon: Package },
+  { href: '/admin/tickets', label: 'Tickets', icon: MessageSquare },
   { href: '/admin/subscriptions', label: 'Platform Subscriptions', icon: TicketCheck },
   { href: '/admin/payments', label: 'Payments', icon: CreditCard },
   { href: '/admin/users', label: 'Platform Users', icon: Users },
@@ -48,7 +50,7 @@ export function AdminLayout({ children, user }: { children: React.ReactNode, use
             name: user?.name || 'Admin', 
             role: 'admin',
             initials: (user?.name || 'Admin').substring(0, 2).toUpperCase(),
-            image: null
+            image: user?.image
           }}
           onLogout={logoutAdmin}
         />

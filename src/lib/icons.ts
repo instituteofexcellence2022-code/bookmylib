@@ -10,7 +10,7 @@ import {
   ThumbsUp, ThumbsDown, Smile, Frown, Meh, Zap,
   Target, Award, Trophy, Crown, Coffee, Wifi, Battery,
   Volume2, VolumeX, Play, Pause, Square, SkipBack, SkipForward,
-  Building2, Armchair, MoreVertical, Save, Wind, Car, UserPlus, RefreshCw, Printer, Send
+  Building2, Armchair, MoreVertical, Save, Wind, Car, UserPlus, RefreshCw, Printer, Send, Shield
 } from 'lucide-react'
 
 export const Icons = {
@@ -24,6 +24,7 @@ export const Icons = {
   armchair: Armchair,
   moreVertical: MoreVertical,
   save: Save,
+  shield: Shield,
   wind: Wind,
   car: Car,
   users: Users,

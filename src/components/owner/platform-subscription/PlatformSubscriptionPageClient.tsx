@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { requestPlatformSubscriptionChange } from '@/actions/owner/platform-subscription'
-import { Check, Loader2, AlertTriangle, CreditCard, TicketCheck, Clock } from 'lucide-react'
+import { Check, Loader2, AlertTriangle, CreditCard, TicketCheck, Clock, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 
@@ -10,9 +10,10 @@ interface PlatformSubscriptionPageClientProps {
     currentSubscription: any
     availablePlans: any[]
     payments: any[]
+    tickets: any[]
 }
 
-export function PlatformSubscriptionPageClient({ currentSubscription, availablePlans, payments }: PlatformSubscriptionPageClientProps) {
+export function PlatformSubscriptionPageClient({ currentSubscription, availablePlans, payments, tickets }: PlatformSubscriptionPageClientProps) {
     const [requesting, setRequesting] = useState<string | null>(null)
 
     const handleRequestChange = async (planId: string) => {
@@ -110,6 +111,52 @@ export function PlatformSubscriptionPageClient({ currentSubscription, availableP
                             </div>
                         )
                     })}
+                </div>
+            </section>
+
+            {/* Request History */}
+            <section>
+                <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Request History</h2>
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                            <tr>
+                                <th className="px-6 py-4 font-medium">Date</th>
+                                <th className="px-6 py-4 font-medium">Subject</th>
+                                <th className="px-6 py-4 font-medium">Status</th>
+                                <th className="px-6 py-4 font-medium">Message</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                            {tickets && tickets.length > 0 ? tickets.map(ticket => (
+                                <tr key={ticket.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                                    <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
+                                        {format(new Date(ticket.createdAt), 'MMM d, yyyy')}
+                                    </td>
+                                    <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                                        {ticket.subject}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize 
+                                            ${ticket.status === 'open' ? 'bg-blue-100 text-blue-800' : 
+                                              ticket.status === 'resolved' ? 'bg-green-100 text-green-800' : 
+                                              'bg-gray-100 text-gray-800'}`}>
+                                            {ticket.status}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-gray-500 truncate max-w-xs" title={ticket.message}>
+                                        {ticket.message}
+                                    </td>
+                                </tr>
+                            )) : (
+                                <tr>
+                                    <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
+                                        No request history found.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </section>
 
