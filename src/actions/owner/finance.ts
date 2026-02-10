@@ -31,15 +31,33 @@ export async function getFinanceStats(filters: { startDate?: Date, endDate?: Dat
       whereClause.date = { ...whereClause.date as Prisma.DateTimeFilter, lte: endOfDay(filters.endDate) }
     }
 
-    // 1. Total Revenue (in selected period)
-    const totalRevenue = await prisma.payment.aggregate({
+    // 1. Prepare Promises
+    const totalRevenuePromise = prisma.payment.aggregate({
         where: whereClause,
         _sum: { amount: true }
     })
 
-    // 2. Calculate comparison (previous period)
-    let previousRevenue = 0
-    let trend = 0
+    const pendingWhere: Prisma.PaymentWhereInput = {
+        libraryId: owner.libraryId,
+        status: { in: ['pending', 'pending_verification'] }
+    }
+    if (filters.branchId && filters.branchId !== 'all') {
+        pendingWhere.branchId = filters.branchId
+    }
+    if (filters.startDate) {
+      pendingWhere.date = { ...pendingWhere.date as Prisma.DateTimeFilter, gte: startOfDay(filters.startDate) }
+    }
+    if (filters.endDate) {
+      pendingWhere.date = { ...pendingWhere.date as Prisma.DateTimeFilter, lte: endOfDay(filters.endDate) }
+    }
+
+    const pendingCollectionsPromise = prisma.payment.aggregate({
+        where: pendingWhere,
+        _sum: { amount: true },
+        _count: { id: true }
+    })
+
+    let comparisonPromise: Promise<any>
 
     if (filters.startDate && filters.endDate) {
         const duration = filters.endDate.getTime() - filters.startDate.getTime()
@@ -49,97 +67,75 @@ export async function getFinanceStats(filters: { startDate?: Date, endDate?: Dat
         const prevWhere = { ...whereClause }
         prevWhere.date = { gte: prevStart, lte: prevEnd }
 
-        const prevResult = await prisma.payment.aggregate({
+        comparisonPromise = prisma.payment.aggregate({
             where: prevWhere,
             _sum: { amount: true }
         })
-        previousRevenue = prevResult._sum.amount || 0
     } else {
-        // Default comparison: Last Month vs This Month if no specific date filter (or just default to Month logic)
-        // Actually, if no filters, let's keep original logic (All Time + This Month)
-        // But for consistency with the UI filter which defaults to something, let's adapt.
-        // If "All Time" (no date filters), we can't really show a "trend" easily unless we define it (e.g. this month vs last month).
-        
-        // Let's stick to: if no date filter, show All Time Total, and Monthly Trend.
-    }
-    
-    // For simplicity in this iteration:
-    // If no date filters are provided, we calculate "This Month" stats for the trend card.
-    // If date filters ARE provided, we calculate "Selected Period" vs "Previous Period".
-
-    const currentRevenue = totalRevenue._sum.amount || 0
-    
-    if (previousRevenue > 0) {
-        trend = ((currentRevenue - previousRevenue) / previousRevenue) * 100
-    } else if (currentRevenue > 0 && filters.startDate) {
-        trend = 100 // 100% growth from 0
-    } else if (!filters.startDate) {
-        // Fallback to original "This Month vs Last Month" logic for the trend card if no date filter
         const now = new Date()
         const startOfCurrentMonth = startOfMonth(now)
         const endOfCurrentMonth = endOfMonth(now)
         const startOfLastMonth = startOfMonth(subMonths(now, 1))
         const endOfLastMonth = endOfMonth(subMonths(now, 1))
         
-        const thisMonth = await prisma.payment.aggregate({
-            where: { 
-                ...whereClause, 
-                date: { gte: startOfCurrentMonth, lte: endOfCurrentMonth } 
-            },
-            _sum: { amount: true }
-        })
-        const lastMonth = await prisma.payment.aggregate({
-            where: { 
-                ...whereClause, 
-                date: { gte: startOfLastMonth, lte: endOfLastMonth } 
-            },
-            _sum: { amount: true }
-        })
-        
+        comparisonPromise = Promise.all([
+            prisma.payment.aggregate({
+                where: { 
+                    ...whereClause, 
+                    date: { gte: startOfCurrentMonth, lte: endOfCurrentMonth } 
+                },
+                _sum: { amount: true }
+            }),
+            prisma.payment.aggregate({
+                where: { 
+                    ...whereClause, 
+                    date: { gte: startOfLastMonth, lte: endOfLastMonth } 
+                },
+                _sum: { amount: true }
+            })
+        ])
+    }
+
+    // Execute all queries in parallel
+    const [totalRevenue, pendingCollections, comparisonResult] = await Promise.all([
+        totalRevenuePromise,
+        pendingCollectionsPromise,
+        comparisonPromise
+    ])
+
+    // Process Results
+    const currentRevenue = totalRevenue._sum.amount || 0
+    let trend = 0
+    let monthlyRevenue = 0
+
+    if (filters.startDate && filters.endDate) {
+        const previousRevenue = comparisonResult._sum.amount || 0
+        monthlyRevenue = currentRevenue // In filtered view, "Monthly" slot shows Total for period
+
+        if (previousRevenue > 0) {
+            trend = ((currentRevenue - previousRevenue) / previousRevenue) * 100
+        } else if (currentRevenue > 0) {
+            trend = 100
+        }
+    } else {
+        // Default: This Month vs Last Month
+        const [thisMonth, lastMonth] = comparisonResult as [any, any]
         const tm = thisMonth._sum.amount || 0
         const lm = lastMonth._sum.amount || 0
-        if (lm > 0) trend = ((tm - lm) / lm) * 100
-        else if (tm > 0) trend = 100
-        
-        // Also if no date filter, "monthlyRevenue" in the return object usually meant "This Month".
-        // But the UI shows "Total Revenue" and "Monthly Revenue".
-        // Let's populate 'monthlyRevenue' with the trend-basis revenue.
-        previousRevenue = lm // repurpose for return
-    }
+        monthlyRevenue = tm
 
-    // 4. Pending Collections
-    const pendingWhere: Prisma.PaymentWhereInput = {
-        libraryId: owner.libraryId,
-        status: { in: ['pending', 'pending_verification'] }
+        if (lm > 0) {
+            trend = ((tm - lm) / lm) * 100
+        } else if (tm > 0) {
+            trend = 100
+        }
     }
-    if (filters.branchId && filters.branchId !== 'all') {
-        pendingWhere.branchId = filters.branchId
-    }
-    // Pending usually ignores date range (it's current state), but maybe we want "Created in date range"?
-    // Usually "Pending" means "currently pending", regardless of when it was created (within reason).
-    // Let's keep it unfiltered by date for now, or maybe filter by date created?
-    // Let's filter by date if provided, assuming user wants to see "Pending payments from last month".
-    if (filters.startDate) {
-      pendingWhere.date = { ...pendingWhere.date as Prisma.DateTimeFilter, gte: startOfDay(filters.startDate) }
-    }
-    if (filters.endDate) {
-      pendingWhere.date = { ...pendingWhere.date as Prisma.DateTimeFilter, lte: endOfDay(filters.endDate) }
-    }
-
-    const pendingCollections = await prisma.payment.aggregate({
-        where: pendingWhere,
-        _sum: { amount: true },
-        _count: { id: true }
-    })
 
     return {
         success: true,
         data: {
-            totalRevenue: totalRevenue._sum.amount || 0,
-            monthlyRevenue: filters.startDate ? currentRevenue : (await prisma.payment.aggregate({
-                where: { ...whereClause, date: { gte: startOfMonth(new Date()), lte: endOfMonth(new Date()) } },
-                _sum: { amount: true }
-            }))._sum.amount || 0, // specific fix for "Monthly Revenue" card when filtered
+            totalRevenue: currentRevenue,
+            monthlyRevenue,
             monthlyTrend: trend,
             pendingAmount: pendingCollections._sum.amount || 0,
             pendingCount: pendingCollections._count.id || 0

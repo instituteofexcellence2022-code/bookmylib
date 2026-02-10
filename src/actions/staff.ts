@@ -7,6 +7,7 @@ import { uploadFile } from './upload'
 
 import { cache } from 'react'
 
+import { staffSchema } from '@/lib/validators/staff'
 import { getAuthenticatedStaff } from '@/lib/auth/staff'
 import { getAuthenticatedOwner } from '@/lib/auth/owner'
 
@@ -40,26 +41,25 @@ export async function createStaff(formData: FormData) {
     const ownerId = owner?.id
     const staffId = staff?.id
 
-    const firstName = (formData.get('firstName') as string)?.trim()
-    const lastName = (formData.get('lastName') as string)?.trim()
-    const email = (formData.get('email') as string)?.trim()
-    const phone = (formData.get('phone') as string)?.trim()
+    // Extract text fields for validation
+    const rawData: Record<string, any> = {}
+    formData.forEach((value, key) => {
+      if (typeof value === 'string') {
+        rawData[key] = value
+      }
+    })
 
-    if (phone && (phone.length !== 10 || !/^\d{10}$/.test(phone))) {
-      return { success: false, error: 'Please enter a valid 10-digit phone number' }
+    const validatedResult = staffSchema.safeParse(rawData)
+
+    if (!validatedResult.success) {
+      return { success: false, error: validatedResult.error.issues[0].message }
     }
 
-    const dob = formData.get('dob') as string
-    const gender = formData.get('gender') as string
-    const address = (formData.get('address') as string)?.trim()
-    const role = formData.get('role') as string
-    const branchId = formData.get('branchId') as string
-    const salary = formData.get('salary') as string
-    const employmentType = formData.get('employmentType') as string
-    const joiningDate = formData.get('joiningDate') as string
-    const password = formData.get('password') as string
-    const usernameInput = (formData.get('username') as string)?.trim()
-    const username = usernameInput || null
+    const {
+      firstName, lastName, email, phone, dob, gender, address,
+      role, branchId, salary, employmentType, joiningDate,
+      password, username
+    } = validatedResult.data
     
     // File uploads
     const idProof = formData.get('idProof') as File

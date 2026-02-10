@@ -72,32 +72,29 @@ export async function updateBookingDetails(
   if (!owner) return { success: false, error: 'Unauthorized' }
 
   try {
-    // 1. Check if seat is occupied by another active subscription
-    if (data.seatId) {
-      const existingSeat = await prisma.studentSubscription.findFirst({
+    // 1. Parallelize checks for seat and locker occupancy
+    const [existingSeat, existingLocker] = await Promise.all([
+      data.seatId ? prisma.studentSubscription.findFirst({
         where: {
           seatId: data.seatId,
           status: 'active',
-          id: { not: id } // Exclude current booking
+          id: { not: id }
         }
-      })
-      if (existingSeat) {
-        return { success: false, error: 'Seat is already occupied' }
-      }
-    }
-
-    // 2. Check if locker is occupied
-    if (data.lockerId) {
-      const existingLocker = await prisma.studentSubscription.findFirst({
+      }) : null,
+      data.lockerId ? prisma.studentSubscription.findFirst({
         where: {
           lockerId: data.lockerId,
           status: 'active',
           id: { not: id }
         }
-      })
-      if (existingLocker) {
-        return { success: false, error: 'Locker is already occupied' }
-      }
+      }) : null
+    ])
+
+    if (existingSeat) {
+      return { success: false, error: 'Seat is already occupied' }
+    }
+    if (existingLocker) {
+      return { success: false, error: 'Locker is already occupied' }
     }
 
     // 3. Update

@@ -195,35 +195,126 @@ export async function getDashboardStats(branchId?: string) {
   const whereBranch = branchId && branchId !== 'All Branches' ? { branchId } : {}
 
   try {
-    // 1. KPI Stats
-    
-    // Revenue (This Month)
     const now = new Date()
     const startOfCurrentMonth = startOfMonth(now)
     const endOfCurrentMonth = endOfMonth(now)
     const startOfLastMonth = startOfMonth(subMonths(now, 1))
     const endOfLastMonth = endOfMonth(subMonths(now, 1))
+    const startOfToday = startOfDay(now)
+    const endOfToday = endOfDay(now)
 
-    const thisMonthRevenue = await prisma.payment.aggregate({
-      where: {
-        libraryId,
-        ...whereBranch,
-        status: 'completed',
-        date: { gte: startOfCurrentMonth, lte: endOfCurrentMonth }
-      },
-      _sum: { amount: true }
-    })
+    // Helper for revenue
+    const getRevenueForRange = (start: Date, end: Date) => 
+        prisma.payment.aggregate({
+            where: {
+                libraryId,
+                ...whereBranch,
+                status: 'completed',
+                date: { gte: start, lte: end }
+            },
+            _sum: { amount: true }
+        })
 
-    const lastMonthRevenue = await prisma.payment.aggregate({
-      where: {
-        libraryId,
-        ...whereBranch,
-        status: 'completed',
-        date: { gte: startOfLastMonth, lte: endOfLastMonth }
-      },
-      _sum: { amount: true }
-    })
+    // Revenue Chart Queries (6 months) - Optimized to avoid fetching all records
+    const monthsToFetch = 6
+    const chartPromises = []
+    const chartLabels: string[] = []
+    for (let i = 0; i < monthsToFetch; i++) {
+        const d = subMonths(now, monthsToFetch - 1 - i)
+        chartLabels.push(format(d, 'MMM yyyy'))
+        chartPromises.push(getRevenueForRange(startOfMonth(d), endOfMonth(d)))
+    }
 
+    // Execute all independent queries in parallel
+    const [
+        thisMonthRevenue,
+        lastMonthRevenue,
+        activeStudents,
+        newSubsThisMonth,
+        newSubsLastMonth,
+        totalSeats,
+        occupiedSeats,
+        openIssues,
+        pendingIssues,
+        recentPayments,
+        recentAttendance,
+        recentTickets,
+        upcomingExpirations,
+        attendanceToday,
+        revenueByMethodData,
+        recentlyExpired,
+        ...chartResults
+    ] = await Promise.all([
+        // 1. Revenue
+        getRevenueForRange(startOfCurrentMonth, endOfCurrentMonth),
+        getRevenueForRange(startOfLastMonth, endOfLastMonth),
+        
+        // 2. Student Counts
+        prisma.studentSubscription.count({ where: { libraryId, ...whereBranch, status: 'active', endDate: { gt: now } } }),
+        prisma.studentSubscription.count({ where: { libraryId, ...whereBranch, status: 'active', createdAt: { gte: startOfCurrentMonth, lte: endOfCurrentMonth } } }),
+        prisma.studentSubscription.count({ where: { libraryId, ...whereBranch, status: 'active', createdAt: { gte: startOfLastMonth, lte: endOfLastMonth } } }),
+        
+        // 3. Occupancy
+        prisma.seat.count({ where: { libraryId, ...whereBranch } }),
+        prisma.studentSubscription.count({ where: { libraryId, ...whereBranch, status: 'active', endDate: { gt: now }, seatId: { not: null } } }),
+        
+        // 4. Issues
+        prisma.supportTicket.count({ where: { libraryId, ...whereBranch, status: 'open' } }),
+        prisma.supportTicket.count({ where: { libraryId, ...whereBranch, status: 'pending' } }),
+        
+        // 5. Activity Feed Sources
+        prisma.payment.findMany({
+            where: { libraryId, ...whereBranch },
+            take: 20,
+            orderBy: { date: 'desc' },
+            include: { student: { select: { name: true } }, branch: { select: { name: true } } }
+        }),
+        prisma.attendance.findMany({
+            where: { libraryId, ...whereBranch },
+            take: 20,
+            orderBy: { checkIn: 'desc' },
+            include: { student: { select: { name: true } }, branch: { select: { name: true } } }
+        }),
+        prisma.supportTicket.findMany({
+            where: { libraryId, ...whereBranch },
+            take: 10,
+            orderBy: { createdAt: 'desc' },
+            include: { student: { select: { name: true } }, branch: { select: { name: true } } }
+        }),
+        
+        // 7. Upcoming Expirations
+        prisma.studentSubscription.findMany({
+            where: { libraryId, ...whereBranch, status: 'active', endDate: { lte: addDays(now, 7), gt: now } },
+            orderBy: { endDate: 'asc' },
+            take: 5,
+            include: { student: { select: { name: true, image: true, phone: true, email: true } }, plan: { select: { name: true } } }
+        }),
+        
+        // 8. Attendance Today
+        prisma.attendance.count({
+            where: { libraryId, ...whereBranch, checkIn: { gte: startOfToday, lte: endOfToday } }
+        }),
+        
+        // 9. Revenue by Method
+        prisma.payment.groupBy({
+            by: ['method'],
+            where: { libraryId, ...whereBranch, status: 'completed', date: { gte: startOfCurrentMonth, lte: endOfCurrentMonth } },
+            _sum: { amount: true }
+        }),
+        
+        // 11. Recently Expired
+        prisma.studentSubscription.findMany({
+            where: { libraryId, ...whereBranch, status: 'expired', endDate: { gte: subMonths(now, 1), lte: now } },
+            orderBy: { endDate: 'desc' },
+            take: 5,
+            include: { student: { select: { name: true, image: true, phone: true } }, plan: { select: { name: true } } }
+        }),
+
+        // Chart Promises
+        ...chartPromises
+    ])
+
+    // Process calculated values
     const currentRevenue = thisMonthRevenue._sum.amount || 0
     const lastRevenue = lastMonthRevenue._sum.amount || 0
     let revenueTrend = 0
@@ -233,117 +324,15 @@ export async function getDashboardStats(branchId?: string) {
       revenueTrend = 100
     }
 
-    // 2. Active Students
-    const activeStudents = await prisma.studentSubscription.count({
-      where: {
-        libraryId,
-        ...whereBranch,
-        status: 'active',
-        endDate: { gt: now }
-      }
-    })
-
-    // Last month active students (approximation for trend)
-    // It's hard to get exact historical active count without snapshot tables.
-    // We'll use "new subscriptions this month" vs "new subscriptions last month" as a proxy for trend for now, 
-    // or just return 0 trend if too complex.
-    // Let's use new subscriptions for trend.
-    const newSubsThisMonth = await prisma.studentSubscription.count({
-        where: {
-            libraryId,
-            ...whereBranch,
-            status: 'active',
-            createdAt: { gte: startOfCurrentMonth, lte: endOfCurrentMonth }
-        }
-    })
-    const newSubsLastMonth = await prisma.studentSubscription.count({
-        where: {
-            libraryId,
-            ...whereBranch,
-            status: 'active',
-            createdAt: { gte: startOfLastMonth, lte: endOfLastMonth }
-        }
-    })
-    
     let studentTrend = 0
     if (newSubsLastMonth > 0) {
         studentTrend = ((newSubsThisMonth - newSubsLastMonth) / newSubsLastMonth) * 100
     }
 
-    // 3. Occupancy
-    // Total Seats
-    const totalSeats = await prisma.seat.count({
-        where: {
-            libraryId,
-            ...whereBranch
-        }
-    })
-
-    // Occupied Seats (Active subscriptions with a seat assigned)
-    const occupiedSeats = await prisma.studentSubscription.count({
-        where: {
-            libraryId,
-            ...whereBranch,
-            status: 'active',
-            endDate: { gt: now },
-            seatId: { not: null }
-        }
-    })
-
     const occupancyRate = totalSeats > 0 ? Math.round((occupiedSeats / totalSeats) * 100) : 0
-    // Trend for occupancy is hard without history. Setting to 0.
     const occupancyTrend = 0 
 
-    // 4. Open Issues
-    const openIssues = await prisma.supportTicket.count({
-        where: {
-            libraryId,
-            ...whereBranch,
-            status: 'open'
-        }
-    })
-    const pendingIssues = await prisma.supportTicket.count({
-        where: {
-            libraryId,
-            ...whereBranch,
-            status: 'pending'
-        }
-    })
-
-    const reportedStudentIssues = await prisma.supportTicket.count({
-        where: {
-            libraryId,
-            ...whereBranch,
-            status: 'open',
-            category: 'discipline'
-        }
-    })
-
-
-    // 5. Recent Activity (Feed)
-    // Combine Payments, Check-ins, and Tickets
-    const recentPayments = await prisma.payment.findMany({
-        where: { libraryId, ...whereBranch },
-        take: 20,
-        orderBy: { date: 'desc' },
-        include: { student: { select: { name: true } }, branch: { select: { name: true } } }
-    })
-
-    const recentAttendance = await prisma.attendance.findMany({
-        where: { libraryId, ...whereBranch },
-        take: 20,
-        orderBy: { checkIn: 'desc' },
-        include: { student: { select: { name: true } }, branch: { select: { name: true } } }
-    })
-
-    const recentTickets = await prisma.supportTicket.findMany({
-        where: { libraryId, ...whereBranch },
-        take: 10,
-        orderBy: { createdAt: 'desc' },
-        include: { student: { select: { name: true } }, branch: { select: { name: true } } }
-    })
-
-    // Merge and sort
+    // Process Activities
     const activities = [
         ...recentPayments.map(p => ({
             id: `pay_${p.id}`,
@@ -370,83 +359,31 @@ export async function getDashboardStats(branchId?: string) {
             branch: t.branch?.name
         }))
     ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-    .slice(0, 50) // Take top 50
+    .slice(0, 50)
 
-    // 6. Revenue Chart Data
-    // Reusing getRevenueAnalytics logic but with branch filter
-    const monthsToFetch = 6
-    const startDate = startOfMonth(subMonths(now, monthsToFetch - 1))
-    
-    const chartPayments = await prisma.payment.findMany({
-        where: {
-            libraryId,
-            ...whereBranch,
-            status: 'completed',
-            date: { gte: startDate }
-        },
-        orderBy: { date: 'asc' }
-    })
+    // Process Revenue Chart
+    const revenueChart = chartLabels.map((name, index) => ({
+        name,
+        amount: (chartResults[index] as any)._sum.amount || 0
+    }))
 
-    const revenueMap = new Map<string, number>()
-    // Initialize months
-    for (let i = 0; i < monthsToFetch; i++) {
-        const d = subMonths(now, monthsToFetch - 1 - i)
-        revenueMap.set(format(d, 'MMM yyyy'), 0)
-    }
-
-    chartPayments.forEach(p => {
-        const monthKey = format(p.date, 'MMM yyyy')
-        revenueMap.set(monthKey, (revenueMap.get(monthKey) || 0) + p.amount)
-    })
-
-    const revenueChart = Array.from(revenueMap.entries()).map(([name, amount]) => ({ name, amount }))
-
-    // 7. Upcoming Expirations
-    const upcomingExpirations = await prisma.studentSubscription.findMany({
-        where: {
-            libraryId,
-            ...whereBranch,
-            status: 'active',
-            endDate: { lte: addDays(now, 7), gt: now }
-        },
-        orderBy: { endDate: 'asc' },
-        take: 5,
-        include: { student: { select: { name: true, image: true, phone: true, email: true } }, plan: { select: { name: true } } }
-    })
-
+    // Process Attendance Status for Lists
     const upcomingStudentIds = upcomingExpirations.map(s => s.studentId)
-    const presentUpcomingIds = await getAttendanceStatus(upcomingStudentIds, libraryId)
-
-    // 8. Attendance Today Stats
-    const startOfToday = startOfDay(now)
-    const endOfToday = endOfDay(now)
+    const expiredStudentIds = recentlyExpired.map(s => s.studentId)
     
-    const attendanceToday = await prisma.attendance.count({
-        where: {
-            libraryId,
-            ...whereBranch,
-            checkIn: { gte: startOfToday, lte: endOfToday }
-        }
-    })
+    // Fetch attendance status in parallel
+    const [presentUpcomingIds, presentExpiredIds] = await Promise.all([
+        getAttendanceStatus(upcomingStudentIds, libraryId),
+        getAttendanceStatus(expiredStudentIds, libraryId)
+    ])
 
-    // 9. Revenue by Method (All Time or This Month? Let's do This Month for relevance)
-    const revenueByMethodData = await prisma.payment.groupBy({
-        by: ['method'],
-        where: {
-            libraryId,
-            ...whereBranch,
-            status: 'completed',
-            date: { gte: startOfCurrentMonth, lte: endOfCurrentMonth }
-        },
-        _sum: { amount: true }
-    })
-
+    // Process Revenue By Method
     const revenueByMethod = revenueByMethodData.map(r => ({
         name: r.method.charAt(0).toUpperCase() + r.method.slice(1),
         value: r._sum.amount || 0
     }))
 
-    // 10. Alerts (Custom logic - e.g. low occupancy, high issues)
+    // Alerts
     const alerts: { id: string; type: 'warning' | 'error' | 'info'; title: string; desc: string }[] = []
     if (occupancyRate > 90) {
         alerts.push({
@@ -464,22 +401,6 @@ export async function getDashboardStats(branchId?: string) {
             desc: `You have ${pendingIssues} pending support tickets.`
         })
     }
-
-    // 11. Recently Expired
-    const recentlyExpired = await prisma.studentSubscription.findMany({
-        where: {
-            libraryId,
-            ...whereBranch,
-            status: 'expired',
-            endDate: { gte: subMonths(now, 1), lte: now }
-        },
-        orderBy: { endDate: 'desc' },
-        take: 5,
-        include: { student: { select: { name: true, image: true, phone: true } }, plan: { select: { name: true } } }
-    })
-
-    const expiredStudentIds = recentlyExpired.map(s => s.studentId)
-    const presentExpiredIds = await getAttendanceStatus(expiredStudentIds, libraryId)
 
     return {
         success: true,
@@ -507,7 +428,7 @@ export async function getDashboardStats(branchId?: string) {
             })),
             attendance: {
                 today: attendanceToday,
-                totalActive: activeStudents, // Using active students as base
+                totalActive: activeStudents,
                 percentage: activeStudents > 0 ? Math.round((attendanceToday / activeStudents) * 100) : 0
             },
             revenueByMethod,

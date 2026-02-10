@@ -39,39 +39,28 @@ export async function createStudent(formData: FormData) {
     const govtIdFile = formData.get('govtId') as File | null
 
     try {
-        // Check if email exists
-        if (email) {
-            const existing = await prisma.student.findUnique({ where: { email } })
-            if (existing) {
-                return { success: false, error: 'Email already exists' }
-            }
+        // Parallelize uniqueness checks
+        const [existingEmail, existingPhone] = await Promise.all([
+            email ? prisma.student.findUnique({ where: { email } }) : null,
+            phone ? prisma.student.findUnique({ where: { phone } }) : null
+        ])
+
+        if (existingEmail) {
+            return { success: false, error: 'Email already exists' }
+        }
+        if (existingPhone) {
+            return { success: false, error: 'Phone number already exists' }
         }
 
-        // Check if phone exists
-        if (phone) {
-            const existingPhone = await prisma.student.findUnique({ where: { phone } })
-            if (existingPhone) {
-                return { success: false, error: 'Phone number already exists' }
-            }
-        }
+        // Parallelize heavy operations: hashing and file uploads
+        const [hashedPassword, imageRes, govtIdRes] = await Promise.all([
+            password ? bcrypt.hash(password, 10) : null,
+            (imageFile && imageFile.size > 0) ? uploadFile(imageFile) : null,
+            (govtIdFile && govtIdFile.size > 0) ? uploadFile(govtIdFile) : null
+        ])
 
-        const hashedPassword = password ? await bcrypt.hash(password, 10) : null
-
-        let imagePath = null
-        if (imageFile && imageFile.size > 0) {
-            const uploadRes = await uploadFile(imageFile)
-            if (uploadRes.success) {
-                imagePath = uploadRes.data
-            }
-        }
-
-        let govtIdPath = null
-        if (govtIdFile && govtIdFile.size > 0) {
-            const uploadRes = await uploadFile(govtIdFile)
-            if (uploadRes.success) {
-                govtIdPath = uploadRes.data
-            }
-        }
+        const imagePath = imageRes?.success ? imageRes.data : null
+        const govtIdPath = govtIdRes?.success ? govtIdRes.data : null
 
         const student = await prisma.student.create({
             data: {

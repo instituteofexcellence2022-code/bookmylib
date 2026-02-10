@@ -58,7 +58,8 @@ export async function getOwnerAttendanceLogs(filters: AttendanceFilter) {
     if (filters.search) {
         where.student = {
             name: {
-                contains: filters.search
+                contains: filters.search,
+                mode: 'insensitive'
             }
         }
     }

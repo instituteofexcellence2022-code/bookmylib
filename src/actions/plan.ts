@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { getOwnerProfile } from './owner'
 import { Prisma } from '@prisma/client'
+import { planSchema } from '@/lib/validators/plan'
 
 export async function getOwnerPlans() {
   const owner = await getOwnerProfile()
@@ -58,56 +59,30 @@ export async function createPlan(formData: FormData) {
   }
 
   try {
-    const name = formData.get('name') as string
-    const description = formData.get('description') as string | null
-    const priceRaw = formData.get('price') as string
-    const durationRaw = formData.get('duration') as string
-    const durationUnit = formData.get('durationUnit') as string
-    const category = formData.get('category') as string
-    const billingCycle = formData.get('billingCycle') as string
-    const status = (formData.get('status') as string) || 'active'
-    
-    // Optional fields
-    const branchId = formData.get('branchId') as string | null
-    const hoursPerDayRaw = formData.get('hoursPerDay') as string | null
-    const shiftStart = formData.get('shiftStart') as string | null
-    const shiftEnd = formData.get('shiftEnd') as string | null
-    const includesSeat = formData.get('includesSeat') === 'true'
-    const allowSeatReservation = formData.get('allowSeatReservation') === 'true'
-    const includesLocker = formData.get('includesLocker') === 'true'
-
-    if (!name || !priceRaw || !durationRaw || !category || !durationUnit || !billingCycle) {
-      return { success: false, error: 'All required fields must be provided' }
-    }
-
-    const price = parseFloat(priceRaw)
-    const duration = parseInt(durationRaw, 10)
-
-    if (isNaN(price) || price < 0) {
-      return { success: false, error: 'Please enter a valid price' }
-    }
-
-    if (isNaN(duration) || duration <= 0) {
-      return { success: false, error: 'Please enter a valid duration' }
-    }
-
-    let hoursPerDay: number | null = null
-    if (category === 'flexible') {
-      if (!hoursPerDayRaw) {
-        return { success: false, error: 'Please specify hours per day for flexible plan' }
+    // Extract text fields for validation
+    const rawData: Record<string, any> = {}
+    formData.forEach((value, key) => {
+      if (typeof value === 'string') {
+        rawData[key] = value
       }
-      const parsedHours = parseFloat(hoursPerDayRaw)
-      if (isNaN(parsedHours) || parsedHours <= 0) {
-        return { success: false, error: 'Please enter a valid hours per day value' }
-      }
-      hoursPerDay = parsedHours
+    })
+
+    // Explicitly handle booleans for checkboxes
+    rawData['includesSeat'] = formData.get('includesSeat') === 'true'
+    rawData['allowSeatReservation'] = formData.get('allowSeatReservation') === 'true'
+    rawData['includesLocker'] = formData.get('includesLocker') === 'true'
+
+    const validatedResult = planSchema.safeParse(rawData)
+
+    if (!validatedResult.success) {
+      return { success: false, error: validatedResult.error.issues[0].message }
     }
 
-    if (category === 'fixed') {
-      if (!shiftStart || !shiftEnd) {
-        return { success: false, error: 'Please specify shift timings for fixed plan' }
-      }
-    }
+    const {
+      name, description, price, duration, durationUnit, category, billingCycle,
+      status, branchId, hoursPerDay, shiftStart, shiftEnd,
+      includesSeat, allowSeatReservation, includesLocker
+    } = validatedResult.data
 
     const plan = await prisma.plan.create({
       data: {
