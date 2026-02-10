@@ -250,15 +250,12 @@ function OwnerLoginForm() {
 
                     {step === 'credentials' && (
                         <div className="mt-6">
-                            <div className="relative">
-                                <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full border-t border-gray-300 dark:border-gray-700" />
-                                </div>
-                                <div className="relative flex justify-center text-sm">
-                                    <span className="px-2 bg-transparent text-gray-500">
-                                        Don&apos;t have an account?
-                                    </span>
-                                </div>
+                            <div className="flex items-center gap-3 text-sm">
+                                <div className="h-px bg-gray-300 dark:bg-gray-700 flex-1" />
+                                <span className="text-gray-500">
+                                    Don&apos;t have an account?
+                                </span>
+                                <div className="h-px bg-gray-300 dark:bg-gray-700 flex-1" />
                             </div>
 
                             <div className="mt-6">
