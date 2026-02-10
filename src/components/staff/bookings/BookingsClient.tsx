@@ -2,27 +2,25 @@
 
 import { useState, useMemo } from 'react'
 import { 
-  Filter, Search, Calendar, User, Armchair, Lock, MoreHorizontal, 
-  Check, X, AlertCircle, Wallet, CreditCard, Banknote, Clock, 
-  Activity, CheckCircle, LayoutGrid, List, Plus, ChevronLeft, FileText
+  Search, Calendar, Armchair, Lock, 
+  Check, X, AlertCircle, Wallet, Banknote, Clock, 
+  Activity, Plus, ChevronLeft, FileText
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { updateBookingStatus } from '@/actions/owner/bookings'
+import { updateBookingStatus, updateBookingDetails } from '@/actions/staff/bookings'
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns'
-import { AcceptPaymentClient } from '@/components/owner/finance/AcceptPaymentClient'
+import { StaffAcceptPaymentClient } from '@/components/staff/finance/StaffAcceptPaymentClient'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { BookingDetailsModal } from '@/components/shared/bookings/BookingDetailsModal'
 import { EditBookingModal } from '@/components/shared/bookings/EditBookingModal'
 
 interface BookingsClientProps {
   initialBookings: any[]
-  branches: any[]
 }
 
-export function BookingsClient({ initialBookings, branches }: BookingsClientProps) {
+export function BookingsClient({ initialBookings }: BookingsClientProps) {
   const [view, setView] = useState<'list' | 'create'>('list')
   const [bookings, setBookings] = useState(initialBookings)
-  const [selectedBranch, setSelectedBranch] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -37,7 +35,6 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
   // Derived State
   const filteredBookings = useMemo(() => {
     return bookings.filter(booking => {
-      const matchesBranch = selectedBranch === 'all' || booking.branchId === selectedBranch
       const matchesStatus = statusFilter === 'all' || booking.status === statusFilter
       const matchesSearch = 
         booking.student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -52,26 +49,21 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
         matchesDate = isWithinInterval(bookingDate, { start, end })
       }
 
-      return matchesBranch && matchesStatus && matchesSearch && matchesDate
+      return matchesStatus && matchesSearch && matchesDate
     })
-  }, [bookings, selectedBranch, statusFilter, searchQuery, dateRange])
+  }, [bookings, statusFilter, searchQuery, dateRange])
 
   const stats = useMemo(() => {
-    // Calculate stats based on current branch filter (but ignoring status filter to show overview)
-    const relevantBookings = bookings.filter(b => 
-      selectedBranch === 'all' || b.branchId === selectedBranch
-    )
-
-    const total = relevantBookings.length
-    const active = relevantBookings.filter(b => b.status === 'active').length
-    const pending = relevantBookings.filter(b => b.status === 'pending').length
+    const total = bookings.length
+    const active = bookings.filter(b => b.status === 'active').length
+    const pending = bookings.filter(b => b.status === 'pending').length
     // Approximate revenue from active/completed bookings
-    const revenue = relevantBookings
+    const revenue = bookings
       .filter(b => ['active', 'completed'].includes(b.status))
       .reduce((acc, curr) => acc + (curr.plan?.price || 0), 0)
 
     return { total, active, pending, revenue }
-  }, [bookings, selectedBranch])
+  }, [bookings])
 
   const handleStatusUpdate = async (id: string, newStatus: string) => {
     if (!confirm(`Are you sure you want to mark this booking as ${newStatus}?`)) return
@@ -98,7 +90,6 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
   }
 
   const getPaymentStatus = (booking: any) => {
-    // This assumes booking.payments is populated. If not, it falls back to 'unpaid'
     const isPaid = booking.payments?.some((p: any) => p.status === 'success' || p.status === 'captured')
     return isPaid ? 'paid' : 'unpaid'
   }
@@ -121,7 +112,7 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create Booking & Accept Payment</h2>
           </div>
         </div>
-        <AcceptPaymentClient initialStudentId={createBookingStudentId} />
+        <StaffAcceptPaymentClient initialStudentId={createBookingStudentId} />
       </div>
     )
   }
@@ -207,16 +198,6 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
                 placeholder="End Date"
               />
             </div>
-            <select
-              value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value)}
-              className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-500 whitespace-nowrap"
-            >
-              <option value="all">All Branches</option>
-              {branches.map(b => (
-                <option key={b.id} value={b.id}>{b.name}</option>
-              ))}
-            </select>
           </div>
         </div>
 
@@ -270,7 +251,7 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
                   </td>
                   <td className="px-6 py-4">
                     <div className="font-medium">{booking.plan.name}</div>
-                    <div className="text-xs text-gray-500">₹{booking.plan.price} • {booking.branch.name}</div>
+                    <div className="text-xs text-gray-500">₹{booking.plan.price}</div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col gap-1 text-xs">

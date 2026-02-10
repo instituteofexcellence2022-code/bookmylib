@@ -10,9 +10,10 @@ interface BookingDetailsModalProps {
     booking: any
     onClose: () => void
     onRenew?: () => void
+    onEdit?: () => void
 }
 
-export function BookingDetailsModal({ booking, onClose, onRenew }: BookingDetailsModalProps) {
+export function BookingDetailsModal({ booking, onClose, onRenew, onEdit }: BookingDetailsModalProps) {
     if (!booking) return null
 
     const getStatusColor = (status: string) => {
@@ -206,15 +207,14 @@ export function BookingDetailsModal({ booking, onClose, onRenew }: BookingDetail
                         </AnimatedButton>
                     )}
 
-                    <AnimatedButton
-                        className="bg-purple-600 text-white hover:bg-purple-700"
-                        onClick={() => {
-                            // Placeholder for future edit functionality
-                            onClose()
-                        }}
-                    >
-                        Edit Booking
-                    </AnimatedButton>
+                    {onEdit && (
+                        <AnimatedButton
+                            className="bg-purple-600 text-white hover:bg-purple-700"
+                            onClick={onEdit}
+                        >
+                            Edit Booking
+                        </AnimatedButton>
+                    )}
                 </div>
             </div>
         </div>

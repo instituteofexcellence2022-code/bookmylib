@@ -1,33 +1,25 @@
 'use client'
 
 import { 
-  createLocker, 
   deleteLocker, 
   updateLocker, 
-  createBulkLockers,
   getLockerHistory,
   getEligibleStudentsForLocker,
   assignLocker,
   unassignLocker
-} from '@/actions/owner/lockers'
+} from '@/actions/staff/lockers'
 import { LockerManagement, LockerWithRelations } from '@/components/shared/lockers/LockerManagement'
 
 interface LockersClientProps {
   initialLockers: LockerWithRelations[]
-  branches: { id: string, name: string }[]
 }
 
-export function LockersClient({ initialLockers, branches }: LockersClientProps) {
+export function LockersClient({ initialLockers }: LockersClientProps) {
   const actions = {
-    create: createLocker,
-    createBulk: createBulkLockers,
     update: updateLocker,
     delete: deleteLocker,
     getHistory: getLockerHistory,
-    getEligibleStudents: async (branchId?: string) => {
-      if (!branchId) return { success: false, error: 'Branch ID is required' }
-      return getEligibleStudentsForLocker(branchId)
-    },
+    getEligibleStudents: getEligibleStudentsForLocker,
     assign: assignLocker,
     unassign: unassignLocker
   }
@@ -35,7 +27,6 @@ export function LockersClient({ initialLockers, branches }: LockersClientProps) 
   return (
     <LockerManagement 
       initialLockers={initialLockers}
-      branches={branches}
       actions={actions}
     />
   )

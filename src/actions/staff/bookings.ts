@@ -2,21 +2,20 @@
 
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
-import { getAuthenticatedOwner } from '@/lib/auth/owner'
+import { getAuthenticatedStaff } from '@/lib/auth/staff'
 import { Prisma } from '@prisma/client'
 
 export async function getBookings(filters?: {
-  branchId?: string
   status?: string
   search?: string
 }) {
-  const owner = await getAuthenticatedOwner()
-  if (!owner) return { success: false, error: 'Unauthorized' }
+  const staff = await getAuthenticatedStaff()
+  if (!staff) return { success: false, error: 'Unauthorized' }
 
   try {
     const where: Prisma.StudentSubscriptionWhereInput = {
-      libraryId: owner.libraryId,
-      ...(filters?.branchId && { branchId: filters.branchId }),
+      libraryId: staff.libraryId,
+      branchId: staff.branchId, // Enforce staff branch
       ...(filters?.status && filters.status !== 'all' && { status: filters.status }),
       ...(filters?.search && {
         OR: [
@@ -31,7 +30,7 @@ export async function getBookings(filters?: {
       where,
       include: {
         student: {
-          select: { name: true, image: true, email: true, phone: true }
+          select: { id: true, name: true, image: true, email: true, phone: true }
         },
         plan: {
           select: { name: true, price: true, duration: true, durationUnit: true }
@@ -68,10 +67,17 @@ export async function updateBookingDetails(
     endDate?: string
   }
 ) {
-  const owner = await getAuthenticatedOwner()
-  if (!owner) return { success: false, error: 'Unauthorized' }
+  const staff = await getAuthenticatedStaff()
+  if (!staff) return { success: false, error: 'Unauthorized' }
 
   try {
+    // Verify booking belongs to staff's branch
+    const booking = await prisma.studentSubscription.findFirst({
+        where: { id, branchId: staff.branchId }
+    })
+
+    if (!booking) return { success: false, error: 'Booking not found or access denied' }
+
     // 1. Check if seat is occupied by another active subscription
     if (data.seatId) {
       const existingSeat = await prisma.studentSubscription.findFirst({
@@ -101,7 +107,7 @@ export async function updateBookingDetails(
     }
 
     // 3. Update
-    const booking = await prisma.studentSubscription.update({
+    const updatedBooking = await prisma.studentSubscription.update({
       where: { id },
       data: {
         ...(data.seatId !== undefined && { seatId: data.seatId }),
@@ -111,8 +117,8 @@ export async function updateBookingDetails(
       }
     })
 
-    revalidatePath('/owner/bookings')
-    return { success: true, data: booking }
+    revalidatePath('/staff/bookings')
+    return { success: true, data: updatedBooking }
   } catch (error) {
     console.error('Error updating booking details:', error)
     return { success: false, error: 'Failed to update booking details' }
@@ -120,20 +126,26 @@ export async function updateBookingDetails(
 }
 
 export async function updateBookingStatus(id: string, status: string) {
-  const owner = await getAuthenticatedOwner()
-  if (!owner) return { success: false, error: 'Unauthorized' }
+  const staff = await getAuthenticatedStaff()
+  if (!staff) return { success: false, error: 'Unauthorized' }
 
   try {
-    const booking = await prisma.studentSubscription.update({
+    // Verify booking belongs to staff's branch
+    const booking = await prisma.studentSubscription.findFirst({
+        where: { id, branchId: staff.branchId }
+    })
+
+    if (!booking) return { success: false, error: 'Booking not found or access denied' }
+
+    const updatedBooking = await prisma.studentSubscription.update({
       where: { id },
       data: { status }
     })
 
-    revalidatePath('/owner/bookings')
-    return { success: true, data: booking }
+    revalidatePath('/staff/bookings')
+    return { success: true, data: updatedBooking }
   } catch (error) {
     console.error('Error updating booking:', error)
     return { success: false, error: 'Failed to update booking' }
   }
 }
-

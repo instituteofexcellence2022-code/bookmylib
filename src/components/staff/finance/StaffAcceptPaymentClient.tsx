@@ -6,7 +6,7 @@ import { UserPlus, Users } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 
-export function StaffAcceptPaymentClient() {
+export function StaffAcceptPaymentClient({ initialStudentId }: { initialStudentId?: string }) {
     const [activeTab, setActiveTab] = useState<'existing' | 'new'>('existing')
     const router = useRouter()
 
@@ -61,7 +61,7 @@ export function StaffAcceptPaymentClient() {
                 )}
 
                 {activeTab === 'existing' && (
-                    <StaffAcceptPaymentForm />
+                    <StaffAcceptPaymentForm initialStudentId={initialStudentId} />
                 )}
             </div>
         </div>

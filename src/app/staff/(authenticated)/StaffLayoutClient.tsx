@@ -15,7 +15,8 @@ import {
   NotebookTabs,
   ShieldCheck,
   ScanLine,
-  AlertCircle
+  AlertCircle,
+  Lock
 } from 'lucide-react'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { TopBar } from '@/components/layout/TopBar'
@@ -30,6 +31,7 @@ const navItems = [
   { href: '/staff/scanner', label: 'Master Scanner', icon: ScanLine, group: 'Main' },
 
   // Operations
+  { href: '/staff/bookings', label: 'Bookings', icon: NotebookTabs, group: 'Operations' },
   { href: '/staff/leads', label: 'Leads', icon: Users, group: 'Operations' },
   { href: '/staff/students', label: 'Students', icon: GraduationCap, group: 'Operations' },
   { href: '/staff/attendance', label: 'Attendance', icon: CalendarCheck, group: 'Operations' },
@@ -43,6 +45,7 @@ const navItems = [
 
   // Others
   { href: '/staff/seats', label: 'Seats', icon: Armchair, group: 'Others' },
+  { href: '/staff/lockers', label: 'Lockers', icon: Lock, group: 'Others' },
   { href: '/staff/shift', label: 'My Shift', icon: Clock, group: 'Others' },
   { href: '/staff/settings', label: 'Settings', icon: Settings, group: 'Others' },
   { href: '/staff/profile', label: 'Profile', icon: UserCircle, group: 'Others' },

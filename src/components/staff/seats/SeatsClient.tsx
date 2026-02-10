@@ -2,32 +2,24 @@
 
 import { SeatManagement, SeatWithRelations } from '@/components/shared/seats/SeatManagement'
 import { 
-  createSeat, 
   deleteSeat, 
   updateSeat, 
-  createBulkSeats,
   getSeatHistory,
   getEligibleStudents,
   assignSeat,
   unassignSeat
-} from '@/actions/owner/seats'
+} from '@/actions/staff/seats'
 
 interface SeatsClientProps {
   initialSeats: SeatWithRelations[]
-  branches: { id: string, name: string }[]
 }
 
-export function SeatsClient({ initialSeats, branches }: SeatsClientProps) {
+export function SeatsClient({ initialSeats }: SeatsClientProps) {
   const actions = {
-    create: createSeat,
-    createBulk: createBulkSeats,
     update: updateSeat,
     delete: deleteSeat,
     getHistory: getSeatHistory,
-    getEligibleStudents: async (branchId?: string) => {
-      if (!branchId) return { success: false, error: 'Branch ID is required' }
-      return getEligibleStudents(branchId)
-    },
+    getEligibleStudents: getEligibleStudents,
     assign: assignSeat,
     unassign: unassignSeat
   }
@@ -35,7 +27,6 @@ export function SeatsClient({ initialSeats, branches }: SeatsClientProps) {
   return (
     <SeatManagement 
       initialSeats={initialSeats}
-      branches={branches}
       actions={actions}
     />
   )

@@ -93,10 +93,10 @@ const DURATION_FILTERS = [
     { id: 'other', label: 'Other' }
 ]
 
-export function StaffAcceptPaymentForm() {
+export function StaffAcceptPaymentForm({ initialStudentId: propInitialStudentId }: { initialStudentId?: string }) {
     const router = useRouter()
     const searchParams = useSearchParams()
-    const initialStudentId = searchParams.get('studentId')
+    const initialStudentId = propInitialStudentId || searchParams.get('studentId')
 
     const [submitting, setSubmitting] = useState(false)
     const [step, setStep] = useState<'student' | 'booking' | 'payment' | 'preview' | 'success'>('student')
