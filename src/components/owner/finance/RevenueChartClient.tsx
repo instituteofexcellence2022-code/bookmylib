@@ -12,6 +12,7 @@ import {
 } from 'recharts'
 import { getRevenueAnalytics } from '@/actions/owner/finance'
 import { Loader2 } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 
 interface RevenueItem {
   name: string
@@ -19,13 +20,19 @@ interface RevenueItem {
 }
 
 export function RevenueChartClient() {
+  const searchParams = useSearchParams()
   const [data, setData] = useState<RevenueItem[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
+      setLoading(true)
       try {
-        const result = await getRevenueAnalytics('6_months')
+        const startDate = searchParams.get('startDate') ? new Date(searchParams.get('startDate')!) : undefined
+        const endDate = searchParams.get('endDate') ? new Date(searchParams.get('endDate')!) : undefined
+        const branchId = searchParams.get('branchId') || undefined
+
+        const result = await getRevenueAnalytics({ startDate, endDate, branchId })
         if (result.success && result.data) {
           setData(result.data)
         }
@@ -36,11 +43,11 @@ export function RevenueChartClient() {
       }
     }
     load()
-  }, [])
+  }, [searchParams])
 
   if (loading) {
     return (
-      <div className="h-[300px] flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 h-[378px] flex items-center justify-center">
         <Loader2 className="animate-spin text-gray-400" />
       </div>
     )
@@ -48,7 +55,7 @@ export function RevenueChartClient() {
 
   return (
     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Revenue Growth</h3>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Revenue Trends</h3>
       <div className="h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart

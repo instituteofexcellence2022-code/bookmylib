@@ -11,6 +11,7 @@ import {
 } from 'recharts'
 import { getRevenueDistribution } from '@/actions/owner/finance'
 import { Loader2 } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 
 const COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
 
@@ -31,13 +32,19 @@ interface CustomTooltipProps {
 }
 
 export function RevenueDistributionClient() {
+  const searchParams = useSearchParams()
   const [data, setData] = useState<{ byMethod: DistributionItem[], byType: DistributionItem[] } | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
+      setLoading(true)
       try {
-        const result = await getRevenueDistribution()
+        const startDate = searchParams.get('startDate') ? new Date(searchParams.get('startDate')!) : undefined
+        const endDate = searchParams.get('endDate') ? new Date(searchParams.get('endDate')!) : undefined
+        const branchId = searchParams.get('branchId') || undefined
+
+        const result = await getRevenueDistribution({ startDate, endDate, branchId })
         if (result.success && result.data) {
           setData(result.data)
         }
@@ -48,11 +55,11 @@ export function RevenueDistributionClient() {
       }
     }
     load()
-  }, [])
+  }, [searchParams])
 
   if (loading) {
     return (
-      <div className="h-[300px] flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 h-[378px] flex items-center justify-center">
         <Loader2 className="animate-spin text-gray-400" />
       </div>
     )

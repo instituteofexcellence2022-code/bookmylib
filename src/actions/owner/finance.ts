@@ -9,71 +9,137 @@ import { Prisma } from '@prisma/client'
 
 import { getAuthenticatedOwner } from '@/lib/auth/owner'
 
-export async function getFinanceStats() {
+export async function getFinanceStats(filters: { startDate?: Date, endDate?: Date, branchId?: string } = {}) {
   const owner = await getAuthenticatedOwner()
   if (!owner) return { success: false, error: 'Unauthorized' }
 
   try {
-    const now = new Date()
-    const startOfCurrentMonth = startOfMonth(now)
-    const endOfCurrentMonth = endOfMonth(now)
-    const startOfLastMonth = startOfMonth(subMonths(now, 1))
-    const endOfLastMonth = endOfMonth(subMonths(now, 1))
+    const whereClause: Prisma.PaymentWhereInput = {
+      libraryId: owner.libraryId,
+      status: 'completed'
+    }
 
-    // 1. Total Revenue (All time)
+    if (filters.branchId && filters.branchId !== 'all') {
+      whereClause.branchId = filters.branchId
+    }
+
+    if (filters.startDate) {
+      whereClause.date = { ...whereClause.date as Prisma.DateTimeFilter, gte: startOfDay(filters.startDate) }
+    }
+
+    if (filters.endDate) {
+      whereClause.date = { ...whereClause.date as Prisma.DateTimeFilter, lte: endOfDay(filters.endDate) }
+    }
+
+    // 1. Total Revenue (in selected period)
     const totalRevenue = await prisma.payment.aggregate({
-        where: {
-        libraryId: owner.libraryId,
-        status: 'completed'
-        },
+        where: whereClause,
         _sum: { amount: true }
     })
 
-    // 2. This Month Revenue
-    const thisMonthRevenue = await prisma.payment.aggregate({
-        where: {
-        libraryId: owner.libraryId,
-        status: 'completed',
-        date: { gte: startOfCurrentMonth, lte: endOfCurrentMonth }
-        },
-        _sum: { amount: true }
-    })
+    // 2. Calculate comparison (previous period)
+    let previousRevenue = 0
+    let trend = 0
 
-    // 3. Last Month Revenue (for trend)
-    const lastMonthRevenue = await prisma.payment.aggregate({
-        where: {
-        libraryId: owner.libraryId,
-        status: 'completed',
-        date: { gte: startOfLastMonth, lte: endOfLastMonth }
-        },
-        _sum: { amount: true }
-    })
+    if (filters.startDate && filters.endDate) {
+        const duration = filters.endDate.getTime() - filters.startDate.getTime()
+        const prevEnd = new Date(filters.startDate.getTime() - 1)
+        const prevStart = new Date(prevEnd.getTime() - duration)
 
-    // 4. Pending Collections (Status = pending or pending_verification)
-    const pendingCollections = await prisma.payment.aggregate({
-        where: {
+        const prevWhere = { ...whereClause }
+        prevWhere.date = { gte: prevStart, lte: prevEnd }
+
+        const prevResult = await prisma.payment.aggregate({
+            where: prevWhere,
+            _sum: { amount: true }
+        })
+        previousRevenue = prevResult._sum.amount || 0
+    } else {
+        // Default comparison: Last Month vs This Month if no specific date filter (or just default to Month logic)
+        // Actually, if no filters, let's keep original logic (All Time + This Month)
+        // But for consistency with the UI filter which defaults to something, let's adapt.
+        // If "All Time" (no date filters), we can't really show a "trend" easily unless we define it (e.g. this month vs last month).
+        
+        // Let's stick to: if no date filter, show All Time Total, and Monthly Trend.
+    }
+    
+    // For simplicity in this iteration:
+    // If no date filters are provided, we calculate "This Month" stats for the trend card.
+    // If date filters ARE provided, we calculate "Selected Period" vs "Previous Period".
+
+    const currentRevenue = totalRevenue._sum.amount || 0
+    
+    if (previousRevenue > 0) {
+        trend = ((currentRevenue - previousRevenue) / previousRevenue) * 100
+    } else if (currentRevenue > 0 && filters.startDate) {
+        trend = 100 // 100% growth from 0
+    } else if (!filters.startDate) {
+        // Fallback to original "This Month vs Last Month" logic for the trend card if no date filter
+        const now = new Date()
+        const startOfCurrentMonth = startOfMonth(now)
+        const endOfCurrentMonth = endOfMonth(now)
+        const startOfLastMonth = startOfMonth(subMonths(now, 1))
+        const endOfLastMonth = endOfMonth(subMonths(now, 1))
+        
+        const thisMonth = await prisma.payment.aggregate({
+            where: { 
+                ...whereClause, 
+                date: { gte: startOfCurrentMonth, lte: endOfCurrentMonth } 
+            },
+            _sum: { amount: true }
+        })
+        const lastMonth = await prisma.payment.aggregate({
+            where: { 
+                ...whereClause, 
+                date: { gte: startOfLastMonth, lte: endOfLastMonth } 
+            },
+            _sum: { amount: true }
+        })
+        
+        const tm = thisMonth._sum.amount || 0
+        const lm = lastMonth._sum.amount || 0
+        if (lm > 0) trend = ((tm - lm) / lm) * 100
+        else if (tm > 0) trend = 100
+        
+        // Also if no date filter, "monthlyRevenue" in the return object usually meant "This Month".
+        // But the UI shows "Total Revenue" and "Monthly Revenue".
+        // Let's populate 'monthlyRevenue' with the trend-basis revenue.
+        previousRevenue = lm // repurpose for return
+    }
+
+    // 4. Pending Collections
+    const pendingWhere: Prisma.PaymentWhereInput = {
         libraryId: owner.libraryId,
         status: { in: ['pending', 'pending_verification'] }
-        },
+    }
+    if (filters.branchId && filters.branchId !== 'all') {
+        pendingWhere.branchId = filters.branchId
+    }
+    // Pending usually ignores date range (it's current state), but maybe we want "Created in date range"?
+    // Usually "Pending" means "currently pending", regardless of when it was created (within reason).
+    // Let's keep it unfiltered by date for now, or maybe filter by date created?
+    // Let's filter by date if provided, assuming user wants to see "Pending payments from last month".
+    if (filters.startDate) {
+      pendingWhere.date = { ...pendingWhere.date as Prisma.DateTimeFilter, gte: startOfDay(filters.startDate) }
+    }
+    if (filters.endDate) {
+      pendingWhere.date = { ...pendingWhere.date as Prisma.DateTimeFilter, lte: endOfDay(filters.endDate) }
+    }
+
+    const pendingCollections = await prisma.payment.aggregate({
+        where: pendingWhere,
         _sum: { amount: true },
         _count: { id: true }
     })
-
-    // Calculate Trend
-    const current = thisMonthRevenue._sum.amount || 0
-    const last = lastMonthRevenue._sum.amount || 0
-    let trend = 0
-    if (last > 0) {
-        trend = ((current - last) / last) * 100
-    } else if (current > 0) {
-        trend = 100
-    }
 
     return {
         success: true,
         data: {
             totalRevenue: totalRevenue._sum.amount || 0,
-            monthlyRevenue: current,
+            monthlyRevenue: filters.startDate ? currentRevenue : (await prisma.payment.aggregate({
+                where: { ...whereClause, date: { gte: startOfMonth(new Date()), lte: endOfMonth(new Date()) } },
+                _sum: { amount: true }
+            }))._sum.amount || 0, // specific fix for "Monthly Revenue" card when filtered
             monthlyTrend: trend,
             pendingAmount: pendingCollections._sum.amount || 0,
             pendingCount: pendingCollections._count.id || 0
@@ -463,44 +529,69 @@ export async function getPendingPayments() {
     }
 }
 
-export async function getRevenueAnalytics(period: string = '6_months') {
+export async function getRevenueAnalytics(filters: { startDate?: Date, endDate?: Date, branchId?: string } = {}) {
     const owner = await getAuthenticatedOwner()
     if (!owner) return { success: false, error: 'Unauthorized' }
 
     try {
         const now = new Date()
-        let startDate = subMonths(now, 6)
-        if (period === 'year') startDate = subMonths(now, 12)
+        let startDate = filters.startDate || subMonths(now, 6)
+        let endDate = filters.endDate || now
         
+        const whereClause: Prisma.PaymentWhereInput = {
+            libraryId: owner.libraryId,
+            status: 'completed',
+            date: { 
+                gte: startOfDay(startDate),
+                lte: endOfDay(endDate)
+            }
+        }
+
+        if (filters.branchId && filters.branchId !== 'all') {
+            whereClause.branchId = filters.branchId
+        }
+
         const payments = await prisma.payment.findMany({
-            where: {
-                libraryId: owner.libraryId,
-                status: 'completed',
-                date: { gte: startOfMonth(startDate) }
-            },
+            where: whereClause,
             select: {
                 amount: true,
                 date: true
-            }
+            },
+            orderBy: { date: 'asc' }
         })
 
-        const monthlyData: Record<string, number> = {}
-        // Initialize months
-        const monthCount = period === 'year' ? 12 : 6
-        for (let i = 0; i <= monthCount; i++) {
-             const d = subMonths(now, monthCount - i)
-             const key = format(d, 'MMM yyyy')
-             monthlyData[key] = 0
+        // Determine grouping based on duration
+        const durationDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+        const isDaily = durationDays <= 31
+
+        const dataMap: Record<string, number> = {}
+        
+        // Initialize keys
+        if (isDaily) {
+            for (let i = 0; i <= durationDays; i++) {
+                const d = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000)
+                const key = format(d, 'MMM dd')
+                dataMap[key] = 0
+            }
+        } else {
+             // Monthly initialization
+             let current = startOfMonth(startDate)
+             const end = endOfMonth(endDate)
+             while (current <= end) {
+                 const key = format(current, 'MMM yyyy')
+                 dataMap[key] = 0
+                 current = new Date(current.setMonth(current.getMonth() + 1))
+             }
         }
 
         payments.forEach(p => {
-            const key = format(p.date, 'MMM yyyy')
-            if (monthlyData[key] !== undefined) {
-                monthlyData[key] += p.amount
+            const key = format(p.date, isDaily ? 'MMM dd' : 'MMM yyyy')
+            if (dataMap[key] !== undefined) {
+                dataMap[key] += p.amount
             }
         })
 
-        const data = Object.entries(monthlyData).map(([name, value]) => ({ name, value }))
+        const data = Object.entries(dataMap).map(([name, value]) => ({ name, value }))
         return { success: true, data }
     } catch (error) {
         console.error('Error fetching revenue analytics:', error)
@@ -508,16 +599,30 @@ export async function getRevenueAnalytics(period: string = '6_months') {
     }
 }
 
-export async function getRevenueDistribution() {
+export async function getRevenueDistribution(filters: { startDate?: Date, endDate?: Date, branchId?: string } = {}) {
     const owner = await getAuthenticatedOwner()
     if (!owner) return { success: false, error: 'Unauthorized' }
 
     try {
+        const whereClause: Prisma.PaymentWhereInput = {
+            libraryId: owner.libraryId,
+            status: 'completed'
+        }
+
+        if (filters.branchId && filters.branchId !== 'all') {
+            whereClause.branchId = filters.branchId
+        }
+
+        if (filters.startDate) {
+            whereClause.date = { ...whereClause.date as Prisma.DateTimeFilter, gte: startOfDay(filters.startDate) }
+        }
+
+        if (filters.endDate) {
+            whereClause.date = { ...whereClause.date as Prisma.DateTimeFilter, lte: endOfDay(filters.endDate) }
+        }
+
         const payments = await prisma.payment.findMany({
-            where: {
-                libraryId: owner.libraryId,
-                status: 'completed'
-            },
+            where: whereClause,
             select: {
                 amount: true,
                 method: true,
