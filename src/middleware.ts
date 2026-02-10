@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { COOKIE_KEYS } from '@/lib/auth/constants'
+import { verifySessionToken } from '@/lib/auth/jwt'
 
 // Role-based configuration for route protection
 type Role = 'owner' | 'staff' | 'student'
@@ -39,7 +40,7 @@ const ROLES: Record<Role, RoleConfig> = {
     }
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
 
     // 0. Handle global public routes (e.g. /discover)
@@ -59,7 +60,16 @@ export function middleware(request: NextRequest) {
     // 3. Apply role-based protection logic
     if (roleKey) {
         const config = ROLES[roleKey]
-        const isAuthenticated = request.cookies.has(config.cookieKey)
+        const token = request.cookies.get(config.cookieKey)?.value
+        
+        // Verify token and check if it matches the expected role
+        let isAuthenticated = false
+        if (token) {
+            const payload = await verifySessionToken(token)
+            if (payload && payload.role === roleKey) {
+                isAuthenticated = true
+            }
+        }
         
         const isPublicPath = 
             config.publicPaths.includes(pathname) || 
@@ -82,7 +92,14 @@ export function middleware(request: NextRequest) {
         if (!isAuthenticated) {
             const loginUrl = new URL(config.loginPath, request.url)
             loginUrl.searchParams.set('callbackUrl', pathname)
-            return NextResponse.redirect(loginUrl)
+            const response = NextResponse.redirect(loginUrl)
+            
+            // If token exists but is invalid (expired/tampered), clear it
+            if (token) {
+                response.cookies.delete(config.cookieKey)
+            }
+            
+            return response
         }
     }
 
