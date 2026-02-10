@@ -12,8 +12,13 @@ Follow these steps to configure the automated daily backups to Google Cloud Stor
     *   Navigate to **Cloud Storage** > **Buckets**.
     *   Click **Create**.
     *   Name it (e.g., `bookmylib-backup-prod`). **Remember this name.**
-    *   Region: Choose `Multi-region` (us) or your specific region.
+    *   Region: Choose `asia-south2 (Delhi)` (since you are in India).
+    *   **Storage Class**: Choose **Nearline** (Best for backups/data accessed < 1 month).
+    *   **Access Control**: Ensure "Enforce public access prevention" is **checked** and Access Control is **Uniform**.
+    *   **Protection**: Leave defaults (Soft delete: Default, Versioning: Disabled).
     *   Click **Create**.
+
+    > **Pro Tip:** To save costs, go to the Bucket's **Lifecycle** tab after creation. Add a rule to "Delete objects" where "Age" is greater than **30 days**. This prevents paying for old backups forever.
 
 3.  **Create a Service Account**
     *   Navigate to **IAM & Admin** > **Service Accounts**.
