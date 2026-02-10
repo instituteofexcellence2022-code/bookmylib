@@ -7,7 +7,7 @@ import { UserPlus, Users, ShieldCheck } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 
-export function AcceptPaymentClient() {
+export function AcceptPaymentClient({ initialStudentId }: { initialStudentId?: string }) {
     const [activeTab, setActiveTab] = useState<'existing' | 'new' | 'verify'>('existing')
     const router = useRouter()
 
@@ -73,7 +73,7 @@ export function AcceptPaymentClient() {
                 )}
 
                 {activeTab === 'existing' && (
-                    <AcceptPaymentForm />
+                    <AcceptPaymentForm initialStudentId={initialStudentId} />
                 )}
 
                 {activeTab === 'verify' && (

@@ -4,13 +4,14 @@ import { useState, useMemo } from 'react'
 import { 
   Filter, Search, Calendar, User, Armchair, Lock, MoreHorizontal, 
   Check, X, AlertCircle, Wallet, CreditCard, Banknote, Clock, 
-  Activity, CheckCircle, LayoutGrid, List, Plus, ChevronLeft
+  Activity, CheckCircle, LayoutGrid, List, Plus, ChevronLeft, FileText
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateBookingStatus } from '@/actions/owner/bookings'
-import { format } from 'date-fns'
+import { format, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns'
 import { AcceptPaymentClient } from '@/components/owner/finance/AcceptPaymentClient'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { BookingDetailsModal } from './BookingDetailsModal'
 
 interface BookingsClientProps {
   initialBookings: any[]
@@ -24,6 +25,12 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedBooking, setSelectedBooking] = useState<any>(null)
+  const [showModal, setShowModal] = useState(false)
+  const [createBookingStudentId, setCreateBookingStudentId] = useState<string | undefined>(undefined)
+  
+  // Date Range Filter State
+  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' })
 
   // Derived State
   const filteredBookings = useMemo(() => {
@@ -34,9 +41,18 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
         booking.student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         booking.student.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         booking.student.phone?.includes(searchQuery)
-      return matchesBranch && matchesStatus && matchesSearch
+      
+      let matchesDate = true
+      if (dateRange.start && dateRange.end) {
+        const bookingDate = new Date(booking.startDate)
+        const start = startOfDay(parseISO(dateRange.start))
+        const end = endOfDay(parseISO(dateRange.end))
+        matchesDate = isWithinInterval(bookingDate, { start, end })
+      }
+
+      return matchesBranch && matchesStatus && matchesSearch && matchesDate
     })
-  }, [bookings, selectedBranch, statusFilter, searchQuery])
+  }, [bookings, selectedBranch, statusFilter, searchQuery, dateRange])
 
   const stats = useMemo(() => {
     // Calculate stats based on current branch filter (but ignoring status filter to show overview)
@@ -91,7 +107,10 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button 
-              onClick={() => setView('list')}
+              onClick={() => {
+                setView('list')
+                setCreateBookingStudentId(undefined)
+              }}
               className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -100,7 +119,7 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create Booking & Accept Payment</h2>
           </div>
         </div>
-        <AcceptPaymentClient />
+        <AcceptPaymentClient initialStudentId={createBookingStudentId} />
       </div>
     )
   }
@@ -109,7 +128,10 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
     <div className="space-y-6">
       <div className="flex justify-end">
         <AnimatedButton
-          onClick={() => setView('create')}
+          onClick={() => {
+            setCreateBookingStudentId(undefined)
+            setView('create')
+          }}
           className="bg-purple-600 text-white hover:bg-purple-700"
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -166,6 +188,23 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
           </div>
 
           <div className="flex gap-2 w-full md:w-auto">
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={dateRange.start}
+                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="Start Date"
+              />
+              <span className="text-gray-400">-</span>
+              <input
+                type="date"
+                value={dateRange.end}
+                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="End Date"
+              />
+            </div>
             <select
               value={selectedBranch}
               onChange={(e) => setSelectedBranch(e.target.value)}
@@ -278,6 +317,16 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => {
+                          setSelectedBooking(booking)
+                          setShowModal(true)
+                        }}
+                        className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="View Details"
+                      >
+                        <FileText className="w-4 h-4" />
+                      </button>
                       {booking.status === 'active' && (
                         <button
                           onClick={() => handleStatusUpdate(booking.id, 'cancelled')}
@@ -309,6 +358,21 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
           </div>
         )}
       </div>
+      
+      {showModal && selectedBooking && (
+        <BookingDetailsModal 
+          booking={selectedBooking} 
+          onClose={() => {
+            setShowModal(false)
+            setSelectedBooking(null)
+          }}
+          onRenew={() => {
+            setCreateBookingStudentId(selectedBooking.student.id)
+            setShowModal(false)
+            setView('create')
+          }}
+        />
+      )}
     </div>
   )
 }

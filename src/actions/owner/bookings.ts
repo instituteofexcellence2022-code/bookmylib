@@ -46,7 +46,7 @@ export async function getBookings(filters?: {
           select: { number: true }
         },
         payments: {
-          select: { status: true, amount: true }
+          select: { id: true, status: true, amount: true, method: true, createdAt: true, invoiceNo: true }
         }
       },
       orderBy: { createdAt: 'desc' }

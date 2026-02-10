@@ -80,7 +80,7 @@ interface Locker {
     isOccupied: boolean
 }
 
-export function AcceptPaymentForm() {
+export function AcceptPaymentForm({ initialStudentId }: { initialStudentId?: string }) {
     const router = useRouter()
     const searchParams = useSearchParams()
     const [submitting, setSubmitting] = useState(false)
@@ -313,7 +313,7 @@ export function AcceptPaymentForm() {
     
     // Prefill student from query
     useEffect(() => {
-        const studentId = searchParams.get('studentId')
+        const studentId = initialStudentId || searchParams.get('studentId')
         if (studentId) {
             ;(async () => {
                 try {
