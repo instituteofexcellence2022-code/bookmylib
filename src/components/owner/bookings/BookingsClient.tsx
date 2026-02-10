@@ -7,7 +7,7 @@ import {
   Activity, CheckCircle, LayoutGrid, List, Plus, ChevronLeft, FileText
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { updateBookingStatus } from '@/actions/owner/bookings'
+import { updateBookingStatus, updateBookingDetails } from '@/actions/owner/bookings'
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns'
 import { AcceptPaymentClient } from '@/components/owner/finance/AcceptPaymentClient'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'

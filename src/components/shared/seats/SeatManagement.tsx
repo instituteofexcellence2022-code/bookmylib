@@ -109,6 +109,8 @@ export function SeatManagement({ initialSeats, branches, actions }: SeatManageme
   // Handlers
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (!actions.create) return
+
     setIsLoading(true)
     const formData = new FormData(e.currentTarget)
     
@@ -143,6 +145,8 @@ export function SeatManagement({ initialSeats, branches, actions }: SeatManageme
 
   const handleBulkCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (!actions.createBulk) return
+
     setIsLoading(true)
     const formData = new FormData(e.currentTarget)
     
@@ -189,6 +193,7 @@ export function SeatManagement({ initialSeats, branches, actions }: SeatManageme
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this seat?')) return
+    if (!actions.delete) return
     
     const result = await actions.delete(id)
     if (result.success) {
