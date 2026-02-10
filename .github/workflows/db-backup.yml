@@ -26,6 +26,27 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y postgresql-client
 
+    - name: Prepare Backup Configuration
+      id: config
+      run: |
+        # Sanitize Bucket Name (remove gs:// prefix if present)
+        RAW_BUCKET="${{ secrets.GCP_BACKUP_BUCKET }}"
+        # Remove 'gs://' if it exists at the start
+        CLEAN_BUCKET=$(echo "$RAW_BUCKET" | sed 's|^gs://||')
+        
+        if [ -z "$CLEAN_BUCKET" ]; then
+          echo "::error::GCP_BACKUP_BUCKET secret is missing or empty!"
+          exit 1
+        fi
+        
+        echo "BUCKET=${CLEAN_BUCKET}" >> $GITHUB_ENV
+        
+        # Generate Filename
+        TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
+        FILENAME="backup_${TIMESTAMP}.dump"
+        echo "FILENAME=${FILENAME}" >> $GITHUB_ENV
+        echo "filename=${FILENAME}" >> $GITHUB_OUTPUT
+
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
       with:
@@ -34,55 +55,74 @@ jobs:
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
 
+    - name: Check Database Connection
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      run: |
+        echo "Checking database connectivity..."
+        if ! pg_isready -d "$DATABASE_URL" -t 10; then
+          echo "::error::Database connection failed! Check DATABASE_URL secret."
+          exit 1
+        fi
+        echo "✅ Database is reachable."
+
     - name: Create Database Dump
       id: dump
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
       run: |
-        TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
-        FILENAME="backup_${TIMESTAMP}.dump"
-        echo "FILENAME=${FILENAME}" >> $GITHUB_OUTPUT
+        FILENAME="${{ env.FILENAME }}"
         
-        # Use pg_dump to create a compressed custom-format archive
-        # -F c: Custom format (compressed, allows selective restore)
-        # -Z 5: Medium compression level (balance between speed and size)
-        pg_dump "$DATABASE_URL" -F c -Z 5 -f "$FILENAME"
+        echo "Starting backup to $FILENAME..."
         
-        echo "Dump created: $FILENAME"
+        # Use pg_dump with verbose output (-v) to debug if it hangs
+        pg_dump "$DATABASE_URL" -F c -Z 5 -f "$FILENAME" -v
+        
+        echo "Dump created successfully: $FILENAME"
+        ls -lh "$FILENAME"
 
     - name: Verify Backup Integrity
       run: |
-        FILENAME="${{ steps.dump.outputs.FILENAME }}"
+        FILENAME="${{ env.FILENAME }}"
         
         # 1. Check file existence and non-zero size
         if [ ! -s "$FILENAME" ]; then
-          echo "Error: Backup file is missing or empty!"
+          echo "::error::Backup file is missing or empty!"
           exit 1
         fi
         
         # 2. Verify internal structure using pg_restore --list
-        # This reads the table of contents to ensure the file isn't truncated/corrupt
         if ! pg_restore --list "$FILENAME" > /dev/null; then
-          echo "Error: Backup file is corrupt (pg_restore check failed)!"
+          echo "::error::Backup file is corrupt (pg_restore check failed)!"
           exit 1
         fi
         
-        echo "Backup integrity verified successfully."
+        echo "✅ Backup integrity verified."
 
     - name: Upload to Google Cloud Storage
       run: |
-        FILENAME="${{ steps.dump.outputs.FILENAME }}"
-        BUCKET="${{ secrets.GCP_BACKUP_BUCKET }}"
+        FILENAME="${{ env.FILENAME }}"
+        BUCKET="${{ env.BUCKET }}"
+        
+        echo "Uploading to gs://${BUCKET}/backups/..."
         
         # Upload the dump file
         gcloud storage cp "$FILENAME" "gs://${BUCKET}/backups/"
         
         # Create and upload a 'LATEST' pointer file
-        # This makes it easy for scripts to find the most recent backup
         echo "backups/${FILENAME}" > LATEST
         gcloud storage cp LATEST "gs://${BUCKET}/LATEST"
         
-        echo "Upload complete: gs://${BUCKET}/backups/${FILENAME}"
+        echo "✅ Upload complete: gs://${BUCKET}/backups/${FILENAME}"
+
+    - name: Upload Artifact to GitHub (Safety Net)
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: db-backup-debug
+        path: ${{ env.FILENAME }}
+        retention-days: 3
+        if-no-files-found: ignore
 
     # Optional: Add notification step here (e.g., Slack, Discord, Email)
     # - name: Notify on Failure
