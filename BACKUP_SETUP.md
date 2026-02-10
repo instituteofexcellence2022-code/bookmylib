@@ -18,12 +18,20 @@ Follow these steps to configure the automated daily backups to Google Cloud Stor
     *   **Protection**: Leave defaults (Soft delete: Default, Versioning: Disabled).
     *   Click **Create**.
 
-    > **Safer Cost-Saving Strategy (Recommended):**
-    > Instead of deleting backups immediately, use a **Tiered Strategy** in the **Lifecycle** tab:
-    > 1.  **Rule 1 (Archive):** Action: "Set to Archive storage class". Condition: Age > **30 days**. (This makes older backups extremely cheap to store).
-    > 2.  **Rule 2 (Cleanup):** Action: "Delete". Condition: Age > **365 days**. (Keeps a full year of history safely).
+3.  **Configure Lifecycle Rules (Crucial for Cost Saving)**
+    *   After creating the bucket, click on the **Lifecycle** tab (top menu of the bucket details).
+    *   **Rule 1: Move old backups to cheap storage**
+        *   Click **ADD A RULE**.
+        *   **Select an action**: Choose **Set storage class to Archive**. click Continue.
+        *   **Select object conditions**: Check **Age** and enter **30**.
+        *   Click **CREATE**.
+    *   **Rule 2: Delete very old backups**
+        *   Click **ADD A RULE** again.
+        *   **Select an action**: Choose **Delete object**. click Continue.
+        *   **Select object conditions**: Check **Age** and enter **365**.
+        *   Click **CREATE**.
 
-3.  **Create a Service Account**
+4.  **Create a Service Account**
     *   Navigate to **IAM & Admin** > **Service Accounts**.
     *   Click **Create Service Account**.
     *   Name: `github-actions-backup`.
