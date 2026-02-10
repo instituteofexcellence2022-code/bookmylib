@@ -1,11 +1,11 @@
 'use client'
 
-import React, { useState } from 'react'
-import { PlatformPayment, createManualPayment } from '@/actions/admin/platform-payments'
+import React, { useState, useEffect } from 'react'
+import { PlatformPayment, createManualPayment, getPaymentPlans } from '@/actions/admin/platform-payments'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/Dialog'
 import { getLibraries } from '@/actions/admin/platform-libraries'
 import { toast } from 'react-hot-toast'
-import { Loader2, Search } from 'lucide-react'
+import { Loader2, Search, Calendar, DollarSign, FileText } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 interface ManualPaymentModalProps {
@@ -19,16 +19,62 @@ export function ManualPaymentModal({ isOpen, onClose }: ManualPaymentModalProps)
     const [searchTerm, setSearchTerm] = useState('')
     const [libraries, setLibraries] = useState<{id: string, name: string, subdomain: string}[]>([])
     const [searching, setSearching] = useState(false)
+    const [plans, setPlans] = useState<{id: string, name: string, priceMonthly: number, priceYearly: number}[]>([])
+    
+    const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly')
     
     const [formData, setFormData] = useState({
         libraryId: '',
+        planId: '',
         amount: '',
+        subtotal: '',
+        taxAmount: '0',
         description: 'Monthly Subscription',
         method: 'manual',
         referenceId: '',
         notes: '',
-        status: 'succeeded'
+        status: 'succeeded',
+        paymentDate: new Date().toISOString().split('T')[0],
+        billingStart: new Date().toISOString().split('T')[0],
+        billingEnd: ''
     })
+
+    // Fetch plans on open
+    useEffect(() => {
+        if (isOpen) {
+            getPaymentPlans().then(setPlans)
+        }
+    }, [isOpen])
+
+    // Update financials when cycle changes (if plan selected)
+    useEffect(() => {
+        if (formData.planId) {
+            const plan = plans.find(p => p.id === formData.planId)
+            if (plan) {
+                const price = billingCycle === 'monthly' ? plan.priceMonthly : plan.priceYearly
+                const description = `${plan.name} Plan (${billingCycle === 'monthly' ? 'Monthly' : 'Yearly'})`
+                
+                // Calculate billing end
+                const start = new Date(formData.billingStart || new Date())
+                const end = new Date(start)
+                if (billingCycle === 'monthly') {
+                    end.setMonth(end.getMonth() + 1)
+                } else {
+                    end.setFullYear(end.getFullYear() + 1)
+                }
+                // Subtract 1 day for inclusive period
+                end.setDate(end.getDate() - 1)
+
+                setFormData(prev => ({
+                    ...prev,
+                    amount: price.toString(),
+                    subtotal: price.toString(),
+                    description,
+                    billingEnd: end.toISOString().split('T')[0]
+                }))
+            }
+        }
+    }, [billingCycle, formData.planId, formData.billingStart, plans])
 
     // Search libraries
     const handleSearch = async (term: string) => {
@@ -46,6 +92,11 @@ export function ManualPaymentModal({ isOpen, onClose }: ManualPaymentModalProps)
         }
     }
 
+    // Handle Plan Selection
+    const handlePlanChange = (planId: string) => {
+        setFormData(prev => ({ ...prev, planId }))
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!formData.libraryId) {
@@ -58,8 +109,14 @@ export function ManualPaymentModal({ isOpen, onClose }: ManualPaymentModalProps)
             const result = await createManualPayment({
                 ...formData,
                 amount: parseFloat(formData.amount),
+                subtotal: formData.subtotal ? parseFloat(formData.subtotal) : parseFloat(formData.amount),
+                taxAmount: parseFloat(formData.taxAmount),
                 method: formData.method as any,
-                status: formData.status as any
+                status: formData.status as any,
+                planId: formData.planId || null,
+                paymentDate: new Date(formData.paymentDate),
+                billingStart: formData.billingStart ? new Date(formData.billingStart) : null,
+                billingEnd: formData.billingEnd ? new Date(formData.billingEnd) : null,
             })
 
             if (result.success) {
@@ -69,18 +126,25 @@ export function ManualPaymentModal({ isOpen, onClose }: ManualPaymentModalProps)
                 // Reset form
                 setFormData({
                     libraryId: '',
+                    planId: '',
                     amount: '',
+                    subtotal: '',
+                    taxAmount: '0',
                     description: 'Monthly Subscription',
                     method: 'manual',
                     referenceId: '',
                     notes: '',
-                    status: 'succeeded'
+                    status: 'succeeded',
+                    paymentDate: new Date().toISOString().split('T')[0],
+                    billingStart: '',
+                    billingEnd: ''
                 })
                 setSearchTerm('')
             } else {
                 toast.error(result.error || 'Failed to record payment')
             }
         } catch (error) {
+            console.error(error)
             toast.error('An error occurred')
         } finally {
             setLoading(false)
@@ -89,7 +153,7 @@ export function ManualPaymentModal({ isOpen, onClose }: ManualPaymentModalProps)
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Record Manual Payment</DialogTitle>
                 </DialogHeader>
@@ -109,7 +173,7 @@ export function ManualPaymentModal({ isOpen, onClose }: ManualPaymentModalProps)
                             />
                         </div>
                         {libraries.length > 0 && searchTerm && !formData.libraryId && (
-                            <div className="mt-1 max-h-40 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 shadow-lg">
+                            <div className="mt-1 max-h-40 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 shadow-lg z-10 relative">
                                 {libraries.map(lib => (
                                     <div
                                         key={lib.id}
@@ -143,18 +207,122 @@ export function ManualPaymentModal({ isOpen, onClose }: ManualPaymentModalProps)
                         )}
                     </div>
 
+                    {/* Plan & Cycle Row */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Amount (INR)</label>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Plan (Optional)</label>
+                            <select
+                                value={formData.planId}
+                                onChange={(e) => handlePlanChange(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-sm"
+                            >
+                                <option value="">Select Plan</option>
+                                {plans.map(plan => (
+                                    <option key={plan.id} value={plan.id}>
+                                        {plan.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        {formData.planId && (
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Billing Cycle</label>
+                                <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+                                    <button
+                                        type="button"
+                                        onClick={() => setBillingCycle('monthly')}
+                                        className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-all ${
+                                            billingCycle === 'monthly' 
+                                                ? 'bg-white dark:bg-gray-700 shadow text-blue-600 dark:text-blue-400' 
+                                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                                        }`}
+                                    >
+                                        Monthly
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setBillingCycle('yearly')}
+                                        className={`flex-1 text-xs font-medium py-1.5 rounded-md transition-all ${
+                                            billingCycle === 'yearly' 
+                                                ? 'bg-white dark:bg-gray-700 shadow text-blue-600 dark:text-blue-400' 
+                                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                                        }`}
+                                    >
+                                        Yearly
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Dates Row */}
+                    <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Payment Date</label>
+                            <input
+                                type="date"
+                                value={formData.paymentDate}
+                                onChange={(e) => setFormData({ ...formData, paymentDate: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-sm"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Billing Start</label>
+                            <input
+                                type="date"
+                                value={formData.billingStart}
+                                onChange={(e) => setFormData({ ...formData, billingStart: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-sm"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Billing End</label>
+                            <input
+                                type="date"
+                                value={formData.billingEnd}
+                                onChange={(e) => setFormData({ ...formData, billingEnd: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-sm"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Financials Row */}
+                    <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Subtotal</label>
+                            <input
+                                type="number"
+                                min="0"
+                                placeholder="0.00"
+                                value={formData.subtotal}
+                                onChange={(e) => setFormData({ ...formData, subtotal: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-sm"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tax</label>
+                            <input
+                                type="number"
+                                min="0"
+                                value={formData.taxAmount}
+                                onChange={(e) => setFormData({ ...formData, taxAmount: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-sm"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Total Paid</label>
                             <input
                                 type="number"
                                 required
                                 min="1"
                                 value={formData.amount}
                                 onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-sm"
+                                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-sm font-bold"
                             />
                         </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Method</label>
                             <select
@@ -166,6 +334,17 @@ export function ManualPaymentModal({ isOpen, onClose }: ManualPaymentModalProps)
                                 <option value="bank_transfer">Bank Transfer (NEFT/IMPS)</option>
                                 <option value="cheque">Cheque</option>
                                 <option value="upi">UPI (Manual)</option>
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                            <select
+                                value={formData.status}
+                                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-sm"
+                            >
+                                <option value="succeeded">Succeeded</option>
+                                <option value="pending">Pending</option>
                             </select>
                         </div>
                     </div>

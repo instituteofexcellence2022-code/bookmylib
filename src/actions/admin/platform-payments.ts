@@ -9,16 +9,24 @@ import { revalidatePath } from 'next/cache'
 export interface PlatformPayment {
     id: string
     amount: number
+    subtotal: number | null
+    taxAmount: number | null
     status: string
     method: string
     description: string | null
     invoiceNumber: string | null
+    paymentDate: Date
+    billingStart: Date | null
+    billingEnd: Date | null
     createdAt: Date
     library: {
         id: string
         name: string
         subdomain: string
     }
+    plan: {
+        name: string
+    } | null
 }
 
 // Stats
@@ -114,6 +122,11 @@ export async function getPayments(params: {
                         name: true,
                         subdomain: true
                     }
+                },
+                plan: {
+                    select: {
+                        name: true
+                    }
                 }
             },
             orderBy: { createdAt: 'desc' },
@@ -130,15 +143,36 @@ export async function getPayments(params: {
     }
 }
 
+// Get Active Plans for Payment Dropdown
+export async function getPaymentPlans() {
+    await requireAdmin()
+    return prisma.saasPlan.findMany({
+        where: { isActive: true },
+        select: { 
+            id: true, 
+            name: true, 
+            priceMonthly: true, 
+            priceYearly: true 
+        },
+        orderBy: { sortOrder: 'asc' }
+    })
+}
+
 // Create Manual Payment
 const manualPaymentSchema = z.object({
     libraryId: z.string().min(1, 'Library is required'),
-    amount: z.number().min(1, 'Amount must be positive'),
+    planId: z.string().optional().nullable(),
+    amount: z.number().min(0, 'Amount must be positive'),
+    subtotal: z.number().optional(),
+    taxAmount: z.number().optional(),
     description: z.string().min(1, 'Description is required'),
     method: z.enum(['manual', 'bank_transfer', 'cheque', 'upi']),
     referenceId: z.string().optional(),
     notes: z.string().optional(),
-    status: z.enum(['succeeded', 'pending']).default('succeeded')
+    status: z.enum(['succeeded', 'pending']).default('succeeded'),
+    paymentDate: z.coerce.date().default(() => new Date()),
+    billingStart: z.coerce.date().optional().nullable(),
+    billingEnd: z.coerce.date().optional().nullable(),
 })
 
 export type ManualPaymentData = z.infer<typeof manualPaymentSchema>
@@ -163,15 +197,20 @@ export async function createManualPayment(data: ManualPaymentData) {
         const payment = await prisma.saasPayment.create({
             data: {
                 libraryId: validated.libraryId,
+                planId: validated.planId || null,
                 amount: validated.amount,
-                subtotal: validated.amount, // Assuming inclusive for manual entry for simplicity, or we can calculate tax
+                subtotal: validated.subtotal || validated.amount,
+                taxAmount: validated.taxAmount || 0,
                 currency: 'INR',
                 status: validated.status,
                 method: validated.method,
                 gatewayId: validated.referenceId,
                 description: validated.description,
                 notes: validated.notes,
-                invoiceNumber
+                invoiceNumber,
+                paymentDate: validated.paymentDate,
+                billingStart: validated.billingStart,
+                billingEnd: validated.billingEnd,
             }
         })
         
@@ -200,6 +239,11 @@ export async function exportPayments(status?: string) {
                     name: true,
                     subdomain: true
                 }
+            },
+            plan: {
+                select: {
+                    name: true
+                }
             }
         },
         orderBy: { createdAt: 'desc' }
@@ -209,8 +253,11 @@ export async function exportPayments(status?: string) {
         Invoice: p.invoiceNumber,
         Library: p.library.name,
         Subdomain: p.library.subdomain,
-        Date: p.createdAt.toISOString(),
+        Plan: p.plan?.name || '-',
+        Date: p.paymentDate ? p.paymentDate.toISOString().split('T')[0] : p.createdAt.toISOString().split('T')[0],
         Amount: p.amount,
+        Tax: p.taxAmount || 0,
+        Total: p.amount,
         Status: p.status,
         Method: p.method,
         Description: p.description

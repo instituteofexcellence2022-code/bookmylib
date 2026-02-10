@@ -23,6 +23,11 @@ export function InvoiceModal({ payment, isOpen, onClose }: InvoiceModalProps) {
 
     if (!payment) return null
 
+    // Fallbacks
+    const subtotal = payment.subtotal ?? payment.amount
+    const tax = payment.taxAmount ?? 0
+    const paymentDate = payment.paymentDate ? new Date(payment.paymentDate) : new Date(payment.createdAt)
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto p-0 gap-0">
@@ -76,8 +81,16 @@ export function InvoiceModal({ payment, isOpen, onClose }: InvoiceModalProps) {
                         <div className="text-right space-y-2">
                             <div>
                                 <span className="text-xs font-bold text-gray-400 uppercase mr-4">Date</span>
-                                <span className="font-medium">{format(new Date(payment.createdAt), 'MMM d, yyyy')}</span>
+                                <span className="font-medium">{format(paymentDate, 'MMM d, yyyy')}</span>
                             </div>
+                            {payment.billingStart && payment.billingEnd && (
+                                <div>
+                                    <span className="text-xs font-bold text-gray-400 uppercase mr-4">Billing Period</span>
+                                    <span className="font-medium">
+                                        {format(new Date(payment.billingStart), 'MMM d')} - {format(new Date(payment.billingEnd), 'MMM d, yyyy')}
+                                    </span>
+                                </div>
+                            )}
                             <div>
                                 <span className="text-xs font-bold text-gray-400 uppercase mr-4">Status</span>
                                 <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold uppercase ${
@@ -106,9 +119,12 @@ export function InvoiceModal({ payment, isOpen, onClose }: InvoiceModalProps) {
                             <tr className="border-b border-gray-100">
                                 <td className="py-4 text-gray-800">
                                     {payment.description || 'Platform Subscription'}
+                                    {payment.plan && (
+                                        <div className="text-xs text-gray-500 mt-1">Plan: {payment.plan.name}</div>
+                                    )}
                                 </td>
                                 <td className="py-4 text-right font-medium">
-                                    ₹{payment.amount.toLocaleString('en-IN')}
+                                    ₹{subtotal.toLocaleString('en-IN')}
                                 </td>
                             </tr>
                         </tbody>
@@ -119,11 +135,11 @@ export function InvoiceModal({ payment, isOpen, onClose }: InvoiceModalProps) {
                         <div className="w-64 space-y-3">
                             <div className="flex justify-between text-gray-600">
                                 <span>Subtotal</span>
-                                <span>₹{payment.amount.toLocaleString('en-IN')}</span>
+                                <span>₹{subtotal.toLocaleString('en-IN')}</span>
                             </div>
                             <div className="flex justify-between text-gray-600">
-                                <span>Tax (0%)</span>
-                                <span>₹0.00</span>
+                                <span>Tax</span>
+                                <span>₹{tax.toLocaleString('en-IN')}</span>
                             </div>
                             <div className="flex justify-between font-bold text-lg pt-3 border-t border-gray-900">
                                 <span>Total</span>

@@ -57,10 +57,15 @@ export function PaymentList({ payments, loading, onViewInvoice }: PaymentListPro
                                     <div className="text-xs text-gray-500">{payment.library.subdomain}</div>
                                 </td>
                                 <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
-                                    {payment.description || 'Subscription Payment'}
+                                    <div>{payment.description || 'Subscription Payment'}</div>
+                                    {payment.plan && (
+                                        <div className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
+                                            Plan: {payment.plan.name}
+                                        </div>
+                                    )}
                                 </td>
                                 <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
-                                    {format(new Date(payment.createdAt), 'MMM d, yyyy')}
+                                    {format(payment.paymentDate ? new Date(payment.paymentDate) : new Date(payment.createdAt), 'MMM d, yyyy')}
                                 </td>
                                 <td className="py-3 px-4 text-sm font-semibold text-gray-900 dark:text-white">
                                     ₹{payment.amount.toLocaleString('en-IN')}

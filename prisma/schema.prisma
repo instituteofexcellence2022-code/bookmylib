@@ -930,6 +930,7 @@ model SaasPlan {
   createdAt   DateTime @default(now())
   
   subscriptions LibrarySubscription[]
+  payments      SaasPayment[]
   
   @@map("saas_plans")
 }
@@ -957,6 +958,7 @@ model LibrarySubscription {
 model SaasPayment {
   id             String   @id @default(uuid())
   libraryId      String
+  planId         String?  // Linked Plan
   
   // Amounts
   amount         Float
@@ -973,6 +975,11 @@ model SaasPayment {
   invoiceNumber  String?  @unique
   invoiceUrl     String?
   
+  // Dates
+  paymentDate    DateTime @default(now())
+  billingStart   DateTime?
+  billingEnd     DateTime?
+  
   description    String?
   notes          String?
   
@@ -980,6 +987,7 @@ model SaasPayment {
   updatedAt      DateTime @updatedAt
   
   library        Library  @relation(fields: [libraryId], references: [id])
+  plan           SaasPlan? @relation(fields: [planId], references: [id])
   
   @@map("saas_payments")
 }
