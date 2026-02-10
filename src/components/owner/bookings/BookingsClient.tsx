@@ -4,11 +4,13 @@ import { useState, useMemo } from 'react'
 import { 
   Filter, Search, Calendar, User, Armchair, Lock, MoreHorizontal, 
   Check, X, AlertCircle, Wallet, CreditCard, Banknote, Clock, 
-  Activity, CheckCircle, LayoutGrid, List
+  Activity, CheckCircle, LayoutGrid, List, Plus
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateBookingStatus } from '@/actions/owner/bookings'
 import { format } from 'date-fns'
+import { AcceptPaymentClient } from '@/components/owner/finance/AcceptPaymentClient'
+import { AnimatedButton } from '@/components/ui/AnimatedButton'
 
 interface BookingsClientProps {
   initialBookings: any[]
@@ -16,6 +18,7 @@ interface BookingsClientProps {
 }
 
 export function BookingsClient({ initialBookings, branches }: BookingsClientProps) {
+  const [view, setView] = useState<'list' | 'create'>('list')
   const [bookings, setBookings] = useState(initialBookings)
   const [selectedBranch, setSelectedBranch] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -82,8 +85,37 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
     return isPaid ? 'paid' : 'unpaid'
   }
 
+  if (view === 'create') {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setView('list')}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            >
+              <LayoutGrid className="w-5 h-5 text-gray-500" />
+            </button>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create Booking & Accept Payment</h2>
+          </div>
+        </div>
+        <AcceptPaymentClient />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <AnimatedButton
+          onClick={() => setView('create')}
+          className="bg-purple-600 text-white hover:bg-purple-700"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Create Booking / Accept Payment
+        </AnimatedButton>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <StatCard 
