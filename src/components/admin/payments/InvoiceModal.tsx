@@ -120,7 +120,7 @@ export function InvoiceModal({ payment, isOpen, onClose }: InvoiceModalProps) {
                                 <td className="py-4 text-gray-800">
                                     {payment.description || 'Platform Subscription'}
                                     {payment.plan && (
-                                        <div className="text-xs text-gray-500 mt-1">Plan: {payment.plan.name}</div>
+                                        <div className="text-xs text-gray-500 mt-1">SaaS Plan: {payment.plan.name}</div>
                                     )}
                                 </td>
                                 <td className="py-4 text-right font-medium">

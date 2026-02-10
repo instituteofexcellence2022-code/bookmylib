@@ -19,7 +19,7 @@ const adminNavItems: NavItem[] = [
   { href: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard },
   { href: '/admin/libraries', label: 'Libraries', icon: Building2 },
   { href: '/admin/plans', label: 'SaaS Plans', icon: Package },
-  { href: '/admin/subscriptions', label: 'Subscriptions', icon: TicketCheck },
+  { href: '/admin/subscriptions', label: 'Platform Subscriptions', icon: TicketCheck },
   { href: '/admin/payments', label: 'Payments', icon: CreditCard },
   { href: '/admin/users', label: 'Platform Users', icon: Users },
   { href: '/admin/audit-logs', label: 'Audit Logs', icon: ShieldAlert },

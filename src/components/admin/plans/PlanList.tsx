@@ -56,13 +56,13 @@ export function PlanList({ plans }: PlanListProps) {
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <p className="text-gray-500 dark:text-gray-400">Manage subscription tiers and limits.</p>
+                <p className="text-gray-500 dark:text-gray-400">Manage SaaS plans and platform limits.</p>
                 <button 
                     onClick={handleCreate}
                     className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 flex items-center gap-2"
                 >
                     <Plus size={16} />
-                    Create Plan
+                    Create SaaS Plan
                 </button>
             </div>
 
@@ -153,7 +153,7 @@ export function PlanList({ plans }: PlanListProps) {
                                     ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400' 
                                     : 'bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400'
                                 }`}
-                                title={plan.isActive ? "Archive Plan" : "Activate Plan"}
+                                title={plan.isActive ? "Archive SaaS Plan" : "Activate SaaS Plan"}
                             >
                                 <Power size={14} />
                             </button>

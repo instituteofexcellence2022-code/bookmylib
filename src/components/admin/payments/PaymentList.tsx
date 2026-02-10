@@ -57,10 +57,10 @@ export function PaymentList({ payments, loading, onViewInvoice }: PaymentListPro
                                     <div className="text-xs text-gray-500">{payment.library.subdomain}</div>
                                 </td>
                                 <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
-                                    <div>{payment.description || 'Subscription Payment'}</div>
+                                    <div>{payment.description || 'Platform Subscription Payment'}</div>
                                     {payment.plan && (
                                         <div className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
-                                            Plan: {payment.plan.name}
+                                            SaaS Plan: {payment.plan.name}
                                         </div>
                                     )}
                                 </td>

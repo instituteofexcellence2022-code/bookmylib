@@ -34,7 +34,7 @@ export default async function AdminDashboardPage() {
                     color="green"
                 />
                 <StatCard
-                    title="Active SaaS Subs"
+                    title="Active Platform Subs"
                     value={stats.activeSubscriptions}
                     icon={<TicketCheck className="w-6 h-6" />}
                     color="orange"

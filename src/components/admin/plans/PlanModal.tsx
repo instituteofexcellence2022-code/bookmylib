@@ -131,7 +131,7 @@ export function PlanModal({ isOpen, onClose, plan, mode }: PlanModalProps) {
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>{mode === 'create' ? 'Create New Plan' : 'Edit Plan'}</DialogTitle>
+                    <DialogTitle>{mode === 'create' ? 'Create New SaaS Plan' : 'Edit SaaS Plan'}</DialogTitle>
                 </DialogHeader>
                 
                 <form onSubmit={handleSubmit} className="space-y-6 mt-4">
@@ -142,7 +142,7 @@ export function PlanModal({ isOpen, onClose, plan, mode }: PlanModalProps) {
                             
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-gray-500">Plan Name</label>
+                                    <label className="text-xs font-medium text-gray-500">SaaS Plan Name</label>
                                     <input 
                                         required
                                         className="w-full p-2 text-sm border rounded-md dark:bg-gray-800 dark:border-gray-700"
@@ -373,7 +373,7 @@ export function PlanModal({ isOpen, onClose, plan, mode }: PlanModalProps) {
                             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
                         >
                             {loading && <Loader2 className="animate-spin" size={16} />}
-                            {mode === 'create' ? 'Create Plan' : 'Save Changes'}
+                            {mode === 'create' ? 'Create SaaS Plan' : 'Save Changes'}
                         </button>
                     </DialogFooter>
                 </form>

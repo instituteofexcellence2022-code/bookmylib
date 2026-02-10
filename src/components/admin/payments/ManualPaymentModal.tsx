@@ -52,7 +52,7 @@ export function ManualPaymentModal({ isOpen, onClose }: ManualPaymentModalProps)
             const plan = plans.find(p => p.id === formData.planId)
             if (plan) {
                 const price = billingCycle === 'monthly' ? plan.priceMonthly : plan.priceYearly
-                const description = `${plan.name} Plan (${billingCycle === 'monthly' ? 'Monthly' : 'Yearly'})`
+                const description = `${plan.name} SaaS Plan (${billingCycle === 'monthly' ? 'Monthly' : 'Yearly'})`
                 
                 // Calculate billing end
                 const start = new Date(formData.billingStart || new Date())
@@ -210,13 +210,13 @@ export function ManualPaymentModal({ isOpen, onClose }: ManualPaymentModalProps)
                     {/* Plan & Cycle Row */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Plan (Optional)</label>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">SaaS Plan (Optional)</label>
                             <select
                                 value={formData.planId}
                                 onChange={(e) => handlePlanChange(e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 text-sm"
                             >
-                                <option value="">Select Plan</option>
+                                <option value="">Select SaaS Plan</option>
                                 {plans.map(plan => (
                                     <option key={plan.id} value={plan.id}>
                                         {plan.name}

@@ -404,7 +404,7 @@ export function LibraryDetailsModal({ libraryId, isOpen, onClose }: LibraryDetai
                                 <div className="space-y-6">
                                     <div className="flex justify-between items-center">
                                         <h3 className="font-semibold text-lg flex items-center gap-2">
-                                            Subscription & Plan
+                                            Platform Subscription & SaaS Plan
                                             {library.subscription?.status === 'active' && <Check className="w-4 h-4 text-green-500" />}
                                         </h3>
                                         <div className="flex items-center gap-2">
@@ -424,7 +424,7 @@ export function LibraryDetailsModal({ libraryId, isOpen, onClose }: LibraryDetai
                                         <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border border-blue-100 dark:border-blue-900 shadow-sm space-y-4">
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div>
-                                                    <label className="text-xs font-medium text-gray-500 uppercase mb-1 block">Change Plan</label>
+                                                    <label className="text-xs font-medium text-gray-500 uppercase mb-1 block">Change SaaS Plan</label>
                                                     <select
                                                         value={subForm.planId}
                                                         onChange={(e) => setSubForm({...subForm, planId: e.target.value})}
@@ -485,7 +485,7 @@ export function LibraryDetailsModal({ libraryId, isOpen, onClose }: LibraryDetai
                                                 <div className="relative z-10">
                                                     <div className="flex justify-between items-start mb-8">
                                                         <div>
-                                                            <p className="text-gray-400 text-xs uppercase tracking-wider mb-2">Current Plan</p>
+                                                            <p className="text-gray-400 text-xs uppercase tracking-wider mb-2">Current SaaS Plan</p>
                                                             <h2 className="text-3xl font-bold flex items-center gap-2">
                                                                 {library.subscription.plan.name}
                                                                 <span className={`text-xs px-2 py-0.5 rounded-full border ${
@@ -523,7 +523,7 @@ export function LibraryDetailsModal({ libraryId, isOpen, onClose }: LibraryDetai
                                             <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-6 shadow-sm">
                                                 <h4 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                                                     <Activity size={16} className="text-blue-500" />
-                                                    Plan Limits
+                                                    SaaS Plan Limits
                                                 </h4>
                                                 <div className="space-y-4">
                                                     <LimitRow 
@@ -578,7 +578,7 @@ export function LibraryDetailsModal({ libraryId, isOpen, onClose }: LibraryDetai
                                             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                                 <CreditCard className="text-gray-400 w-8 h-8" />
                                             </div>
-                                            <h3 className="text-lg font-semibold text-gray-900 mb-1">No Active Plan</h3>
+                                            <h3 className="text-lg font-semibold text-gray-900 mb-1">No Active SaaS Plan</h3>
                                             <p className="text-gray-500 mb-6">This library does not have an active subscription.</p>
                                             <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm">
                                                 Assign Subscription

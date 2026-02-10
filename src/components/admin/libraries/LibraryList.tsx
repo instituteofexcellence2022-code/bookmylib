@@ -138,16 +138,19 @@ export function LibraryList({ initialLibraries, plans = [] }: LibraryListProps) 
 
                                 {/* Health / Stats */}
                                 <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-4 border-l border-r border-gray-100 dark:border-gray-700 px-0 md:px-6">
-                                    <div>
-                                        <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Plan</p>
+                                    <div className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
+                                        <p className="text-xs text-gray-400 uppercase font-semibold mb-1">SaaS Plan</p>
                                         <div className="flex flex-col">
                                             <span className="font-medium text-gray-900 dark:text-white">{lib.subscription?.plan.name || 'No Plan'}</span>
-                                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full w-fit mt-1 ${
-                                                lib.subscription?.status === 'active' 
-                                                    ? 'bg-green-100 text-green-700' 
-                                                    : 'bg-yellow-100 text-yellow-700'
-                                            }`}>
-                                                {lib.subscription?.status.toUpperCase() || 'NONE'}
+                                            <span className="text-xs text-gray-500 mt-1">
+                                                {lib.subscription?.status === 'active' ? (
+                                                    <span className="text-green-600 dark:text-green-400 flex items-center gap-1">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                                        Active Platform Subscription
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-gray-400">No Active Platform Subscription</span>
+                                                )}
                                             </span>
                                         </div>
                                     </div>

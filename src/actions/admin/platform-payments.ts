@@ -253,7 +253,7 @@ export async function exportPayments(status?: string) {
         Invoice: p.invoiceNumber,
         Library: p.library.name,
         Subdomain: p.library.subdomain,
-        Plan: p.plan?.name || '-',
+        'SaaS Plan': p.plan?.name || '-',
         Date: p.paymentDate ? p.paymentDate.toISOString().split('T')[0] : p.createdAt.toISOString().split('T')[0],
         Amount: p.amount,
         Tax: p.taxAmount || 0,

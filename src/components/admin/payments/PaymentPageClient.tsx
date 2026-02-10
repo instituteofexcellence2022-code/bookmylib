@@ -78,7 +78,7 @@ export function PaymentPageClient({ initialPayments, stats, totalPages, currentP
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Payments & Billing</h1>
-                    <p className="text-gray-500 dark:text-gray-400">Manage subscriptions, invoices, and revenue.</p>
+                    <p className="text-gray-500 dark:text-gray-400">Manage platform subscriptions, invoices, and revenue.</p>
                 </div>
                 <div className="flex gap-3">
                     <button 

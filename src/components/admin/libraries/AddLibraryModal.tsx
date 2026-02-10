@@ -166,7 +166,7 @@ export function AddLibraryModal({ isOpen, onClose, plans }: AddLibraryModalProps
 
                     {/* Plan Selection */}
                     <div className="space-y-3 pt-2">
-                        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Subscription</h3>
+                        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">Platform Subscription</h3>
                         
                         <div className="relative">
                             <CreditCard className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
@@ -177,7 +177,7 @@ export function AddLibraryModal({ isOpen, onClose, plans }: AddLibraryModalProps
                                 required
                                 className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
                             >
-                                <option value="" disabled>Select a Plan</option>
+                                <option value="" disabled>Select a SaaS Plan</option>
                                 {plans.map(plan => (
                                     <option key={plan.id} value={plan.id}>
                                         {plan.name} - ₹{plan.priceMonthly}/mo
