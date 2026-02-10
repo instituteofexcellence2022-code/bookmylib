@@ -957,12 +957,27 @@ model LibrarySubscription {
 model SaasPayment {
   id             String   @id @default(uuid())
   libraryId      String
+  
+  // Amounts
   amount         Float
+  subtotal       Float?
+  taxAmount      Float?
   currency       String   @default("INR")
-  status         String   // 'succeeded', 'failed'
-  gatewayId      String?  // Stripe/Razorpay ID
+  
+  // Details
+  status         String   // 'succeeded', 'failed', 'pending', 'refunded'
+  method         String   @default("manual") // 'razorpay', 'stripe', 'manual', 'bank_transfer'
+  gatewayId      String?  // Transaction ID from provider
+  
+  // Invoice
+  invoiceNumber  String?  @unique
   invoiceUrl     String?
+  
+  description    String?
+  notes          String?
+  
   createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
   
   library        Library  @relation(fields: [libraryId], references: [id])
   
