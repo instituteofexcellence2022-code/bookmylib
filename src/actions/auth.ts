@@ -206,7 +206,8 @@ export async function loginStaff(formData: FormData) {
             where: {
                 OR: [
                     { email: { equals: identifier, mode: 'insensitive' } },
-                    { username: { equals: identifier, mode: 'insensitive' } }
+                    { username: { equals: identifier, mode: 'insensitive' } },
+                    { phone: { equals: identifier } }
                 ]
             },
             include: {

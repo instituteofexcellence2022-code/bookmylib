@@ -35,6 +35,7 @@ export default function StaffLoginPage() {
 
             if (result.success) {
                 toast.success('Login successful')
+                router.refresh()
                 router.push('/staff/dashboard')
             } else {
                 toast.error(result.error || 'Login failed')
@@ -91,12 +92,12 @@ export default function StaffLoginPage() {
                 <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl py-6 px-6 sm:py-8 sm:px-10 shadow-xl sm:shadow-2xl ring-1 ring-gray-200 dark:ring-gray-800 rounded-xl sm:rounded-2xl">
                     <form className="space-y-5 sm:space-y-6" onSubmit={handleLogin}>
                         <FormInput
-                            label="Email or Username"
+                            label="Email, Phone or Username"
                             type="text"
                             icon={User}
                             value={formData.identifier}
                             onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
-                            placeholder="Enter your email or username"
+                            placeholder="Enter email, phone or username"
                             required
                             className="focus:ring-emerald-500"
                         />

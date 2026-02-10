@@ -45,6 +45,7 @@ function OwnerLoginForm() {
                     toast.success('Please verify your 2FA code')
                 } else {
                     toast.success('Login successful')
+                    router.refresh()
                     router.push(callbackUrl)
                 }
             } else {

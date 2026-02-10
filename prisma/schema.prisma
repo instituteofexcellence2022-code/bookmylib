@@ -150,7 +150,7 @@ model Staff {
   branchId         String
   name             String
   email            String    @unique
-  phone            String?
+  phone            String?   @unique
   address          String?
   image            String? // Profile picture URL
   salary           Float?
