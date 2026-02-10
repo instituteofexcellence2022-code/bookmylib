@@ -88,3 +88,10 @@ If you ever need to restore your database from a backup:
 # WARNING: This will overwrite data. Be careful.
 pg_restore -d "YOUR_DATABASE_URL" --clean --if-exists --no-owner --no-privileges backup_file_name.dump
 ```
+
+## Phase 5: Enhanced Safety Features (Automatically Active)
+
+The backup workflow now includes these safety checks automatically:
+1.  **Compression:** Uses level 5 compression to save space and transfer time.
+2.  **Integrity Check:** Runs `pg_restore --list` on every backup *before* upload. If a backup is corrupt or empty, the workflow will fail (and notify you) instead of uploading a broken file.
+3.  **LATEST Pointer:** It uploads a file named `LATEST` to your bucket which always contains the path to the newest backup. This is useful if you ever write a script to auto-restore.

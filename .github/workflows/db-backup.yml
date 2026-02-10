@@ -7,7 +7,9 @@ on:
 
 jobs:
   backup:
+    name: Backup NeonDB to GCS
     runs-on: ubuntu-latest
+    timeout-minutes: 30 # Prevent hanging jobs
     
     permissions:
       contents: 'read'
@@ -31,14 +33,57 @@ jobs:
       uses: google-github-actions/setup-gcloud@v2
 
     - name: Create Database Dump
+      id: dump
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
       run: |
+        TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
+        FILENAME="backup_${TIMESTAMP}.dump"
+        echo "FILENAME=${FILENAME}" >> $GITHUB_OUTPUT
+        
         # Use pg_dump to create a compressed custom-format archive
-        # This format is smaller and allows selective restore
-        pg_dump "$DATABASE_URL" -F c -f backup_$(date +%Y-%m-%d_%H-%M-%S).dump
+        # -F c: Custom format (compressed, allows selective restore)
+        # -Z 5: Medium compression level (balance between speed and size)
+        pg_dump "$DATABASE_URL" -F c -Z 5 -f "$FILENAME"
+        
+        echo "Dump created: $FILENAME"
+
+    - name: Verify Backup Integrity
+      run: |
+        FILENAME="${{ steps.dump.outputs.FILENAME }}"
+        
+        # 1. Check file existence and non-zero size
+        if [ ! -s "$FILENAME" ]; then
+          echo "Error: Backup file is missing or empty!"
+          exit 1
+        fi
+        
+        # 2. Verify internal structure using pg_restore --list
+        # This reads the table of contents to ensure the file isn't truncated/corrupt
+        if ! pg_restore --list "$FILENAME" > /dev/null; then
+          echo "Error: Backup file is corrupt (pg_restore check failed)!"
+          exit 1
+        fi
+        
+        echo "Backup integrity verified successfully."
 
     - name: Upload to Google Cloud Storage
       run: |
-        # Upload the dump file to the specified GCS bucket
-        gcloud storage cp backup_*.dump gs://${{ secrets.GCP_BACKUP_BUCKET }}/backups/
+        FILENAME="${{ steps.dump.outputs.FILENAME }}"
+        BUCKET="${{ secrets.GCP_BACKUP_BUCKET }}"
+        
+        # Upload the dump file
+        gcloud storage cp "$FILENAME" "gs://${BUCKET}/backups/"
+        
+        # Create and upload a 'LATEST' pointer file
+        # This makes it easy for scripts to find the most recent backup
+        echo "backups/${FILENAME}" > LATEST
+        gcloud storage cp LATEST "gs://${BUCKET}/LATEST"
+        
+        echo "Upload complete: gs://${BUCKET}/backups/${FILENAME}"
+
+    # Optional: Add notification step here (e.g., Slack, Discord, Email)
+    # - name: Notify on Failure
+    #   if: failure()
+    #   run: |
+    #     curl -X POST -H 'Content-type: application/json' --data '{"text":"❌ Database Backup Failed!"}' ${{ secrets.SLACK_WEBHOOK_URL }}
