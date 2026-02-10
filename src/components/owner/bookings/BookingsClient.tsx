@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { 
   Filter, Search, Calendar, User, Armchair, Lock, MoreHorizontal, 
   Check, X, AlertCircle, Wallet, CreditCard, Banknote, Clock, 
-  Activity, CheckCircle, LayoutGrid, List, Plus
+  Activity, CheckCircle, LayoutGrid, List, Plus, ChevronLeft
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateBookingStatus } from '@/actions/owner/bookings'
@@ -89,12 +89,13 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             <button 
               onClick={() => setView('list')}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
             >
-              <LayoutGrid className="w-5 h-5 text-gray-500" />
+              <ChevronLeft className="w-4 h-4" />
+              Back
             </button>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Create Booking & Accept Payment</h2>
           </div>
