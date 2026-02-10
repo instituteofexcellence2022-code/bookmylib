@@ -10,7 +10,7 @@ export const COOKIE_OPTIONS = {
     maxAge: 7 * 24 * 60 * 60 // 7 days
 }
 
-export async function createSession(userId: string, role: 'owner' | 'staff' | 'student') {
+export async function createSession(userId: string, role: 'owner' | 'staff' | 'student' | 'admin') {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
     const token = await createSessionToken({ userId, role })
     const cookieStore = await cookies()
@@ -18,6 +18,7 @@ export async function createSession(userId: string, role: 'owner' | 'staff' | 's
     let cookieName: string = COOKIE_KEYS.STUDENT
     if (role === 'owner') cookieName = COOKIE_KEYS.OWNER
     if (role === 'staff') cookieName = COOKIE_KEYS.STAFF
+    if (role === 'admin') cookieName = COOKIE_KEYS.ADMIN
 
     cookieStore.set(cookieName, token, {
         ...COOKIE_OPTIONS,
@@ -25,11 +26,12 @@ export async function createSession(userId: string, role: 'owner' | 'staff' | 's
     })
 }
 
-export async function deleteSession(role: 'owner' | 'staff' | 'student') {
+export async function deleteSession(role: 'owner' | 'staff' | 'student' | 'admin') {
     const cookieStore = await cookies()
     let cookieName: string = COOKIE_KEYS.STUDENT
     if (role === 'owner') cookieName = COOKIE_KEYS.OWNER
     if (role === 'staff') cookieName = COOKIE_KEYS.STAFF
+    if (role === 'admin') cookieName = COOKIE_KEYS.ADMIN
     
     cookieStore.delete(cookieName)
 }

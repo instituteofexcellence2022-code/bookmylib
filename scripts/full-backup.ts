@@ -32,8 +32,7 @@ const models = [
   'studentNote',
   'referral',
   'lead',
-  'leadInteraction',
-  'cashHandover'
+  'leadInteraction'
 ]
 
 async function main() {

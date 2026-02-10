@@ -54,6 +54,11 @@ model Library {
   referralSettings   Json? // Configuration for referral program
   cashHandovers      CashHandover[] // New relation
 
+  // SaaS / Platform Relations
+  subscription       LibrarySubscription?
+  platformTickets    PlatformSupportTicket[]
+  saasPayments       SaasPayment[]
+
   @@map("libraries")
 }
 
@@ -81,6 +86,7 @@ model Owner {
   // Relationships
   library  Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
   branches Branch[]
+  platformTickets PlatformSupportTicket[]
 
   @@map("owners")
 }
@@ -856,4 +862,127 @@ model LikedQuote {
 
   @@unique([studentId, quoteId])
   @@map("liked_quotes")
+}
+
+// ---------------------------------------------------------
+// PLATFORM / SAAS ADMIN MODELS
+// ---------------------------------------------------------
+
+model PlatformUser {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String   // Hashed
+  role      String   // 'super_admin', 'support', 'sales', 'developer'
+  isActive  Boolean  @default(true)
+  
+  // Security & Auditing
+  lastLogin   DateTime?
+  loginIp     String?
+  auditLogs   PlatformAuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("platform_users")
+}
+
+model PlatformAuditLog {
+  id             String       @id @default(uuid())
+  platformUserId String
+  action         String       // 'SUSPEND_LIBRARY', 'VIEW_REVENUE', 'IMPERSONATE'
+  targetId       String?      // ID of the Library/Owner affected
+  details        String?      // JSON diff
+  ipAddress      String?
+  createdAt      DateTime     @default(now())
+
+  performedBy    PlatformUser @relation(fields: [platformUserId], references: [id])
+
+  @@index([platformUserId])
+  @@map("platform_audit_logs")
+}
+
+model SaasPlan {
+  id          String   @id @default(uuid())
+  name        String   // 'Starter', 'Growth', 'Enterprise'
+  slug        String   @unique // 'starter', 'growth'
+  priceMonthly Float
+  priceYearly  Float
+  description  String?
+  trialDays    Int      @default(0)
+  isPopular    Boolean  @default(false)
+  sortOrder    Int      @default(0)
+  
+  // Limits
+  maxBranches      Int      @default(1)
+  maxActiveStudents Int     @default(100)
+  maxTotalStudents  Int     @default(500)
+  maxSeats          Int     @default(50)
+  maxStorage       Int      @default(512) // MB
+  maxStaff         Int      @default(2)
+  maxEmailsMonthly Int   @default(1000)
+  maxSmsMonthly    Int   @default(100)
+  
+  // Feature Toggles (Global for this plan)
+  features      Json?    // { "whatsapp": true, "biometric": false, "custom_domain": false }
+
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  
+  subscriptions LibrarySubscription[]
+  
+  @@map("saas_plans")
+}
+
+model LibrarySubscription {
+  id           String    @id @default(uuid())
+  libraryId    String    @unique // One active sub per library
+  planId       String
+  status       String    // 'active', 'past_due', 'canceled', 'trialing'
+  
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean @default(false)
+  
+  // Relations
+  library      Library   @relation(fields: [libraryId], references: [id])
+  plan         SaasPlan  @relation(fields: [planId], references: [id])
+  
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("library_subscriptions")
+}
+
+model SaasPayment {
+  id             String   @id @default(uuid())
+  libraryId      String
+  amount         Float
+  currency       String   @default("INR")
+  status         String   // 'succeeded', 'failed'
+  gatewayId      String?  // Stripe/Razorpay ID
+  invoiceUrl     String?
+  createdAt      DateTime @default(now())
+  
+  library        Library  @relation(fields: [libraryId], references: [id])
+  
+  @@map("saas_payments")
+}
+
+model PlatformSupportTicket {
+  id        String   @id @default(uuid())
+  libraryId String
+  ownerId   String
+  subject   String
+  message   String
+  status    String   // 'open', 'investigating', 'resolved'
+  priority  String   // 'low', 'normal', 'critical'
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  library   Library  @relation(fields: [libraryId], references: [id])
+  owner     Owner    @relation(fields: [ownerId], references: [id])
+
+  @@map("platform_support_tickets")
 }

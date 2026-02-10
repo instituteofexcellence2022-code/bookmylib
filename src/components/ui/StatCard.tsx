@@ -1,13 +1,13 @@
 'use client'
 
-import React from 'react'
+import React, { isValidElement } from 'react'
 import { AnimatedCard } from './AnimatedCard'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
 interface StatCardProps {
     title: string
     value: string | number
-    icon: React.ElementType
+    icon: React.ElementType | React.ReactNode
     color: 'blue' | 'green' | 'purple' | 'orange' | 'red'
     delay?: number
     trend?: string
@@ -18,7 +18,7 @@ interface StatCardProps {
     padding?: 'none' | 'sm' | 'md' | 'lg'
 }
 
-export const StatCard = ({ title, value, icon: Icon, color, delay = 0, trend, trendUp, loading, subValue, className, padding = 'md' }: StatCardProps) => {
+export const StatCard = ({ title, value, icon, color, delay = 0, trend, trendUp, loading, subValue, className, padding = 'md' }: StatCardProps) => {
     const colorStyles: Record<string, string> = {
         blue: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400',
         green: 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400',
@@ -69,7 +69,10 @@ export const StatCard = ({ title, value, icon: Icon, color, delay = 0, trend, tr
                     )}
                 </div>
                 <div className={`p-3 rounded-xl ${colorStyles[color] || colorStyles.blue}`}>
-                    <Icon size={24} />
+                    {isValidElement(icon) ? icon : (() => {
+                        const Icon = icon as React.ElementType
+                        return <Icon size={24} />
+                    })()}
                 </div>
             </div>
         </AnimatedCard>

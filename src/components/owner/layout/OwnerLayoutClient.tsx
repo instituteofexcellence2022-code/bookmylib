@@ -27,6 +27,7 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { TopBar } from '@/components/layout/TopBar'
 import { BottomNav } from '@/components/layout/BottomNav'
 import { logout } from '@/actions/auth'
+import { ImpersonationHeader } from '@/components/admin/ImpersonationBanner'
 
 const navItems = [
   { href: '/owner/dashboard', label: 'Dashboard', icon: LayoutDashboard, group: 'Overview' },
@@ -61,9 +62,10 @@ interface OwnerLayoutClientProps {
     image?: string
     initials: string
   }
+  isAdminImpersonating?: boolean
 }
 
-export function OwnerLayoutClient({ children, user }: OwnerLayoutClientProps) {
+export function OwnerLayoutClient({ children, user, isAdminImpersonating }: OwnerLayoutClientProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const router = useRouter()
 
@@ -90,7 +92,7 @@ export function OwnerLayoutClient({ children, user }: OwnerLayoutClientProps) {
       <div className="flex-1 flex flex-col min-w-0 pb-safe">
         <TopBar
           user={user}
-          title="Owner Dashboard"
+          title={isAdminImpersonating ? <ImpersonationHeader /> : "Owner Dashboard"}
           onMenuClick={() => setIsSidebarOpen(true)}
           onLogout={handleLogout}
         />

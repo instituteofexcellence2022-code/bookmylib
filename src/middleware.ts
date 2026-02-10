@@ -4,7 +4,7 @@ import { COOKIE_KEYS } from '@/lib/auth/constants'
 import { verifySessionToken } from '@/lib/auth/jwt'
 
 // Role-based configuration for route protection
-type Role = 'owner' | 'staff' | 'student'
+type Role = 'owner' | 'staff' | 'student' | 'admin'
 
 interface RoleConfig {
     loginPath: string
@@ -37,6 +37,13 @@ const ROLES: Record<Role, RoleConfig> = {
         cookieKey: COOKIE_KEYS.STUDENT,
         publicPaths: ['/student/login', '/student/register', '/student/book'], // /student/book is public booking
         publicPrefixes: ['/student/forgot-password', '/student/reset-password', '/student/verification']
+    },
+    admin: {
+        loginPath: '/admin/login',
+        dashboardPath: '/admin/dashboard',
+        cookieKey: COOKIE_KEYS.ADMIN,
+        publicPaths: ['/admin/login'],
+        publicPrefixes: []
     }
 }
 
