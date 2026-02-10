@@ -270,6 +270,8 @@ model Student {
   referralsMade     Referral[] @relation("Referrer")
   referralsReceived Referral[] @relation("Referee")
 
+  @@index([libraryId])
+  @@index([branchId])
   @@map("students")
 }
 

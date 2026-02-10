@@ -9,57 +9,34 @@ import { getAuthenticatedOwner } from '@/lib/auth/owner'
 import bcrypt from 'bcryptjs'
 import { Prisma } from '@prisma/client'
 
+import { studentSchema } from '@/lib/validators/student'
+
 export async function createStudent(formData: FormData) {
     const owner = await getAuthenticatedOwner()
     if (!owner) return { success: false, error: 'Unauthorized' }
 
-    // Owner already has libraryId included from getAuthenticatedOwner logic (see src/lib/auth/owner.ts)
-    // But we need to make sure we have access to it.
-    // getAuthenticatedOwner includes library. Let's check type.
-    // It returns Owner & { library: Library }.
+    // Extract text fields for validation
+    const rawData: Record<string, any> = {}
+    formData.forEach((value, key) => {
+        if (typeof value === 'string') {
+            rawData[key] = value
+        }
+    })
+
+    const validatedResult = studentSchema.safeParse(rawData)
     
-    // We can skip the manual DB lookup.
-    // However, the original code selected specific fields.
-    // We can just use owner.libraryId directly.
-    
-    const name = formData.get('name') as string
-    const email = formData.get('email') as string || null
-    const phone = formData.get('phone') as string || null
-    const password = formData.get('password') as string
-    const branchId = formData.get('branchId') as string
-    
-    // Optional fields
-    const dob = formData.get('dob') as string
-    const gender = formData.get('gender') as string
-    const address = formData.get('address') as string || null
-    const area = formData.get('area') as string || null
-    const city = formData.get('city') as string || null
-    const state = formData.get('state') as string || null
-    const pincode = formData.get('pincode') as string || null
-    const guardianName = formData.get('guardianName') as string
-    const guardianPhone = formData.get('guardianPhone') as string
+    if (!validatedResult.success) {
+        return { success: false, error: validatedResult.error.issues[0].message }
+    }
+
+    const { 
+        name, email, phone, password, branchId, 
+        dob, gender, address, area, city, state, pincode, 
+        guardianName, guardianPhone 
+    } = validatedResult.data
 
     const imageFile = formData.get('image') as File | null
     const govtIdFile = formData.get('govtId') as File | null
-
-    if (!name || !branchId) {
-        return { success: false, error: 'Required fields missing' }
-    }
-
-    if (!email && !phone) {
-        return { success: false, error: 'Email or Phone is required' }
-    }
-
-    if (!password && !dob) {
-        return { success: false, error: 'Password or Date of Birth is required' }
-    }
-
-    if (phone && !/^\d{10}$/.test(phone)) {
-        return { success: false, error: 'Phone number must be exactly 10 digits' }
-    }
-    if (guardianPhone && !/^\d{10}$/.test(guardianPhone)) {
-        return { success: false, error: 'Guardian phone number must be exactly 10 digits' }
-    }
 
     try {
         // Check if email exists

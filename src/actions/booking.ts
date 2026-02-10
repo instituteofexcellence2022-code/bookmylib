@@ -62,10 +62,14 @@ export async function getBranchDetails(branchId: string) {
                 },
                 seats: {
                     include: {
-                        subscriptions: {
-                            where: {
-                                status: 'active',
-                                endDate: { gt: new Date() }
+                        _count: {
+                            select: {
+                                subscriptions: {
+                                    where: {
+                                        status: 'active',
+                                        endDate: { gt: new Date() }
+                                    }
+                                }
                             }
                         }
                     },
@@ -73,10 +77,14 @@ export async function getBranchDetails(branchId: string) {
                 },
                 lockers: {
                     include: {
-                        subscriptions: {
-                            where: {
-                                status: 'active',
-                                endDate: { gt: new Date() }
+                        _count: {
+                            select: {
+                                subscriptions: {
+                                    where: {
+                                        status: 'active',
+                                        endDate: { gt: new Date() }
+                                    }
+                                }
                             }
                         }
                     },
@@ -100,15 +108,13 @@ export async function getBranchDetails(branchId: string) {
             ...seat,
             row: null,
             column: null,
-            isOccupied: seat.subscriptions.length > 0,
-            subscriptions: undefined
+            isOccupied: seat._count.subscriptions > 0,
         }))
 
         // Transform lockers to add isOccupied flag
         const lockersWithStatus = branch.lockers.map(locker => ({
             ...locker,
-            isOccupied: locker.subscriptions.length > 0,
-            subscriptions: undefined
+            isOccupied: locker._count.subscriptions > 0,
         }))
 
         // Combine branch-specific and global fees
