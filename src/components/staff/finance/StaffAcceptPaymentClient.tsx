@@ -2,12 +2,15 @@
 
 import React, { useState } from 'react'
 import { StaffAcceptPaymentForm } from './StaffAcceptPaymentForm'
+import { StaffAddStudentForm } from '@/components/staff/students/StaffAddStudentForm'
 import { UserPlus, Users } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { toast } from 'sonner'
 
 export function StaffAcceptPaymentClient({ initialStudentId }: { initialStudentId?: string }) {
     const [activeTab, setActiveTab] = useState<'existing' | 'new'>('existing')
+    const [selectedStudentId, setSelectedStudentId] = useState<string | undefined>(initialStudentId)
     const router = useRouter()
 
     return (
@@ -41,27 +44,17 @@ export function StaffAcceptPaymentClient({ initialStudentId }: { initialStudentI
             {/* Content */}
             <div className="mt-4">
                 {activeTab === 'new' && (
-                    <div className="flex flex-col items-center justify-center p-12 text-center bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl">
-                        <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mb-4">
-                            <UserPlus className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                            Add New Student
-                        </h3>
-                        <p className="text-gray-500 dark:text-gray-400 max-w-md mb-8">
-                            To accept payment from a new student, you first need to create their profile in the system.
-                        </p>
-                        <AnimatedButton 
-                            onClick={() => router.push('/staff/students?action=add')}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-8"
-                        >
-                            Go to Students Page
-                        </AnimatedButton>
-                    </div>
+                    <StaffAddStudentForm 
+                        onSuccess={(studentId) => {
+                            setSelectedStudentId(studentId)
+                            setActiveTab('existing')
+                            toast.success("Student created! You can now proceed with payment.")
+                        }}
+                    />
                 )}
 
                 {activeTab === 'existing' && (
-                    <StaffAcceptPaymentForm initialStudentId={initialStudentId} />
+                    <StaffAcceptPaymentForm key={selectedStudentId} initialStudentId={selectedStudentId} />
                 )}
             </div>
         </div>
