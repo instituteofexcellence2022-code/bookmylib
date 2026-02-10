@@ -337,7 +337,7 @@ export function AcceptPaymentForm({ initialStudentId }: { initialStudentId?: str
                 }
             })()
         }
-    }, [searchParams, selectedBranch])
+    }, [searchParams, selectedBranch, initialStudentId])
 
     // Responsive Columns
     useEffect(() => {
