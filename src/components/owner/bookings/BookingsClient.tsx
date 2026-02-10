@@ -8,9 +8,10 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { updateBookingStatus, updateBookingDetails } from '@/actions/owner/bookings'
-import { format, isWithinInterval, startOfDay, endOfDay, parseISO } from 'date-fns'
+import { format, isWithinInterval, startOfDay, endOfDay, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subMonths, startOfYear, endOfYear } from 'date-fns'
 import { AcceptPaymentClient } from '@/components/owner/finance/AcceptPaymentClient'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { FilterSelect } from '@/components/ui/FilterSelect'
 import { BookingDetailsModal } from '@/components/shared/bookings/BookingDetailsModal'
 import { EditBookingModal } from '@/components/shared/bookings/EditBookingModal'
 
@@ -32,7 +33,71 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
   const [createBookingStudentId, setCreateBookingStudentId] = useState<string | undefined>(undefined)
   
   // Date Range Filter State
+  const [period, setPeriod] = useState<string>('all')
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' })
+
+  const handlePeriodChange = (newPeriod: string) => {
+    setPeriod(newPeriod)
+    
+    const now = new Date()
+    let start: Date | undefined
+    let end: Date | undefined
+
+    switch (newPeriod) {
+        case 'today':
+            start = startOfDay(now)
+            end = endOfDay(now)
+            break
+        case 'yesterday':
+            start = startOfDay(subDays(now, 1))
+            end = endOfDay(subDays(now, 1))
+            break
+        case 'this_week':
+            start = startOfWeek(now, { weekStartsOn: 1 })
+            end = endOfWeek(now, { weekStartsOn: 1 })
+            break
+        case 'last_week':
+            const lastWeek = subDays(now, 7)
+            start = startOfWeek(lastWeek, { weekStartsOn: 1 })
+            end = endOfWeek(lastWeek, { weekStartsOn: 1 })
+            break
+        case 'this_month':
+            start = startOfMonth(now)
+            end = endOfMonth(now)
+            break
+        case 'last_month':
+            const lastMonth = subMonths(now, 1)
+            start = startOfMonth(lastMonth)
+            end = endOfMonth(lastMonth)
+            break
+        case 'last_3_months':
+            start = startOfMonth(subMonths(now, 3))
+            end = endOfMonth(now)
+            break
+        case 'last_6_months':
+            start = startOfMonth(subMonths(now, 6))
+            end = endOfMonth(now)
+            break
+        case 'this_year':
+            start = startOfYear(now)
+            end = endOfYear(now)
+            break
+        case 'all':
+            start = undefined
+            end = undefined
+            break
+        case 'custom':
+            // Don't change dates, let user pick
+            return
+    }
+
+    if (newPeriod !== 'custom') {
+        setDateRange({
+            start: start ? start.toISOString() : '',
+            end: end ? end.toISOString() : ''
+        })
+    }
+  }
 
   // Derived State
   const filteredBookings = useMemo(() => {
@@ -189,34 +254,65 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
             ))}
           </div>
 
-          <div className="flex gap-2 w-full md:w-auto">
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                value={dateRange.start}
-                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Start Date"
-              />
-              <span className="text-gray-400">-</span>
-              <input
-                type="date"
-                value={dateRange.end}
-                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="End Date"
-              />
+          <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto items-end md:items-center">
+            {/* Filter Group: Branch & Time */}
+            <div className="flex flex-row gap-2 w-full md:w-auto">
+              {/* Branch Filter */}
+              <div className="flex-1 md:w-[200px] md:flex-none">
+                <FilterSelect
+                  value={selectedBranch}
+                  onChange={setSelectedBranch}
+                  options={[
+                    { value: 'all', label: 'All Branches' },
+                    ...branches.map(b => ({ value: b.id, label: b.name }))
+                  ]}
+                  placeholder="Select Branch"
+                />
+              </div>
+
+              {/* Time Filter */}
+              <div className="flex-1 md:w-[200px] md:flex-none">
+                <FilterSelect
+                  value={period}
+                  onChange={handlePeriodChange}
+                  options={[
+                    { value: 'all', label: 'All Time' },
+                    { value: 'today', label: 'Today' },
+                    { value: 'yesterday', label: 'Yesterday' },
+                    { value: 'this_week', label: 'This Week' },
+                    { value: 'last_week', label: 'Last Week' },
+                    { value: 'this_month', label: 'This Month' },
+                    { value: 'last_month', label: 'Last Month' },
+                    { value: 'last_3_months', label: 'Last 3 Months' },
+                    { value: 'last_6_months', label: 'Last 6 Months' },
+                    { value: 'this_year', label: 'This Year' },
+                    { value: 'custom', label: 'Custom Range' },
+                  ]}
+                  placeholder="Select Period"
+                />
+              </div>
             </div>
-            <select
-              value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value)}
-              className="px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-500 whitespace-nowrap"
-            >
-              <option value="all">All Branches</option>
-              {branches.map(b => (
-                <option key={b.id} value={b.id}>{b.name}</option>
-              ))}
-            </select>
+
+            {/* Custom Date Inputs */}
+            {period === 'custom' && (
+              <div className="flex items-center gap-2 w-full md:w-auto animate-in fade-in slide-in-from-left-4 duration-200">
+                <input
+                  type="date"
+                  value={dateRange.start ? format(parseISO(dateRange.start), 'yyyy-MM-dd') : ''}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                  className="w-full md:w-auto px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Start Date"
+                />
+                <span className="text-gray-400">-</span>
+                <input
+                  type="date"
+                  value={dateRange.end ? format(parseISO(dateRange.end), 'yyyy-MM-dd') : ''}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                  className="w-full md:w-auto px-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="End Date"
+                />
+              </div>
+            )}
           </div>
         </div>
 
