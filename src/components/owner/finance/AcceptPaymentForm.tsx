@@ -120,7 +120,7 @@ export function AcceptPaymentForm({ initialStudentId }: { initialStudentId?: str
     const [selectedLocker, setSelectedLocker] = useState<Locker | null>(null)
     
     const [loadingDetails, setLoadingDetails] = useState(false)
-    const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0])
+    const [startDate, setStartDate] = useState('')
     
     // Seat View State
     const [pageBySection, setPageBySection] = useState<Record<string, number>>({})
@@ -361,6 +361,19 @@ export function AcceptPaymentForm({ initialStudentId }: { initialStudentId?: str
     const planPrice = isLockerAddOnMode ? 0 : (selectedPlan?.price || 0)
     const subTotal = (planPrice * quantity) + (feesTotal * quantity)
     
+    useEffect(() => {
+        if (isLockerAddOnMode) return
+        const subs = selectedStudent?.subscriptions || []
+        if (subs.length > 0) {
+            const last = subs
+                .filter((s: any) => s.endDate || s.startDate)
+                .sort((a: any, b: any) => new Date(b.endDate || b.startDate).getTime() - new Date(a.endDate || a.startDate).getTime())[0]
+            const d = last?.endDate ? new Date(last.endDate) : (last?.startDate ? new Date(last.startDate) : null)
+            setStartDate(d ? d.toISOString().split('T')[0] : '')
+        } else {
+            setStartDate('')
+        }
+    }, [selectedStudent, isLockerAddOnMode])
     // Auto-select for Locker Add-on
     useEffect(() => {
         if (isLockerAddOnMode && activeSubscription) {

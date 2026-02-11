@@ -137,7 +137,7 @@ export async function sendWelcomeEmail(data: {
       return { success: false, error: 'Email service not configured. Please contact support.' }
     }
 
-    const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/student/login`
+    const loginUrl = `https://bookmylib.vercel.app/student/login`
 
     const { data: emailData, error } = await sendEmail({
       to: data.studentEmail,

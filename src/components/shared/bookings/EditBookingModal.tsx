@@ -9,10 +9,11 @@ import { getBranchDetails } from '@/actions/booking'
 interface EditBookingModalProps {
     booking: any
     onClose: () => void
-    updateAction: (id: string, data: any) => Promise<{ success: boolean; error?: string }>
+    updateAction: (id: string, data: any) => Promise<{ success: boolean; error?: string; data?: any }>
+    onUpdated?: (updated: any) => void
 }
 
-export function EditBookingModal({ booking, onClose, updateAction }: EditBookingModalProps) {
+export function EditBookingModal({ booking, onClose, updateAction, onUpdated }: EditBookingModalProps) {
     const [loading, setLoading] = useState(false)
     const [saving, setSaving] = useState(false)
     
@@ -64,6 +65,9 @@ export function EditBookingModal({ booking, onClose, updateAction }: EditBooking
             const res = await updateAction(booking.id, data)
             if (res.success) {
                 toast.success('Booking updated successfully')
+                if (res.data && onUpdated) {
+                    onUpdated(res.data)
+                }
                 onClose()
             } else {
                 toast.error(res.error || 'Failed to update booking')

@@ -62,3 +62,43 @@ export async function checkAndSendExpiryReminders() {
     return { success: false, error: 'Failed to process reminders' }
   }
 }
+
+export async function autoCheckoutOverdueStudentSessions(hours: number = 20) {
+  try {
+    const now = new Date()
+    const cutoff = new Date(now.getTime() - hours * 60 * 60 * 1000)
+
+    const overdue = await prisma.attendance.findMany({
+      where: {
+        checkOut: null,
+        checkIn: { lt: cutoff }
+      },
+      select: {
+        id: true,
+        checkIn: true
+      }
+    })
+
+    let processed = 0
+    for (const rec of overdue) {
+      const autoCheckoutTime = new Date(rec.checkIn.getTime() + hours * 60 * 60 * 1000)
+      const durationMinutes = Math.floor((autoCheckoutTime.getTime() - rec.checkIn.getTime()) / 60000)
+
+      await prisma.attendance.update({
+        where: { id: rec.id },
+        data: {
+          checkOut: autoCheckoutTime,
+          duration: durationMinutes > 0 ? durationMinutes : 0,
+          status: 'auto_checkout_timeout',
+          remarks: 'Auto check-out after maximum session time'
+        }
+      })
+      processed++
+    }
+
+    return { success: true, processed }
+  } catch (error) {
+    console.error('Error in autoCheckoutOverdueStudentSessions:', error)
+    return { success: false, error: 'Failed to auto check-out overdue sessions' }
+  }
+}

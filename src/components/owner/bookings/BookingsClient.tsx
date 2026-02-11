@@ -14,7 +14,7 @@ import { BookingDetailsModal } from '@/components/shared/bookings/BookingDetails
 import { EditBookingModal } from '@/components/shared/bookings/EditBookingModal'
 import { BookingStats } from '@/components/shared/bookings/BookingStats'
 import { BookingListTable } from '@/components/shared/bookings/BookingListTable'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 interface BookingsClientProps {
   initialBookings: any[]
@@ -22,6 +22,7 @@ interface BookingsClientProps {
 }
 
 export function BookingsClient({ initialBookings, branches }: BookingsClientProps) {
+  const router = useRouter()
   const [view, setView] = useState<'list' | 'create'>('list')
   const [bookings, setBookings] = useState(initialBookings)
   const [selectedBranch, setSelectedBranch] = useState<string>('all')
@@ -339,9 +340,11 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
             setSelectedBooking(null)
           }}
           updateAction={updateBookingDetails}
+          onUpdated={() => {
+            router.refresh()
+          }}
         />
       )}
     </div>
   )
 }
-

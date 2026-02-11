@@ -1,4 +1,4 @@
-import { checkAndSendExpiryReminders } from '@/actions/cron'
+import { checkAndSendExpiryReminders, autoCheckoutOverdueStudentSessions } from '@/actions/cron'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic' // static by default, unless reading the request
@@ -16,8 +16,9 @@ export async function GET(request: Request) {
       }
     }
 
-    const result = await checkAndSendExpiryReminders()
-    return NextResponse.json(result)
+    const reminders = await checkAndSendExpiryReminders()
+    const autoCheckout = await autoCheckoutOverdueStudentSessions(20)
+    return NextResponse.json({ reminders, autoCheckout })
   } catch (error) {
     console.error('Cron job failed:', error)
     return new NextResponse('Internal Server Error', { status: 500 })

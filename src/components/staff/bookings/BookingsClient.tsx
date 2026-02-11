@@ -14,12 +14,14 @@ import { EditBookingModal } from '@/components/shared/bookings/EditBookingModal'
 import { BookingStats } from '@/components/shared/bookings/BookingStats'
 import { BookingListTable } from '@/components/shared/bookings/BookingListTable'
 import { FilterSelect } from '@/components/ui/FilterSelect'
+import { useRouter } from 'next/navigation'
 
 interface BookingsClientProps {
   initialBookings: any[]
 }
 
 export function BookingsClient({ initialBookings }: BookingsClientProps) {
+  const router = useRouter()
   const [view, setView] = useState<'list' | 'create'>('list')
   const [bookings, setBookings] = useState(initialBookings)
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -298,10 +300,12 @@ export function BookingsClient({ initialBookings }: BookingsClientProps) {
             setSelectedBooking(null)
           }}
           updateAction={updateBookingDetails}
+          onUpdated={() => {
+            router.refresh()
+          }}
         />
       )}
     </div>
   )
 }
-
 

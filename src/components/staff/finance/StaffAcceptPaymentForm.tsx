@@ -151,9 +151,32 @@ export function StaffAcceptPaymentForm({ initialStudentId: propInitialStudentId 
         } else if (!isLockerAddOnMode && selectedPlan?.id === activeSubscription?.planId && activeSubscription) {
              // If exiting add-on mode, clear selection if it was the active plan
              setSelectedPlan(null)
-             setStartDate(new Date().toISOString().split('T')[0])
+             const subs = selectedStudent?.subscriptions || []
+             if (subs.length > 0) {
+                 const last = subs
+                     .filter((s: any) => s.endDate || s.startDate)
+                     .sort((a: any, b: any) => new Date(b.endDate || b.startDate).getTime() - new Date(a.endDate || a.startDate).getTime())[0]
+                 const d = last?.endDate ? new Date(last.endDate) : (last?.startDate ? new Date(last.startDate) : null)
+                 setStartDate(d ? d.toISOString().split('T')[0] : '')
+             } else {
+                 setStartDate('')
+             }
         }
     }, [isLockerAddOnMode, activeSubscription, plans])
+
+    useEffect(() => {
+        if (isLockerAddOnMode) return
+        const subs = (selectedStudent as any)?.subscriptions || []
+        if (subs.length > 0) {
+            const last = subs
+                .filter((s: any) => s.endDate || s.startDate)
+                .sort((a: any, b: any) => new Date(b.endDate || b.startDate).getTime() - new Date(a.endDate || a.startDate).getTime())[0]
+            const d = last?.endDate ? new Date(last.endDate) : (last?.startDate ? new Date(last.startDate) : null)
+            setStartDate(d ? d.toISOString().split('T')[0] : '')
+        } else {
+            setStartDate('')
+        }
+    }, [selectedStudent, isLockerAddOnMode])
 
     // Pre-fill Student from URL
     useEffect(() => {
@@ -183,7 +206,7 @@ export function StaffAcceptPaymentForm({ initialStudentId: propInitialStudentId 
     const [selectedFees, setSelectedFees] = useState<string[]>([])
     const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null)
     const [selectedLocker, setSelectedLocker] = useState<Locker | null>(null)
-    const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0])
+    const [startDate, setStartDate] = useState('')
 
     // Seat View State
     const [pageBySection, setPageBySection] = useState<Record<string, number>>({})
