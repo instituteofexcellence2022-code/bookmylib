@@ -875,13 +875,11 @@ model PlatformUser {
   password  String   // Hashed
   role      String   // 'super_admin', 'support', 'sales', 'developer'
   isActive  Boolean  @default(true)
+  phone       String?
+  image       String?
+  bio         String?
+  preferences Json?
   
-  // Profile Details
-  phone     String?
-  image     String?
-  bio       String?
-  preferences Json?  // { "theme": "dark", "notifications": true }
-
   // Security & Auditing
   lastLogin   DateTime?
   loginIp     String?
@@ -1012,6 +1010,39 @@ model PlatformSupportTicket {
   
   library   Library  @relation(fields: [libraryId], references: [id])
   owner     Owner    @relation(fields: [ownerId], references: [id])
+  responses PlatformTicketResponse[]
 
   @@map("platform_support_tickets")
+}
+
+model PlatformTicketResponse {
+  id        String   @id @default(uuid())
+  ticketId  String
+  responderId String // PlatformUser ID
+  message   String
+  createdAt DateTime @default(now())
+
+  ticket PlatformSupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@map("platform_ticket_responses")
+}
+
+model PlatformSettings {
+  id              String   @id @default(uuid())
+  platformName    String   @default("Library SaaS")
+  supportEmail    String?
+  supportPhone    String?
+  logo            String?
+  
+  // Maintenance
+  maintenanceMode Boolean  @default(false)
+  maintenanceMsg  String?
+  
+  // Features
+  enableRegistrations Boolean @default(true)
+  enableEmailNotifs   Boolean @default(true)
+  
+  updatedAt       DateTime @updatedAt
+  
+  @@map("platform_settings")
 }
