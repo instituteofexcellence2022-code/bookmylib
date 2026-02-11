@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { Sidebar, NavItem } from '@/components/layout/Sidebar'
 import { TopBar } from '@/components/layout/TopBar'
+import { BottomNav } from '@/components/layout/BottomNav'
 import { 
   LayoutDashboard, 
   Building2, 
@@ -55,10 +56,16 @@ export function AdminLayout({ children, user }: { children: React.ReactNode, use
           onLogout={logoutAdmin}
         />
         
-        <main className="flex-1 p-6 overflow-x-hidden">
+        <main className="flex-1 p-4 md:p-6 pb-28 md:pb-6 overflow-y-auto">
           {children}
         </main>
       </div>
+
+      <BottomNav
+        items={adminNavItems}
+        onMenuClick={() => setSidebarOpen(true)}
+        themeColor="blue"
+      />
     </div>
   )
 }
