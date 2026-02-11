@@ -18,14 +18,24 @@ function ManualCheckInModal({ onClose, onSuccess, currentBranchId }: { onClose: 
   const [marking, setMarking] = useState<string | null>(null)
 
   useEffect(() => {
-    getManualCheckInOptions().then(res => {
+    const load = async (coords?: { latitude: number, longitude: number }) => {
+      const res = await getManualCheckInOptions(coords ? { lat: coords.latitude, lng: coords.longitude } : undefined)
       if (res.success && res.branches) {
         setBranches(res.branches)
       } else {
         toast.error(res.error || "Failed to load branches")
       }
       setLoading(false)
-    })
+    }
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => load(pos.coords),
+        () => load(undefined),
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+      )
+    } else {
+      load(undefined)
+    }
   }, [])
 
   const handleCheckIn = async (branchId: string) => {
@@ -90,8 +100,8 @@ function ManualCheckInModal({ onClose, onSuccess, currentBranchId }: { onClose: 
             </div>
           ) : branches.length === 0 ? (
             <div className="text-center py-6 space-y-2">
-                <p className="text-gray-500">No active subscriptions found.</p>
-                <p className="text-xs text-gray-400">Please ensure you have an active plan.</p>
+                <p className="text-gray-500">No branches available.</p>
+                <p className="text-xs text-gray-400">Enable location or enroll at a library to proceed.</p>
             </div>
           ) : (
             <div className="space-y-3">

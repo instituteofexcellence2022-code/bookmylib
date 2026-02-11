@@ -114,19 +114,6 @@ export async function markStudentAttendance(studentId: string, action: 'check-in
 
     try {
         if (action === 'check-in') {
-            // Verify active/pending subscription for this branch
-             const subscription = await prisma.studentSubscription.findFirst({
-                where: {
-                    studentId: studentId,
-                    branchId: staff.branchId,
-                    status: { in: ['active', 'pending'] },
-                    endDate: { gte: new Date() }
-                }
-            })
-
-            if (!subscription) {
-                 return { success: false, error: 'No active subscription for this branch' }
-            }
             
             // Check if already checked in
             const existing = await prisma.attendance.findFirst({

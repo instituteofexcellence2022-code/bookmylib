@@ -15,6 +15,7 @@ import { QuoteCard } from '@/components/student/QuoteCard'
 import { DigitalIdCard } from '@/components/student/DigitalIdCard'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
+import { format } from 'date-fns'
 
 interface HomeClientProps {
   student: any
@@ -28,10 +29,12 @@ import { formatSeatNumber, getGreeting } from '@/lib/utils'
 
 export default function HomeClient({ student, stats, todayAttendance, quotes, likedQuoteIds }: HomeClientProps) {
   const router = useRouter()
-  // Prioritize active subscription, otherwise fall back to the most recent one (which might be pending)
-  const activeSubscription = student.subscriptions.find((s: any) => s.status === 'active') || student.subscriptions[0]
+  const now = new Date()
+  const activeNow = student.subscriptions.find((s: any) => s.status === 'active' && new Date(s.startDate) <= now && new Date(s.endDate) >= now)
+  const upcoming = student.subscriptions.find((s: any) => ['active', 'pending'].includes(s.status) && new Date(s.startDate) > now)
+  const activeSubscription = activeNow || upcoming || student.subscriptions[0]
   const isCheckedIn = !!todayAttendance && !todayAttendance.checkOut
-  const isPending = activeSubscription?.status === 'pending'
+  const isPending = !!activeSubscription && new Date(activeSubscription.startDate) > now
   
   // Use pre-calculated daysLeft from server to avoid hydration mismatch
   const daysLeft = stats.daysLeft || 0
@@ -77,7 +80,7 @@ export default function HomeClient({ student, stats, todayAttendance, quotes, li
               {isCheckedIn 
                 ? `Checked In • ${todayAttendance.branch.name}` 
                 : activeSubscription 
-                  ? (isPending ? `Pending Approval • ${activeSubscription.branch.name}` : `Not Checked In • ${activeSubscription.branch.name}`)
+                  ? (isPending ? `Starts on ${format(new Date(activeSubscription.startDate), 'dd MMM')} • ${activeSubscription.branch.name}` : `Not Checked In • ${activeSubscription.branch.name}`)
                   : 'No Active Plan'}
             </span>
           </div>
@@ -98,11 +101,11 @@ export default function HomeClient({ student, stats, todayAttendance, quotes, li
                 isPending ? 'text-amber-600 hover:bg-amber-50 cursor-not-allowed opacity-80' : 
                 'text-blue-600 hover:bg-blue-50'
               } shadow-lg border-transparent`}
-              onClick={() => !isPending && router.push('/student/attendance/scan')}
-              disabled={!activeSubscription || isPending}
+              onClick={() => router.push('/student/attendance/scan')}
+              disabled={false}
             >
               <QrCode className="mr-2 h-4 w-4" />
-              {isCheckedIn ? 'Check Out' : isPending ? 'Approval Pending' : 'Scan QR to Check In'}
+              {isCheckedIn ? 'Check Out' : isPending ? 'Starts Soon' : 'Scan QR to Check In'}
             </Button>
           </div>
         </div>
@@ -133,14 +136,14 @@ export default function HomeClient({ student, stats, todayAttendance, quotes, li
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400">Plan Status</p>
               <p className="text-lg font-bold text-gray-900 dark:text-white">
-                {isPending ? 'Under Review' : `${daysLeft} Days Left`}
+                {isPending ? `Starts on ${format(new Date(activeSubscription.startDate), 'dd MMM')}` : `${daysLeft} Days Left`}
               </p>
             </div>
             <div className={`text-xs font-medium ${
               isPending ? 'text-amber-600 dark:text-amber-400' :
-              daysLeft < 7 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
+              (daysLeft < 7 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400')
             }`}>
-              {isPending ? 'Waiting for staff' : daysLeft < 7 ? 'Renew Now' : 'Active'}
+              {isPending ? 'Scheduled' : (daysLeft < 7 ? 'Renew Now' : 'Active')}
             </div>
           </div>
         </CompactCard>

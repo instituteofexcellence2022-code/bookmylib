@@ -68,21 +68,6 @@ export async function markAttendance(qrCode: string, location?: { lat: number, l
         
         if (!branch) return { success: false, error: 'Invalid QR Code' }
 
-        // 2. Check active or pending subscription for this branch
-        const subscription = await prisma.studentSubscription.findFirst({
-            where: {
-                studentId: studentId,
-                branchId: branch.id,
-                status: { in: ['active', 'pending'] },
-                endDate: { gte: new Date() }
-            }
-        })
-
-        // if (!subscription) {
-        //     return { success: false, error: 'No active subscription for this branch' }
-        // }
-
-        // 3. Check for any open attendance (Check-in today without checkout)
         const today = new Date()
         today.setHours(0, 0, 0, 0)
         
@@ -118,12 +103,38 @@ export async function markAttendance(qrCode: string, location?: { lat: number, l
             revalidatePath('/student/home')
             revalidatePath('/student/attendance')
             revalidatePath('/student/attendance/history')
+            const subForSession = await prisma.studentSubscription.findFirst({
+                where: {
+                    studentId: studentId,
+                    branchId: branch.id,
+                    startDate: { lte: openAttendanceHere.checkIn },
+                    endDate: { gte: openAttendanceHere.checkIn }
+                },
+                include: { plan: true }
+            })
+            const checkOutMessages: string[] = []
+            if (subForSession?.plan?.hoursPerDay && duration > subForSession.plan.hoursPerDay * 60) {
+                const extra = duration - subForSession.plan.hoursPerDay * 60
+                const h = Math.floor(extra / 60)
+                const m = extra % 60
+                checkOutMessages.push(`Overstay alert (+${h}h ${m}m)`)
+            }
+            if (subForSession?.plan?.shiftEnd) {
+                const [endH, endM] = subForSession.plan.shiftEnd.split(':').map(Number)
+                const shiftEnd = new Date(openAttendanceHere.checkIn)
+                shiftEnd.setHours(endH || 0, endM || 0, 0, 0)
+                if (checkOutTime > shiftEnd) {
+                    const diff = Math.floor((checkOutTime.getTime() - shiftEnd.getTime()) / 60000)
+                    if (diff > 10) checkOutMessages.push(`Overstay alert (+${diff}m)`)
+                }
+            }
             return { 
                 success: true, 
                 type: 'check-out', 
                 branchName: branch.name,
                 timestamp: checkOutTime,
-                duration
+                duration,
+                message: checkOutMessages.join(' • ') || undefined
             }
         }
 
@@ -154,6 +165,31 @@ export async function markAttendance(qrCode: string, location?: { lat: number, l
              // We continue to check in at the new branch below...
         }
 
+        const subs = await prisma.studentSubscription.findMany({
+            where: { studentId: studentId, branchId: branch.id },
+            include: { plan: true },
+            orderBy: { startDate: 'desc' }
+        })
+        const now = new Date()
+        const activeNow = subs.find(s => s.status === 'active' && s.startDate <= now && s.endDate >= now)
+        const upcoming = subs.find(s => (s.status === 'active' || s.status === 'pending') && s.startDate > now)
+        const latest = subs[0]
+        const messages: string[] = []
+        if (!activeNow) {
+            if (!latest) {
+                messages.push('No plan purchased. Please purchase a plan')
+            } else if (upcoming) {
+                messages.push(`Plan starts on ${new Date(upcoming.startDate).toLocaleDateString()}`)
+            } else if (latest.endDate < now) {
+                messages.push('Your plan is expired')
+            }
+        } else {
+            const daysLeft = Math.ceil((new Date(activeNow.endDate).getTime() - now.getTime()) / 86400000)
+            if (daysLeft <= 7) messages.push(`Plan expiring soon (${daysLeft} days)`)
+            if (activeNow.plan?.hoursPerDay) messages.push(`Max ${activeNow.plan.hoursPerDay}h/day`)
+            if (activeNow.plan?.shiftEnd) messages.push(`Shift ends at ${activeNow.plan.shiftEnd}`)
+        }
+
         // Perform Checkin
         const checkInTime = new Date()
         await prisma.attendance.create({
@@ -175,7 +211,10 @@ export async function markAttendance(qrCode: string, location?: { lat: number, l
             type: 'check-in', 
             branchName: branch.name,
             timestamp: checkInTime,
-            message: openAttendanceOther ? `Checked out from ${openAttendanceOther.branch.name} and checked in here.` : undefined
+            message: [
+                ...(openAttendanceOther ? [`Checked out from ${openAttendanceOther.branch.name} and checked in here.`] : []),
+                ...messages
+            ].join(' • ') || undefined
         }
 
     } catch (error) {
@@ -444,7 +483,7 @@ export async function getAttendanceStats() {
     }
 }
 
-export async function getManualCheckInOptions() {
+export async function getManualCheckInOptions(location?: { lat: number, lng: number }) {
     const studentId = await getStudentSession()
     if (!studentId) return { success: false, error: 'Unauthorized' }
 
@@ -452,7 +491,7 @@ export async function getManualCheckInOptions() {
         const today = new Date()
         
         // 1. Get Active Subscriptions
-        const subscriptions = await prisma.studentSubscription.findMany({
+        const activeSubs = await prisma.studentSubscription.findMany({
             where: {
                 studentId,
                 status: 'active',
@@ -469,7 +508,7 @@ export async function getManualCheckInOptions() {
             }
         })
 
-        const branches = subscriptions.map(sub => ({
+        let branches = activeSubs.map(sub => ({
             id: sub.branch.id,
             name: sub.branch.name
         }))
@@ -499,7 +538,49 @@ export async function getManualCheckInOptions() {
             })
         }
 
-        // Deduplicate branches (in case of multiple subs to same branch or open attendance matches sub)
+        // 3. If no active subscriptions, include past enrollment branches (expired/pending)
+        if (branches.length === 0) {
+            const pastSubs = await prisma.studentSubscription.findMany({
+                where: { studentId },
+                include: {
+                    branch: {
+                        select: { id: true, name: true, latitude: true, longitude: true }
+                    }
+                },
+                orderBy: { startDate: 'desc' }
+            })
+            branches = pastSubs
+                .filter(sub => sub.branch && sub.branch.id)
+                .map(sub => ({ id: sub.branch.id, name: sub.branch.name }))
+        }
+
+        // 4. If still none and location provided, suggest nearest active branches
+        if (branches.length === 0 && location) {
+            const nearbyCandidates = await prisma.branch.findMany({
+                where: { isActive: true },
+                select: { id: true, name: true, latitude: true, longitude: true }
+            })
+            const R = 6371e3
+            const φ2 = location.lat * Math.PI/180
+            const λ2 = location.lng * Math.PI/180
+            const withDistance = nearbyCandidates
+                .filter(b => typeof b.latitude === 'number' && typeof b.longitude === 'number')
+                .map(b => {
+                    const φ1 = (b.latitude || 0) * Math.PI/180
+                    const λ1 = (b.longitude || 0) * Math.PI/180
+                    const Δφ = φ2 - φ1
+                    const Δλ = λ2 - λ1
+                    const a = Math.sin(Δφ/2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) ** 2
+                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+                    const distance = R * c
+                    return { id: b.id, name: b.name, distance }
+                })
+                .sort((a, b) => a.distance - b.distance)
+                .slice(0, 6) // top 6 branches
+            branches = withDistance.map(b => ({ id: b.id, name: b.name }))
+        }
+
+        // Deduplicate branches
         const uniqueBranches = Array.from(new Map(branches.map(b => [b.id, b])).values())
 
         return { success: true, branches: uniqueBranches }

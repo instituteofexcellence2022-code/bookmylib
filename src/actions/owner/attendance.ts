@@ -321,15 +321,10 @@ export async function verifyStudentQR(studentId: string, branchId: string) {
         const subscription = await prisma.studentSubscription.findFirst({
             where: {
                 studentId: studentId,
-                branchId: branchId,
-                status: 'active',
-                endDate: { gte: new Date() }
-            }
+                branchId: branchId
+            },
+            orderBy: { startDate: 'desc' }
         })
-
-        if (!subscription) {
-            return { success: false, error: 'No active subscription for this branch' }
-        }
 
         // 3. Logic similar to markAttendance but triggered by Owner
         const today = new Date()
@@ -409,7 +404,7 @@ export async function verifyStudentQR(studentId: string, branchId: string) {
                 date: checkInDate,
                 checkIn: checkInDate,
                 status: 'present',
-                libraryId: subscription.libraryId
+                libraryId: subscription?.libraryId || owner.libraryId
             }
         })
 
