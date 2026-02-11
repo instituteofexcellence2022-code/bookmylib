@@ -73,12 +73,11 @@ export async function approveSubscriptionRequest(data: ApproveSubscriptionData) 
         }
 
         // Determine Subscription Status based on Payment
-        // If payment is created and marked as 'succeeded', activate immediately.
-        // If payment is 'pending', set status to 'past_due' (waiting for payment).
-        // If no payment record created (manual approval), default to 'active'.
-        let subscriptionStatus = 'active'
-        if (shouldCreatePayment && paymentDetails?.status !== 'succeeded') {
-            subscriptionStatus = 'past_due'
+        // Only set ACTIVE when admin marks payment as 'succeeded'.
+        // Otherwise keep subscription in 'past_due' (waiting for payment).
+        let subscriptionStatus = 'past_due'
+        if (shouldCreatePayment && paymentDetails?.status === 'succeeded') {
+            subscriptionStatus = 'active'
         }
 
         // 4. Update Subscription
