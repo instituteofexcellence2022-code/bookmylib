@@ -108,6 +108,8 @@ const defaultInitialData: DashboardData = {
 
 const COLORS = ['#9333EA', '#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
 
+type DashboardTimeRange = 'Today' | 'Yesterday' | 'This Week' | 'Last Week' | 'This Month' | 'Last Month' | 'Custom Range'
+
 const WhatsAppButton = ({ phone, name, type, startDate, endDate, planName, isPresentToday }: { phone?: string | null, name: string, type?: 'expiring' | 'expired', startDate?: string | Date, endDate?: string | Date, planName?: string, isPresentToday?: boolean }) => {
   if (!phone) return null;
   const cleanPhone = phone.replace(/\D/g, '')
@@ -167,9 +169,11 @@ export default function DashboardClient({
   const [isLoading, setIsLoading] = useState(false)
   const [data, setData] = useState<DashboardData>(initialData || defaultInitialData)
   
-  const [timeRange, setTimeRange] = useState('Today')
+  const [timeRange, setTimeRange] = useState<DashboardTimeRange>('Today')
   const [selectedBranch, setSelectedBranch] = useState('All Branches')
   const [branches, setBranches] = useState<{id: string, name: string}[]>(initialBranches)
+  const [customStart, setCustomStart] = useState<string>('')
+  const [customEnd, setCustomEnd] = useState<string>('')
   
   // Tab State
   const [expiringSoonFilterDays, setExpiringSoonFilterDays] = useState('3')
@@ -242,7 +246,9 @@ export default function DashboardClient({
     try {
       setIsLoading(true)
       const branchId = branches.find(b => b.name === selectedBranch)?.id
-      const result = await getDashboardStats(branchId)
+      const startArg = timeRange === 'Custom Range' && customStart ? new Date(customStart) : undefined
+      const endArg = timeRange === 'Custom Range' && customEnd ? new Date(customEnd) : undefined
+      const result = await getDashboardStats(branchId, timeRange as any, startArg, endArg)
       if (result.success && result.data) {
         setData(result.data)
         setActivities(result.data.recentActivity)
@@ -264,7 +270,7 @@ export default function DashboardClient({
     } finally {
       setIsLoading(false)
     }
-  }, [selectedBranch, branches])
+  }, [selectedBranch, branches, timeRange, customStart, customEnd])
 
   // Effects for Tabs
   useEffect(() => {
@@ -315,6 +321,19 @@ export default function DashboardClient({
     fetchData()
   }, [selectedBranch, fetchData]) // Only fetch when branch changes (after first render)
 
+  // Refetch when time range changes
+  useEffect(() => {
+    if (isMounted) {
+      fetchData()
+    }
+  }, [timeRange, isMounted, fetchData])
+
+  useEffect(() => {
+    if (isMounted && timeRange === 'Custom Range' && customStart && customEnd) {
+      fetchData()
+    }
+  }, [customStart, customEnd, timeRange, isMounted, fetchData])
+
   const formatTrend = (trend: number) => {
     const isPositive = trend >= 0
     return (
@@ -346,11 +365,28 @@ export default function DashboardClient({
         <div className="flex items-center gap-3 w-full md:w-auto">
           <FilterSelect
             icon={Calendar}
-            options={['Today', 'This Week', 'Last Week', 'Last Month']}
+            options={['Today', 'Yesterday', 'This Week', 'Last Week', 'This Month', 'Last Month', 'Custom Range']}
             value={timeRange}
-            onChange={setTimeRange}
+            onChange={(v) => setTimeRange(v as DashboardTimeRange)}
             className="flex-1 md:min-w-[140px] md:flex-none"
           />
+          {timeRange === 'Custom Range' && (
+            <div className="flex items-center gap-2">
+              <input 
+                type="date" 
+                value={customStart} 
+                onChange={(e) => setCustomStart(e.target.value)} 
+                className="text-xs border bg-white dark:bg-gray-800 rounded-md px-2 py-1 outline-none"
+              />
+              <span className="text-xs text-gray-500">to</span>
+              <input 
+                type="date" 
+                value={customEnd} 
+                onChange={(e) => setCustomEnd(e.target.value)} 
+                className="text-xs border bg-white dark:bg-gray-800 rounded-md px-2 py-1 outline-none"
+              />
+            </div>
+          )}
           <FilterSelect
             icon={Building2}
             options={['All Branches', ...branches.map(b => b.name)]}

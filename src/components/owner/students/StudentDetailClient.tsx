@@ -45,9 +45,8 @@ interface Subscription {
   status: string
   startDate: string | Date
   endDate: string | Date
-  finalAmount?: number | null
-  amountPaid?: number
-  plan: { name: string }
+  amount?: number
+  plan: { name: string; price?: number }
   branch: { name: string; id: string }
   seat?: { number: string } | null
   hasLocker?: boolean
@@ -74,9 +73,12 @@ interface Payment {
   transactionId?: string | null
   invoiceNo?: string | null
   description?: string | null
+  subscriptionId?: string | null
   subscription?: {
+    id: string
     plan: { 
         name: string
+        price?: number | null
         duration?: number | null
         durationUnit?: string | null
         hoursPerDay?: number | null
@@ -144,6 +146,19 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
     const router = useRouter()
     const searchParams = useSearchParams()
     
+    const paidBySubscription = useMemo(() => {
+        const map = new Map<string, number>()
+        for (const p of (student.payments || [])) {
+            if (p.status === 'completed') {
+                const subId = p.subscriptionId || (p.subscription && p.subscription.id) || null
+                if (subId) {
+                    map.set(subId, (map.get(subId) || 0) + (p.amount || 0))
+                }
+            }
+        }
+        return map
+    }, [student.payments])
+
     const tabs = useMemo(() => [
         { id: 'profile', label: 'Profile', icon: User },
         { id: 'attendance', label: 'Attendance', icon: Clock },
@@ -727,7 +742,10 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                                             student.subscriptions.map((sub) => (
                                                 <tr key={sub.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
                                                     <td className="p-4 font-medium text-gray-900 dark:text-white">
-                                                        {sub.plan.name}
+                                                    {sub.plan.name}
+                                                    {typeof sub.plan.price === 'number' && (
+                                                        <div className="text-xs text-gray-500 font-normal">Price: ₹{Number(sub.plan.price).toFixed(2)}</div>
+                                                    )}
                                                         {sub.seat && <div className="text-xs text-gray-500 font-normal">Seat: {sub.seat.number}</div>}
                                                         {sub.hasLocker && (
                                                             <div className="text-xs text-purple-600 dark:text-purple-400 font-normal flex items-center gap-1 mt-0.5">
@@ -738,7 +756,7 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                                                     <td className="p-4 text-gray-500">{sub.branch.name}</td>
                                                     <td className="p-4 text-gray-500">{format(new Date(sub.startDate), 'PP')}</td>
                                                     <td className="p-4 text-gray-500">{format(new Date(sub.endDate), 'PP')}</td>
-                                                    <td className="p-4 text-gray-900 dark:text-white font-medium">₹{(sub.finalAmount || sub.amountPaid || 0).toFixed(2)}</td>
+                                                <td className="p-4 text-gray-900 dark:text-white font-medium">₹{(paidBySubscription.get(sub.id) || 0).toFixed(2)}</td>
                                                     <td className="p-4">
                                                         <span className={`capitalize px-2 py-0.5 rounded text-xs font-medium ${
                                                             sub.status === 'active' ? 'bg-green-100 text-green-700' : 

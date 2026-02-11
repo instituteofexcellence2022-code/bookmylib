@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { cookies } from 'next/headers'
-import { startOfMonth, endOfMonth, subMonths, format, startOfDay, endOfDay, addDays, subDays } from 'date-fns'
+import { startOfMonth, endOfMonth, subMonths, format, startOfDay, endOfDay, addDays, subDays, startOfWeek, endOfWeek, subWeeks, differenceInCalendarDays } from 'date-fns'
 import { formatRelativeTime } from '@/lib/utils'
 import { getAuthenticatedOwner } from '@/lib/auth/owner'
 
@@ -187,7 +187,12 @@ export async function getExpiredSubscriptions(
     }
 }
 
-export async function getDashboardStats(branchId?: string) {
+export async function getDashboardStats(
+  branchId?: string, 
+  timeRange?: 'Today' | 'Yesterday' | 'This Week' | 'Last Week' | 'This Month' | 'Last Month' | 'Custom Range',
+  customStart?: Date | string,
+  customEnd?: Date | string
+) {
   const owner = await getAuthenticatedOwner()
   if (!owner) return { success: false, error: 'Unauthorized' }
 
@@ -202,6 +207,50 @@ export async function getDashboardStats(branchId?: string) {
     const endOfLastMonth = endOfMonth(subMonths(now, 1))
     const startOfToday = startOfDay(now)
     const endOfToday = endOfDay(now)
+
+    // Compute selected time range and previous comparison range
+    let rangeStart = startOfToday
+    let rangeEnd = endOfToday
+    let prevRangeStart = startOfDay(subDays(now, 1))
+    let prevRangeEnd = endOfDay(subDays(now, 1))
+
+    const effectiveRange = timeRange || 'Today'
+    if (effectiveRange === 'Custom Range' && customStart && customEnd) {
+        const cs = typeof customStart === 'string' ? new Date(customStart) : customStart
+        const ce = typeof customEnd === 'string' ? new Date(customEnd) : customEnd
+        rangeStart = startOfDay(cs)
+        rangeEnd = endOfDay(ce)
+        const days = differenceInCalendarDays(rangeEnd, rangeStart) + 1
+        prevRangeStart = startOfDay(subDays(rangeStart, days))
+        prevRangeEnd = endOfDay(subDays(rangeStart, 1))
+    } else if (effectiveRange === 'Yesterday') {
+        rangeStart = startOfDay(subDays(now, 1))
+        rangeEnd = endOfDay(subDays(now, 1))
+        prevRangeStart = startOfDay(subDays(now, 2))
+        prevRangeEnd = endOfDay(subDays(now, 2))
+    } else if (effectiveRange === 'This Week') {
+        rangeStart = startOfWeek(now)
+        rangeEnd = endOfWeek(now)
+        prevRangeStart = startOfWeek(subWeeks(now, 1))
+        prevRangeEnd = endOfWeek(subWeeks(now, 1))
+    } else if (effectiveRange === 'Last Week') {
+        const lw = subWeeks(now, 1)
+        rangeStart = startOfWeek(lw)
+        rangeEnd = endOfWeek(lw)
+        const pw = subWeeks(now, 2)
+        prevRangeStart = startOfWeek(pw)
+        prevRangeEnd = endOfWeek(pw)
+    } else if (effectiveRange === 'This Month') {
+        rangeStart = startOfMonth(now)
+        rangeEnd = endOfMonth(now)
+        prevRangeStart = startOfMonth(subMonths(now, 1))
+        prevRangeEnd = endOfMonth(subMonths(now, 1))
+    } else if (effectiveRange === 'Last Month') {
+        rangeStart = startOfMonth(subMonths(now, 1))
+        rangeEnd = endOfMonth(subMonths(now, 1))
+        prevRangeStart = startOfMonth(subMonths(now, 2))
+        prevRangeEnd = endOfMonth(subMonths(now, 2))
+    } // else defaults to Today
 
     // Helper for revenue
     const getRevenueForRange = (start: Date, end: Date) => 
@@ -227,11 +276,11 @@ export async function getDashboardStats(branchId?: string) {
 
     // Execute all independent queries in parallel
     const [
-        thisMonthRevenue,
-        lastMonthRevenue,
+        thisRangeRevenue,
+        prevRangeRevenue,
         activeStudents,
-        newSubsThisMonth,
-        newSubsLastMonth,
+        newSubsCurrentRange,
+        newSubsPrevRange,
         totalSeats,
         occupiedSeats,
         openIssues,
@@ -245,14 +294,14 @@ export async function getDashboardStats(branchId?: string) {
         recentlyExpired,
         ...chartResults
     ] = await Promise.all([
-        // 1. Revenue
-        getRevenueForRange(startOfCurrentMonth, endOfCurrentMonth),
-        getRevenueForRange(startOfLastMonth, endOfLastMonth),
+        // 1. Revenue for selected time range and previous comparable range
+        getRevenueForRange(rangeStart, rangeEnd),
+        getRevenueForRange(prevRangeStart, prevRangeEnd),
         
         // 2. Student Counts
         prisma.studentSubscription.count({ where: { libraryId, ...whereBranch, status: 'active', endDate: { gt: now } } }),
-        prisma.studentSubscription.count({ where: { libraryId, ...whereBranch, status: 'active', createdAt: { gte: startOfCurrentMonth, lte: endOfCurrentMonth } } }),
-        prisma.studentSubscription.count({ where: { libraryId, ...whereBranch, status: 'active', createdAt: { gte: startOfLastMonth, lte: endOfLastMonth } } }),
+        prisma.studentSubscription.count({ where: { libraryId, ...whereBranch, status: 'active', createdAt: { gte: rangeStart, lte: rangeEnd } } }),
+        prisma.studentSubscription.count({ where: { libraryId, ...whereBranch, status: 'active', createdAt: { gte: prevRangeStart, lte: prevRangeEnd } } }),
         
         // 3. Occupancy
         prisma.seat.count({ where: { libraryId, ...whereBranch } }),
@@ -264,19 +313,19 @@ export async function getDashboardStats(branchId?: string) {
         
         // 5. Activity Feed Sources
         prisma.payment.findMany({
-            where: { libraryId, ...whereBranch },
+            where: { libraryId, ...whereBranch, date: { gte: rangeStart, lte: rangeEnd } },
             take: 20,
             orderBy: { date: 'desc' },
             include: { student: { select: { name: true } }, branch: { select: { name: true } } }
         }),
         prisma.attendance.findMany({
-            where: { libraryId, ...whereBranch },
+            where: { libraryId, ...whereBranch, checkIn: { gte: rangeStart, lte: rangeEnd } },
             take: 20,
             orderBy: { checkIn: 'desc' },
             include: { student: { select: { name: true } }, branch: { select: { name: true } } }
         }),
         prisma.supportTicket.findMany({
-            where: { libraryId, ...whereBranch },
+            where: { libraryId, ...whereBranch, createdAt: { gte: rangeStart, lte: rangeEnd } },
             take: 10,
             orderBy: { createdAt: 'desc' },
             include: { student: { select: { name: true } }, branch: { select: { name: true } } }
@@ -298,7 +347,7 @@ export async function getDashboardStats(branchId?: string) {
         // 9. Revenue by Method
         prisma.payment.groupBy({
             by: ['method'],
-            where: { libraryId, ...whereBranch, status: 'completed', date: { gte: startOfCurrentMonth, lte: endOfCurrentMonth } },
+            where: { libraryId, ...whereBranch, status: 'completed', date: { gte: rangeStart, lte: rangeEnd } },
             _sum: { amount: true }
         }),
         
@@ -315,8 +364,8 @@ export async function getDashboardStats(branchId?: string) {
     ])
 
     // Process calculated values
-    const currentRevenue = thisMonthRevenue._sum.amount || 0
-    const lastRevenue = lastMonthRevenue._sum.amount || 0
+    const currentRevenue = thisRangeRevenue._sum.amount || 0
+    const lastRevenue = prevRangeRevenue._sum.amount || 0
     let revenueTrend = 0
     if (lastRevenue > 0) {
       revenueTrend = ((currentRevenue - lastRevenue) / lastRevenue) * 100
@@ -325,8 +374,8 @@ export async function getDashboardStats(branchId?: string) {
     }
 
     let studentTrend = 0
-    if (newSubsLastMonth > 0) {
-        studentTrend = ((newSubsThisMonth - newSubsLastMonth) / newSubsLastMonth) * 100
+    if (newSubsPrevRange > 0) {
+        studentTrend = ((newSubsCurrentRange - newSubsPrevRange) / newSubsPrevRange) * 100
     }
 
     const occupancyRate = totalSeats > 0 ? Math.round((occupiedSeats / totalSeats) * 100) : 0
