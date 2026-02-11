@@ -14,13 +14,9 @@ export async function getAdminProfile() {
             id: true,
             name: true,
             email: true,
-            phone: true,
-            image: true,
-            bio: true,
             role: true,
             createdAt: true,
-            lastLogin: true,
-            preferences: true
+            lastLogin: true
         }
     })
 
@@ -34,10 +30,7 @@ export async function updateAdminProfile(data: any) {
         await prisma.platformUser.update({
             where: { id: session.id },
             data: {
-                name: data.name,
-                phone: data.phone,
-                bio: data.bio,
-                image: data.image,
+                name: data.name
             }
         })
         

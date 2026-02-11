@@ -17,9 +17,6 @@ async function main() {
   const branch = branches[0]
   console.log('Branch ID:', branch.id)
   console.log('Name:', branch.name)
-  console.log('Description:', branch.description)
-  console.log('Library Rules:', branch.libraryRules)
-  console.log('Amenities:', branch.amenities)
 }
 
 main()

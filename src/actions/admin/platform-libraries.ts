@@ -108,7 +108,6 @@ export async function getLibraryDetails(id: string) {
                 include: {
                     _count: {
                         select: {
-                            students: true,
                             staff: true
                         }
                     }
@@ -261,15 +260,13 @@ export async function getLibraries(query?: string): Promise<LibraryWithStats[]> 
                 select: {
                     id: true,
                     name: true,
-                    city: true,
-                    managerName: true,
+                    address: true,
                     contactPhone: true,
                     seatCount: true,
                     isActive: true,
                     createdAt: true,
                     _count: {
                         select: {
-                            students: true,
                             staff: true
                         }
                     }
@@ -303,11 +300,11 @@ export async function getLibraries(query?: string): Promise<LibraryWithStats[]> 
             currentPeriodEnd: lib.subscription.currentPeriodEnd,
             plan: {
                 name: lib.subscription.plan.name,
-                maxActiveStudents: lib.subscription.plan.maxActiveStudents,
-                maxTotalStudents: lib.subscription.plan.maxTotalStudents,
-                maxSeats: lib.subscription.plan.maxSeats,
-                maxBranches: lib.subscription.plan.maxBranches,
-                maxStorage: lib.subscription.plan.maxStorage,
+                maxActiveStudents: 0, // TODO: Extract from features
+                maxTotalStudents: 0,
+                maxSeats: 0,
+                maxBranches: 0,
+                maxStorage: 0,
             }
         } : null,
         stats: {
@@ -318,14 +315,14 @@ export async function getLibraries(query?: string): Promise<LibraryWithStats[]> 
         branches: lib.branches.map(branch => ({
             id: branch.id,
             name: branch.name,
-            city: branch.city,
-            managerName: branch.managerName,
+            city: branch.address, // Mapping address to city
+            managerName: null, // Not available
             contactPhone: branch.contactPhone,
             seatCount: branch.seatCount,
             isActive: branch.isActive,
             createdAt: branch.createdAt,
             stats: {
-                studentsCount: branch._count.students,
+                studentsCount: 0, // Not available
                 staffCount: branch._count.staff
             }
         }))

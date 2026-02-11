@@ -21,7 +21,16 @@ export async function getAdminDashboardStats() {
         prisma.librarySubscription.findMany({
             where: { status: 'active' },
             include: { plan: true }
-        }).then(subs => subs.reduce((acc, sub) => acc + sub.plan.priceMonthly, 0))
+        }).then(subs => subs.reduce((acc, sub) => {
+            const duration = sub.currentPeriodEnd.getTime() - sub.currentPeriodStart.getTime()
+            const isYearly = duration > 40 * 24 * 60 * 60 * 1000 // > 40 days
+            
+            if (isYearly) {
+                return acc + (sub.plan.priceYearly / 12)
+            } else {
+                return acc + sub.plan.priceMonthly
+            }
+        }, 0))
     ])
 
     return {

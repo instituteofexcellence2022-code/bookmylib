@@ -12,7 +12,6 @@ export async function getBranchDetails(branchId: string) {
         include: {
             _count: {
                 select: {
-                    students: true,
                     staff: true,
                     seats: true,
                     lockers: true

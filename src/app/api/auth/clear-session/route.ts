@@ -16,6 +16,9 @@ export async function GET(request: NextRequest) {
   } else if (role === 'student') {
     await deleteSession('student')
     redirect(callbackUrl || '/student/login')
+  } else if (role === 'admin') {
+    await deleteSession('admin')
+    redirect(callbackUrl || '/admin/login')
   }
 
   // Fallback

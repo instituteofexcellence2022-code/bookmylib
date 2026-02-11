@@ -21,10 +21,13 @@ export async function getAuthenticatedAdmin() {
       name: true,
       email: true,
       role: true,
-      image: true,
       // exclude password
     }
   })
+
+  if (!admin) {
+    redirect('/api/auth/clear-session?role=admin')
+  }
 
   return admin
 }

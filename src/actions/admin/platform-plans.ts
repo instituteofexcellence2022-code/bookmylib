@@ -30,7 +30,7 @@ export type PlanFormData = z.infer<typeof planSchema>
 export async function getSaasPlans() {
     await requireAdmin()
     return prisma.saasPlan.findMany({
-        orderBy: { sortOrder: 'asc' },
+        orderBy: { priceMonthly: 'asc' },
         include: {
             _count: {
                 select: { subscriptions: true }
@@ -47,15 +47,30 @@ export async function createSaasPlan(data: PlanFormData) {
     try {
         await prisma.saasPlan.create({
             data: {
-                ...validated,
-                features: validated.features || {}
+                name: validated.name,
+                slug: validated.slug,
+                description: validated.description,
+                priceMonthly: validated.priceMonthly,
+                priceYearly: validated.priceYearly,
+                trialDays: validated.trialDays,
+                isPopular: validated.isPopular,
+                sortOrder: validated.sortOrder,
+                maxBranches: validated.maxBranches,
+                maxActiveStudents: validated.maxActiveStudents,
+                maxTotalStudents: validated.maxTotalStudents,
+                maxSeats: validated.maxSeats,
+                maxStorage: validated.maxStorage,
+                maxStaff: validated.maxStaff,
+                maxEmailsMonthly: validated.maxEmailsMonthly,
+                maxSmsMonthly: validated.maxSmsMonthly,
+                features: validated.features
             }
         })
         revalidatePath('/admin/plans')
         return { success: true }
     } catch (error: any) {
         if (error.code === 'P2002') {
-            return { success: false, error: 'Slug must be unique' }
+            return { success: false, error: 'Plan already exists' }
         }
         return { success: false, error: error.message }
     }
@@ -65,12 +80,28 @@ export async function updateSaasPlan(id: string, data: Partial<PlanFormData>) {
     await requireAdmin()
     
     try {
+        const updateData: any = {}
+        if (data.name) updateData.name = data.name
+        if (data.slug) updateData.slug = data.slug
+        if (data.description) updateData.description = data.description
+        if (data.priceMonthly !== undefined) updateData.priceMonthly = data.priceMonthly
+        if (data.priceYearly !== undefined) updateData.priceYearly = data.priceYearly
+        if (data.trialDays !== undefined) updateData.trialDays = data.trialDays
+        if (data.isPopular !== undefined) updateData.isPopular = data.isPopular
+        if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder
+        if (data.maxBranches !== undefined) updateData.maxBranches = data.maxBranches
+        if (data.maxActiveStudents !== undefined) updateData.maxActiveStudents = data.maxActiveStudents
+        if (data.maxTotalStudents !== undefined) updateData.maxTotalStudents = data.maxTotalStudents
+        if (data.maxSeats !== undefined) updateData.maxSeats = data.maxSeats
+        if (data.maxStorage !== undefined) updateData.maxStorage = data.maxStorage
+        if (data.maxStaff !== undefined) updateData.maxStaff = data.maxStaff
+        if (data.maxEmailsMonthly !== undefined) updateData.maxEmailsMonthly = data.maxEmailsMonthly
+        if (data.maxSmsMonthly !== undefined) updateData.maxSmsMonthly = data.maxSmsMonthly
+        if (data.features !== undefined) updateData.features = data.features
+        
         await prisma.saasPlan.update({
             where: { id },
-            data: {
-                ...data,
-                features: data.features || undefined
-            }
+            data: updateData
         })
         revalidatePath('/admin/plans')
         return { success: true }

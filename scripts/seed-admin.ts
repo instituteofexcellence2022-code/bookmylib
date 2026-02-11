@@ -22,7 +22,9 @@ async function main() {
 
   console.log(`✅ Super Admin ready: ${email}`)
 
+  /*
   // 2. Create SaaS Plans
+  // TODO: Update SaaS Plans seeding to match the current schema (SaasPlan model)
   const plans = [
     {
       name: 'Free Trial',
@@ -68,6 +70,7 @@ async function main() {
   }
 
   console.log(`✅ SaaS Plans seeded: ${plans.map(p => p.name).join(', ')}`)
+  */
 }
 
 main()

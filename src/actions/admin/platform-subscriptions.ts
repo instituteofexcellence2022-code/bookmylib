@@ -45,7 +45,7 @@ export async function getSubscriptions(params: {
                     select: { id: true, name: true, subdomain: true }
                 },
                 plan: {
-                    select: { id: true, name: true, priceMonthly: true }
+                    select: { id: true, name: true, priceMonthly: true, priceYearly: true }
                 }
             },
             orderBy: { createdAt: 'desc' },
@@ -56,7 +56,10 @@ export async function getSubscriptions(params: {
     ])
     
     return {
-        subscriptions,
+        subscriptions: subscriptions.map(sub => ({
+            ...sub,
+            plan: sub.plan
+        })),
         total,
         pages: Math.ceil(total / limit)
     }
@@ -74,7 +77,7 @@ export async function exportSubscriptions(status?: string) {
         where,
         include: {
             library: {
-                select: { name: true, subdomain: true, contactEmail: true, contactPhone: true }
+                select: { name: true, subdomain: true }
             },
             plan: {
                 select: { name: true, priceMonthly: true, priceYearly: true }
@@ -86,11 +89,11 @@ export async function exportSubscriptions(status?: string) {
     return subscriptions.map(sub => ({
         Library: sub.library.name,
         Subdomain: sub.library.subdomain,
-        Email: sub.library.contactEmail || '-',
-        Phone: sub.library.contactPhone || '-',
+        Email: '-', // Not available on Library directly
+        Phone: '-', // Not available on Library directly
         'SaaS Plan': sub.plan.name,
         Status: sub.status,
-        'Price (Monthly)': sub.plan.priceMonthly,
+        'Price': sub.plan.priceMonthly,
         'Current Period Start': sub.currentPeriodStart.toISOString().split('T')[0],
         'Current Period End': sub.currentPeriodEnd.toISOString().split('T')[0],
         'Created At': sub.createdAt.toISOString().split('T')[0]
@@ -106,7 +109,7 @@ export async function updateSubscriptionPlan(subscriptionId: string, planId: str
 
         await prisma.librarySubscription.update({
             where: { id: subscriptionId },
-            data: { planId }
+            data: { planId: planId }
         })
         
         revalidatePath('/admin/libraries')

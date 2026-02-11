@@ -122,11 +122,6 @@ export async function getPayments(params: {
                         name: true,
                         subdomain: true
                     }
-                },
-                plan: {
-                    select: {
-                        name: true
-                    }
                 }
             },
             orderBy: { createdAt: 'desc' },
@@ -137,7 +132,18 @@ export async function getPayments(params: {
     ])
     
     return {
-        payments: payments as PlatformPayment[],
+        payments: payments.map(p => ({
+            ...p,
+            subtotal: p.amount,
+            taxAmount: 0,
+            method: p.method || 'unknown',
+            description: null,
+            invoiceNumber: null,
+            paymentDate: p.createdAt,
+            billingStart: null,
+            billingEnd: null,
+            plan: null
+        })) as PlatformPayment[],
         total,
         pages: Math.ceil(total / limit)
     }
@@ -151,10 +157,10 @@ export async function getPaymentPlans() {
         select: { 
             id: true, 
             name: true, 
-            priceMonthly: true, 
-            priceYearly: true 
+            priceMonthly: true,
+            priceYearly: true
         },
-        orderBy: { sortOrder: 'asc' }
+        orderBy: { priceMonthly: 'asc' }
     })
 }
 
@@ -197,20 +203,12 @@ export async function createManualPayment(data: ManualPaymentData) {
         const payment = await prisma.saasPayment.create({
             data: {
                 libraryId: validated.libraryId,
-                planId: validated.planId || null,
                 amount: validated.amount,
-                subtotal: validated.subtotal || validated.amount,
-                taxAmount: validated.taxAmount || 0,
                 currency: 'INR',
                 status: validated.status,
                 method: validated.method,
                 gatewayId: validated.referenceId,
-                description: validated.description,
-                notes: validated.notes,
-                invoiceNumber,
-                paymentDate: validated.paymentDate,
-                billingStart: validated.billingStart,
-                billingEnd: validated.billingEnd,
+                // planId, subtotal, taxAmount, notes, invoiceNumber, billingStart/End not in schema
             }
         })
         
@@ -239,27 +237,22 @@ export async function exportPayments(status?: string) {
                     name: true,
                     subdomain: true
                 }
-            },
-            plan: {
-                select: {
-                    name: true
-                }
             }
         },
         orderBy: { createdAt: 'desc' }
     })
     
     return payments.map(p => ({
-        Invoice: p.invoiceNumber,
+        Invoice: '-',
         Library: p.library.name,
         Subdomain: p.library.subdomain,
-        'SaaS Plan': p.plan?.name || '-',
-        Date: p.paymentDate ? p.paymentDate.toISOString().split('T')[0] : p.createdAt.toISOString().split('T')[0],
+        'SaaS Plan': '-',
+        Date: p.createdAt.toISOString().split('T')[0],
         Amount: p.amount,
-        Tax: p.taxAmount || 0,
+        Tax: 0,
         Total: p.amount,
         Status: p.status,
         Method: p.method,
-        Description: p.description
+        Description: '-'
     }))
 }
