@@ -78,8 +78,8 @@ export default function StudentsPage() {
     }, [])
 
     // Fetch Students
-    const fetchStudents = useCallback(async () => {
-        setLoading(true)
+    const fetchStudents = useCallback(async (silent?: boolean) => {
+        if (!silent) setLoading(true)
         try {
             const result = await getOwnerStudents(filters)
             if (result.success && result.data) {
@@ -97,6 +97,22 @@ export default function StudentsPage() {
 
     useEffect(() => {
         fetchStudents()
+    }, [fetchStudents])
+
+    useEffect(() => {
+        const intervalId = setInterval(() => {
+            fetchStudents(true)
+        }, 10000)
+        const onVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                fetchStudents(true)
+            }
+        }
+        document.addEventListener('visibilitychange', onVisibility)
+        return () => {
+            clearInterval(intervalId)
+            document.removeEventListener('visibilitychange', onVisibility)
+        }
     }, [fetchStudents])
 
     return (

@@ -1,0 +1,4 @@
+feat(owner-students): add client-side auto refresh (10s interval + visibility)
+
+- Poll Students list every 10s in client component
+- Refresh when tab becomes visible to capture revalidated data
