@@ -51,6 +51,7 @@ export const AnimatedButton = ({
   'data-testid': testId,
   ...props
 }: AnimatedButtonProps) => {
+  const asChild = (props as { asChild?: boolean }).asChild === true
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     if (disabled || isLoading) {
       event.preventDefault()
@@ -138,33 +139,35 @@ export const AnimatedButton = ({
           )}
         </>
       ) : (
-        <>
-          {icon && iconPosition === 'left' && IconComponent && (
-            <IconComponent className={cn(
-              {
-                'w-3 h-3': size === 'xs',
-                'w-4 h-4': size === 'sm' || size === 'md',
-                'w-5 h-5': size === 'lg',
-                'w-6 h-6': size === 'xl',
-              },
-              'mr-2'
-            )} />
-          )}
-          
-          {children}
-          
-          {icon && iconPosition === 'right' && IconComponent && (
-            <IconComponent className={cn(
-              {
-                'w-3 h-3': size === 'xs',
-                'w-4 h-4': size === 'sm' || size === 'md',
-                'w-5 h-5': size === 'lg',
-                'w-6 h-6': size === 'xl',
-              },
-              'ml-2'
-            )} />
-          )}
-        </>
+        asChild ? (
+          children
+        ) : (
+          <>
+            {icon && iconPosition === 'left' && IconComponent && (
+              <IconComponent className={cn(
+                {
+                  'w-3 h-3': size === 'xs',
+                  'w-4 h-4': size === 'sm' || size === 'md',
+                  'w-5 h-5': size === 'lg',
+                  'w-6 h-6': size === 'xl',
+                },
+                'mr-2'
+              )} />
+            )}
+            {children}
+            {icon && iconPosition === 'right' && IconComponent && (
+              <IconComponent className={cn(
+                {
+                  'w-3 h-3': size === 'xs',
+                  'w-4 h-4': size === 'sm' || size === 'md',
+                  'w-5 h-5': size === 'lg',
+                  'w-6 h-6': size === 'xl',
+                },
+                'ml-2'
+              )} />
+            )}
+          </>
+        )
       )}
       </Button>
     </ComponentErrorBoundary>

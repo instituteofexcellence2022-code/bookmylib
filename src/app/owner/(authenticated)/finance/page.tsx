@@ -1,6 +1,9 @@
 import React, { Suspense } from 'react'
 import { FinanceTabsClient } from '@/components/owner/finance/FinanceTabsClient'
 import { FinanceResetButton } from '@/components/owner/finance/FinanceResetButton'
+import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { Icon } from '@/components/ui/Icon'
+import Link from 'next/link'
 
 export default function RevenuePage() {
   return (
@@ -11,7 +14,21 @@ export default function RevenuePage() {
           <p className="text-sm text-gray-500 mt-1">Monitor your library's financial performance.</p>
         </div>
         <Suspense>
-          <FinanceResetButton />
+          <div className="flex items-center gap-2">
+            <AnimatedButton 
+              asChild 
+              variant="purple" 
+              size="icon" 
+              icon="add" 
+              aria-label="Create Booking / Accept Payment"
+              className="shadow-sm"
+            >
+              <Link href="/owner/bookings?view=create&tab=existing">
+                <Icon name="add" size="md" />
+              </Link>
+            </AnimatedButton>
+            <FinanceResetButton />
+          </div>
         </Suspense>
       </div>
 

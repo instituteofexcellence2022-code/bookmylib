@@ -636,6 +636,7 @@ function SeatDetailModal({ seat, onClose, onDelete, onUpdate, actions }: any) {
   const [history, setHistory] = useState<any[]>([])
   const [eligibleStudents, setEligibleStudents] = useState<any[]>([])
   const [isLoadingData, setIsLoadingData] = useState(false)
+  const [assignSearch, setAssignSearch] = useState('')
 
   const isOccupied = seat.subscriptions && seat.subscriptions.length > 0
   const occupant = isOccupied ? seat.subscriptions[0].student : null
@@ -656,6 +657,17 @@ function SeatDetailModal({ seat, onClose, onDelete, onUpdate, actions }: any) {
     }
     fetchData()
   }, [activeTab, seat.id, isOccupied, isMaintenance, actions])
+
+  const filteredEligibleStudents = useMemo(() => {
+    const q = assignSearch.trim().toLowerCase()
+    if (!q) return eligibleStudents
+    return eligibleStudents.filter((s: any) => {
+      const name = s.student?.name?.toLowerCase() || ''
+      const email = s.student?.email?.toLowerCase() || ''
+      const phone = s.student?.phone || ''
+      return name.includes(q) || email.includes(q) || phone.includes(assignSearch)
+    })
+  }, [eligibleStudents, assignSearch])
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -862,6 +874,17 @@ function SeatDetailModal({ seat, onClose, onDelete, onUpdate, actions }: any) {
                     <p className="text-xs text-gray-500">Only showing students with active subscriptions who don't have a seat assigned.</p>
                 </div>
                 
+                <div className="relative mb-2">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by name, phone, email"
+                    value={assignSearch}
+                    onChange={(e) => setAssignSearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                  />
+                </div>
+                
                 {isLoadingData ? (
                     <p className="text-center text-gray-500 py-4">Loading students...</p>
                 ) : eligibleStudents.length === 0 ? (
@@ -871,24 +894,30 @@ function SeatDetailModal({ seat, onClose, onDelete, onUpdate, actions }: any) {
                     </div>
                 ) : (
                     <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                        {eligibleStudents.map((s: any) => (
-                            <button 
-                                key={s.id} 
-                                onClick={() => handleAssign(s.id)}
-                                className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                        {filteredEligibleStudents.length === 0 ? (
+                          <div className="text-center py-6 text-gray-500">
+                            <p>No students match your search</p>
+                          </div>
+                        ) : (
+                          filteredEligibleStudents.map((s: any) => (
+                            <button
+                              key={s.id}
+                              onClick={() => handleAssign(s.id)}
+                              className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden text-xs">
-                                        {s.student.image ? <img src={s.student.image} alt="" /> : <span className="flex items-center justify-center h-full font-bold text-gray-500">{s.student.name[0]}</span>}
-                                    </div>
-                                    <div className="text-left">
-                                        <p className="text-sm font-medium">{s.student.name}</p>
-                                        <p className="text-xs text-gray-500">{s.plan.name}</p>
-                                    </div>
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden text-xs">
+                                  {s.student.image ? <img src={s.student.image} alt="" /> : <span className="flex items-center justify-center h-full font-bold text-gray-500">{s.student.name[0]}</span>}
                                 </div>
-                                <Plus className="w-4 h-4 text-purple-600" />
+                                <div className="text-left">
+                                  <p className="text-sm font-medium">{s.student.name}</p>
+                                  <p className="text-xs text-gray-500">{s.plan.name}</p>
+                                </div>
+                              </div>
+                              <Plus className="w-4 h-4 text-purple-600" />
                             </button>
-                        ))}
+                          ))
+                        )}
                     </div>
                 )}
             </div>
