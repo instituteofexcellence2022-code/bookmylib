@@ -129,7 +129,7 @@ export async function getLibraryDetails(id: string) {
     return library
 }
 
-export async function updateLibrary(id: string, data: { name?: string, contactEmail?: string, contactPhone?: string, address?: string }) {
+export async function updateLibrary(id: string, data: { name?: string, contactEmail?: string, contactPhone?: string, address?: string, website?: string }) {
     await requireAdmin()
     
     try {

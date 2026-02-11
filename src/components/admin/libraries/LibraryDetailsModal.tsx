@@ -76,7 +76,8 @@ export function LibraryDetailsModal({ libraryId, isOpen, onClose }: LibraryDetai
                 name: data.name,
                 contactEmail: data.contactEmail || '',
                 contactPhone: data.contactPhone || '',
-                address: data.address || ''
+                address: data.address || '',
+                website: data.website || ''
             })
             
             if (data.subscription) {
@@ -211,6 +212,21 @@ export function LibraryDetailsModal({ libraryId, isOpen, onClose }: LibraryDetai
                             }`}>
                                 {library.isActive ? 'Active' : 'Inactive'}
                             </span>
+                            <a
+                                href={`https://${library.subdomain}.lms-platform.com`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2 py-1 text-xs font-medium border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                            >
+                                Open
+                            </a>
+                            <button
+                                onClick={() => navigator.clipboard.writeText(`${library.subdomain}.lms-platform.com`)}
+                                className="px-2 py-1 text-xs font-medium border rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                                title="Copy URL"
+                            >
+                                Copy URL
+                            </button>
                             <button 
                                 onClick={handleToggleStatus}
                                 className={`p-2 rounded-lg transition-colors ${
@@ -261,6 +277,27 @@ export function LibraryDetailsModal({ libraryId, isOpen, onClose }: LibraryDetai
                                             <InfoRow label="Subdomain" value={library.subdomain} icon={<Globe size={14} />} />
                                             <InfoRow label="Created At" value={format(new Date(library.createdAt), 'PPP')} icon={<Calendar size={14} />} />
                                             <InfoRow label="Status" value={library.isActive ? 'Active' : 'Inactive'} icon={<Activity size={14} />} />
+                                            <InfoRow label="Email" value={library.contactEmail || 'N/A'} icon={<Mail size={14} />} />
+                                            <InfoRow label="Phone" value={library.contactPhone || 'N/A'} icon={<Phone size={14} />} />
+                                            <InfoRow label="Address" value={library.address || 'N/A'} icon={<MapPin size={14} />} />
+                                            <InfoRow label="Website" value={library.website || 'N/A'} icon={<Globe size={14} />} />
+                                            <InfoRow label="Owners" value={String(library.owners?.length || 0)} icon={<User size={14} />} />
+                                            <InfoRow label="Staff" value={String(library._count?.staff || 0)} icon={<User size={14} />} />
+                                            <InfoRow label="Branches" value={String(library._count?.branches || 0)} icon={<MapPin size={14} />} />
+                                        </div>
+                                        <div className="mt-6 flex gap-3">
+                                            <button 
+                                                onClick={() => setActiveTab('profile')}
+                                                className="px-3 py-1.5 text-sm font-medium border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+                                            >
+                                                Edit Profile
+                                            </button>
+                                            <button 
+                                                onClick={() => setActiveTab('subscription')}
+                                                className="px-3 py-1.5 text-sm font-medium border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+                                            >
+                                                Manage Subscription
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -301,6 +338,7 @@ export function LibraryDetailsModal({ libraryId, isOpen, onClose }: LibraryDetai
                                         <Field label="Contact Email" value={library.contactEmail || 'N/A'} isEditing={isEditing} onChange={(v: any) => setEditForm({...editForm, contactEmail: v})} formValue={editForm.contactEmail} icon={<Mail size={14} />} />
                                         <Field label="Contact Phone" value={library.contactPhone || 'N/A'} isEditing={isEditing} onChange={(v: any) => setEditForm({...editForm, contactPhone: v})} formValue={editForm.contactPhone} icon={<Phone size={14} />} />
                                         <Field label="Address" value={library.address || 'N/A'} isEditing={isEditing} onChange={(v: any) => setEditForm({...editForm, address: v})} formValue={editForm.address} icon={<MapPin size={14} />} fullWidth />
+                                        <Field label="Website" value={library.website || 'N/A'} isEditing={isEditing} onChange={(v: any) => setEditForm({...editForm, website: v})} formValue={editForm.website} icon={<Globe size={14} />} />
                                     </div>
                                 </div>
                             )}
@@ -533,8 +571,14 @@ export function LibraryDetailsModal({ libraryId, isOpen, onClose }: LibraryDetai
                                                         icon={<MapPin size={14} />} 
                                                     />
                                                     <LimitRow 
-                                                        label="Students" 
-                                                        limit={library.subscription.plan.maxStudents} 
+                                                        label="Active Students" 
+                                                        limit={library.subscription.plan.maxActiveStudents} 
+                                                        used={library._count?.students || 0}
+                                                        icon={<Users size={14} />} 
+                                                    />
+                                                    <LimitRow 
+                                                        label="Total Students" 
+                                                        limit={library.subscription.plan.maxTotalStudents} 
                                                         used={library._count?.students || 0}
                                                         icon={<Users size={14} />} 
                                                     />
@@ -549,6 +593,18 @@ export function LibraryDetailsModal({ libraryId, isOpen, onClose }: LibraryDetai
                                                         limit={`${library.subscription.plan.maxStorage}MB`} 
                                                         used="0MB" 
                                                         icon={<HardDrive size={14} />} 
+                                                    />
+                                                    <LimitRow 
+                                                        label="Emails / Month" 
+                                                        limit={library.subscription.plan.maxEmailsMonthly} 
+                                                        used={0} 
+                                                        icon={<Mail size={14} />} 
+                                                    />
+                                                    <LimitRow 
+                                                        label="SMS / Month" 
+                                                        limit={library.subscription.plan.maxSmsMonthly} 
+                                                        used={0} 
+                                                        icon={<Phone size={14} />} 
                                                     />
                                                 </div>
                                             </div>
