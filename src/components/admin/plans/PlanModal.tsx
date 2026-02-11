@@ -47,6 +47,18 @@ export function PlanModal({ isOpen, onClose, plan, mode }: PlanModalProps) {
         maxSmsMonthly: 100,
         features: {}
     })
+    const [priceMonthlyInput, setPriceMonthlyInput] = useState('')
+    const [priceYearlyInput, setPriceYearlyInput] = useState('')
+    const [trialDaysInput, setTrialDaysInput] = useState('')
+    const [sortOrderInput, setSortOrderInput] = useState('')
+    const [maxActiveStudentsInput, setMaxActiveStudentsInput] = useState('')
+    const [maxTotalStudentsInput, setMaxTotalStudentsInput] = useState('')
+    const [maxSeatsInput, setMaxSeatsInput] = useState('')
+    const [maxBranchesInput, setMaxBranchesInput] = useState('')
+    const [maxStaffInput, setMaxStaffInput] = useState('')
+    const [maxStorageInput, setMaxStorageInput] = useState('')
+    const [maxEmailsMonthlyInput, setMaxEmailsMonthlyInput] = useState('')
+    const [maxSmsMonthlyInput, setMaxSmsMonthlyInput] = useState('')
 
     useEffect(() => {
         if (plan && mode === 'edit') {
@@ -60,15 +72,27 @@ export function PlanModal({ isOpen, onClose, plan, mode }: PlanModalProps) {
                 isPopular: plan.isPopular || false,
                 sortOrder: plan.sortOrder || 0,
                 maxBranches: plan.maxBranches,
-                maxActiveStudents: plan.maxActiveStudents || 100,
-                maxTotalStudents: plan.maxTotalStudents || 500,
-                maxSeats: plan.maxSeats || 50,
+                maxActiveStudents: plan.maxActiveStudents,
+                maxTotalStudents: plan.maxTotalStudents,
+                maxSeats: plan.maxSeats,
                 maxStorage: plan.maxStorage,
                 maxStaff: plan.maxStaff,
-                maxEmailsMonthly: plan.maxEmailsMonthly || 1000,
-                maxSmsMonthly: plan.maxSmsMonthly || 100,
+                maxEmailsMonthly: plan.maxEmailsMonthly,
+                maxSmsMonthly: plan.maxSmsMonthly,
                 features: (plan.features as Record<string, boolean>) || {}
             })
+            setPriceMonthlyInput(String(plan.priceMonthly ?? ''))
+            setPriceYearlyInput(String(plan.priceYearly ?? ''))
+            setTrialDaysInput(String(plan.trialDays ?? ''))
+            setSortOrderInput(String(plan.sortOrder ?? ''))
+            setMaxActiveStudentsInput(String(plan.maxActiveStudents ?? ''))
+            setMaxTotalStudentsInput(String(plan.maxTotalStudents ?? ''))
+            setMaxSeatsInput(String(plan.maxSeats ?? ''))
+            setMaxBranchesInput(String(plan.maxBranches ?? ''))
+            setMaxStaffInput(String(plan.maxStaff ?? ''))
+            setMaxStorageInput(String(plan.maxStorage ?? ''))
+            setMaxEmailsMonthlyInput(String(plan.maxEmailsMonthly ?? ''))
+            setMaxSmsMonthlyInput(String(plan.maxSmsMonthly ?? ''))
         } else {
             setFormData({
                 name: '',
@@ -76,22 +100,34 @@ export function PlanModal({ isOpen, onClose, plan, mode }: PlanModalProps) {
                 description: '',
                 priceMonthly: 0,
                 priceYearly: 0,
-                trialDays: 14, // Default trial
+                trialDays: 0,
                 isPopular: false,
                 sortOrder: 0,
                 maxBranches: 1,
-                maxActiveStudents: 100,
-                maxTotalStudents: 500,
-                maxSeats: 50,
-                maxStorage: 512,
-                maxStaff: 2,
-                maxEmailsMonthly: 1000,
-                maxSmsMonthly: 100,
+                maxActiveStudents: 1,
+                maxTotalStudents: 1,
+                maxSeats: 1,
+                maxStorage: 1,
+                maxStaff: 1,
+                maxEmailsMonthly: 0,
+                maxSmsMonthly: 0,
                 features: {
                     whatsapp: false,
                     biometric: false
                 }
             })
+            setPriceMonthlyInput('')
+            setPriceYearlyInput('')
+            setTrialDaysInput('')
+            setSortOrderInput('')
+            setMaxActiveStudentsInput('')
+            setMaxTotalStudentsInput('')
+            setMaxSeatsInput('')
+            setMaxBranchesInput('')
+            setMaxStaffInput('')
+            setMaxStorageInput('')
+            setMaxEmailsMonthlyInput('')
+            setMaxSmsMonthlyInput('')
         }
     }, [plan, mode, isOpen])
 
@@ -100,9 +136,24 @@ export function PlanModal({ isOpen, onClose, plan, mode }: PlanModalProps) {
         setLoading(true)
 
         try {
+            const cleaned: PlanFormData = {
+                ...formData,
+                priceMonthly: parseFloat(priceMonthlyInput),
+                priceYearly: parseFloat(priceYearlyInput),
+                trialDays: parseInt(trialDaysInput),
+                sortOrder: parseInt(sortOrderInput),
+                maxActiveStudents: parseInt(maxActiveStudentsInput),
+                maxTotalStudents: parseInt(maxTotalStudentsInput),
+                maxSeats: parseInt(maxSeatsInput),
+                maxBranches: parseInt(maxBranchesInput),
+                maxStaff: parseInt(maxStaffInput),
+                maxStorage: parseInt(maxStorageInput),
+                maxEmailsMonthly: parseInt(maxEmailsMonthlyInput),
+                maxSmsMonthly: parseInt(maxSmsMonthlyInput),
+            }
             const result = mode === 'create' 
-                ? await createSaasPlan(formData)
-                : await updateSaasPlan(plan.id, formData)
+                ? await createSaasPlan(cleaned)
+                : await updateSaasPlan(plan.id, cleaned)
 
             if (result.success) {
                 toast.success(`Plan ${mode === 'create' ? 'created' : 'updated'} successfully`)
@@ -197,8 +248,11 @@ export function PlanModal({ isOpen, onClose, plan, mode }: PlanModalProps) {
                                     <input 
                                         type="number"
                                         className="w-20 p-1 text-sm border rounded-md dark:bg-gray-800 dark:border-gray-700"
-                                        value={formData.sortOrder}
-                                        onChange={e => setFormData({...formData, sortOrder: parseInt(e.target.value) || 0})}
+                                        placeholder=""
+                                        required
+                                        min={0}
+                                        value={sortOrderInput}
+                                        onChange={e => setSortOrderInput(e.target.value)}
                                     />
                                 </div>
                             </div>
@@ -213,13 +267,14 @@ export function PlanModal({ isOpen, onClose, plan, mode }: PlanModalProps) {
                                     <label className="text-xs font-medium text-gray-500">Monthly Price (₹)</label>
                                     <div className="relative">
                                         <span className="absolute left-3 top-2 text-gray-500">₹</span>
-                                        <input 
+                                    <input 
                                             type="number"
                                             required
                                             min="0"
+                                            placeholder="0"
                                             className="w-full p-2 pl-7 text-sm border rounded-md dark:bg-gray-800 dark:border-gray-700"
-                                            value={formData.priceMonthly}
-                                            onChange={e => setFormData({...formData, priceMonthly: parseFloat(e.target.value)})}
+                                            value={priceMonthlyInput}
+                                            onChange={e => setPriceMonthlyInput(e.target.value)}
                                         />
                                     </div>
                                 </div>
@@ -227,13 +282,14 @@ export function PlanModal({ isOpen, onClose, plan, mode }: PlanModalProps) {
                                     <label className="text-xs font-medium text-gray-500">Yearly Price (₹)</label>
                                     <div className="relative">
                                         <span className="absolute left-3 top-2 text-gray-500">₹</span>
-                                        <input 
+                                    <input 
                                             type="number"
                                             required
                                             min="0"
+                                            placeholder="0"
                                             className="w-full p-2 pl-7 text-sm border rounded-md dark:bg-gray-800 dark:border-gray-700"
-                                            value={formData.priceYearly}
-                                            onChange={e => setFormData({...formData, priceYearly: parseFloat(e.target.value)})}
+                                            value={priceYearlyInput}
+                                            onChange={e => setPriceYearlyInput(e.target.value)}
                                         />
                                     </div>
                                 </div>
@@ -244,9 +300,11 @@ export function PlanModal({ isOpen, onClose, plan, mode }: PlanModalProps) {
                                 <input 
                                     type="number"
                                     min="0"
+                                    required
                                     className="w-full p-2 text-sm border rounded-md dark:bg-gray-800 dark:border-gray-700"
-                                    value={formData.trialDays}
-                                    onChange={e => setFormData({...formData, trialDays: parseInt(e.target.value)})}
+                                    placeholder=""
+                                    value={trialDaysInput}
+                                    onChange={e => setTrialDaysInput(e.target.value)}
                                 />
                                 <p className="text-[10px] text-gray-400">Set to 0 for no trial.</p>
                             </div>
@@ -262,8 +320,11 @@ export function PlanModal({ isOpen, onClose, plan, mode }: PlanModalProps) {
                                 <input 
                                     type="number"
                                     className="w-full p-2 text-sm border rounded-md dark:bg-gray-800 dark:border-gray-700"
-                                    value={formData.maxActiveStudents}
-                                    onChange={e => setFormData({...formData, maxActiveStudents: parseInt(e.target.value)})}
+                                    placeholder=""
+                                    required
+                                    min={1}
+                                    value={maxActiveStudentsInput}
+                                    onChange={e => setMaxActiveStudentsInput(e.target.value)}
                                 />
                             </div>
                             <div className="space-y-1">
@@ -271,8 +332,11 @@ export function PlanModal({ isOpen, onClose, plan, mode }: PlanModalProps) {
                                 <input 
                                     type="number"
                                     className="w-full p-2 text-sm border rounded-md dark:bg-gray-800 dark:border-gray-700"
-                                    value={formData.maxTotalStudents}
-                                    onChange={e => setFormData({...formData, maxTotalStudents: parseInt(e.target.value)})}
+                                    placeholder=""
+                                    required
+                                    min={1}
+                                    value={maxTotalStudentsInput}
+                                    onChange={e => setMaxTotalStudentsInput(e.target.value)}
                                 />
                             </div>
                             <div className="space-y-1">
@@ -280,8 +344,11 @@ export function PlanModal({ isOpen, onClose, plan, mode }: PlanModalProps) {
                                 <input 
                                     type="number"
                                     className="w-full p-2 text-sm border rounded-md dark:bg-gray-800 dark:border-gray-700"
-                                    value={formData.maxSeats}
-                                    onChange={e => setFormData({...formData, maxSeats: parseInt(e.target.value)})}
+                                    placeholder=""
+                                    required
+                                    min={1}
+                                    value={maxSeatsInput}
+                                    onChange={e => setMaxSeatsInput(e.target.value)}
                                 />
                             </div>
                             <div className="space-y-1">
@@ -289,8 +356,11 @@ export function PlanModal({ isOpen, onClose, plan, mode }: PlanModalProps) {
                                 <input 
                                     type="number"
                                     className="w-full p-2 text-sm border rounded-md dark:bg-gray-800 dark:border-gray-700"
-                                    value={formData.maxBranches}
-                                    onChange={e => setFormData({...formData, maxBranches: parseInt(e.target.value)})}
+                                    placeholder=""
+                                    required
+                                    min={1}
+                                    value={maxBranchesInput}
+                                    onChange={e => setMaxBranchesInput(e.target.value)}
                                 />
                             </div>
                             <div className="space-y-1">
@@ -298,8 +368,11 @@ export function PlanModal({ isOpen, onClose, plan, mode }: PlanModalProps) {
                                 <input 
                                     type="number"
                                     className="w-full p-2 text-sm border rounded-md dark:bg-gray-800 dark:border-gray-700"
-                                    value={formData.maxStaff}
-                                    onChange={e => setFormData({...formData, maxStaff: parseInt(e.target.value)})}
+                                    placeholder=""
+                                    required
+                                    min={1}
+                                    value={maxStaffInput}
+                                    onChange={e => setMaxStaffInput(e.target.value)}
                                 />
                             </div>
                             <div className="space-y-1">
@@ -307,8 +380,11 @@ export function PlanModal({ isOpen, onClose, plan, mode }: PlanModalProps) {
                                 <input 
                                     type="number"
                                     className="w-full p-2 text-sm border rounded-md dark:bg-gray-800 dark:border-gray-700"
-                                    value={formData.maxStorage}
-                                    onChange={e => setFormData({...formData, maxStorage: parseInt(e.target.value)})}
+                                    placeholder=""
+                                    required
+                                    min={1}
+                                    value={maxStorageInput}
+                                    onChange={e => setMaxStorageInput(e.target.value)}
                                 />
                             </div>
                             <div className="space-y-1">
@@ -316,8 +392,11 @@ export function PlanModal({ isOpen, onClose, plan, mode }: PlanModalProps) {
                                 <input 
                                     type="number"
                                     className="w-full p-2 text-sm border rounded-md dark:bg-gray-800 dark:border-gray-700"
-                                    value={formData.maxEmailsMonthly}
-                                    onChange={e => setFormData({...formData, maxEmailsMonthly: parseInt(e.target.value)})}
+                                    placeholder=""
+                                    required
+                                    min={0}
+                                    value={maxEmailsMonthlyInput}
+                                    onChange={e => setMaxEmailsMonthlyInput(e.target.value)}
                                 />
                             </div>
                             <div className="space-y-1">
@@ -325,8 +404,11 @@ export function PlanModal({ isOpen, onClose, plan, mode }: PlanModalProps) {
                                 <input 
                                     type="number"
                                     className="w-full p-2 text-sm border rounded-md dark:bg-gray-800 dark:border-gray-700"
-                                    value={formData.maxSmsMonthly}
-                                    onChange={e => setFormData({...formData, maxSmsMonthly: parseInt(e.target.value)})}
+                                    placeholder=""
+                                    required
+                                    min={0}
+                                    value={maxSmsMonthlyInput}
+                                    onChange={e => setMaxSmsMonthlyInput(e.target.value)}
                                 />
                             </div>
                         </div>

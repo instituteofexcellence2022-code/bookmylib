@@ -11,17 +11,17 @@ const planSchema = z.object({
     description: z.string().optional(),
     priceMonthly: z.number().min(0),
     priceYearly: z.number().min(0),
-    trialDays: z.number().int().min(0).default(0),
+    trialDays: z.number().int().min(0),
     isPopular: z.boolean().default(false),
-    sortOrder: z.number().int().default(0),
+    sortOrder: z.number().int().min(0),
     maxBranches: z.number().int().min(1),
-    maxActiveStudents: z.number().int().min(1).default(100),
-    maxTotalStudents: z.number().int().min(1).default(500),
-    maxSeats: z.number().int().min(1).default(50),
-    maxStorage: z.number().int().min(1), // MB
+    maxActiveStudents: z.number().int().min(1),
+    maxTotalStudents: z.number().int().min(1),
+    maxSeats: z.number().int().min(1),
+    maxStorage: z.number().int().min(1),
     maxStaff: z.number().int().min(1),
-    maxEmailsMonthly: z.number().int().min(0).default(1000),
-    maxSmsMonthly: z.number().int().min(0).default(100),
+    maxEmailsMonthly: z.number().int().min(0),
+    maxSmsMonthly: z.number().int().min(0),
     features: z.record(z.string(), z.boolean()).optional(),
 })
 
@@ -80,23 +80,27 @@ export async function updateSaasPlan(id: string, data: Partial<PlanFormData>) {
     await requireAdmin()
     
     try {
+        const current = await prisma.saasPlan.findUnique({ where: { id } })
+        if (!current) {
+            return { success: false, error: 'Plan not found' }
+        }
         const updateData: any = {}
         if (data.name) updateData.name = data.name
         if (data.slug) updateData.slug = data.slug
         if (data.description) updateData.description = data.description
-        if (data.priceMonthly !== undefined) updateData.priceMonthly = data.priceMonthly
-        if (data.priceYearly !== undefined) updateData.priceYearly = data.priceYearly
-        if (data.trialDays !== undefined) updateData.trialDays = data.trialDays
+        if (data.priceMonthly !== undefined && !Number.isNaN(data.priceMonthly)) updateData.priceMonthly = data.priceMonthly
+        if (data.priceYearly !== undefined && !Number.isNaN(data.priceYearly)) updateData.priceYearly = data.priceYearly
+        if (data.trialDays !== undefined && !Number.isNaN(data.trialDays)) updateData.trialDays = data.trialDays
         if (data.isPopular !== undefined) updateData.isPopular = data.isPopular
-        if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder
-        if (data.maxBranches !== undefined) updateData.maxBranches = data.maxBranches
-        if (data.maxActiveStudents !== undefined) updateData.maxActiveStudents = data.maxActiveStudents
-        if (data.maxTotalStudents !== undefined) updateData.maxTotalStudents = data.maxTotalStudents
-        if (data.maxSeats !== undefined) updateData.maxSeats = data.maxSeats
-        if (data.maxStorage !== undefined) updateData.maxStorage = data.maxStorage
-        if (data.maxStaff !== undefined) updateData.maxStaff = data.maxStaff
-        if (data.maxEmailsMonthly !== undefined) updateData.maxEmailsMonthly = data.maxEmailsMonthly
-        if (data.maxSmsMonthly !== undefined) updateData.maxSmsMonthly = data.maxSmsMonthly
+        if (data.sortOrder !== undefined && !Number.isNaN(data.sortOrder)) updateData.sortOrder = data.sortOrder
+        if (data.maxBranches !== undefined && !Number.isNaN(data.maxBranches)) updateData.maxBranches = data.maxBranches
+        if (data.maxActiveStudents !== undefined && !Number.isNaN(data.maxActiveStudents)) updateData.maxActiveStudents = data.maxActiveStudents
+        if (data.maxTotalStudents !== undefined && !Number.isNaN(data.maxTotalStudents)) updateData.maxTotalStudents = data.maxTotalStudents
+        if (data.maxSeats !== undefined && !Number.isNaN(data.maxSeats)) updateData.maxSeats = data.maxSeats
+        if (data.maxStorage !== undefined && !Number.isNaN(data.maxStorage)) updateData.maxStorage = data.maxStorage
+        if (data.maxStaff !== undefined && !Number.isNaN(data.maxStaff)) updateData.maxStaff = data.maxStaff
+        if (data.maxEmailsMonthly !== undefined && !Number.isNaN(data.maxEmailsMonthly)) updateData.maxEmailsMonthly = data.maxEmailsMonthly
+        updateData.maxSmsMonthly = (data.maxSmsMonthly !== undefined && !Number.isNaN(data.maxSmsMonthly)) ? data.maxSmsMonthly : current.maxSmsMonthly
         if (data.features !== undefined) updateData.features = data.features
         
         await prisma.saasPlan.update({

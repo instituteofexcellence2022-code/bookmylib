@@ -112,14 +112,14 @@ export function PlanList({ plans }: PlanListProps) {
                         </div>
 
                         <div className="space-y-3 mb-6 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg">
-                            <LimitItem label="Active Students" value={plan.maxActiveStudents || 100} />
-                            <LimitItem label="Total Students" value={plan.maxTotalStudents || 500} />
-                            <LimitItem label="Max Seats" value={plan.maxSeats || 50} />
+                            <LimitItem label="Active Students" value={plan.maxActiveStudents} />
+                            <LimitItem label="Total Students" value={plan.maxTotalStudents} />
+                            <LimitItem label="Max Seats" value={plan.maxSeats} />
                             <LimitItem label="Branches" value={plan.maxBranches} />
                             <LimitItem label="Staff Members" value={plan.maxStaff} />
-                            <LimitItem label="Storage" value={`${plan.maxStorage} MB`} />
-                            <LimitItem label="Emails / Month" value={plan.maxEmailsMonthly || 1000} />
-                            <LimitItem label="SMS / Month" value={plan.maxSmsMonthly || 100} />
+                            <LimitItem label="Storage" value={plan.maxStorage ? `${plan.maxStorage} MB` : undefined} />
+                            <LimitItem label="Emails / Month" value={plan.maxEmailsMonthly} />
+                            <LimitItem label="SMS / Month" value={plan.maxSmsMonthly} />
                         </div>
 
                         <div className="border-t border-gray-100 dark:border-gray-700 pt-4 mb-6 flex-1">
@@ -172,11 +172,11 @@ export function PlanList({ plans }: PlanListProps) {
     )
 }
 
-function LimitItem({ label, value }: { label: string, value: string | number }) {
+function LimitItem({ label, value }: { label: string, value: string | number | null | undefined }) {
     return (
         <div className="flex justify-between text-sm">
             <span className="text-gray-500 dark:text-gray-400">{label}</span>
-            <span className="font-medium text-gray-900 dark:text-white">{value}</span>
+            <span className="font-medium text-gray-900 dark:text-white">{value ?? '-'}</span>
         </div>
     )
 }
