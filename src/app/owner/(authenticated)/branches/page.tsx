@@ -19,6 +19,7 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { CompactCard } from '@/components/ui/AnimatedCard'
 import Link from 'next/link'
 import { getOwnerBranches } from '@/actions/branch'
+import { getPlatformSubscription } from '@/actions/owner/platform-subscription'
 import { toast } from 'sonner'
 
 // Types
@@ -50,6 +51,7 @@ export default function BranchesPage() {
   const [branches, setBranches] = useState<Branch[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [subStatus, setSubStatus] = useState<'loading' | 'active' | 'inactive'>('loading')
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -70,6 +72,22 @@ export default function BranchesPage() {
       }
     }
     fetchBranches()
+  }, [])
+
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      try {
+        const sub = await getPlatformSubscription()
+        if (sub && sub.status === 'active') {
+          setSubStatus('active')
+        } else {
+          setSubStatus('inactive')
+        }
+      } catch {
+        setSubStatus('inactive')
+      }
+    }
+    fetchSubscription()
   }, [])
 
   const filteredBranches = branches.filter(branch => {
@@ -97,12 +115,30 @@ export default function BranchesPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Branch Management</h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage and monitor all your library locations</p>
         </div>
-        <Link href="/owner/branches/add">
-          <AnimatedButton variant="primary" size="sm" icon="add">
-            Add New Branch
+        {subStatus === 'inactive' ? (
+          <AnimatedButton
+            variant="primary"
+            size="sm"
+            icon="add"
+            onClick={() => router.push('/owner/platform-subscription')}
+          >
+            Subscribe a Plan
           </AnimatedButton>
-        </Link>
+        ) : (
+          <Link href="/owner/branches/add">
+            <AnimatedButton variant="primary" size="sm" icon="add">
+              Add New Branch
+            </AnimatedButton>
+          </Link>
+        )}
       </div>
+
+      {subStatus === 'inactive' && (
+        <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800 flex items-center gap-2">
+           <AlertCircle className="w-5 h-5" />
+           <span>Platform subscription required. Subscribe a plan to manage branches.</span>
+        </div>
+      )}
 
       {error && (
         <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 flex items-center gap-2">

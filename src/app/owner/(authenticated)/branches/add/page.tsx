@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
@@ -50,6 +50,7 @@ import { FormTextarea } from '@/components/ui/FormTextarea'
 import { LibraryRulesInput } from '@/components/owner/LibraryRulesInput'
 
 import { createBranch } from '@/actions/branch'
+import { getPlatformSubscription } from '@/actions/owner/platform-subscription'
 import toast from 'react-hot-toast'
 
 const LocationPicker = dynamic(() => import('@/components/owner/LocationPicker'), {
@@ -79,6 +80,7 @@ export default function AddBranchPage() {
   const [isDetectingLocation, setIsDetectingLocation] = useState(false)
   const [showMapPicker, setShowMapPicker] = useState(false)
   const [availableAreas, setAvailableAreas] = useState<string[]>([])
+  const [subStatus, setSubStatus] = useState<'loading' | 'active' | 'inactive'>('loading')
   
   const initialFormData = {
     name: '',
@@ -466,6 +468,11 @@ export default function AddBranchPage() {
     setIsLoading(true)
 
     try {
+      if (subStatus !== 'active') {
+        toast.error('Please subscribe a platform plan before creating a branch')
+        setIsLoading(false)
+        return
+      }
       const formDataToSend = new FormData()
       formDataToSend.append('name', formData.name)
       
@@ -533,6 +540,22 @@ export default function AddBranchPage() {
     }
   }
 
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      try {
+        const sub = await getPlatformSubscription()
+        if (sub && sub.status === 'active') {
+          setSubStatus('active')
+        } else {
+          setSubStatus('inactive')
+        }
+      } catch {
+        setSubStatus('inactive')
+      }
+    }
+    fetchSubscription()
+  }, [])
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Header */}
@@ -550,6 +573,22 @@ export default function AddBranchPage() {
           Back
         </AnimatedButton>
       </div>
+
+      {subStatus === 'inactive' && (
+        <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CreditCard className="w-5 h-5" />
+            <span>Platform subscription required to create branches. Please subscribe a plan.</span>
+          </div>
+          <AnimatedButton
+            variant="primary"
+            size="sm"
+            onClick={() => router.push('/owner/platform-subscription')}
+          >
+            Subscribe a Plan
+          </AnimatedButton>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
