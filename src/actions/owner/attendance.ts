@@ -360,6 +360,7 @@ export async function verifyStudentQR(studentId: string, branchId: string) {
             })
 
             revalidatePath('/owner/attendance/logs')
+            revalidatePath('/owner/students')
             return { 
                 success: true, 
                 type: 'check-out', 
@@ -409,6 +410,7 @@ export async function verifyStudentQR(studentId: string, branchId: string) {
         })
 
         revalidatePath('/owner/attendance/logs')
+        revalidatePath('/owner/students')
         return { 
             success: true, 
             type: 'check-in', 

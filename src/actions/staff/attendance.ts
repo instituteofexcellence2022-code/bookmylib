@@ -136,6 +136,7 @@ export async function markStudentAttendance(studentId: string, action: 'check-in
                     status: 'present'
                 }
             })
+            revalidatePath('/owner/students')
         } else {
              // Check out
             const existing = await prisma.attendance.findFirst({
@@ -162,6 +163,7 @@ export async function markStudentAttendance(studentId: string, action: 'check-in
         }
 
         revalidatePath('/staff/attendance')
+        revalidatePath('/owner/students')
         return { success: true }
     } catch (error) {
          console.error('Error marking attendance:', error)

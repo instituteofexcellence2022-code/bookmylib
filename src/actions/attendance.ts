@@ -206,6 +206,7 @@ export async function markAttendance(qrCode: string, location?: { lat: number, l
         revalidatePath('/student/attendance')
         revalidatePath('/student/attendance/history')
         revalidatePath('/staff/attendance')
+        revalidatePath('/owner/students')
         return { 
             success: true, 
             type: 'check-in', 
