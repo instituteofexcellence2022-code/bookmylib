@@ -530,7 +530,7 @@ export default function DashboardClient({
                       axisLine={false} 
                       tickLine={false} 
                       tick={{ fill: '#6B7280', fontSize: 12 }}
-                      tickFormatter={(value) => `₹${value}`}
+                      tickFormatter={(value) => `₹${Math.round(Number(value))}`}
                     />
                     <Tooltip 
                       cursor={{ fill: 'transparent' }}

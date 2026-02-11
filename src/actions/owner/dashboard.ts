@@ -363,6 +363,12 @@ export async function getDashboardStats(
         ...chartPromises
     ])
 
+    // Attendance counts for trend comparison
+    const [attendanceCurrentRangeCount, attendancePrevRangeCount] = await Promise.all([
+        prisma.attendance.count({ where: { libraryId, ...whereBranch, checkIn: { gte: rangeStart, lte: rangeEnd } } }),
+        prisma.attendance.count({ where: { libraryId, ...whereBranch, checkIn: { gte: prevRangeStart, lte: prevRangeEnd } } })
+    ])
+
     // Process calculated values
     const currentRevenue = thisRangeRevenue._sum.amount || 0
     const lastRevenue = prevRangeRevenue._sum.amount || 0
@@ -378,8 +384,14 @@ export async function getDashboardStats(
         studentTrend = ((newSubsCurrentRange - newSubsPrevRange) / newSubsPrevRange) * 100
     }
 
-    const occupancyRate = totalSeats > 0 ? Math.round((occupiedSeats / totalSeats) * 100) : 0
-    const occupancyTrend = 0 
+    const occupancyRate = activeStudents > 0 ? Math.round((attendanceCurrentRangeCount / activeStudents) * 100) : 0
+    let occupancyTrend = 0
+    const prevOcc = activeStudents > 0 ? Math.round((attendancePrevRangeCount / activeStudents) * 100) : 0
+    if (prevOcc > 0) {
+        occupancyTrend = ((occupancyRate - prevOcc) / prevOcc) * 100
+    } else if (occupancyRate > 0) {
+        occupancyTrend = 100
+    }
 
     // Process Activities
     const activities = [

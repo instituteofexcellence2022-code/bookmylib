@@ -38,7 +38,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { sendReceiptEmail } from '@/actions/email'
 import { generateReceiptPDF, ReceiptData } from '@/lib/pdf-generator'
 import { verifyPayment } from '@/actions/payment'
-import { formatSeatNumber } from '@/lib/utils'
+import { formatSeatNumber, formatCurrency } from '@/lib/utils'
 
 interface Subscription {
   id: string
@@ -438,7 +438,7 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                     <div className="flex-1 flex items-center justify-around gap-2 lg:gap-6 border-t lg:border-t-0 lg:border-l border-gray-100 dark:border-gray-700 pt-3 lg:pt-0 pl-0 lg:pl-6 overflow-x-auto">
                         <div className="text-center">
                             <div className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">Spent</div>
-                            <div className="font-bold text-gray-900 dark:text-white text-lg">₹{stats.totalSpent.toFixed(2)}</div>
+                            <div className="font-bold text-gray-900 dark:text-white text-lg">{formatCurrency(stats.totalSpent)}</div>
                         </div>
                         <div className="w-px h-8 bg-gray-100 dark:bg-gray-700 hidden lg:block"></div>
                         <div className="text-center">
@@ -744,7 +744,7 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                                                     <td className="p-4 font-medium text-gray-900 dark:text-white">
                                                     {sub.plan.name}
                                                     {typeof sub.plan.price === 'number' && (
-                                                        <div className="text-xs text-gray-500 font-normal">Price: ₹{Number(sub.plan.price).toFixed(2)}</div>
+                                                        <div className="text-xs text-gray-500 font-normal">Price: {formatCurrency(Number(sub.plan.price))}</div>
                                                     )}
                                                         {sub.seat && <div className="text-xs text-gray-500 font-normal">Seat: {sub.seat.number}</div>}
                                                         {sub.hasLocker && (
@@ -756,7 +756,7 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                                                     <td className="p-4 text-gray-500">{sub.branch.name}</td>
                                                     <td className="p-4 text-gray-500">{format(new Date(sub.startDate), 'PP')}</td>
                                                     <td className="p-4 text-gray-500">{format(new Date(sub.endDate), 'PP')}</td>
-                                                <td className="p-4 text-gray-900 dark:text-white font-medium">₹{(paidBySubscription.get(sub.id) || 0).toFixed(2)}</td>
+                                                <td className="p-4 text-gray-900 dark:text-white font-medium">{formatCurrency(paidBySubscription.get(sub.id) || 0)}</td>
                                                     <td className="p-4">
                                                         <span className={`capitalize px-2 py-0.5 rounded text-xs font-medium ${
                                                             sub.status === 'active' ? 'bg-green-100 text-green-700' : 
@@ -812,7 +812,7 @@ export function StudentDetailClient({ student, stats }: StudentDetailClientProps
                                                     </td>
                                                     <td className="p-4 text-gray-500 capitalize">{pay.method.replace('_', ' ')}</td>
                                                     <td className="p-4 text-gray-500 font-mono text-xs">{pay.transactionId || '-'}</td>
-                                                    <td className="p-4 text-right font-medium text-gray-900 dark:text-white">₹{pay.amount.toFixed(2)}</td>
+                                                    <td className="p-4 text-right font-medium text-gray-900 dark:text-white">{formatCurrency(pay.amount)}</td>
                                                     <td className="p-4 text-center">
                                                         <span className={`capitalize px-2 py-0.5 rounded text-xs font-medium ${
                                                             pay.status === 'completed' ? 'bg-green-100 text-green-700' : 
