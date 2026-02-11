@@ -222,6 +222,32 @@ export async function createBooking(data: {
             if (!existingPayment) return { success: false as const, error: 'Payment record not found' }
         }
 
+        const platformSubscription = await prisma.librarySubscription.findUnique({
+            where: { libraryId: branch.libraryId },
+            include: { plan: true }
+        })
+        if (!platformSubscription || platformSubscription.status !== 'active') {
+            return { success: false, error: 'Platform subscription inactive' }
+        }
+        const activeSubsCount = await prisma.studentSubscription.count({
+            where: { libraryId: branch.libraryId, status: 'active', endDate: { gt: new Date() } }
+        })
+        let willActivateNow = 0
+        if (existingPayment && existingPayment.status === 'completed') {
+            willActivateNow = quantity
+        } else if (paymentDetails) {
+            willActivateNow = quantity
+        }
+        if (activeSubsCount + willActivateNow > (platformSubscription.plan.maxActiveStudents || 0)) {
+            return { success: false, error: 'Active student limit reached' }
+        }
+        const totalStudentsCount = await prisma.student.count({
+            where: { libraryId: branch.libraryId }
+        })
+        if (student.libraryId !== branch.libraryId && totalStudentsCount >= (platformSubscription.plan.maxTotalStudents || 0)) {
+            return { success: false, error: 'Total student limit reached' }
+        }
+
         // 6. Calculate Dates & Check Conflicts
         // Find latest active or pending subscription for this student & branch to chain dates
         const lastSubscription = await prisma.studentSubscription.findFirst({

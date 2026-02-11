@@ -371,6 +371,28 @@ export async function verifyPayment(paymentId: string, action: 'approve' | 'reje
                 }
             }
 
+            const platformSubscription = await tx.librarySubscription.findUnique({
+                where: { libraryId: updatedPayment.libraryId },
+                include: { plan: true }
+            })
+            if (!platformSubscription || platformSubscription.status !== 'active') {
+                throw new Error('Platform subscription inactive')
+            }
+            const activeSubsCount = await tx.studentSubscription.count({
+                where: { libraryId: updatedPayment.libraryId, status: 'active', endDate: { gt: new Date() } }
+            })
+            let toActivateCount = 0
+            if (activatedIds.length > 0) {
+                toActivateCount += activatedIds.length
+            } else if (updatedPayment.subscriptionId) {
+                toActivateCount += 1
+            } else if (updatedPayment.type === 'subscription' && updatedPayment.relatedId) {
+                toActivateCount += 1
+            }
+            if (activeSubsCount + toActivateCount > (platformSubscription.plan.maxActiveStudents || 0)) {
+                throw new Error('Active student limit reached')
+            }
+
             if (updatedPayment.subscriptionId && !activatedIds.includes(updatedPayment.subscriptionId)) {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const updateData: any = { status: 'active' }

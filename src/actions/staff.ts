@@ -75,6 +75,20 @@ export async function createStaff(formData: FormData) {
       return { success: false, error: 'Invalid branch selected' }
     }
 
+    const subscription = await prisma.librarySubscription.findUnique({
+      where: { libraryId: branch.libraryId },
+      include: { plan: true }
+    })
+    if (!subscription || subscription.status !== 'active') {
+      return { success: false, error: 'Platform subscription inactive' }
+    }
+    const currentStaffCount = await prisma.staff.count({
+      where: { libraryId: branch.libraryId }
+    })
+    if (currentStaffCount >= (subscription.plan.maxStaff || 0)) {
+      return { success: false, error: 'Staff limit reached' }
+    }
+
     // Handle file uploads
     const documents = []
 

@@ -225,6 +225,26 @@ export async function createBranch(formData: FormData) {
       return { success: false, error: 'Invalid UPI ID format (e.g. username@bank)' }
     }
 
+    const subscription = await prisma.librarySubscription.findUnique({
+      where: { libraryId: owner.libraryId },
+      include: { plan: true }
+    })
+    if (!subscription || subscription.status !== 'active') {
+      return { success: false, error: 'Platform subscription inactive' }
+    }
+    const currentBranchCount = await prisma.branch.count({
+      where: { libraryId: owner.libraryId }
+    })
+    if (currentBranchCount >= (subscription.plan.maxBranches || 0)) {
+      return { success: false, error: 'Branch limit reached' }
+    }
+    const currentSeatCount = await prisma.seat.count({
+      where: { libraryId: owner.libraryId }
+    })
+    if (seatCount > 0 && currentSeatCount + seatCount > (subscription.plan.maxSeats || 0)) {
+      return { success: false, error: 'Seat limit reached' }
+    }
+
     console.log('Creating branch:', { name, libraryRules })
 
     // Handle Image Uploads

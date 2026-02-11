@@ -60,6 +60,14 @@ export async function createLocker(data: {
   if (!owner) return { success: false, error: 'Unauthorized' }
 
   try {
+    const subscription = await prisma.librarySubscription.findUnique({
+      where: { libraryId: owner.libraryId },
+      include: { plan: true }
+    })
+    if (!subscription || subscription.status !== 'active') {
+      return { success: false, error: 'Platform subscription inactive' }
+    }
+
     const existing = await prisma.locker.findUnique({
       where: {
         branchId_number: {
@@ -109,6 +117,14 @@ export async function createBulkLockers(data: {
   if (!owner) return { success: false, error: 'Unauthorized' }
 
   try {
+    const subscription = await prisma.librarySubscription.findUnique({
+      where: { libraryId: owner.libraryId },
+      include: { plan: true }
+    })
+    if (!subscription || subscription.status !== 'active') {
+      return { success: false, error: 'Platform subscription inactive' }
+    }
+
     const lockersToCreate = []
     const existingLockers = []
 

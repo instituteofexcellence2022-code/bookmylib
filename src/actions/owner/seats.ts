@@ -57,6 +57,20 @@ export async function createSeat(data: {
   if (!owner) return { success: false, error: 'Unauthorized' }
 
   try {
+    const subscription = await prisma.librarySubscription.findUnique({
+      where: { libraryId: owner.libraryId },
+      include: { plan: true }
+    })
+    if (!subscription || subscription.status !== 'active') {
+      return { success: false, error: 'Platform subscription inactive' }
+    }
+    const currentSeatCount = await prisma.seat.count({
+      where: { libraryId: owner.libraryId }
+    })
+    if (currentSeatCount + 1 > (subscription.plan.maxSeats || 0)) {
+      return { success: false, error: 'Seat limit reached' }
+    }
+
     // Check if seat already exists in this branch
     const existing = await prisma.seat.findUnique({
       where: {
@@ -107,6 +121,17 @@ export async function createBulkSeats(data: {
   if (!owner) return { success: false, error: 'Unauthorized' }
 
   try {
+    const subscription = await prisma.librarySubscription.findUnique({
+      where: { libraryId: owner.libraryId },
+      include: { plan: true }
+    })
+    if (!subscription || subscription.status !== 'active') {
+      return { success: false, error: 'Platform subscription inactive' }
+    }
+    const currentSeatCount = await prisma.seat.count({
+      where: { libraryId: owner.libraryId }
+    })
+
     const seatsToCreate = []
     const existingSeats = []
 
@@ -139,6 +164,10 @@ export async function createBulkSeats(data: {
 
     if (seatsToCreate.length === 0) {
       return { success: false, error: 'All seats in this range already exist' }
+    }
+
+    if (currentSeatCount + seatsToCreate.length > (subscription.plan.maxSeats || 0)) {
+      return { success: false, error: 'Seat limit reached' }
     }
 
     await prisma.seat.createMany({

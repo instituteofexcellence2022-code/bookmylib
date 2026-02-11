@@ -218,6 +218,22 @@ export async function createStaffPayment(data: {
             if (!locker) return { success: false, error: 'Locker not found' }
         }
 
+        const platformSubscription = await prisma.librarySubscription.findUnique({
+            where: { libraryId: staff.libraryId },
+            include: { plan: true }
+        })
+        if (!platformSubscription || platformSubscription.status !== 'active') {
+            return { success: false, error: 'Platform subscription inactive' }
+        }
+        const activeSubsCount = await prisma.studentSubscription.count({
+            where: { libraryId: staff.libraryId, status: 'active', endDate: { gt: new Date() } }
+        })
+        if (data.type === 'subscription' && platformSubscription.plan.maxActiveStudents !== undefined) {
+            if (activeSubsCount + 1 > platformSubscription.plan.maxActiveStudents) {
+                return { success: false, error: 'Active student limit reached' }
+            }
+        }
+
         // Calculate Dates and Check Conflicts outside transaction
         let start = data.startDate ? new Date(data.startDate) : new Date()
         let end = new Date(start)
