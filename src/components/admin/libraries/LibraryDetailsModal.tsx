@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/Dialog'
 import { getLibraryDetails, updateLibrary, toggleLibraryStatus, createLibraryOwner } from '@/actions/admin/platform-libraries'
 import { getSaasPlans } from '@/actions/admin/platform-plans'
-import { updateSubscriptionPlan, updateSubscriptionStatus, updateSubscriptionPeriod } from '@/actions/admin/platform-subscriptions'
-import { Loader2, Building2, User, Mail, Phone, MapPin, CreditCard, Shield, Activity, Calendar, Globe, Power, Edit2, Save, X, LayoutDashboard, Plus, Lock, Check, AlertTriangle, HardDrive, Users, Star, CheckCircle2 } from 'lucide-react'
+import { updateSubscriptionPlan, updateSubscriptionStatus, updateSubscriptionPeriod, assignSubscription } from '@/actions/admin/platform-subscriptions'
+import { getLibraryNotes, addLibraryNote } from '@/actions/admin/platform-audit'
+import { Loader2, Building2, User, Mail, Phone, MapPin, CreditCard, Shield, Activity, Calendar, Globe, Power, Edit2, Save, X, LayoutDashboard, Plus, Lock, Check, AlertTriangle, HardDrive, Users, Star, CheckCircle2, FileText } from 'lucide-react'
 import { format, addMonths } from 'date-fns'
 import { toast } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
@@ -14,7 +15,7 @@ interface LibraryDetailsModalProps {
     onClose: () => void
 }
 
-type Tab = 'overview' | 'profile' | 'owner' | 'subscription'
+type Tab = 'overview' | 'profile' | 'owner' | 'subscription' | 'notes'
 
 export function LibraryDetailsModal({ libraryId, isOpen, onClose }: LibraryDetailsModalProps) {
     const [library, setLibrary] = useState<any>(null)
@@ -23,6 +24,10 @@ export function LibraryDetailsModal({ libraryId, isOpen, onClose }: LibraryDetai
     const [isEditing, setIsEditing] = useState(false)
     const [editForm, setEditForm] = useState<any>({})
     const [saving, setSaving] = useState(false)
+    const [notes, setNotes] = useState<any[]>([])
+    const [notesLoading, setNotesLoading] = useState(false)
+    const [newNote, setNewNote] = useState('')
+    const [savingNote, setSavingNote] = useState(false)
     
     // Owner Creation State
     const [newOwnerForm, setNewOwnerForm] = useState({ name: '', email: '', password: '' })
@@ -37,6 +42,12 @@ export function LibraryDetailsModal({ libraryId, isOpen, onClose }: LibraryDetai
         currentPeriodEnd: ''
     })
     const [savingSub, setSavingSub] = useState(false)
+    const [isAssigningSubscription, setIsAssigningSubscription] = useState(false)
+    const [assignForm, setAssignForm] = useState({
+        planId: '',
+        billingCycle: 'monthly' as 'monthly' | 'yearly'
+    })
+    const [savingAssign, setSavingAssign] = useState(false)
 
     const router = useRouter()
 
@@ -57,10 +68,19 @@ export function LibraryDetailsModal({ libraryId, isOpen, onClose }: LibraryDetai
         }
     }, [isOpen])
 
+    useEffect(() => {
+        if (isOpen && libraryId && activeTab === 'notes') {
+            fetchNotes()
+        }
+    }, [isOpen, libraryId, activeTab])
+
     const fetchPlans = async () => {
         try {
             const data = await getSaasPlans()
             setPlans(data)
+            if (!assignForm.planId && data.length > 0) {
+                setAssignForm(prev => ({ ...prev, planId: data[0].id }))
+            }
         } catch (error) {
             console.error('Failed to fetch plans', error)
         }
@@ -92,6 +112,41 @@ export function LibraryDetailsModal({ libraryId, isOpen, onClose }: LibraryDetai
             toast.error('Failed to fetch details')
         } finally {
             setLoading(false)
+        }
+    }
+
+    const handleAssignSubscription = async () => {
+        if (!assignForm.planId) {
+            toast.error('Select a SaaS plan')
+            return
+        }
+        setSavingAssign(true)
+        try {
+            const res = await assignSubscription(libraryId!, assignForm.planId, assignForm.billingCycle)
+            if (res.success) {
+                toast.success('Subscription assigned')
+                setIsAssigningSubscription(false)
+                fetchDetails()
+                router.refresh()
+            } else {
+                toast.error(res.error || 'Failed to assign subscription')
+            }
+        } catch (e) {
+            toast.error('An error occurred')
+        } finally {
+            setSavingAssign(false)
+        }
+    }
+    const fetchNotes = async () => {
+        if (!libraryId) return
+        setNotesLoading(true)
+        try {
+            const data = await getLibraryNotes(libraryId)
+            setNotes(data)
+        } catch (error) {
+            toast.error('Failed to load notes')
+        } finally {
+            setNotesLoading(false)
         }
     }
 
@@ -249,11 +304,12 @@ export function LibraryDetailsModal({ libraryId, isOpen, onClose }: LibraryDetai
                 ) : library ? (
                     <div className="flex-1 flex flex-col min-h-0">
                         {/* Tabs */}
-                        <div className="flex border-b border-gray-100 dark:border-gray-800 px-6 bg-white dark:bg-gray-900">
+                        <div className="flex border-b border-gray-100 dark:border-gray-800 px-6 bg-white dark:bg-gray-900 overflow-x-auto whitespace-nowrap">
                             <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon={<LayoutDashboard size={16} />} label="Overview" />
                             <TabButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<Building2 size={16} />} label="Profile" />
                             <TabButton active={activeTab === 'owner'} onClick={() => setActiveTab('owner')} icon={<Shield size={16} />} label="Owner" />
                             <TabButton active={activeTab === 'subscription'} onClick={() => setActiveTab('subscription')} icon={<CreditCard size={16} />} label="SaaS Plan" />
+                            <TabButton active={activeTab === 'notes'} onClick={() => setActiveTab('notes')} icon={<FileText size={16} />} label="Notes" />
                         </div>
 
                         {/* Content */}
@@ -630,17 +686,136 @@ export function LibraryDetailsModal({ libraryId, isOpen, onClose }: LibraryDetai
                                             )}
                                         </div>
                                     ) : (
-                                        <div className="p-12 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                                <CreditCard className="text-gray-400 w-8 h-8" />
-                                            </div>
-                                            <h3 className="text-lg font-semibold text-gray-900 mb-1">No Active SaaS Plan</h3>
-                                            <p className="text-gray-500 mb-6">This library does not have an active subscription.</p>
-                                            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm">
-                                                Assign Subscription
-                                            </button>
-                                        </div>
+                                        <>
+                                            {!isAssigningSubscription ? (
+                                                <div className="p-12 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                                                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                        <CreditCard className="text-gray-400 w-8 h-8" />
+                                                    </div>
+                                                    <h3 className="text-lg font-semibold text-gray-900 mb-1">No Active SaaS Plan</h3>
+                                                    <p className="text-gray-500 mb-6">This library does not have an active subscription.</p>
+                                                    <button 
+                                                        onClick={() => setIsAssigningSubscription(true)} 
+                                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+                                                    >
+                                                        Assign Subscription
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border border-blue-100 dark:border-blue-900 shadow-sm space-y-4">
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        <div>
+                                                            <label className="text-xs font-medium text-gray-500 uppercase mb-1 block">Select SaaS Plan</label>
+                                                            <select
+                                                                value={assignForm.planId}
+                                                                onChange={(e) => setAssignForm({ ...assignForm, planId: e.target.value })}
+                                                                className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white dark:bg-gray-800"
+                                                            >
+                                                                {plans.map(plan => (
+                                                                    <option key={plan.id} value={plan.id}>
+                                                                        {plan.name} - ₹{plan.priceMonthly}/mo
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-xs font-medium text-gray-500 uppercase mb-1 block">Billing Cycle</label>
+                                                            <select
+                                                                value={assignForm.billingCycle}
+                                                                onChange={(e) => setAssignForm({ ...assignForm, billingCycle: e.target.value as 'monthly' | 'yearly' })}
+                                                                className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white dark:bg-gray-800"
+                                                            >
+                                                                <option value="monthly">Monthly</option>
+                                                                <option value="yearly">Yearly</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex justify-end gap-3 pt-4">
+                                                        <button 
+                                                            onClick={() => setIsAssigningSubscription(false)}
+                                                            className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                        <button 
+                                                            onClick={handleAssignSubscription}
+                                                            disabled={savingAssign}
+                                                            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50"
+                                                        >
+                                                            {savingAssign ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                                                            Assign Subscription
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
+                                </div>
+                            )}
+                            
+                            {activeTab === 'notes' && (
+                                <div className="space-y-6">
+                                    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+                                        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
+                                            <h3 className="font-semibold text-gray-900 dark:text-white">Admin Notes</h3>
+                                        </div>
+                                        <div className="p-6 space-y-4">
+                                            <div className="space-y-3 max-h-64 overflow-y-auto">
+                                                {notesLoading ? (
+                                                    <div className="flex items-center justify-center py-8">
+                                                        <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                                                    </div>
+                                                ) : notes.length === 0 ? (
+                                                    <div className="text-sm text-gray-500">No notes yet.</div>
+                                                ) : (
+                                                    notes.map((note: any) => (
+                                                        <div key={note.id} className="border border-gray-100 dark:border-gray-800 rounded-lg p-3">
+                                                            <div className="text-xs text-gray-500 flex items-center justify-between mb-1">
+                                                                <span>{note.performedBy?.name || 'Admin'} · {format(new Date(note.createdAt), 'PPP p')}</span>
+                                                                <span className="font-mono text-[11px] text-gray-400">{note.id.slice(0,8)}</span>
+                                                            </div>
+                                                            <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{note.details}</div>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-medium text-gray-500 uppercase flex items-center gap-1">
+                                                    <FileText size={14} /> New Note
+                                                </label>
+                                                <textarea
+                                                    value={newNote}
+                                                    onChange={(e) => setNewNote(e.target.value)}
+                                                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none min-h-[100px]"
+                                                    placeholder="Write an internal note for this library..."
+                                                />
+                                                <div className="flex justify-end">
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (!newNote.trim()) {
+                                                                toast.error('Note cannot be empty')
+                                                                return
+                                                            }
+                                                            setSavingNote(true)
+                                                            const res = await addLibraryNote(libraryId!, newNote.trim())
+                                                            if (res.success) {
+                                                                setNewNote('')
+                                                                fetchNotes()
+                                                                toast.success('Note added')
+                                                            } else {
+                                                                toast.error(res.error || 'Failed to add note')
+                                                            }
+                                                            setSavingNote(false)
+                                                        }}
+                                                        disabled={savingNote}
+                                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                                                    >
+                                                        {savingNote ? 'Saving...' : 'Add Note'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -659,7 +834,7 @@ function TabButton({ active, onClick, icon, label }: { active: boolean, onClick:
     return (
         <button
             onClick={onClick}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 min-w-max ${
                 active 
                     ? 'border-blue-600 text-blue-600 bg-blue-50/50 dark:bg-blue-900/10' 
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'

@@ -103,6 +103,7 @@ export async function exportSubscriptions(status?: string) {
 export async function updateSubscriptionPlan(subscriptionId: string, planId: string) {
     await requireAdmin()
     
+    
     try {
         const plan = await prisma.saasPlan.findUnique({ where: { id: planId } })
         if (!plan) return { success: false, error: 'Plan not found' }
@@ -120,6 +121,55 @@ export async function updateSubscriptionPlan(subscriptionId: string, planId: str
     }
 }
 
+export async function assignSubscription(libraryId: string, planId: string, billingCycle: 'monthly' | 'yearly' = 'monthly') {
+    await requireAdmin()
+    try {
+        const plan = await prisma.saasPlan.findUnique({ where: { id: planId } })
+        if (!plan) return { success: false, error: 'Plan not found' }
+        
+        const now = new Date()
+        const periodEnd = new Date(now)
+        if (billingCycle === 'yearly') {
+            periodEnd.setFullYear(periodEnd.getFullYear() + 1)
+        } else {
+            periodEnd.setMonth(periodEnd.getMonth() + 1)
+        }
+        
+        const existing = await prisma.librarySubscription.findUnique({
+            where: { libraryId }
+        })
+        
+        if (existing) {
+            await prisma.librarySubscription.update({
+                where: { libraryId },
+                data: {
+                    planId,
+                    status: 'active',
+                    currentPeriodStart: now,
+                    currentPeriodEnd: periodEnd,
+                    cancelAtPeriodEnd: false
+                }
+            })
+        } else {
+            await prisma.librarySubscription.create({
+                data: {
+                    libraryId,
+                    planId,
+                    status: 'active',
+                    currentPeriodStart: now,
+                    currentPeriodEnd: periodEnd
+                }
+            })
+        }
+        
+        revalidatePath('/admin/libraries')
+        revalidatePath('/admin/subscriptions')
+        return { success: true }
+    } catch (error: any) {
+        console.error('Assign subscription error:', error)
+        return { success: false, error: 'Failed to assign subscription' }
+    }
+}
 export async function updateSubscriptionStatus(subscriptionId: string, status: string) {
     await requireAdmin()
     
