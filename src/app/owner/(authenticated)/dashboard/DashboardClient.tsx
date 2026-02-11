@@ -376,7 +376,7 @@ export default function DashboardClient({
         {[
             { label: 'Add Student', icon: UserPlus, href: '/owner/students/add', color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' },
             { label: 'Add Staff', icon: Plus, href: '/owner/staff/add', color: 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400' },
-            { label: 'Accept Payment', icon: CreditCard, href: '/owner/finance?tab=accept', color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' },
+            { label: 'Create Booking', icon: Calendar, href: '/owner/bookings?view=create&tab=existing', color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' },
             { label: 'Verify', icon: FileText, href: '/owner/verification', color: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400' },
             { label: 'New Ticket', icon: Ticket, href: '/owner/issues', color: 'bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400' },
             { label: 'Broadcast', icon: Megaphone, href: '/owner/marketing', color: 'bg-pink-50 text-pink-600 dark:bg-pink-900/20 dark:text-pink-400' },

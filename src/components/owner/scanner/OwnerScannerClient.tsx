@@ -621,7 +621,7 @@ export function OwnerScannerClient() {
                     ) : (
                         <AnimatedButton 
                             variant="outline"
-                            onClick={() => router.push(`/owner/finance?tab=accept&studentId=${student.id}&branchId=${subscription?.branchId || selectedBranchId || ''}`)}
+                            onClick={() => router.push(`/owner/bookings?view=create&tab=existing&studentId=${student.id}&branchId=${subscription?.branchId || selectedBranchId || ''}`)}
                             className="h-auto flex-col p-4 gap-2 border-dashed"
                         >
                             <CreditCard className="w-6 h-6 text-emerald-600" />

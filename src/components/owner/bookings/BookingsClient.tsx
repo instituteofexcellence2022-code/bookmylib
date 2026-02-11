@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { 
   Filter, Search, Calendar, Plus, ChevronLeft
 } from 'lucide-react'
@@ -14,6 +14,7 @@ import { BookingDetailsModal } from '@/components/shared/bookings/BookingDetails
 import { EditBookingModal } from '@/components/shared/bookings/EditBookingModal'
 import { BookingStats } from '@/components/shared/bookings/BookingStats'
 import { BookingListTable } from '@/components/shared/bookings/BookingListTable'
+import { useSearchParams } from 'next/navigation'
 
 interface BookingsClientProps {
   initialBookings: any[]
@@ -31,6 +32,16 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
   const [showModal, setShowModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [createBookingStudentId, setCreateBookingStudentId] = useState<string | undefined>(undefined)
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const viewParam = searchParams.get('view')
+    const studentIdParam = searchParams.get('studentId') || undefined
+    if (viewParam === 'create') {
+      setView('create')
+      if (studentIdParam) setCreateBookingStudentId(studentIdParam)
+    }
+  }, [])
   
   // Date Range Filter State
   const [period, setPeriod] = useState<string>('all')
@@ -333,5 +344,4 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
     </div>
   )
 }
-
 

@@ -1,15 +1,26 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AcceptPaymentForm } from './AcceptPaymentForm'
 import { VerifyPaymentList } from './VerifyPaymentList'
 import { AddStudentForm } from '@/components/owner/students/AddStudentForm'
 import { UserPlus, Users, ShieldCheck } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 
 export function AcceptPaymentClient({ initialStudentId }: { initialStudentId?: string }) {
     const [activeTab, setActiveTab] = useState<'existing' | 'new' | 'verify'>('existing')
     const [createdStudentId, setCreatedStudentId] = useState<string | undefined>(undefined)
+    const searchParams = useSearchParams()
+
+    useEffect(() => {
+        const tabParam = (searchParams.get('tab') || '').toLowerCase()
+        if (tabParam) {
+            const normalized = tabParam === 'accept' ? 'existing' : tabParam
+            if (['existing', 'new', 'verify'].includes(normalized)) {
+                setActiveTab(normalized as 'existing' | 'new' | 'verify')
+            }
+        }
+    }, [])
 
     return (
         <div className="space-y-6">
