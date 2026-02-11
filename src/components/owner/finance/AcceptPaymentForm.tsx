@@ -588,6 +588,10 @@ export function AcceptPaymentForm({ initialStudentId }: { initialStudentId?: str
 
     const handleCreateBooking = async () => {
         if (!selectedStudent || !selectedBranch || !selectedPlan) return
+        if (!startDate) {
+            toast.error('Please select a start date')
+            return
+        }
 
         setSubmitting(true)
         try {
@@ -941,6 +945,7 @@ Thank you!`
                                             value={startDate}
                                             disabled={isLockerAddOnMode}
                                             onChange={(e) => setStartDate(e.target.value)}
+                                            required
                                             className={cn(
                                                 "w-full pl-4 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all",
                                                 isLockerAddOnMode && "opacity-60 cursor-not-allowed bg-gray-50 dark:bg-gray-900"
@@ -1686,6 +1691,10 @@ Thank you!`
                                         onClick={() => {
                                             if (!selectedPlan) {
                                                 toast.error('Please select a plan')
+                                                return
+                                            }
+                                            if (!startDate) {
+                                                toast.error('Please select a start date')
                                                 return
                                             }
                                             // Seat selection is optional

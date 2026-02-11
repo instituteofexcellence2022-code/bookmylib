@@ -475,6 +475,10 @@ export function StaffAcceptPaymentForm({ initialStudentId: propInitialStudentId 
                 toast.error('Please select a plan')
                 return
             }
+            if (!startDate) {
+                toast.error('Please select a start date')
+                return
+            }
             // Seat selection is now optional
             // if (isSeatSelectionEnabled && !selectedSeat) {
             //     toast.error('Please select a seat')
@@ -492,6 +496,10 @@ export function StaffAcceptPaymentForm({ initialStudentId: propInitialStudentId 
 
     const handleSubmit = async () => {
         if (!selectedStudent || !selectedPlan) return
+        if (!startDate) {
+            toast.error('Please select a start date')
+            return
+        }
 
         try {
             setSubmitting(true)
@@ -791,6 +799,7 @@ export function StaffAcceptPaymentForm({ initialStudentId: propInitialStudentId 
                                     type="date" 
                                     value={startDate}
                                     onChange={(e) => setStartDate(e.target.value)}
+                                    required
                                     className="w-full pl-4 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                                 />
                             </div>
