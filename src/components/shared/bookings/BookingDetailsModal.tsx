@@ -161,6 +161,12 @@ export function BookingDetailsModal({ booking, onClose, onRenew, onEdit }: Booki
                                                     </td>
                                                     <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
                                                         ₹{payment.amount}
+                                                        {(payment.discountAmount ?? 0) > 0 && (
+                                                            <div className="text-xs text-gray-500 mt-1">
+                                                                <span>Subtotal: ₹{(payment.amount || 0) + (payment.discountAmount || 0)}</span>
+                                                                <span className="ml-2">Discount: -₹{payment.discountAmount}</span>
+                                                            </div>
+                                                        )}
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${

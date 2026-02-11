@@ -1,8 +1,10 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
+import { isSeatAvailable } from '@/actions/seats'
+import { isLockerAvailable, findLockerBySeatNumber } from '@/actions/lockers'
 import { createSession } from '@/lib/auth/session'
-import { initiatePayment } from '@/actions/payment'
+import { initiatePayment, validateCoupon } from '@/actions/payment'
 import { sendWelcomeEmail } from '@/actions/email'
 
 export async function initiatePublicBooking(data: {
@@ -169,7 +171,13 @@ export async function initiatePublicBooking(data: {
         }
         
         // Use the calculated total for payment (overriding client input for security)
-        const finalAmount = Math.round(calculatedTotal)
+        let finalAmount = Math.round(calculatedTotal)
+        if (couponCode) {
+            const coupon = await validateCoupon(couponCode, calculatedTotal, student.id, plan.id, branch.id)
+            if (coupon.success && typeof coupon.finalAmount === 'number') {
+                finalAmount = Math.round(coupon.finalAmount)
+            }
+        }
 
         if (finalLockerId) {
              const locker = await prisma.locker.findUnique({ where: { id: finalLockerId } })
@@ -180,16 +188,10 @@ export async function initiatePublicBooking(data: {
                  // Part of seat - auto assign
                  if (!seatNumber) return { success: false, error: 'Seat selection required for this plan' }
                  
-                 const locker = await prisma.locker.findFirst({
-                     where: {
-                         branchId: branch.id,
-                         number: seatNumber
-                     }
-                 })
-                 
-                 if (!locker) return { success: false, error: `Locker ${seatNumber} not found` }
-                 finalLockerId = locker.id
-                 lockerNumber = locker.number
+                const found = await findLockerBySeatNumber(branch.id, seatNumber)
+                if (!found.success || !found.id) return { success: false, error: `Locker ${seatNumber} not found` }
+                finalLockerId = found.id
+                lockerNumber = seatNumber
              } else {
                  // Separate - user must select
                  return { success: false, error: 'Locker selection required' }
@@ -242,6 +244,26 @@ export async function initiatePublicBooking(data: {
             }
             subscriptionPeriods.push({ start: new Date(currentStart), end: new Date(end) })
             currentStart = new Date(end)
+        }
+
+        // Conflict checks (prevent double booking of same seat/locker across active/pending subs)
+        const initialStart = subscriptionPeriods[0].start
+        const finalEndDate = subscriptionPeriods[subscriptionPeriods.length - 1].end
+
+        // Seat conflict
+        if (seatId) {
+            const seatCheck = await isSeatAvailable(seatId, initialStart, finalEndDate)
+            if (!seatCheck.available) {
+                return { success: false, error: 'Seat is already occupied for the selected dates' }
+            }
+        }
+
+        // Locker conflict
+        if (finalLockerId) {
+            const lockerCheck = await isLockerAvailable(finalLockerId, initialStart, finalEndDate)
+            if (!lockerCheck.available) {
+                return { success: false, error: 'Locker is already occupied for the selected dates' }
+            }
         }
 
         // Create Pending Subscriptions

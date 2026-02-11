@@ -629,7 +629,7 @@ export async function markManualAttendance(branchId: string, location?: { lat: n
                 }
             })
 
-            const MAX_DISTANCE = 75; // meters
+            const MAX_DISTANCE = 60; // meters
 
             if (openAttendance) {
                 // Trying to Check-Out

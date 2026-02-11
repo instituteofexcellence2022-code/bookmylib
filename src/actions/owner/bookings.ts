@@ -46,7 +46,7 @@ export async function getBookings(filters?: {
           select: { number: true }
         },
         payments: {
-          select: { id: true, status: true, amount: true, method: true, createdAt: true, invoiceNo: true }
+          select: { id: true, status: true, amount: true, discountAmount: true, method: true, createdAt: true, invoiceNo: true }
         }
       },
       orderBy: { createdAt: 'desc' }
@@ -133,4 +133,3 @@ export async function updateBookingStatus(id: string, status: string) {
     return { success: false, error: 'Failed to update booking' }
   }
 }
-

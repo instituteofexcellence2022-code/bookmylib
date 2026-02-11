@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { getAuthenticatedStaff } from '@/lib/auth/staff'
 import { Prisma } from '@prisma/client'
+import { isLockerAvailable } from '@/actions/lockers'
 
 export async function getLockers() {
   const staff = await getAuthenticatedStaff()
@@ -174,22 +175,15 @@ export async function assignLocker(lockerId: string, subscriptionId: string) {
       return { success: false, error: 'Locker not found or unauthorized' }
     }
 
-    const existing = await prisma.studentSubscription.findFirst({
-      where: {
-        lockerId: lockerId,
-        status: 'active',
-        endDate: { gte: new Date() }
-      }
-    })
-
-    if (existing) {
-      return { success: false, error: 'Locker is already occupied' }
-    }
-
     // Verify subscription ownership/branch
     const sub = await prisma.studentSubscription.findUnique({ where: { id: subscriptionId } })
     if (!sub || sub.branchId !== staff.branchId) {
         return { success: false, error: 'Subscription not found or unauthorized' }
+    }
+
+    const availability = await isLockerAvailable(lockerId, new Date(sub.startDate), new Date(sub.endDate))
+    if (!availability.available) {
+      return { success: false, error: 'Locker is already occupied for the selected dates' }
     }
 
     await prisma.studentSubscription.update({

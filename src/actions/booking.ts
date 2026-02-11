@@ -1,6 +1,8 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
+import { isSeatAvailable, getBranchSeatsSimple } from '@/actions/seats'
+import { isLockerAvailable, findLockerBySeatNumber, getBranchLockersSimple } from '@/actions/lockers'
 import { revalidatePath } from 'next/cache'
 import { getAuthenticatedStudent } from '@/lib/auth/student'
 import { sendReceiptEmail } from '@/actions/email'
@@ -49,53 +51,19 @@ export async function getBranchDetails(branchId: string) {
                         additionalFees: {
                             where: { 
                                 isActive: true,
-                                branchId: null // Global fees
+                                branchId: null
                             }
                         },
                         plans: {
                             where: { 
                                 isActive: true,
-                                branchId: null // Global plans
+                                branchId: null
                             }
                         }
                     }
                 },
-                seats: {
-                    include: {
-                        _count: {
-                            select: {
-                                subscriptions: {
-                                    where: {
-                                        status: 'active',
-                                        endDate: { gt: new Date() }
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    orderBy: { number: 'asc' }
-                },
-                lockers: {
-                    include: {
-                        _count: {
-                            select: {
-                                subscriptions: {
-                                    where: {
-                                        status: 'active',
-                                        endDate: { gt: new Date() }
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    orderBy: { number: 'asc' }
-                },
-                plans: {
-                    where: { isActive: true }
-                },
-                additionalFees: {
-                    where: { isActive: true }
-                }
+                plans: { where: { isActive: true } },
+                additionalFees: { where: { isActive: true } }
             }
         })
 
@@ -103,19 +71,13 @@ export async function getBranchDetails(branchId: string) {
             return { success: false, error: 'Branch not found' }
         }
 
-        // Transform seats to add isOccupied flag
-        const seatsWithStatus = branch.seats.map(seat => ({
-            ...seat,
-            row: null,
-            column: null,
-            isOccupied: seat._count.subscriptions > 0,
-        }))
+        const [seatsRes, lockersRes] = await Promise.all([
+            getBranchSeatsSimple(branchId),
+            getBranchLockersSimple(branchId)
+        ])
 
-        // Transform lockers to add isOccupied flag
-        const lockersWithStatus = branch.lockers.map(locker => ({
-            ...locker,
-            isOccupied: locker._count.subscriptions > 0,
-        }))
+        const seatsWithStatus = seatsRes.success && seatsRes.data ? seatsRes.data : []
+        const lockersWithStatus = lockersRes.success && lockersRes.data ? lockersRes.data : []
 
         // Combine branch-specific and global fees
         const allFees = [
@@ -200,15 +162,9 @@ export async function createBooking(data: {
                  // Part of seat - auto assign
                  if (!seatNumber) return { success: false as const, error: 'Seat selection required for this plan' }
                  
-                 const locker = await prisma.locker.findFirst({
-                     where: {
-                         branchId: branch.id,
-                         number: seatNumber
-                     }
-                 })
-                 
-                 if (!locker) return { success: false as const, error: `Locker ${seatNumber} not found` }
-                 finalLockerId = locker.id
+                const found = await findLockerBySeatNumber(branch.id, seatNumber)
+                if (!found.success || !found.id) return { success: false as const, error: `Locker ${seatNumber} not found` }
+                finalLockerId = found.id
              } else {
                  // Separate - user must select
                  return { success: false as const, error: 'Locker selection required' }
@@ -299,33 +255,16 @@ export async function createBooking(data: {
 
         // Check for overlapping subscriptions on this seat (Outside transaction)
         if (seatId) {
-            const conflictingSub = await prisma.studentSubscription.findFirst({
-                where: {
-                    seatId,
-                    status: { in: ['active', 'pending'] },
-                    // Check if any existing sub overlaps with our FULL range (initialStart to finalEndDate)
-                    startDate: { lt: finalEndDate },
-                    endDate: { gt: initialStart }
-                }
-            })
-
-            if (conflictingSub) {
+            const seatCheck = await isSeatAvailable(seatId, initialStart, finalEndDate)
+            if (!seatCheck.available) {
                 return { success: false, error: 'Seat is already occupied for the selected dates' }
             }
         }
 
         // Check for overlapping subscriptions on this locker (Outside transaction)
         if (finalLockerId) {
-            const conflictingSub = await prisma.studentSubscription.findFirst({
-                where: {
-                    lockerId: finalLockerId,
-                    status: { in: ['active', 'pending'] },
-                    startDate: { lt: finalEndDate },
-                    endDate: { gt: initialStart }
-                }
-            })
-
-            if (conflictingSub) {
+            const lockerCheck = await isLockerAvailable(finalLockerId, initialStart, finalEndDate)
+            if (!lockerCheck.available) {
                 return { success: false, error: 'Locker is already occupied for the selected dates' }
             }
         }

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { 
     Check, Calendar, CreditCard, Info, 
     User, Mail, Phone, Cake,
-    Armchair, Lock,
+    Armchair, Lock, Ban,
     LayoutGrid, List, ChevronLeft, ChevronRight, Clock, Filter,
     Plus, Minus, ChevronUp, ChevronDown
 } from 'lucide-react'
@@ -19,6 +19,8 @@ import { initiatePublicBookingVerification, confirmEmailVerification } from '@/a
 import { Branch, Seat, Plan, AdditionalFee, Locker } from '@prisma/client'
 import PublicBranchHeader, { PublicOffer } from './PublicBranchHeader'
 import PublicBookingPayment from './PublicBookingPayment'
+import { isSeatAvailable } from '@/actions/seats'
+import { isLockerAvailable } from '@/actions/lockers'
 
 type ExtendedPlan = Plan & {
     includesSeat: boolean
@@ -1092,45 +1094,75 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                         className="grid gap-2 md:gap-3"
                                                         style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
                                                     >
-                                                        {currentSeats.map((seat) => (
-                                                            <motion.button
-                                                                key={seat.id}
-                                                                whileHover={!seat.isOccupied ? { scale: 1.05 } : {}}
-                                                                whileTap={!seat.isOccupied ? { scale: 0.95 } : {}}
-                                                                onClick={() => {
-                                                                if (!selectedPlan) {
-                                                                    toast.error("Please select a plan first")
-                                                                    return
-                                                                }
-                                                                !seat.isOccupied && setSelectedSeat(selectedSeat?.id === seat.id ? null : seat)
-                                                            }}
-                                                                disabled={seat.isOccupied}
-                                                                className={cn(
-                                                                    "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative group",
-                                                                    seat.isOccupied
-                                                                        ? "bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 cursor-not-allowed opacity-70 text-gray-500 dark:text-gray-400"
-                                                                        : selectedSeat?.id === seat.id
-                                                                            ? "bg-purple-500 border-purple-600 text-white shadow-md shadow-purple-500/20"
-                                                                            : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
-                                                                )}
-                                                            >
-                                                                <Armchair className={cn(
-                                                                    "w-6 h-6 md:w-7 md:h-7",
-                                                                    seat.isOccupied ? "opacity-50" : ""
-                                                                )} />
-                                                                <span className="text-sm md:text-base font-semibold truncate w-full text-center px-1">
-                                                                    {formatSeatNumber(seat.number)}
-                                                                </span>
-                                                                {selectedSeat?.id === seat.id && (
-                                                                    <motion.div
-                                                                        layoutId="check"
-                                                                        className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm"
-                                                                    >
-                                                                        <Check className="w-2 h-2 md:w-2.5 md:h-2.5" />
-                                                                    </motion.div>
-                                                                )}
-                                                            </motion.button>
-                                                        ))}
+                                                        {currentSeats.map((seat) => {
+                                                            const isMaintenance = !seat.isActive
+                                                            return (
+                                                                <motion.button
+                                                                    key={seat.id}
+                                                                    whileHover={!seat.isOccupied ? { scale: 1.02 } : {}}
+                                                                    whileTap={!seat.isOccupied ? { scale: 0.98 } : {}}
+                                                                    onClick={() => {
+                                                                        if (!selectedPlan) {
+                                                                            toast.error("Please select a plan first")
+                                                                            return
+                                                                        }
+                                                                        ;(async () => {
+                                                                            if (!selectedPlan) {
+                                                                                toast.error("Please select a plan first")
+                                                                                return
+                                                                            }
+                                                                            if (seat.isOccupied || isMaintenance) return
+                                                                            const start = new Date(bookingDate)
+                                                                            const res = await isSeatAvailable(seat.id, start, start)
+                                                                            if (!res.available) {
+                                                                                toast.error("Seat not available for selected date")
+                                                                                return
+                                                                            }
+                                                                            setSelectedSeat(selectedSeat?.id === seat.id ? null : seat)
+                                                                        })()
+                                                                    }}
+                                                                    disabled={seat.isOccupied || isMaintenance}
+                                                                    className={cn(
+                                                                        "relative group p-3 rounded-xl border-2 transition-all duration-200 flex flex-col items-center gap-2",
+                                                                        isMaintenance
+                                                                            ? "bg-gray-100 border-gray-200 dark:bg-gray-800 dark:border-gray-700 opacity-75"
+                                                                            : seat.isOccupied
+                                                                                ? "bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-900/30 hover:border-red-300"
+                                                                                : "bg-green-50 border-green-200 dark:bg-green-900/10 dark:border-green-900/30 hover:border-green-300",
+                                                                        selectedSeat?.id === seat.id ? "ring-2 ring-purple-300 dark:ring-purple-800" : ""
+                                                                    )}
+                                                                >
+                                                                    <div className={cn(
+                                                                        "p-2 rounded-full",
+                                                                        isMaintenance ? "bg-gray-200 text-gray-500" :
+                                                                        seat.isOccupied ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"
+                                                                    )}>
+                                                                        {isMaintenance ? <Ban className="w-5 h-5" /> : <Armchair className="w-5 h-5" />}
+                                                                    </div>
+                                                                    <div className="text-center">
+                                                                        <span className="block font-bold text-gray-900 dark:text-gray-100">{formatSeatNumber(seat.number)}</span>
+                                                                        {seat.section && <span className="text-[10px] text-gray-500 uppercase tracking-wide">{seat.section}</span>}
+                                                                    </div>
+                                                                    
+                                                                    {seat.isOccupied && !isMaintenance && (
+                                                                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-gray-800" />
+                                                                    )}
+                                                                    {seat.type !== 'standard' && (
+                                                                        <div className="absolute -top-1 -left-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-bold rounded-full border border-purple-200">
+                                                                            {seat.type?.[0]?.toUpperCase()}
+                                                                        </div>
+                                                                    )}
+                                                                    {selectedSeat?.id === seat.id && (
+                                                                        <motion.div
+                                                                            layoutId="check"
+                                                                            className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm"
+                                                                        >
+                                                                            <Check className="w-2 h-2 md:w-2.5 md:h-2.5" />
+                                                                        </motion.div>
+                                                                    )}
+                                                                </motion.button>
+                                                            )
+                                                        })}
                                                     </div>
                                                 </div>
                                             )
@@ -1165,42 +1197,72 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                     className="grid gap-2 md:gap-3"
                                                     style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
                                                 >
-                                                    {filteredSeats.map((seat) => (
-                                                        <motion.button
-                                                            key={seat.id}
-                                                            whileHover={!seat.isOccupied ? { scale: 1.05 } : {}}
-                                                            whileTap={!seat.isOccupied ? { scale: 0.95 } : {}}
-                                                            onClick={() => {
-                                                                if (!selectedPlan) {
-                                                                    toast.error("Please select a plan first")
-                                                                    return
-                                                                }
-                                                                !seat.isOccupied && setSelectedSeat(selectedSeat?.id === seat.id ? null : seat)
-                                                            }}
-                                                            disabled={seat.isOccupied}
-                                                            className={cn(
-                                                                "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all relative",
-                                                                seat.isOccupied
-                                                                    ? "bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 cursor-not-allowed opacity-70 text-gray-500 dark:text-gray-400"
-                                                                    : selectedSeat?.id === seat.id
-                                                                        ? "bg-purple-500 border-purple-600 text-white shadow-md shadow-purple-500/20"
-                                                                        : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-sm text-gray-900 dark:text-gray-100"
-                                                            )}
-                                                        >
-                                                            <Armchair className={cn(
-                                                                "w-6 h-6 md:w-7 md:h-7",
-                                                                seat.isOccupied ? "opacity-50" : ""
-                                                            )} />
-                                                            <span className="text-sm md:text-base font-semibold truncate w-full text-center px-1">
-                                                                {formatSeatNumber(seat.number)}
-                                                            </span>
-                                                            {selectedSeat?.id === seat.id && (
-                                                                <div className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm">
-                                                                    <Check className="w-2 h-2 md:w-2.5 md:h-2.5" />
+                                                    {filteredSeats.map((seat) => {
+                                                        const isMaintenance = !seat.isActive
+                                                        return (
+                                                            <motion.button
+                                                                key={seat.id}
+                                                                whileHover={!seat.isOccupied ? { scale: 1.02 } : {}}
+                                                                whileTap={!seat.isOccupied ? { scale: 0.98 } : {}}
+                                                                onClick={() => {
+                                                                    if (!selectedPlan) {
+                                                                        toast.error("Please select a plan first")
+                                                                        return
+                                                                    }
+                                                                    ;(async () => {
+                                                                        if (!selectedPlan) {
+                                                                            toast.error("Please select a plan first")
+                                                                            return
+                                                                        }
+                                                                        if (seat.isOccupied || isMaintenance) return
+                                                                        const start = new Date(bookingDate)
+                                                                        const res = await isSeatAvailable(seat.id, start, start)
+                                                                        if (!res.available) {
+                                                                            toast.error("Seat not available for selected date")
+                                                                            return
+                                                                        }
+                                                                        setSelectedSeat(selectedSeat?.id === seat.id ? null : seat)
+                                                                    })()
+                                                                }}
+                                                                disabled={seat.isOccupied || isMaintenance}
+                                                                className={cn(
+                                                                    "relative group p-3 rounded-xl border-2 transition-all duration-200 flex flex-col items-center gap-2",
+                                                                    isMaintenance
+                                                                        ? "bg-gray-100 border-gray-200 dark:bg-gray-800 dark:border-gray-700 opacity-75"
+                                                                        : seat.isOccupied
+                                                                            ? "bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-900/30 hover:border-red-300"
+                                                                            : "bg-green-50 border-green-200 dark:bg-green-900/10 dark:border-green-900/30 hover:border-green-300",
+                                                                    selectedSeat?.id === seat.id ? "ring-2 ring-purple-300 dark:ring-purple-800" : ""
+                                                                )}
+                                                            >
+                                                                <div className={cn(
+                                                                    "p-2 rounded-full",
+                                                                    isMaintenance ? "bg-gray-200 text-gray-500" :
+                                                                    seat.isOccupied ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"
+                                                                )}>
+                                                                    {isMaintenance ? <Ban className="w-5 h-5" /> : <Armchair className="w-5 h-5" />}
                                                                 </div>
-                                                            )}
-                                                        </motion.button>
-                                                    ))}
+                                                                <div className="text-center">
+                                                                    <span className="block font-bold text-gray-900 dark:text-gray-100">{formatSeatNumber(seat.number)}</span>
+                                                                    {seat.section && <span className="text-[10px] text-gray-500 uppercase tracking-wide">{seat.section}</span>}
+                                                                </div>
+                                                                
+                                                                {seat.isOccupied && !isMaintenance && (
+                                                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-gray-800" />
+                                                                )}
+                                                                {seat.type !== 'standard' && (
+                                                                    <div className="absolute -top-1 -left-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-bold rounded-full border border-purple-200">
+                                                                        {seat.type?.[0]?.toUpperCase()}
+                                                                    </div>
+                                                                )}
+                                                                {selectedSeat?.id === seat.id && (
+                                                                    <div className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-sm">
+                                                                        <Check className="w-2 h-2 md:w-2.5 md:h-2.5" />
+                                                                    </div>
+                                                                )}
+                                                            </motion.button>
+                                                        )
+                                                    })}
                                                 </div>
                                             </div>
                                         )})}
@@ -1396,7 +1458,22 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                             key={locker.id}
                                                             whileHover={!locker.isOccupied ? { scale: 1.05 } : {}}
                                                             whileTap={!locker.isOccupied ? { scale: 0.95 } : {}}
-                                                            onClick={() => !locker.isOccupied && setSelectedLocker(selectedLocker?.id === locker.id ? null : locker)}
+                                                            onClick={() => {
+                                                                ;(async () => {
+                                                                    if (locker.isOccupied) return
+                                                                    if (!selectedPlan) {
+                                                                        toast.error("Please select a plan first")
+                                                                        return
+                                                                    }
+                                                                    const start = new Date(bookingDate)
+                                                                    const res = await isLockerAvailable(locker.id, start, start)
+                                                                    if (!res.available) {
+                                                                        toast.error("Locker not available for selected dates")
+                                                                        return
+                                                                    }
+                                                                    setSelectedLocker(selectedLocker?.id === locker.id ? null : locker)
+                                                                })()
+                                                            }}
                                                             disabled={locker.isOccupied}
                                                             className={cn(
                                                                 "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-200 relative group border-2",
@@ -1466,7 +1543,22 @@ export function PublicBookingClient({ branch, images = [], amenities = [], offer
                                                             key={locker.id}
                                                             whileHover={!locker.isOccupied ? { scale: 1.05 } : {}}
                                                             whileTap={!locker.isOccupied ? { scale: 0.95 } : {}}
-                                                            onClick={() => !locker.isOccupied && setSelectedLocker(selectedLocker?.id === locker.id ? null : locker)}
+                                                            onClick={() => {
+                                                                ;(async () => {
+                                                                    if (locker.isOccupied) return
+                                                                    if (!selectedPlan) {
+                                                                        toast.error("Please select a plan first")
+                                                                        return
+                                                                    }
+                                                                    const start = new Date(bookingDate)
+                                                                    const res = await isLockerAvailable(locker.id, start, start)
+                                                                    if (!res.available) {
+                                                                        toast.error("Locker not available for selected dates")
+                                                                        return
+                                                                    }
+                                                                    setSelectedLocker(selectedLocker?.id === locker.id ? null : locker)
+                                                                })()
+                                                            }}
                                                             disabled={locker.isOccupied}
                                                             className={cn(
                                                                 "aspect-square rounded-lg md:rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-200 relative group border-2",

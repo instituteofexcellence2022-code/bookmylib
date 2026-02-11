@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { getAuthenticatedStaff } from '@/lib/auth/staff'
 import { Prisma } from '@prisma/client'
+import { isSeatAvailable } from '@/actions/seats'
 
 export async function getSeats() {
   const staff = await getAuthenticatedStaff()
@@ -171,23 +172,15 @@ export async function assignSeat(seatId: string, subscriptionId: string) {
         return { success: false, error: 'Seat not found or unauthorized' }
     }
 
-    // Check if seat is already occupied
-    const existing = await prisma.studentSubscription.findFirst({
-      where: {
-        seatId: seatId,
-        status: 'active',
-        endDate: { gte: new Date() }
-      }
-    })
-
-    if (existing) {
-      return { success: false, error: 'Seat is already occupied' }
-    }
-
     // Verify subscription ownership/branch (optional but good)
     const sub = await prisma.studentSubscription.findUnique({ where: { id: subscriptionId } })
     if (!sub || sub.branchId !== staff.branchId) {
         return { success: false, error: 'Subscription not found or unauthorized' }
+    }
+
+    const availability = await isSeatAvailable(seatId, new Date(sub.startDate), new Date(sub.endDate))
+    if (!availability.available) {
+      return { success: false, error: 'Seat is already occupied for the selected dates' }
     }
 
     await prisma.studentSubscription.update({
