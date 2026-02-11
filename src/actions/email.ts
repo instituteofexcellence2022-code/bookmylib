@@ -129,6 +129,7 @@ export async function sendWelcomeEmail(data: {
   studentName: string
   studentEmail: string
   libraryName?: string
+  password?: string
 }) {
   try {
     if (!process.env.RESEND_API_KEY && !process.env.SMTP_USER) {
@@ -145,7 +146,8 @@ export async function sendWelcomeEmail(data: {
         studentName: data.studentName, 
         studentEmail: data.studentEmail,
         loginUrl,
-        libraryName: data.libraryName
+        libraryName: data.libraryName,
+        password: data.password
       }) as ReactElement
     })
 

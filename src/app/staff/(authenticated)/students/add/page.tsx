@@ -9,6 +9,7 @@ import { toast } from 'react-hot-toast'
 import { User, Mail, Phone, Lock, Calendar, MapPin, ArrowLeft, Loader2, Shield, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { z } from 'zod'
+import { generateId } from '@/lib/utils'
 
 const studentSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -86,6 +87,9 @@ export default function AddStudentPage() {
     })
 
     React.useEffect(() => {
+        if (!formData.password) {
+            setFormData(prev => ({ ...prev, password: generateId(10) }))
+        }
         async function loadBranches() {
             try {
                 const branches = await getStaffBranchOptions()

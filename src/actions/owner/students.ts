@@ -10,6 +10,7 @@ import bcrypt from 'bcryptjs'
 import { Prisma } from '@prisma/client'
 
 import { studentSchema } from '@/lib/validators/student'
+import { generateId } from '@/lib/utils'
 
 export async function createStudent(formData: FormData) {
     const owner = await getAuthenticatedOwner()
@@ -52,9 +53,10 @@ export async function createStudent(formData: FormData) {
             return { success: false, error: 'Phone number already exists' }
         }
 
+        const plainPassword = (password && password.trim().length > 0) ? password : generateId(10)
         // Parallelize heavy operations: hashing and file uploads
         const [hashedPassword, imageRes, govtIdRes] = await Promise.all([
-            password ? bcrypt.hash(password, 10) : null,
+            bcrypt.hash(plainPassword, 10),
             (imageFile && imageFile.size > 0) ? uploadFile(imageFile) : null,
             (govtIdFile && govtIdFile.size > 0) ? uploadFile(govtIdFile) : null
         ])
@@ -90,7 +92,8 @@ export async function createStudent(formData: FormData) {
                 await sendWelcomeEmail({
                     studentName: name,
                     studentEmail: email,
-                    libraryName: owner.library.name
+                    libraryName: owner.library.name,
+                    password: plainPassword
                 })
             }
         } catch (emailError) {

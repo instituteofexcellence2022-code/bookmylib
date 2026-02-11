@@ -7,6 +7,7 @@ import { FormSelect } from '@/components/ui/FormSelect'
 import { toast } from 'sonner'
 import { User, Mail, Phone, Lock, Calendar, MapPin, Loader2, Shield, FileText } from 'lucide-react'
 import { z } from 'zod'
+import { generateId } from '@/lib/utils'
 
 const studentSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -78,6 +79,13 @@ export function StaffAddStudentForm({ onSuccess, onCancel }: StaffAddStudentForm
         guardianName: '',
         guardianPhone: ''
     })
+
+    React.useEffect(() => {
+        if (!formData.password) {
+            setFormData(prev => ({ ...prev, password: generateId(10) }))
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     const [files, setFiles] = useState<{
         image: File | null,

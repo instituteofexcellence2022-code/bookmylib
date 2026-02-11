@@ -20,6 +20,7 @@ interface WelcomeEmailProps {
   studentEmail?: string;
   loginUrl: string;
   libraryName?: string;
+  password?: string;
 }
 
 export const WelcomeEmail = ({
@@ -27,6 +28,7 @@ export const WelcomeEmail = ({
   studentEmail,
   loginUrl,
   libraryName,
+  password,
 }: WelcomeEmailProps) => {
   const previewText = `Welcome to ${libraryName || 'BookMyLib'}!`;
 
@@ -76,6 +78,20 @@ export const WelcomeEmail = ({
                         <Text className="text-black text-[14px] font-medium m-0">{studentEmail || 'Your registered email'}</Text>
                     </Column>
                 </Row>
+                {password && (
+                  <>
+                    <Hr className="border-t border-gray-200 my-3" />
+                    <Row>
+                      <Column>
+                        <Text className="text-gray-600 text-[14px] m-0">Temporary Password:</Text>
+                        <Text className="text-black text-[14px] font-medium m-0">{password}</Text>
+                        <Text className="text-gray-500 text-[12px] mt-1">
+                          Change your password after first login from Profile → Security.
+                        </Text>
+                      </Column>
+                    </Row>
+                  </>
+                )}
               </Section>
 
               <Text className="text-gray-700 text-[15px] leading-[24px] mt-4">

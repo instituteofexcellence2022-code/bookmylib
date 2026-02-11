@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { uploadFile } from '@/actions/upload'
 import { sendWelcomeEmail } from '@/actions/email'
-import { formatSeatNumber } from '@/lib/utils'
+import { formatSeatNumber, generateId } from '@/lib/utils'
 import bcrypt from 'bcryptjs'
 import { Prisma } from '@prisma/client'
 
@@ -294,7 +294,8 @@ export async function createStudent(formData: FormData) {
             }
         }
 
-        const hashedPassword = password ? await bcrypt.hash(password, 10) : null
+        const plainPassword = (password && password.trim().length > 0) ? password : generateId(10)
+        const hashedPassword = await bcrypt.hash(plainPassword, 10)
 
 
         let imagePath = null
@@ -344,7 +345,8 @@ export async function createStudent(formData: FormData) {
                 await sendWelcomeEmail({
                     studentName: student.name,
                     studentEmail: student.email,
-                    libraryName: staff.library?.name
+                    libraryName: staff.library?.name,
+                    password: plainPassword
                 })
             }
         } catch (emailError) {
