@@ -136,6 +136,13 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
                             libraryId: owner.libraryId
                         }
                     }
+                },
+                {
+                    attendance: {
+                        some: {
+                            libraryId: owner.libraryId
+                        }
+                    }
                 }
             ]
         }
@@ -247,6 +254,13 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
                                 libraryId: owner.libraryId
                             } 
                         } 
+                    },
+                    {
+                        attendance: {
+                            some: {
+                                branchId: branchId
+                            }
+                        }
                     }
                 ]
             })
