@@ -202,29 +202,44 @@ export async function recordRecoveryPayment(
     }
 
     const expected = Number(subscription.amount || 0)
-    const existingPaid = await prisma.payment.aggregate({
-      where: { subscriptionId, status: 'completed', type: 'subscription' },
-      _sum: { amount: true }
+    // Find the primary plan-related payment for this subscription
+    const primaryPayment = await prisma.payment.findFirst({
+      where: { subscriptionId, type: 'subscription' },
+      orderBy: { createdAt: 'asc' }
     })
-    const alreadyPaid = Number(existingPaid._sum.amount || 0)
-
-    const payment = await prisma.payment.create({
-      data: {
-        libraryId: owner.libraryId,
-        branchId: subscription.branchId,
-        studentId: subscription.studentId,
-        type: 'subscription',
-        amount: Number(data.amount || 0),
-        method: data.method || 'cash',
-        status: 'completed',
-        notes: data.remarks || undefined,
-        invoiceNo: `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        relatedId: subscriptionId,
-        subscriptionId
-      }
-    })
-
+    let alreadyPaid = 0
+    if (primaryPayment) {
+      alreadyPaid = Number(primaryPayment.amount || 0)
+    }
     const newPaid = alreadyPaid + Number(data.amount || 0)
+    if (primaryPayment) {
+      await prisma.payment.update({
+        where: { id: primaryPayment.id },
+        data: {
+          amount: newPaid,
+          status: 'completed',
+          method: data.method || primaryPayment.method,
+          notes: [primaryPayment.notes || '', data.remarks || ''].filter(Boolean).join(' | ')
+        }
+      })
+    } else {
+      // Fallback: create one if missing
+      await prisma.payment.create({
+        data: {
+          libraryId: owner.libraryId,
+          branchId: subscription.branchId,
+          studentId: subscription.studentId,
+          type: 'subscription',
+          amount: newPaid,
+          method: data.method || 'cash',
+          status: 'completed',
+          notes: data.remarks || undefined,
+          invoiceNo: `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          relatedId: subscriptionId,
+          subscriptionId
+        }
+      })
+    }
     if (expected > 0 && newPaid >= expected && subscription.status !== 'active') {
       await prisma.studentSubscription.update({
         where: { id: subscriptionId },
@@ -233,7 +248,7 @@ export async function recordRecoveryPayment(
     }
 
     revalidatePath('/owner/bookings')
-    return { success: true, paymentId: payment.id, paidTotal: newPaid, dueRemaining: Math.max(expected - newPaid, 0) }
+    return { success: true, paidTotal: newPaid, dueRemaining: Math.max(expected - newPaid, 0) }
   } catch (error) {
     console.error('Error recording recovery payment:', error)
     return { success: false, error: 'Failed to record payment' }
