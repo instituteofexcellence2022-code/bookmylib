@@ -8,8 +8,7 @@ import {
     RefreshCw, 
     Clock,
     UserCheck,Users,
-    Edit,
-    ArrowRight
+    Edit
 } from 'lucide-react'
 import Image from 'next/image'
 import { format, subDays } from 'date-fns'
@@ -207,7 +206,7 @@ export function StaffAttendanceLogsClient({ defaultView = 'day' }: StaffAttendan
 
             {/* Filters */}
             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col md:flex-row gap-4 items-end md:items-center justify-between">
-                <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto flex-1">
+                <div className="flex flex-col gap-4 w-full flex-1">
                     
                     {viewMode === 'day' ? (
                         <div className="w-full md:w-48">
@@ -223,20 +222,29 @@ export function StaffAttendanceLogsClient({ defaultView = 'day' }: StaffAttendan
                             </div>
                         </div>
                     ) : (
-                        <div className="flex gap-2 w-full md:w-auto">
-                            <div className="w-full md:w-40">
+                        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 gap-2 w-full md:w-auto">
+                            <div className="w-full">
                                 <label className="text-xs font-medium text-gray-500 mb-1.5 block">Start Date</label>
                                 <div className="relative">
                                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <input 
                                         type="date"
                                         value={filters.startDate}
-                                        onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value, page: 1 }))}
+                                        max={filters.endDate}
+                                        onChange={(e) => {
+                                            const value = e.target.value
+                                            setFilters(prev => ({
+                                                ...prev,
+                                                startDate: value,
+                                                endDate: prev.endDate && prev.endDate < value ? value : prev.endDate,
+                                                page: 1
+                                            }))
+                                        }}
                                         className="w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"
                                     />
                                 </div>
                             </div>
-                            <div className="w-full md:w-32">
+                            <div className="w-full">
                                 <label className="text-xs font-medium text-gray-500 mb-1.5 block">Start Time</label>
                                 <div className="relative">
                                     <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -248,22 +256,28 @@ export function StaffAttendanceLogsClient({ defaultView = 'day' }: StaffAttendan
                                     />
                                 </div>
                             </div>
-                            <div className="flex items-center pt-6 text-gray-400">
-                                <ArrowRight size={16} />
-                            </div>
-                            <div className="w-full md:w-40">
+                            <div className="w-full">
                                 <label className="text-xs font-medium text-gray-500 mb-1.5 block">End Date</label>
                                 <div className="relative">
                                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                     <input 
                                         type="date"
                                         value={filters.endDate}
-                                        onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value, page: 1 }))}
+                                        min={filters.startDate}
+                                        onChange={(e) => {
+                                            const value = e.target.value
+                                            setFilters(prev => ({
+                                                ...prev,
+                                                endDate: value,
+                                                startDate: prev.startDate && prev.startDate > value ? value : prev.startDate,
+                                                page: 1
+                                            }))
+                                        }}
                                         className="w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"
                                     />
                                 </div>
                             </div>
-                            <div className="w-full md:w-32">
+                            <div className="w-full">
                                 <label className="text-xs font-medium text-gray-500 mb-1.5 block">End Time</label>
                                 <div className="relative">
                                     <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -278,30 +292,32 @@ export function StaffAttendanceLogsClient({ defaultView = 'day' }: StaffAttendan
                         </div>
                     )}
                     
-                    <div className="w-full md:w-40">
-                         <FormSelect 
-                            label="Status"
-                            value={filters.status}
-                            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value, page: 1 }))}
-                            options={[
-                                { label: 'All Status', value: 'all' },
-                                { label: 'Present', value: 'present' },
-                                { label: 'Short Session', value: 'short_session' }
-                            ]}
-                            icon={Filter}
-                            className="text-sm py-2"
-                        />
-                    </div>
-
-                    <div className="w-full md:w-64">
-                        <FormInput 
-                            label="Search Student"
-                            icon={Search}
-                            placeholder="Name..."
-                            value={filters.search}
-                            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value, page: 1 }))}
-                            className="text-sm py-2"
-                        />
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 gap-2 w-full">
+                        <div className="w-full">
+                            <FormSelect 
+                                label="Status"
+                                value={filters.status}
+                                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value, page: 1 }))}
+                                options={[
+                                    { label: 'All Status', value: 'all' },
+                                    { label: 'Present', value: 'present' },
+                                    { label: 'Short Session', value: 'short_session' }
+                                ]}
+                                icon={Filter}
+                                className="text-sm py-2"
+                            />
+                        </div>
+    
+                        <div className="w-full">
+                            <FormInput 
+                                label="Search Student"
+                                icon={Search}
+                                placeholder="Name..."
+                                value={filters.search}
+                                onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value, page: 1 }))}
+                                className="text-sm py-2"
+                            />
+                        </div>
                     </div>
                 </div>
 
