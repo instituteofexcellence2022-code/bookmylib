@@ -314,6 +314,16 @@ export function AddStudentForm({ onSuccess, onCancel }: AddStudentFormProps) {
                         maxLength={10}
                     />
                     <FormInput 
+                        name="dob" 
+                        type="date" 
+                        label="Date of Birth" 
+                        icon={Calendar}
+                        value={formData.dob}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        error={errors.dob}
+                    />
+                    <FormInput 
                         name="password" 
                         type="password" 
                         label="Password" 
@@ -334,16 +344,6 @@ export function AddStudentForm({ onSuccess, onCancel }: AddStudentFormProps) {
                         onChange={handleChange}
                         onBlur={handleBlur}
                         error={errors.branchId}
-                    />
-                    <FormInput 
-                        name="dob" 
-                        type="date" 
-                        label="Date of Birth" 
-                        icon={Calendar}
-                        value={formData.dob}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                        error={errors.dob}
                     />
                     <FormSelect 
                         name="gender"

@@ -309,6 +309,16 @@ export default function AddStudentPage() {
                             maxLength={10}
                         />
                         <FormInput 
+                            name="dob" 
+                            type="date" 
+                            label="Date of Birth" 
+                            icon={Calendar}
+                            value={formData.dob}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            error={errors.dob}
+                        />
+                        <FormInput 
                             name="password" 
                             type="password" 
                             label="Password" 
@@ -330,16 +340,6 @@ export default function AddStudentPage() {
                             onBlur={handleBlur}
                             error={errors.branchId}
                             disabled={branchOptions.length === 1}
-                        />
-                        <FormInput 
-                            name="dob" 
-                            type="date" 
-                            label="Date of Birth" 
-                            icon={Calendar}
-                            value={formData.dob}
-                            onChange={handleChange}
-                            onBlur={handleBlur}
-                            error={errors.dob}
                         />
                         <FormSelect 
                             name="gender"
