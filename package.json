@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
+    "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "validate": "npm run typecheck && npm run lint",
     "test": "vitest",
@@ -15,7 +16,10 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx}": "eslint --fix"
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
