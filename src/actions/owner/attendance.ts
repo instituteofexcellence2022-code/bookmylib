@@ -187,7 +187,7 @@ export async function getOwnerAttendanceStats(branchId?: string, date: Date = ne
     }
 }
 
-export async function getAttendanceAnalytics(days: number = 7, branchFilterId?: string) {
+export async function getAttendanceAnalytics(days: number = 7, filters?: { branchIds?: string[], status?: string[], method?: string[] }) {
     const owner = await getAuthenticatedOwner()
     if (!owner) return { success: false, error: 'Unauthorized' }
     if (!ownerPermit('attendance:view')) return { success: false, error: 'Unauthorized' }
@@ -199,7 +199,9 @@ export async function getAttendanceAnalytics(days: number = 7, branchFilterId?: 
         const logs = await prisma.attendance.findMany({
             where: {
                 libraryId: owner.libraryId,
-                ...(branchFilterId ? { branchId: branchFilterId } : {}),
+                ...(filters?.branchIds && filters.branchIds.length > 0 ? { branchId: { in: filters.branchIds } } : {}),
+                ...(filters?.status && filters.status.length > 0 ? { status: { in: filters.status } } : {}),
+                ...(filters?.method && filters.method.length > 0 ? { method: { in: filters.method } } : {}),
                 checkIn: {
                     gte: startDate,
                     lte: endDate
@@ -328,17 +330,13 @@ export async function getAttendanceAnalytics(days: number = 7, branchFilterId?: 
         
         // Branch Daily Stack (top 5 branches)
         const dateKeys: string[] = Array.from(dailyMap.keys())
-        let topBranches: string[] = []
-        if (branchFilterId) {
-            const found = branchComparison.find(b => b.id === branchFilterId)
-            topBranches = found ? [found.name] : []
-        } else {
-            topBranches = branchComparison
+        const topBranches = (filters?.branchIds && filters.branchIds.length > 0)
+            ? branchComparison.filter(b => filters!.branchIds!.includes(b.id)).map(b => b.name)
+            : branchComparison
                 .slice()
                 .sort((a, b) => b.count - a.count)
                 .slice(0, 5)
                 .map(b => b.name)
-        }
         const branchDailyStack: Array<Record<string, number | string>> = dateKeys.map(date => {
             const obj: Record<string, number | string> = { date }
             topBranches.forEach(name => { obj[name] = 0 })
