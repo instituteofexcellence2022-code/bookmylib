@@ -51,7 +51,45 @@ export async function getBookings(filters?: {
       orderBy: { createdAt: 'desc' }
     })
 
-    return { success: true, data: bookings }
+    // Consolidate contiguous multi-quantity chains into single entry per student/plan/seat/locker
+    const groups = new Map<string, any[]>()
+    for (const sub of bookings) {
+      const key = [
+        sub.studentId,
+        sub.branchId,
+        sub.planId,
+        sub.seatId || '',
+        sub.lockerId || ''
+      ].join('|')
+      const arr = groups.get(key) || []
+      arr.push(sub)
+      groups.set(key, arr)
+    }
+
+    const consolidated: any[] = []
+    for (const arr of groups.values()) {
+      arr.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+      const isContiguous = arr.length > 1 && arr.every((s, i) => i === 0 || new Date(arr[i].startDate).getTime() === new Date(arr[i - 1].endDate).getTime())
+      if (isContiguous) {
+        const first = arr[0]
+        const last = arr[arr.length - 1]
+        const payments = arr.flatMap(s => s.payments || [])
+        consolidated.push({
+          ...last,
+          startDate: first.startDate,
+          endDate: last.endDate,
+          amount: arr.reduce((sum, s) => sum + (s.amount || 0), 0),
+          status: arr.some(s => s.status === 'active') ? 'active' : last.status,
+          payments
+        })
+      } else {
+        consolidated.push(...arr)
+      }
+    }
+
+    consolidated.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+    return { success: true, data: consolidated }
   } catch (error) {
     console.error('Error fetching bookings:', error)
     return { success: false, error: 'Failed to fetch bookings' }

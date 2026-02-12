@@ -73,12 +73,44 @@ export async function getStudentProfile() {
         })
 
         if (student && student.subscriptions) {
-            // Manually sort to prioritize active subscriptions
-            student.subscriptions.sort((a, b) => {
+            // Consolidate contiguous chains per branch/plan/seat/locker
+            const groups = new Map<string, any[]>()
+            for (const sub of student.subscriptions) {
+                const key = [sub.branchId, sub.planId, sub.seatId || '', sub.lockerId || ''].join('|')
+                const arr = groups.get(key) || []
+                arr.push(sub)
+                groups.set(key, arr)
+            }
+
+            const consolidated: any[] = []
+            for (const arr of groups.values()) {
+                arr.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+                const isContiguous = arr.length > 1 && arr.every((s, i) => i === 0 || new Date(arr[i].startDate).getTime() === new Date(arr[i - 1].endDate).getTime())
+                if (isContiguous) {
+                    const first = arr[0]
+                    const last = arr[arr.length - 1]
+                    consolidated.push({
+                        ...last,
+                        startDate: first.startDate,
+                        endDate: last.endDate,
+                        amount: arr.reduce((sum, s) => sum + (s.amount || 0), 0),
+                        status: arr.some(s => s.status === 'active') ? 'active' : last.status
+                    })
+                } else {
+                    consolidated.push(...arr)
+                }
+            }
+
+            // Sort: prioritize active first, then by createdAt desc
+            consolidated.sort((a, b) => {
                 if (a.status === 'active' && b.status !== 'active') return -1
                 if (a.status !== 'active' && b.status === 'active') return 1
                 return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
             })
+
+            // Replace subscriptions with consolidated view
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ;(student as any).subscriptions = consolidated
         }
 
         if (!student) {

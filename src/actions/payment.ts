@@ -184,20 +184,48 @@ export async function getStudentBookingStatus() {
     }
   })
 
+  // Consolidate contiguous chains (same branch/plan/seat/locker) into single objects for display
+  const groupKey = (s: any) => [s.branchId, s.planId, s.seatId || '', s.lockerId || ''].join('|')
+  const groups = new Map<string, any[]>()
+  for (const s of formattedSubscriptions) {
+    const key = groupKey(s)
+    const arr = groups.get(key) || []
+    arr.push(s)
+    groups.set(key, arr)
+  }
+  const consolidatedSubs: any[] = []
+  for (const arr of groups.values()) {
+    arr.sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+    const isContiguous = arr.length > 1 && arr.every((s: any, i: number) => i === 0 || new Date(arr[i].startDate).getTime() === new Date(arr[i - 1].endDate).getTime())
+    if (isContiguous) {
+      const first = arr[0]
+      const last = arr[arr.length - 1]
+      const payment = last.payment || first.payment || null
+      consolidatedSubs.push({
+        ...last,
+        startDate: first.startDate,
+        endDate: last.endDate,
+        payment
+      })
+    } else {
+      consolidatedSubs.push(...arr)
+    }
+  }
+
   // Determine Active vs Queued
   const now = new Date()
-  const activeSubscription = formattedSubscriptions.find(sub => 
+  const activeSubscription = consolidatedSubs.find(sub => 
     new Date(sub.startDate) <= now && new Date(sub.endDate) >= now
   ) || null
 
-  const queuedSubscriptions = formattedSubscriptions.filter(sub => 
+  const queuedSubscriptions = consolidatedSubs.filter(sub => 
     new Date(sub.startDate) > now
   )
 
   // Determine "Last" subscription (for renewals - usually the one ending last)
   // Since we sorted by startDate asc, and assuming non-overlapping chains, the last one in array usually ends last.
   // But let's be safe and sort by endDate desc to find the "latest" one.
-  const sortedByEnd = [...formattedSubscriptions].sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime())
+  const sortedByEnd = [...consolidatedSubs].sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime())
   const lastSubscription = sortedByEnd[0] || null
 
   let latestPayment = null
