@@ -603,17 +603,15 @@ export async function loginStudent(formData: FormData) {
     }
 
     try {
-        const phoneCandidate = identifier.replace(/\D/g, '')
+        const digitsOnly = identifier.replace(/\D/g, '')
+        const last10 = digitsOnly.length >= 10 ? digitsOnly.slice(-10) : ''
         
         const orConditions: Prisma.StudentWhereInput[] = [
             { email: { equals: identifier, mode: 'insensitive' } }
         ]
 
-        if (phoneCandidate.length >= 10) {
-            orConditions.push({ phone: phoneCandidate })
-        } else if (phoneCandidate.length > 0 && !identifier.includes('@')) {
-            // If it has numbers but not full 10 digits and not an email, try matching exact phone just in case
-            orConditions.push({ phone: identifier })
+        if (last10) {
+            orConditions.push({ phone: last10 })
         }
 
         const student = await prisma.student.findFirst({
