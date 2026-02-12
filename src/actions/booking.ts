@@ -189,10 +189,8 @@ export async function createBooking(data: {
             where: { libraryId: branch.libraryId, status: 'active', endDate: { gt: new Date() } }
         })
         let willActivateNow = 0
-        if (existingPayment && existingPayment.status === 'completed') {
-            willActivateNow = quantity
-        } else if (paymentDetails) {
-            willActivateNow = quantity
+        if ((existingPayment && existingPayment.status === 'completed') || paymentDetails) {
+            willActivateNow = 1
         }
         if (activeSubsCount + willActivateNow > (platformSubscription.plan.maxActiveStudents || 0)) {
             return { success: false, error: 'Active student limit reached' }
@@ -365,33 +363,24 @@ export async function createBooking(data: {
                 invoiceNoToUse = generatedInvoiceNo
             }
 
-            // 7. Create Subscriptions Loop
+            // 7. Create Single Consolidated Subscription (covers all cycles)
             const createdSubscriptionIds: string[] = []
-            
-            // Calculate per-subscription amount for record keeping
-            const perSubAmount = finalAmount / quantity
-
-            for (let i = 0; i < quantity; i++) {
-                const period = subscriptionPeriods[i]
-                
-                const subscription = await tx.studentSubscription.create({
-                    data: {
-                        libraryId: plan.libraryId,
-                        studentId,
-                        branchId,
-                        planId,
-                        seatId,
-                        lockerId: finalLockerId,
-                        status: subscriptionStatus,
-                        startDate: period.start,
-                        endDate: period.end,
-                        amount: perSubAmount,
-                        hasLocker
-                    }
-                })
-                
-                createdSubscriptionIds.push(subscription.id)
-            }
+            const consolidated = await tx.studentSubscription.create({
+                data: {
+                    libraryId: plan.libraryId,
+                    studentId,
+                    branchId,
+                    planId,
+                    seatId,
+                    lockerId: finalLockerId,
+                    status: subscriptionStatus,
+                    startDate: initialStart,
+                    endDate: finalEndDate,
+                    amount: finalAmount,
+                    hasLocker
+                }
+            })
+            createdSubscriptionIds.push(consolidated.id)
             
             // 8. Link Payment to First Subscription and Store All IDs in Remarks
             if (paymentIdToUse && createdSubscriptionIds.length > 0) {
@@ -399,6 +388,7 @@ export async function createBooking(data: {
                     where: { id: paymentIdToUse },
                     data: { 
                         subscriptionId: createdSubscriptionIds[0],
+                        relatedId: createdSubscriptionIds[0],
                         remarks: JSON.stringify(createdSubscriptionIds)
                     }
                 })
@@ -456,7 +446,7 @@ export async function createBooking(data: {
                     branchAddress: `${branch.address}, ${branch.city}`,
                     planName: plan.name,
                     planType: plan.category,
-                    planDuration: `${plan.duration} ${plan.durationUnit} (x${quantity})`, // Update duration display
+                    planDuration: `${plan.duration * quantity} ${plan.durationUnit}`,
                     planHours: plan.hoursPerDay ? `${plan.hoursPerDay} Hrs/Day` : undefined,
                     seatNumber: result.seatNumber ? formatSeatNumber(result.seatNumber) : undefined,
                     startDate: subscriptionPeriods[0].start, // First start
