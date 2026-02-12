@@ -19,6 +19,7 @@ export function QRGenerationClient() {
     const [branches, setBranches] = useState<Branch[]>([])
     const [selectedBranchId, setSelectedBranchId] = useState<string>('')
     const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
+    const [qrPayloadUrl, setQrPayloadUrl] = useState<string | null>(null)
     const [generating, setGenerating] = useState(false)
 
     const fetchBranches = useCallback(async () => {
@@ -49,6 +50,7 @@ export function QRGenerationClient() {
 
             const url = await generateHighQualityQR(qrPayload)
             setQrDataUrl(url)
+            setQrPayloadUrl(qrPayload)
         } catch {
             // ignore
         }
@@ -134,6 +136,16 @@ export function QRGenerationClient() {
         link.click()
         document.body.removeChild(link)
     }
+    
+    const handleCopyLink = async () => {
+        if (!qrPayloadUrl) return
+        try {
+            await navigator.clipboard.writeText(qrPayloadUrl)
+            toast.success('QR link copied')
+        } catch {
+            toast.error('Failed to copy link')
+        }
+    }
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -184,7 +196,21 @@ export function QRGenerationClient() {
                             >
                                 Download Image
                             </AnimatedButton>
+                            <AnimatedButton 
+                                onClick={handleCopyLink}
+                                variant="outline"
+                                className="w-full justify-center"
+                                icon="share"
+                            >
+                                Copy QR Link
+                            </AnimatedButton>
                         </div>
+                        {qrPayloadUrl && (
+                            <div className="mt-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+                                <p className="text-xs text-gray-500">Link:</p>
+                                <p className="text-xs break-all">{qrPayloadUrl}</p>
+                            </div>
+                        )}
                     </AnimatedCard>
                 )}
             </div>

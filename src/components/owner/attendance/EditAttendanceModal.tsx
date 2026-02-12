@@ -11,6 +11,9 @@ interface AttendanceRecord {
     id: string
     checkIn: string | Date
     checkOut?: string | Date | null
+    status?: string
+    method?: string | null
+    remarks?: string | null
 }
 
 interface EditAttendanceModalProps {
@@ -25,7 +28,10 @@ export function EditAttendanceModal({ record, onClose, onSuccess }: EditAttendan
         checkInDate: format(new Date(record.checkIn), 'yyyy-MM-dd'),
         checkInTime: format(new Date(record.checkIn), 'HH:mm'),
         checkOutDate: record.checkOut ? format(new Date(record.checkOut), 'yyyy-MM-dd') : format(new Date(record.checkIn), 'yyyy-MM-dd'),
-        checkOutTime: record.checkOut ? format(new Date(record.checkOut), 'HH:mm') : ''
+        checkOutTime: record.checkOut ? format(new Date(record.checkOut), 'HH:mm') : '',
+        status: record.status || 'present',
+        method: record.method || 'manual',
+        remarks: record.remarks || ''
     })
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -48,7 +54,10 @@ export function EditAttendanceModal({ record, onClose, onSuccess }: EditAttendan
 
             const result = await updateAttendanceRecord(record.id, {
                 checkIn,
-                checkOut
+                checkOut,
+                status: formData.status,
+                method: formData.method,
+                remarks: formData.remarks
             })
 
             if (result.success) {
@@ -129,6 +138,43 @@ export function EditAttendanceModal({ record, onClose, onSuccess }: EditAttendan
                                 </div>
                             </div>
                             <p className="text-xs text-gray-500">Leave time empty if currently active.</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                                <select
+                                    value={formData.status}
+                                    onChange={e => setFormData(prev => ({ ...prev, status: e.target.value }))}
+                                    className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm"
+                                >
+                                    <option value="present">Present</option>
+                                    <option value="short_session">Short Session</option>
+                                    <option value="full_day">Full Day</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Method</label>
+                                <select
+                                    value={formData.method}
+                                    onChange={e => setFormData(prev => ({ ...prev, method: e.target.value }))}
+                                    className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm"
+                                >
+                                    <option value="manual">Manual</option>
+                                    <option value="qr">QR</option>
+                                    <option value="biometric">Biometric</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Remarks</label>
+                            <textarea
+                                value={formData.remarks}
+                                onChange={e => setFormData(prev => ({ ...prev, remarks: e.target.value }))}
+                                rows={3}
+                                className="mt-1 w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm"
+                            />
                         </div>
                     </div>
 

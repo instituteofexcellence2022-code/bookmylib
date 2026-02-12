@@ -20,9 +20,10 @@ import { FormSelect } from '@/components/ui/FormSelect'
 import { FormInput } from '@/components/ui/FormInput'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { StatCard } from '@/components/ui/StatCard'
-import { getOwnerAttendanceLogs, getOwnerAttendanceStats } from '@/actions/owner/attendance'
+import { getOwnerAttendanceLogs, getOwnerAttendanceStats, updateAttendanceRecord } from '@/actions/owner/attendance'
 import { getOwnerBranches } from '@/actions/branch'
 import { EditAttendanceModal } from './EditAttendanceModal'
+import { AddAttendanceModal } from './AddAttendanceModal'
 
 interface Branch {
     id: string
@@ -41,6 +42,8 @@ interface AttendanceLog {
     checkOut?: string | Date | null
     duration?: number
     status: string
+    method?: string | null
+    remarks?: string | null
     student: Student
     branch: Branch
 }
@@ -66,7 +69,10 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
         endDate: format(new Date(), 'yyyy-MM-dd'),
         search: '',
         page: 1,
-        limit: 10
+        limit: 10,
+        activeOnly: false,
+        durationMin: '',
+        durationMax: ''
     })
 
     // Data
@@ -81,6 +87,7 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
 
     // Modal
     const [editingRecord, setEditingRecord] = useState<AttendanceLog | null>(null)
+    const [adding, setAdding] = useState(false)
 
     const fetchBranches = useCallback(async () => {
         try {
@@ -101,6 +108,9 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                 date: viewMode === 'day' ? new Date(filters.date) : undefined,
                 startDate: viewMode === 'range' ? new Date(filters.startDate) : undefined,
                 endDate: viewMode === 'range' ? new Date(filters.endDate) : undefined,
+                activeOnly: filters.activeOnly || undefined,
+                durationMin: filters.durationMin ? Number(filters.durationMin) : undefined,
+                durationMax: filters.durationMax ? Number(filters.durationMax) : undefined,
             })
             if (result.success && result.data) {
                 setLogs(result.data.logs as unknown as AttendanceLog[])
@@ -155,6 +165,47 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
         toast.success('Refreshed')
     }
 
+    const handleQuickCheckout = async (record: AttendanceLog) => {
+        try {
+            const res = await updateAttendanceRecord(record.id, { checkOut: new Date() })
+            if (res.success) {
+                toast.success('Checked out')
+                fetchData()
+                fetchStats()
+            } else {
+                toast.error(res.error || 'Failed to checkout')
+            }
+        } catch {
+            toast.error('Failed to checkout')
+        }
+    }
+
+    const exportCSV = () => {
+        const headers = ['Student', 'Email', 'Branch', 'Date', 'Check In', 'Check Out', 'Duration(min)', 'Status', 'Method', 'Remarks']
+        const rows = logs.map(l => [
+            l.student.name,
+            l.student.email || '',
+            l.branch.name,
+            format(new Date(l.checkIn), 'yyyy-MM-dd'),
+            format(new Date(l.checkIn), 'HH:mm'),
+            l.checkOut ? format(new Date(l.checkOut), 'HH:mm') : '',
+            typeof l.duration === 'number' ? String(l.duration) : '',
+            l.status,
+            l.method || '',
+            l.remarks || ''
+        ])
+        const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `attendance-${filters.branchId || 'all'}-${filters.date}.csv`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+    }
+
     return (
         <div className="space-y-6">
             {/* View Toggle */}
@@ -204,7 +255,7 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                     />
                     <StatCard 
                         title="Avg Duration" 
-                        value={`${stats.avgDuration}h`} 
+                        value={`${Math.floor(stats.avgDuration / 60)}h ${stats.avgDuration % 60}m`} 
                         icon={Clock}
                         color="purple"
                         delay={0.3}
@@ -310,11 +361,48 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                             className="text-sm py-2"
                         />
                     </div>
+                    <div className="w-full md:w-48">
+                        <label className="text-xs font-medium text-gray-500 mb-1.5 block">Active Only</label>
+                        <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg">
+                            <input 
+                                type="checkbox" 
+                                checked={filters.activeOnly} 
+                                onChange={(e) => setFilters(prev => ({ ...prev, activeOnly: e.target.checked, page: 1 }))} 
+                            />
+                            <span className="text-xs text-gray-600 dark:text-gray-300">Hide checked-out</span>
+                        </div>
+                    </div>
+                    <div className="flex gap-2 w-full md:w-auto">
+                        <div className="w-full md:w-32">
+                            <FormInput
+                                label="Min Duration"
+                                placeholder="minutes"
+                                value={filters.durationMin}
+                                onChange={(e) => setFilters(prev => ({ ...prev, durationMin: e.target.value, page: 1 }))}
+                                className="text-sm py-2"
+                            />
+                        </div>
+                        <div className="w-full md:w-32">
+                            <FormInput
+                                label="Max Duration"
+                                placeholder="minutes"
+                                value={filters.durationMax}
+                                onChange={(e) => setFilters(prev => ({ ...prev, durationMax: e.target.value, page: 1 }))}
+                                className="text-sm py-2"
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 <div className="flex gap-2">
                     <AnimatedButton variant="outline" onClick={handleRefresh} className="h-10 w-10 p-0 flex items-center justify-center">
                         <RefreshCw size={18} />
+                    </AnimatedButton>
+                    <AnimatedButton onClick={exportCSV} className="h-10">
+                        Export CSV
+                    </AnimatedButton>
+                    <AnimatedButton onClick={() => setAdding(true)} className="h-10 bg-blue-600 hover:bg-blue-700 text-white">
+                        Add Attendance
                     </AnimatedButton>
                 </div>
             </div>
@@ -332,6 +420,8 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                                 <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Check Out</th>
                                 <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
                                 <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                                <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th>
                                 <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Actions</th>
                             </tr>
                         </thead>
@@ -396,6 +486,12 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                                                 {log.status.replace('_', ' ')}
                                             </span>
                                         </td>
+                                        <td className="p-4 text-sm text-gray-600 dark:text-gray-300">
+                                            {log.method ? log.method : '-'}
+                                        </td>
+                                        <td className="p-4 text-sm text-gray-600 dark:text-gray-300 max-w-[220px] truncate">
+                                            {log.remarks || '-'}
+                                        </td>
                                         <td className="p-4 text-right">
                                             <button 
                                                 onClick={() => setEditingRecord(log)}
@@ -404,6 +500,15 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                                             >
                                                 <Edit size={16} />
                                             </button>
+                                            {!log.checkOut && (
+                                                <button
+                                                    onClick={() => handleQuickCheckout(log)}
+                                                    className="p-1.5 ml-1 text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                                                    title="Checkout Now"
+                                                >
+                                                    <UserCheck size={16} />
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))
@@ -438,6 +543,12 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                 <EditAttendanceModal 
                     record={editingRecord} 
                     onClose={() => setEditingRecord(null)}
+                    onSuccess={handleRefresh}
+                />
+            )}
+            {adding && (
+                <AddAttendanceModal 
+                    onClose={() => setAdding(false)}
                     onSuccess={handleRefresh}
                 />
             )}

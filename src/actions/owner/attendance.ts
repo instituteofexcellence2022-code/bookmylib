@@ -15,6 +15,9 @@ export type AttendanceFilter = {
     branchId?: string
     search?: string // Student name
     status?: string
+    activeOnly?: boolean
+    durationMin?: number
+    durationMax?: number
 }
 
 export async function getOwnerAttendanceLogs(filters: AttendanceFilter) {
@@ -28,6 +31,11 @@ export async function getOwnerAttendanceLogs(filters: AttendanceFilter) {
 
     const where: any = {
         libraryId: owner.libraryId,
+    }
+
+    // Currently active only
+    if (filters.activeOnly) {
+        where.checkOut = null
     }
 
     // Branch Filter
@@ -54,6 +62,13 @@ export async function getOwnerAttendanceLogs(filters: AttendanceFilter) {
     // Status Filter
     if (filters.status && filters.status !== 'all') {
         where.status = filters.status
+    }
+
+    // Duration range (completed sessions)
+    if (typeof filters.durationMin === 'number' || typeof filters.durationMax === 'number') {
+        where.duration = {}
+        if (typeof filters.durationMin === 'number') where.duration.gte = filters.durationMin
+        if (typeof filters.durationMax === 'number') where.duration.lte = filters.durationMax
     }
 
     // Search (Student Name)
@@ -172,7 +187,7 @@ export async function getOwnerAttendanceStats(branchId?: string, date: Date = ne
     }
 }
 
-export async function getAttendanceAnalytics(days: number = 7) {
+export async function getAttendanceAnalytics(days: number = 7, branchFilterId?: string) {
     const owner = await getAuthenticatedOwner()
     if (!owner) return { success: false, error: 'Unauthorized' }
     if (!ownerPermit('attendance:view')) return { success: false, error: 'Unauthorized' }
@@ -184,14 +199,16 @@ export async function getAttendanceAnalytics(days: number = 7) {
         const logs = await prisma.attendance.findMany({
             where: {
                 libraryId: owner.libraryId,
+                ...(branchFilterId ? { branchId: branchFilterId } : {}),
                 checkIn: {
                     gte: startDate,
                     lte: endDate
                 }
             },
             include: {
+                student: { select: { id: true, name: true } },
                 branch: {
-                    select: { name: true }
+                    select: { id: true, name: true }
                 }
             }
         })
@@ -227,15 +244,16 @@ export async function getAttendanceAnalytics(days: number = 7) {
         }))
 
         // 3. Branch Comparison
-        const branchMap = new Map<string, number>()
+        const branchMap = new Map<string, { id: string, name: string, count: number }>()
         logs.forEach(log => {
-            const name = log.branch.name
-            branchMap.set(name, (branchMap.get(name) || 0) + 1)
+            const id = (log as any).branch?.id as string
+            const name = (log as any).branch?.name as string
+            if (!id || !name) return
+            if (!branchMap.has(id)) branchMap.set(id, { id, name, count: 0 })
+            const entry = branchMap.get(id)!
+            entry.count += 1
         })
-        const branchComparison = Array.from(branchMap.entries()).map(([name, count]) => ({
-            name,
-            count
-        }))
+        const branchComparison = Array.from(branchMap.values())
 
         // 4. Summary Stats
         const totalVisits = logs.length
@@ -244,18 +262,115 @@ export async function getAttendanceAnalytics(days: number = 7) {
         const avgDuration = completedLogs.length > 0 
             ? Math.round(completedLogs.reduce((acc, curr) => acc + (curr.duration || 0), 0) / completedLogs.length) 
             : 0
+        
+        // Branch Avg Durations
+        const branchDurations = new Map<string, { sum: number, count: number }>()
+        completedLogs.forEach(l => {
+            const name = (l as any).branch?.name || 'Unknown'
+            if (!branchDurations.has(name)) branchDurations.set(name, { sum: 0, count: 0 })
+            const entry = branchDurations.get(name)!
+            entry.sum += l.duration || 0
+            entry.count += 1
+        })
+        const branchAvgDurations = Array.from(branchDurations.entries()).map(([name, { sum, count }]) => ({
+            name,
+            avgDuration: count > 0 ? Math.round(sum / count) : 0
+        }))
+        
+        // Top Student by visits in range
+        const studentCount = new Map<string, { name: string, count: number }>()
+        logs.forEach(l => {
+            const id = l.studentId
+            const name = (l as any).student?.name || 'Unknown'
+            if (!studentCount.has(id)) studentCount.set(id, { name, count: 0 })
+            const entry = studentCount.get(id)!
+            entry.count += 1
+        })
+        let topStudent: { id: string; name: string; visits: number } | undefined = undefined
+        studentCount.forEach((v, id) => {
+            if (!topStudent || v.count > topStudent.visits) {
+                topStudent = { id, name: v.name, visits: v.count }
+            }
+        })
+        
+        // Status Distribution
+        const statusCounts = { present: 0, full_day: 0, short_session: 0 }
+        logs.forEach(l => {
+            const s = (l.status || 'present') as 'present' | 'full_day' | 'short_session'
+            if (s in statusCounts) (statusCounts as any)[s] += 1
+        })
+        const statusDistribution = [
+            { label: 'Present', count: statusCounts.present },
+            { label: 'Full Day', count: statusCounts.full_day },
+            { label: 'Short Session', count: statusCounts.short_session }
+        ]
+        
+        // Method Distribution
+        const methodMap = new Map<string, number>()
+        logs.forEach(l => {
+            const m = (l.method || 'unknown').toLowerCase()
+            methodMap.set(m, (methodMap.get(m) || 0) + 1)
+        })
+        const methodDistribution = Array.from(methodMap.entries()).map(([method, count]) => ({ method, count }))
+        
+        // Hourly Avg Duration (for completed sessions)
+        const hourDurations = new Array(24).fill(0)
+        const hourCounts = new Array(24).fill(0)
+        completedLogs.forEach(l => {
+            const h = l.checkIn.getHours()
+            hourDurations[h] += l.duration || 0
+            hourCounts[h] += 1
+        })
+        const hourlyAvgDuration = hourDurations.map((sum, hour) => ({
+            hour: `${hour}:00`,
+            avgDuration: hourCounts[hour] > 0 ? Math.round(sum / hourCounts[hour]) : 0
+        }))
+        
+        // Branch Daily Stack (top 5 branches)
+        const dateKeys: string[] = Array.from(dailyMap.keys())
+        let topBranches: string[] = []
+        if (branchFilterId) {
+            const found = branchComparison.find(b => b.id === branchFilterId)
+            topBranches = found ? [found.name] : []
+        } else {
+            topBranches = branchComparison
+                .slice()
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5)
+                .map(b => b.name)
+        }
+        const branchDailyStack: Array<Record<string, number | string>> = dateKeys.map(date => {
+            const obj: Record<string, number | string> = { date }
+            topBranches.forEach(name => { obj[name] = 0 })
+            return obj
+        })
+        logs.forEach(l => {
+            const dateKey = l.checkIn.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            const branchName = (l as any).branch?.name || 'Unknown'
+            const idx = dateKeys.indexOf(dateKey)
+            if (idx >= 0 && topBranches.includes(branchName)) {
+                const curr = Number(branchDailyStack[idx][branchName] || 0)
+                branchDailyStack[idx][branchName] = curr + 1
+            }
+        })
 
         return {
             success: true,
             data: {
                 dailyTrends,
                 hourlyDistribution,
+                hourlyAvgDuration,
                 branchComparison,
+                branchDailyStack,
+                statusDistribution,
+                methodDistribution,
                 summary: {
                     totalVisits,
                     uniqueStudents,
                     avgDuration,
-                    attendanceRate: totalVisits > 0 ? Math.round((totalVisits / days) * 10) / 10 : 0 // Avg visits per day
+                    attendanceRate: totalVisits > 0 ? Math.round((totalVisits / days) * 10) / 10 : 0, // Avg visits per day
+                    branchAvgDurations,
+                    topStudent
                 }
             }
         }
@@ -265,7 +380,7 @@ export async function getAttendanceAnalytics(days: number = 7) {
     }
 }
 
-export async function updateAttendanceRecord(id: string, data: { checkIn?: Date, checkOut?: Date, status?: string }) {
+export async function updateAttendanceRecord(id: string, data: { checkIn?: Date, checkOut?: Date, status?: string, method?: string, remarks?: string }) {
     const owner = await getAuthenticatedOwner()
     if (!owner) return { success: false, error: 'Unauthorized' }
 
@@ -368,6 +483,7 @@ export async function verifyStudentQR(studentId: string, branchId: string) {
             return { 
                 success: true, 
                 type: 'check-out', 
+                studentId,
                 studentName: student.name,
                 timestamp: checkOutTime,
                 duration
@@ -419,6 +535,7 @@ export async function verifyStudentQR(studentId: string, branchId: string) {
                 date: checkInDate,
                 checkIn: checkInDate,
                 status: 'present',
+                method: 'qr',
                 libraryId: subscription?.libraryId || owner.libraryId
             }
         })
@@ -428,12 +545,65 @@ export async function verifyStudentQR(studentId: string, branchId: string) {
         return { 
             success: true, 
             type: 'check-in', 
+            studentId,
             studentName: student.name,
-            timestamp: new Date()
+            timestamp: checkInDate
         }
 
     } catch (error) {
         console.error('Error verifying student QR:', error)
         return { success: false, error: 'Failed to process attendance' }
+    }
+}
+
+export async function createManualAttendance(data: { studentId: string, branchId: string, checkIn: Date, checkOut?: Date | null, status?: string, remarks?: string }) {
+    const owner = await getAuthenticatedOwner()
+    if (!owner) return { success: false, error: 'Unauthorized' }
+    if (!ownerPermit('attendance:update')) return { success: false, error: 'Unauthorized' }
+
+    try {
+        const student = await prisma.student.findUnique({ where: { id: data.studentId }, select: { id: true, libraryId: true } })
+        if (!student) return { success: false, error: 'Student not found' }
+        if (student.libraryId && student.libraryId !== owner.libraryId) return { success: false, error: 'Access denied' }
+
+        const checkInDate = new Date(data.checkIn)
+        const checkOutDate = data.checkOut ? new Date(data.checkOut) : null
+        if (checkOutDate && checkOutDate < checkInDate) {
+            return { success: false, error: 'Check-out cannot be before check-in' }
+        }
+
+        let duration: number | null = null
+        let status = data.status || 'present'
+        if (checkOutDate) {
+            const d = Math.floor((checkOutDate.getTime() - checkInDate.getTime()) / 60000)
+            duration = d > 0 ? d : 0
+            if (!data.status) {
+                if (duration < 120) status = 'short_session'
+                else if (duration > 360) status = 'full_day'
+                else status = 'present'
+            }
+        }
+
+        await prisma.attendance.create({
+            data: {
+                studentId: data.studentId,
+                branchId: data.branchId,
+                date: checkInDate,
+                checkIn: checkInDate,
+                checkOut: checkOutDate || undefined,
+                duration: duration || undefined,
+                status,
+                method: 'manual',
+                remarks: data.remarks || undefined,
+                libraryId: owner.libraryId
+            }
+        })
+
+        revalidatePath('/owner/attendance')
+        revalidatePath('/owner/attendance/logs')
+        return { success: true }
+    } catch (error) {
+        console.error('Error creating manual attendance:', error)
+        return { success: false, error: 'Failed to create attendance' }
     }
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Camera, CheckCircle, AlertCircle, Loader2, RefreshCw, Volume2, VolumeX, LogOut, Zap, ZapOff } from 'lucide-react'
+import { Camera, CheckCircle, AlertCircle, Loader2, RefreshCw, Volume2, VolumeX, LogOut, Zap, ZapOff, User, Link as LinkIcon } from 'lucide-react'
 import { Html5Qrcode } from 'html5-qrcode'
 import { verifyStudentQR } from '@/actions/owner/attendance'
 import { getOwnerBranches } from '@/actions/branch'
@@ -21,7 +21,7 @@ export function QRScanClient() {
   const [scanning, setScanning] = useState(false)
   const [branches, setBranches] = useState<Branch[]>([])
   const [selectedBranchId, setSelectedBranchId] = useState<string>('')
-  const [result, setResult] = useState<{ type: string; studentName: string; timestamp: Date; duration?: number; message?: string } | null>(null)
+  const [result, setResult] = useState<{ type: string; studentId?: string; studentName: string; timestamp: Date; duration?: number; message?: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [processing, setProcessing] = useState(false)
   const [cameras, setCameras] = useState<Array<{ id: string; label: string }>>([])
@@ -29,6 +29,8 @@ export function QRScanClient() {
   const [torchEnabled, setTorchEnabled] = useState(false)
   const [hasTorch, setHasTorch] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
+  const [autoRestart, setAutoRestart] = useState(true)
+  const [manualId, setManualId] = useState('')
 
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const mountedRef = useRef(false)
@@ -214,19 +216,41 @@ export function QRScanClient() {
               backoff.reset()
               setResult({
                   type: res.type === 'check-in' ? 'Check-in' : 'Check-out',
+                  studentId: res.studentId,
                   studentName: res.studentName || 'Student',
                   timestamp: res.timestamp ? new Date(res.timestamp) : new Date(),
                   duration: res.type === 'check-out' ? res.duration : undefined,
                   message: res.type === 'check-in' ? 'Check-in Successful' : 'Check-out Successful'
               })
               toast.success(`${res.type === 'check-in' ? 'Check-in' : 'Check-out'} Successful`)
+              if (autoRestart) {
+                const d = backoff.nextDelay()
+                setTimeout(() => {
+                  setResult(null)
+                  startScanner()
+                }, Math.max(800, d))
+              }
           } else {
               setError(res.error || 'Scan failed')
               toast.error(res.error || 'Scan failed')
+              if (autoRestart) {
+                const d = backoff.nextDelay()
+                setTimeout(() => {
+                  setError(null)
+                  startScanner()
+                }, Math.max(1200, d))
+              }
           }
       } catch {
           setError('An unexpected error occurred')
           toast.error('An unexpected error occurred')
+          if (autoRestart) {
+            const d = backoff.nextDelay()
+            setTimeout(() => {
+              setError(null)
+              startScanner()
+            }, Math.max(1200, d))
+          }
       } finally {
           setProcessing(false)
       }
@@ -239,6 +263,14 @@ export function QRScanClient() {
       setTimeout(() => {
         startScanner()
       }, d)
+  }
+  
+  const submitManualId = async () => {
+    if (!manualId || !selectedBranchId) {
+      toast.error('Enter Student ID and select branch')
+      return
+    }
+    await handleScan(manualId)
   }
 
   return (
@@ -311,6 +343,22 @@ export function QRScanClient() {
                     <AnimatedButton onClick={startScanner}>
                         Start Scanner
                     </AnimatedButton>
+                    <div className="mt-6 w-full max-w-md">
+                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Manual Entry</div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Student ID"
+                          value={manualId}
+                          onChange={(e) => setManualId(e.target.value)}
+                          className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm"
+                        />
+                        <AnimatedButton onClick={submitManualId}>
+                          Mark
+                        </AnimatedButton>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">Use manual entry if QR scanning is unavailable.</p>
+                    </div>
                 </div>
             )}
 
@@ -352,6 +400,21 @@ export function QRScanClient() {
                             {result.timestamp.toLocaleTimeString()}
                             {result.duration && ` • Duration: ${Math.floor(result.duration / 60)}h ${result.duration % 60}m`}
                         </p>
+                        <div className="flex items-center gap-3 mb-4">
+                          <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                            <input type="checkbox" checked={autoRestart} onChange={(e) => setAutoRestart(e.target.checked)} />
+                            Auto restart scanner
+                          </label>
+                          {result.studentId && (
+                            <a
+                              href={`/owner/students/${result.studentId}`}
+                              className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                              target="_self"
+                            >
+                              <User className="w-4 h-4" /> View Student
+                            </a>
+                          )}
+                        </div>
                         <AnimatedButton onClick={resetScan} variant="outline">
                             Scan Next Student
                         </AnimatedButton>
