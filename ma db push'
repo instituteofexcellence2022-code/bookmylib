@@ -1,0 +1,262 @@
+// Datasource configuration
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+// Core Models based on PLAN.md architecture
+
+// Library/Tenant (Multi-tenant root entity)
+model Library {
+  id           String   @id @default(uuid())
+  name         String
+  subdomain    String   @unique // For multi-tenant URL routing
+  logo         String?
+  website      String?
+  contactEmail String?
+  contactPhone String?
+  address      String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+
+  // Relationships
+  owners             Owner[]
+  branches           Branch[]
+  plans              Plan[]
+  staff              Staff[]
+  staffActivities    StaffActivity[]
+  staffAttendance    StaffAttendance[]
+  staffShifts        StaffShift[]
+  students           Student[]
+  subscriptions      StudentSubscription[]
+  seats              Seat[]
+  lockers            Locker[]
+  attendance         Attendance[]
+  payments           Payment[]
+  studentWallets     StudentWallet[]
+  walletTransactions WalletTransaction[]
+  promotions         Promotion[]
+  supportTickets     SupportTicket[]
+  ticketComments     TicketComment[]
+  announcements      Announcement[]
+  studentGoals       StudentGoal[]
+  focusSessions      FocusSession[]
+  additionalFees     AdditionalFee[]
+  studentNotes       StudentNote[]
+  referrals          Referral[]
+  leads              Lead[]
+  referralSettings   Json? // Configuration for referral program
+  cashHandovers      CashHandover[] // New relation
+
+  // SaaS / Platform Relations
+  subscription       LibrarySubscription?
+  platformTickets    PlatformSupportTicket[]
+  saasPayments       SaasPayment[]
+
+  @@map("libraries")
+}
+
+// Library Owner (Associated with specific Library)
+model Owner {
+  id               String    @id @default(uuid())
+  libraryId        String
+  name             String
+  email            String    @unique
+  phone            String?
+  username         String?   @unique
+  password         String?
+  image            String?
+  address          String?
+  bio              String?
+  socialLinks      String?
+  preferences      String?
+  twoFactorSecret  String?
+  twoFactorEnabled Boolean   @default(false)
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relationships
+  library  Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  branches Branch[]
+  platformTickets PlatformSupportTicket[]
+
+  @@map("owners")
+}
+
+// Library Branch (Owned by Library, managed by Owner)
+model Branch {
+  id             String   @id @default(uuid())
+  libraryId      String
+  ownerId        String?
+  name           String
+  address        String
+  city           String
+  district       String?
+  state          String
+  pincode        String
+  contactPhone   String?
+  contactEmail   String?
+  managerName    String?
+  seatCount      Int      @default(0)
+  area           String?
+  description    String?
+  mapsLink       String?
+  latitude       Float?
+  longitude      Float?
+  images         String? // JSON array
+  wifiDetails    Json?
+  operatingHours Json?
+  amenities      String? // JSON structure for amenities
+  libraryRules   Json?
+  upiId          String?
+  payeeName      String?
+  qrCode         String?  @unique // Unique token for QR code attendance
+  hasLockers     Boolean  @default(false)
+  isLockerSeparate Boolean @default(false)
+  totalLockers   Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relationships
+  library         Library               @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  owner           Owner?                @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  staff           Staff[]
+  students        Student[]
+  seats           Seat[]
+  lockers         Locker[]
+  subscriptions   StudentSubscription[]
+  attendance      Attendance[]
+  plans           Plan[]
+  staffShifts     StaffShift[]
+  staffAttendance StaffAttendance[]
+  additionalFees  AdditionalFee[]
+  promotions      Promotion[]
+  payments        Payment[]
+  supportTickets  SupportTicket[]
+  leads           Lead[]
+  cashHandovers   CashHandover[] // New relation
+  announcements   Announcement[]
+
+  @@map("branches")
+}
+
+// Staff Member (Associated with specific Branch)
+model Staff {
+  id               String    @id @default(uuid())
+  libraryId        String
+  branchId         String
+  name             String
+  email            String    @unique
+  phone            String?   @unique
+  address          String?
+  image            String? // Profile picture URL
+  salary           Float?
+  joiningDate      DateTime?
+  dob              DateTime?
+  gender           String?
+  employmentType   String? // 'full_time', 'part_time', 'contract'
+  password         String? // Hashed password
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  username         String?   @unique
+  status           String    @default("active") // 'active', 'on_leave', 'inactive'
+  documents        String? // Array of { name, url, type, size }
+  role             String // 'manager', 'assistant', 'support'
+  permissions      String? // JSON structure for role permissions
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relationships
+  library          Library           @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  branch           Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  activities       StaffActivity[]
+  attendance       StaffAttendance[]
+  shifts           StaffShift[]
+  supportTickets   SupportTicket[]
+  leadInteractions LeadInteraction[]
+  cashHandovers    CashHandover[] // New relation
+
+  @@map("staff")
+}
+
+model StaffActivity {
+  id        String   @id @default(uuid())
+  libraryId String
+  staffId   String
+  type      String // 'create', 'update', 'delete', 'payment', 'issue', 'login'
+  action    String
+  details   String?
+  entity    String // 'Student Management', 'Finance', etc.
+  status    String // 'success', 'warning', 'error', 'pending'
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  // Relationships
+  library Library @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  staff   Staff   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@map("staff_activities")
+}
+
+// Student (Independent - can subscribe to multiple branches)
+model Student {
+  id       String  @id @default(uuid())
+  name     String
+  email    String? @unique
+  phone    String? @unique
+  password String?
+
+  // Email Verification
+  emailVerifiedAt DateTime?
+
+  // Profile Extensions
+  image   String?
+  dob     DateTime?
+  gender  String?
+  address String?
+  area    String?
+  city    String?
+  state   String?
+  pincode String?
+
+  // Guardian Info
+  guardianName     String?
+  guardianPhone    String?
+  guardianRelation String?
+
+  // Professional/Academic
+  occupation  String? // 'student', 'working_professional', 'other'
+  institution String? // School/College/Company name
+  course      String? // CA, UPSC, JEE, etc.
+
+  // Documents
+  govtIdType   String? // 'aadhaar', 'pan', 'license'
+  govtIdUrl    String?
+  govtIdStatus String  @default("none") // 'none', 'pending', 'verified', 'rejected'
+
+  // System
+  referralCode     String?   @unique // Code this student can share
+  source           String? // 'walk_in', 'referral', 'online', 'lead_conversion'
+  preferences      Json? // User preferences (theme, notifications, etc.)
+  isBlocked        Boolean   @default(false)
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relationships
+  // Primary association (can be null if self-registered without branch initially)
+  libraryId String?
+  branchId  String? // Primary branch
+
+  library L

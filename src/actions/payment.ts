@@ -1173,6 +1173,24 @@ export async function verifyPayment(paymentId: string, status: 'completed' | 'fa
       await activateSubscription(paymentId)
     }
 
+    if (status === 'completed') {
+      const p = await prisma.payment.findUnique({
+        where: { id: paymentId },
+        include: { branch: true, student: true }
+      })
+      if (p?.student) {
+        const updates: any = {}
+        if (p.student.libraryId !== p.libraryId) updates.libraryId = p.libraryId
+        if (p.branch && p.student.branchId !== p.branch.id) updates.branchId = p.branch.id
+        if (Object.keys(updates).length > 0) {
+          await prisma.student.update({
+            where: { id: p.student.id },
+            data: updates
+          })
+        }
+      }
+    }
+
     // Send Receipt Email if completed
     if (status === 'completed') {
       try {

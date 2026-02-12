@@ -400,7 +400,17 @@ export async function verifyStudentQR(studentId: string, branchId: string) {
              })
         }
 
-        // Create Check-in
+        if (!student.libraryId || !student.branchId) {
+            const updates: any = {}
+            if (!student.libraryId) updates.libraryId = owner.libraryId
+            if (!student.branchId) updates.branchId = branchId
+            if (Object.keys(updates).length > 0) {
+                await prisma.student.update({
+                    where: { id: studentId },
+                    data: updates
+                })
+            }
+        }
         const checkInDate = new Date()
         await prisma.attendance.create({
             data: {

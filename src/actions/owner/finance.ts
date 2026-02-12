@@ -352,6 +352,18 @@ export async function verifyPayment(paymentId: string, action: 'approve' | 'reje
                 }
             })
 
+            if (updatedPayment.student) {
+                const updates: any = {}
+                if (updatedPayment.student.libraryId !== updatedPayment.libraryId) updates.libraryId = updatedPayment.libraryId
+                if (updatedPayment.branch && updatedPayment.student.branchId !== updatedPayment.branch.id) updates.branchId = updatedPayment.branch.id
+                if (Object.keys(updates).length > 0) {
+                    await tx.student.update({
+                        where: { id: updatedPayment.student.id },
+                        data: updates
+                    })
+                }
+            }
+
             // Check for remarks (Lockers or Multi-quantity)
             let lockerIdToAdd: string | null = null
             let activatedIds: string[] = []

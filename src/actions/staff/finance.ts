@@ -202,20 +202,17 @@ export async function createStaffPayment(payload: unknown) {
         const d = parsed.data
         const data = d
 
-        // Validate student belongs to branch
-        const student = await prisma.student.findFirst({
-            where: { 
-                id: d.studentId, 
-                libraryId: staff.libraryId,
-                OR: [
-                    { branchId: staff.branchId },
-                    { subscriptions: { some: { branchId: staff.branchId } } }
-                ]
-            },
-            select: { id: true, branchId: true }
+        const student = await prisma.student.findUnique({
+            where: { id: d.studentId },
+            select: { id: true, libraryId: true, branchId: true }
         })
-
-        if (!student) return { success: false, error: 'Student not found or not in your branch' }
+        if (!student) return { success: false, error: 'Student not found' }
+        if (student.libraryId !== staff.libraryId || student.branchId !== staff.branchId) {
+            await prisma.student.update({
+                where: { id: student.id },
+                data: { libraryId: staff.libraryId, branchId: staff.branchId }
+            })
+        }
 
         // Pre-validate Plan and Seat existence to avoid throwing inside transaction
         let plan = null

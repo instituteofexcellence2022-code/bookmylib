@@ -190,8 +190,22 @@ export async function markAttendance(qrCode: string, location?: { lat: number, l
             if (activeNow.plan?.shiftEnd) messages.push(`Shift ends at ${activeNow.plan.shiftEnd}`)
         }
 
-        // Perform Checkin
         const checkInTime = new Date()
+        const studentRecord = await prisma.student.findUnique({
+            where: { id: studentId },
+            select: { libraryId: true, branchId: true }
+        })
+        if (studentRecord && (!studentRecord.libraryId || !studentRecord.branchId)) {
+            const updates: any = {}
+            if (!studentRecord.libraryId) updates.libraryId = branch.libraryId
+            if (!studentRecord.branchId) updates.branchId = branch.id
+            if (Object.keys(updates).length > 0) {
+                await prisma.student.update({
+                    where: { id: studentId },
+                    data: updates
+                })
+            }
+        }
         await prisma.attendance.create({
             data: {
                 libraryId: branch.libraryId,

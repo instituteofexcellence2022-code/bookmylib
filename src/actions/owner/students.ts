@@ -268,8 +268,28 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
         }
     }
 
-    const where: Prisma.StudentWhereInput = {
-        AND: andConditions
+    const baseWhere: Prisma.StudentWhereInput = { AND: andConditions }
+    let where: Prisma.StudentWhereInput = baseWhere
+    if (search) {
+        const s = search.trim()
+        const isEmail = s.includes('@')
+        const digits = s.replace(/\D/g, '')
+        const isPhone = digits.length === 10
+        const globalOr: Prisma.StudentWhereInput[] = []
+        if (isEmail) {
+            globalOr.push({ email: { equals: s, mode: 'insensitive' } })
+        }
+        if (isPhone) {
+            globalOr.push({ phone: digits })
+        }
+        if (globalOr.length > 0) {
+            where = {
+                OR: [
+                    baseWhere,
+                    { OR: globalOr }
+                ]
+            }
+        }
     }
 
     try {

@@ -134,6 +134,21 @@ export async function markStudentAttendance(studentId: string, action: 'check-in
             
             if (existing) return { success: false, error: 'Already checked in' }
 
+            const srec = await prisma.student.findUnique({
+                where: { id: studentId },
+                select: { libraryId: true, branchId: true }
+            })
+            if (srec && (!srec.libraryId || !srec.branchId)) {
+                const updates: any = {}
+                if (!srec.libraryId) updates.libraryId = staff.libraryId
+                if (!srec.branchId) updates.branchId = staff.branchId
+                if (Object.keys(updates).length > 0) {
+                    await prisma.student.update({
+                        where: { id: studentId },
+                        data: updates
+                    })
+                }
+            }
             await prisma.attendance.create({
                 data: {
                     libraryId: staff.libraryId,
@@ -484,8 +499,18 @@ export async function verifyStaffStudentQR(studentId: string) {
              })
         }
 
-        // Create Check-in
         const checkInDate = new Date()
+        if (!student.libraryId || !student.branchId) {
+            const updates: any = {}
+            if (!student.libraryId) updates.libraryId = staff.libraryId
+            if (!student.branchId) updates.branchId = staff.branchId
+            if (Object.keys(updates).length > 0) {
+                await prisma.student.update({
+                    where: { id: studentId },
+                    data: updates
+                })
+            }
+        }
         await prisma.attendance.create({
             data: {
                 studentId: studentId,
