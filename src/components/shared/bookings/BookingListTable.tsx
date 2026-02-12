@@ -22,8 +22,18 @@ export function BookingListTable({ bookings, onViewDetails, onStatusUpdate, show
   }
 
   const getPaymentStatus = (booking: any) => {
-    const isPaid = booking.payments?.some((p: any) => p.status === 'completed')
-    return isPaid ? 'paid' : 'unpaid'
+    const expected = Number(booking.amount || 0)
+    const paid = (booking.payments || [])
+      .filter((p: any) => p.status === 'completed')
+      .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0)
+    if (expected > 0) {
+      if (paid >= expected) return 'paid'
+      if (paid > 0) return 'partial'
+      return 'unpaid'
+    }
+    // No expected set; fall back to any completed payment
+    const anyCompleted = booking.payments?.some((p: any) => p.status === 'completed')
+    return anyCompleted ? 'partial' : 'unpaid'
   }
 
   return (
@@ -102,13 +112,24 @@ export function BookingListTable({ bookings, onViewDetails, onStatusUpdate, show
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                    paymentStatus === 'paid' 
-                      ? 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/20 dark:border-green-800' 
-                      : 'bg-yellow-50 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800'
-                  }`}>
-                    {paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
-                  </span>
+                  {(() => {
+                    const expected = Number(booking.amount || 0)
+                    const paid = (booking.payments || [])
+                      .filter((p: any) => p.status === 'completed')
+                      .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0)
+                    const due = Math.max(expected - paid, 0)
+                    const label = paymentStatus === 'paid' ? 'Paid' : paymentStatus === 'partial' ? `Partial (₹${due})` : expected > 0 ? `Unpaid (₹${expected})` : 'Unpaid'
+                    const klass = paymentStatus === 'paid'
+                      ? 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/20 dark:border-green-800'
+                      : paymentStatus === 'partial'
+                        ? 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800'
+                        : 'bg-yellow-50 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800'
+                    return (
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${klass}`}>
+                        {label}
+                      </span>
+                    )
+                  })()}
                 </td>
                 <td className="px-6 py-4">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(booking.status)} capitalize`}>

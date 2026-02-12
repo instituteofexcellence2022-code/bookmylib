@@ -303,7 +303,9 @@ export async function createBooking(data: {
                 // 5. Calculate Total Amount & Validate Fees (Only needed if creating new payment)
                 // Base amount for ONE cycle
                 let cycleAmount = isAddOn ? 0 : plan.price
-                feeDescription = isAddOn ? `Add-on: Locker` : `Plan: ${plan.name} (x${quantity})`
+                feeDescription = isAddOn 
+                    ? `Add-on: Locker` 
+                    : `Plan: ${plan.name} for ${plan.duration * quantity} ${plan.durationUnit}`
 
                 if (additionalFeeIds.length > 0) {
                     const fees = await tx.additionalFee.findMany({
@@ -329,10 +331,14 @@ export async function createBooking(data: {
                 // Override with manual details if provided
                 if (paymentDetails) {
                     amountPaid = paymentDetails.amount
-                    totalAmount = paymentDetails.amount // Assuming full payment for manual
                     paymentStatus = 'completed' // Manual payments are completed
-                    subscriptionStatus = 'active'
                     discount = paymentDetails.discount || 0
+                    // If partial amount paid, keep subscription pending until dues recovered
+                    if (amountPaid < totalAmount) {
+                        subscriptionStatus = 'pending'
+                    } else {
+                        subscriptionStatus = 'active'
+                    }
                 } else {
                     amountPaid = totalAmount
                     paymentStatus = 'pending'

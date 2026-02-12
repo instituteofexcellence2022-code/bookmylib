@@ -1,20 +1,34 @@
-import React from 'react'
+'use client'
+
+import React, { useState } from 'react'
 import { 
     X, Calendar, User, Armchair, Lock, CreditCard, 
     Mail, Phone, Clock, FileText, CheckCircle, AlertCircle
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
+import { toast } from 'sonner'
 
 interface BookingDetailsModalProps {
     booking: any
     onClose: () => void
     onRenew?: () => void
     onEdit?: () => void
+    onRecordPayment?: (args: { subscriptionId: string; amount: number; method: string; remarks?: string }) => Promise<{ success: boolean; error?: string }>
 }
 
-export function BookingDetailsModal({ booking, onClose, onRenew, onEdit }: BookingDetailsModalProps) {
+export function BookingDetailsModal({ booking, onClose, onRenew, onEdit, onRecordPayment }: BookingDetailsModalProps) {
     if (!booking) return null
+    const expected = Number(booking.amount || 0)
+    const paid = (booking.payments || [])
+      .filter((p: any) => p.status === 'completed')
+      .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0)
+    const due = Math.max(expected - paid, 0)
+
+    const [payAmount, setPayAmount] = useState(due > 0 ? String(due) : '')
+    const [payMethod, setPayMethod] = useState('cash')
+    const [payRemarks, setPayRemarks] = useState('')
+    const [saving, setSaving] = useState(false)
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -170,7 +184,7 @@ export function BookingDetailsModal({ booking, onClose, onRenew, onEdit }: Booki
                                                     </td>
                                                     <td className="px-4 py-3">
                                                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                                                            payment.status === 'success' || payment.status === 'captured'
+                                                            payment.status === 'completed'
                                                                 ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
                                                                 : 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400'
                                                         }`}>
@@ -188,6 +202,13 @@ export function BookingDetailsModal({ booking, onClose, onRenew, onEdit }: Booki
                                         )}
                                     </tbody>
                                 </table>
+                            </div>
+                            <div className="mt-3 text-sm text-gray-700 dark:text-gray-300 flex items-center justify-between">
+                                <div>
+                                    <span className="font-medium">Total:</span> ₹{expected} &nbsp;•&nbsp;
+                                    <span className="font-medium">Paid:</span> ₹{paid} &nbsp;•&nbsp;
+                                    <span className="font-medium">Due:</span> ₹{due}
+                                </div>
                             </div>
                         </div>
 
@@ -220,6 +241,70 @@ export function BookingDetailsModal({ booking, onClose, onRenew, onEdit }: Booki
                         >
                             Edit Booking
                         </AnimatedButton>
+                    )}
+
+                    {due > 0 && (
+                        <div className="flex items-center gap-2 ml-4">
+                            <input
+                                type="number"
+                                min={1}
+                                max={due}
+                                value={payAmount}
+                                onChange={(e) => setPayAmount(e.target.value)}
+                                className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none"
+                                placeholder="Amount"
+                            />
+                            <select
+                                value={payMethod}
+                                onChange={(e) => setPayMethod(e.target.value)}
+                                className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none"
+                            >
+                                <option value="cash">Cash</option>
+                                <option value="upi">UPI</option>
+                                <option value="card">Card</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                            </select>
+                            <input
+                                type="text"
+                                value={payRemarks}
+                                onChange={(e) => setPayRemarks(e.target.value)}
+                                className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none"
+                                placeholder="Remarks (optional)"
+                            />
+                            <AnimatedButton
+                                isLoading={saving}
+                                className="bg-blue-600 text-white hover:bg-blue-700"
+                                onClick={async () => {
+                                    if (!Number(payAmount) || Number(payAmount) <= 0) {
+                                        toast.error('Enter a valid amount')
+                                        return
+                                    }
+                                    try {
+                                        setSaving(true)
+                                        if (!onRecordPayment) {
+                                            toast.error('Payment action is not available')
+                                            return
+                                        }
+                                        const res = await onRecordPayment({
+                                            subscriptionId: booking.id,
+                                            amount: Number(payAmount),
+                                            method: payMethod,
+                                            remarks: payRemarks
+                                        })
+                                        if (res.success) {
+                                            toast.success('Payment recorded')
+                                            onClose()
+                                        } else {
+                                            toast.error(res.error || 'Failed to record payment')
+                                        }
+                                    } finally {
+                                        setSaving(false)
+                                    }
+                                }}
+                            >
+                                Record Payment
+                            </AnimatedButton>
+                        </div>
                     )}
                 </div>
             </div>

@@ -5,7 +5,7 @@ import {
   Search, Calendar, Plus, ChevronLeft
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { updateBookingStatus, updateBookingDetails } from '@/actions/staff/bookings'
+import { updateBookingStatus, updateBookingDetails, recordRecoveryPayment } from '@/actions/staff/bookings'
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO, startOfWeek, endOfWeek, subDays, subWeeks, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns'
 import { StaffAcceptPaymentClient } from '@/components/staff/finance/StaffAcceptPaymentClient'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
@@ -289,6 +289,14 @@ export function BookingsClient({ initialBookings }: BookingsClientProps) {
             setShowModal(false)
             setShowEditModal(true)
           }}
+          onRecordPayment={async ({ subscriptionId, amount, method, remarks }) => {
+            const res = await recordRecoveryPayment(subscriptionId, { amount, method, remarks })
+            if (res.success) {
+              router.refresh()
+              return { success: true }
+            }
+            return { success: false, error: res.error }
+          }}
         />
       )}
 
@@ -308,4 +316,3 @@ export function BookingsClient({ initialBookings }: BookingsClientProps) {
     </div>
   )
 }
-

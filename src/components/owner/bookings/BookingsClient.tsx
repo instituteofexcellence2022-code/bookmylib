@@ -5,7 +5,7 @@ import {
   Filter, Search, Calendar, Plus, ChevronLeft
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { updateBookingStatus, updateBookingDetails } from '@/actions/owner/bookings'
+import { updateBookingStatus, updateBookingDetails, recordRecoveryPayment } from '@/actions/owner/bookings'
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subMonths, startOfYear, endOfYear } from 'date-fns'
 import { AcceptPaymentClient } from '@/components/owner/finance/AcceptPaymentClient'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
@@ -328,6 +328,14 @@ export function BookingsClient({ initialBookings, branches }: BookingsClientProp
           onEdit={() => {
             setShowModal(false)
             setShowEditModal(true)
+          }}
+          onRecordPayment={async ({ subscriptionId, amount, method, remarks }) => {
+            const res = await recordRecoveryPayment(subscriptionId, { amount, method, remarks })
+            if (res.success) {
+              router.refresh()
+              return { success: true }
+            }
+            return { success: false, error: res.error }
           }}
         />
       )}

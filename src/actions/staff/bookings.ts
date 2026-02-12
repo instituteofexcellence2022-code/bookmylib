@@ -187,3 +187,62 @@ export async function updateBookingStatus(id: string, status: string) {
     return { success: false, error: 'Failed to update booking' }
   }
 }
+
+export async function recordRecoveryPayment(
+  subscriptionId: string,
+  data: {
+    amount: number
+    method: string
+    remarks?: string
+  }
+) {
+  const staff = await getAuthenticatedStaff()
+  if (!staff) return { success: false, error: 'Unauthorized' }
+
+  try {
+    const subscription = await prisma.studentSubscription.findUnique({
+      where: { id: subscriptionId },
+      include: { plan: true }
+    })
+    if (!subscription || subscription.branchId !== staff.branchId) {
+      return { success: false, error: 'Subscription not found' }
+    }
+
+    const expected = Number(subscription.amount || 0)
+    const existingPaid = await prisma.payment.aggregate({
+      where: { subscriptionId, status: 'completed', type: 'subscription' },
+      _sum: { amount: true }
+    })
+    const alreadyPaid = Number(existingPaid._sum.amount || 0)
+
+    const payment = await prisma.payment.create({
+      data: {
+        libraryId: subscription.libraryId,
+        branchId: subscription.branchId,
+        studentId: subscription.studentId,
+        type: 'subscription',
+        amount: Number(data.amount || 0),
+        method: data.method || 'cash',
+        status: 'completed',
+        notes: data.remarks || undefined,
+        invoiceNo: `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        relatedId: subscriptionId,
+        subscriptionId
+      }
+    })
+
+    const newPaid = alreadyPaid + Number(data.amount || 0)
+    if (expected > 0 && newPaid >= expected && subscription.status !== 'active') {
+      await prisma.studentSubscription.update({
+        where: { id: subscriptionId },
+        data: { status: 'active' }
+      })
+    }
+
+    revalidatePath('/staff/bookings')
+    return { success: true, paymentId: payment.id, paidTotal: newPaid, dueRemaining: Math.max(expected - newPaid, 0) }
+  } catch (error) {
+    console.error('Error recording recovery payment:', error)
+    return { success: false, error: 'Failed to record payment' }
+  }
+}
