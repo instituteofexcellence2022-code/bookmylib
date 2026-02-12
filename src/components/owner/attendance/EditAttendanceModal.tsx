@@ -150,7 +150,6 @@ export function EditAttendanceModal({ record, onClose, onSuccess }: EditAttendan
                                 >
                                     <option value="present">Present</option>
                                     <option value="short_session">Short Session</option>
-                                    <option value="full_day">Full Day</option>
                                 </select>
                             </div>
                             <div>

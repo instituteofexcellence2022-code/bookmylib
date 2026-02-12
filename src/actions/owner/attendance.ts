@@ -60,9 +60,12 @@ export async function getOwnerAttendanceLogs(filters: AttendanceFilter) {
         if (filters.endDate) where.checkIn.lte = endOfDay(filters.endDate)
     }
 
-    // Status Filter
-    if (filters.status && filters.status !== 'all') {
+    // Status Filter (special-case 'overstay' handled after fetch)
+    if (filters.status && filters.status !== 'all' && filters.status !== 'overstay' && filters.status !== 'active') {
         where.status = filters.status
+    }
+    if (filters.status === 'active') {
+        where.checkOut = null
     }
 
     // Duration range (completed sessions)
@@ -83,40 +86,95 @@ export async function getOwnerAttendanceLogs(filters: AttendanceFilter) {
     }
 
     try {
-        const [logs, total] = await Promise.all([
-            prisma.attendance.findMany({
-                where,
-                include: {
-                    student: {
-                        select: {
-                            id: true,
-                            name: true,
-                            image: true,
-                            email: true
-                        }
-                    },
-                    branch: {
-                        select: {
-                            id: true,
-                            name: true
-                        }
+        const isOverstayFilter = filters.status === 'overstay'
+        const logsRaw = await prisma.attendance.findMany({
+            where,
+            include: {
+                student: {
+                    select: {
+                        id: true,
+                        name: true,
+                        image: true,
+                        email: true
                     }
                 },
-                orderBy: {
-                    checkIn: 'desc'
-                },
-                skip,
-                take: limit
-            }),
-            prisma.attendance.count({ where })
-        ])
+                branch: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                }
+            },
+            orderBy: {
+                checkIn: 'desc'
+            },
+            ...(isOverstayFilter ? {} : { skip, take: limit })
+        })
+        const totalRaw = isOverstayFilter ? 0 : await prisma.attendance.count({ where })
+
+        // Compute overstay minutes per log based on subscription plan hoursPerDay
+        const studentIds = Array.from(new Set(logsRaw.map(l => l.student.id)))
+        const minCheckIn = logsRaw.reduce((min, l) => (l.checkIn < min ? l.checkIn : min), logsRaw[0]?.checkIn || new Date())
+        const maxCheckIn = logsRaw.reduce((max, l) => (l.checkIn > max ? l.checkIn : max), logsRaw[0]?.checkIn || new Date())
+
+        const subscriptions = await prisma.studentSubscription.findMany({
+            where: {
+                libraryId: owner.libraryId,
+                studentId: { in: studentIds },
+                status: { in: ['active', 'expired'] },
+                startDate: { lte: maxCheckIn },
+                endDate: { gte: minCheckIn }
+            },
+            include: {
+                plan: {
+                    select: {
+                        name: true,
+                        hoursPerDay: true,
+                        shiftStart: true,
+                        shiftEnd: true
+                    }
+                }
+            }
+        })
+
+        const byStudent = new Map<string, typeof subscriptions>()
+        subscriptions.forEach(sub => {
+            const list = byStudent.get(sub.studentId) || []
+            list.push(sub)
+            byStudent.set(sub.studentId, list)
+        })
+
+        const enriched = logsRaw.map(log => {
+            let overstayMinutes: number | undefined = undefined
+            const subs = byStudent.get(log.student.id) || []
+            // Match subscription active at the time of check-in and same branch
+            const match = subs.find(s => s.branchId === log.branch.id && s.startDate <= log.checkIn && s.endDate >= log.checkIn)
+            const hoursPerDay = match?.plan?.hoursPerDay || null
+            if (hoursPerDay && typeof log.duration === 'number') {
+                const maxMinutes = hoursPerDay * 60
+                if (log.duration > maxMinutes) {
+                    overstayMinutes = log.duration - maxMinutes
+                }
+            }
+            return { ...log, overstayMinutes }
+        })
+
+        let finalLogs = enriched
+        let total = totalRaw
+        let pages = Math.ceil(total / limit)
+        if (isOverstayFilter) {
+            const filtered = enriched.filter(l => typeof l.overstayMinutes === 'number' && l.overstayMinutes > 0)
+            total = filtered.length
+            pages = Math.ceil(total / limit)
+            finalLogs = filtered.slice(skip, skip + limit)
+        }
 
         return {
             success: true,
             data: {
-                logs,
+                logs: finalLogs,
                 total,
-                pages: Math.ceil(total / limit)
+                pages
             }
         }
     } catch (error) {
@@ -201,7 +259,7 @@ export async function getAttendanceAnalytics(days: number = 7, filters?: { branc
             where: {
                 libraryId: owner.libraryId,
                 ...(filters?.branchIds && filters.branchIds.length > 0 ? { branchId: { in: filters.branchIds } } : {}),
-                ...(filters?.status && filters.status.length > 0 ? { status: { in: filters.status } } : {}),
+                // Defer status filtering to app logic to support 'overstay'
                 ...(filters?.method && filters.method.length > 0 ? { method: { in: filters.method } } : {}),
                 checkIn: {
                     gte: startDate,
@@ -216,6 +274,58 @@ export async function getAttendanceAnalytics(days: number = 7, filters?: { branc
             }
         })
 
+        // Compute overstay flags using subscription plan hoursPerDay
+        const studentIds = Array.from(new Set(logs.map(l => l.studentId)))
+        const minCheckIn = logs.reduce((min, l) => (l.checkIn < min ? l.checkIn : min), logs[0]?.checkIn || startDate)
+        const maxCheckIn = logs.reduce((max, l) => (l.checkIn > max ? l.checkIn : max), logs[0]?.checkIn || endDate)
+        const subscriptions = await prisma.studentSubscription.findMany({
+            where: {
+                libraryId: owner.libraryId,
+                studentId: { in: studentIds },
+                status: { in: ['active', 'expired'] },
+                startDate: { lte: maxCheckIn },
+                endDate: { gte: minCheckIn }
+            },
+            include: {
+                plan: {
+                    select: { hoursPerDay: true }
+                }
+            }
+        })
+        const subsByStudent = new Map<string, typeof subscriptions>()
+        subscriptions.forEach(sub => {
+            const list = subsByStudent.get(sub.studentId) || []
+            list.push(sub)
+            subsByStudent.set(sub.studentId, list)
+        })
+        const isOverstay = (l: any) => {
+            const subs = subsByStudent.get(l.studentId) || []
+            const branchId = (l as { branch?: { id?: string } }).branch?.id
+            const match = subs.find(s => s.branchId === branchId && s.startDate <= l.checkIn && s.endDate >= l.checkIn)
+            const hoursPerDay = match?.plan?.hoursPerDay || null
+            if (!hoursPerDay || typeof l.duration !== 'number') return false
+            const maxMinutes = hoursPerDay * 60
+            return l.duration > maxMinutes
+        }
+
+        // Apply status filter with support for 'overstay'
+        let filteredLogs = logs
+        if (filters?.status && filters.status.length > 0) {
+            const selected = new Set(filters.status)
+            const wantOverstay = selected.has('overstay')
+            const allowedStatuses = Array.from(selected).filter(s => s !== 'overstay')
+            filteredLogs = logs.filter(l => {
+                const baseMatch = allowedStatuses.length > 0 ? allowedStatuses.includes((l.status || 'present')) : true
+                const overstayMatch = wantOverstay ? isOverstay(l) : false
+                // If user selected only overstay, baseMatch should not allow all; ensure baseMatch true only when status matched
+                return (allowedStatuses.length > 0 ? baseMatch : false) || overstayMatch
+            })
+            // If user selected only overstay (allowedStatuses empty), keep only overstay logs
+            if (allowedStatuses.length === 0 && wantOverstay) {
+                filteredLogs = logs.filter(l => isOverstay(l))
+            }
+        }
+
         // 1. Daily Trends
         const dailyMap = new Map<string, number>()
         // Initialize all days with 0
@@ -224,7 +334,7 @@ export async function getAttendanceAnalytics(days: number = 7, filters?: { branc
             dailyMap.set(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), 0)
         }
         
-        logs.forEach(log => {
+        filteredLogs.forEach(log => {
             const dateKey = log.checkIn.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
             if (dailyMap.has(dateKey)) {
                 dailyMap.set(dateKey, (dailyMap.get(dateKey) || 0) + 1)
@@ -238,7 +348,7 @@ export async function getAttendanceAnalytics(days: number = 7, filters?: { branc
 
         // 2. Hourly Distribution
         const hourlyMap = new Array(24).fill(0)
-        logs.forEach(log => {
+        filteredLogs.forEach(log => {
             hourlyMap[log.checkIn.getHours()]++
         })
         const hourlyDistribution = hourlyMap.map((count, hour) => ({
@@ -248,7 +358,7 @@ export async function getAttendanceAnalytics(days: number = 7, filters?: { branc
 
         // 3. Branch Comparison
         const branchMap = new Map<string, { id: string, name: string, count: number }>()
-        logs.forEach(log => {
+        filteredLogs.forEach(log => {
             const id = (log as { branch?: { id?: string } }).branch?.id as string | undefined
             const name = (log as { branch?: { name?: string } }).branch?.name as string | undefined
             if (!id || !name) return
@@ -259,9 +369,9 @@ export async function getAttendanceAnalytics(days: number = 7, filters?: { branc
         const branchComparison = Array.from(branchMap.values())
 
         // 4. Summary Stats
-        const totalVisits = logs.length
-        const uniqueStudents = new Set(logs.map(l => l.studentId)).size
-        const completedLogs = logs.filter(l => l.duration)
+        const totalVisits = filteredLogs.length
+        const uniqueStudents = new Set(filteredLogs.map(l => l.studentId)).size
+        const completedLogs = filteredLogs.filter(l => l.duration)
         const avgDuration = completedLogs.length > 0 
             ? Math.round(completedLogs.reduce((acc, curr) => acc + (curr.duration || 0), 0) / completedLogs.length) 
             : 0
@@ -282,7 +392,7 @@ export async function getAttendanceAnalytics(days: number = 7, filters?: { branc
         
         // Top Student by visits in range
         const studentCount = new Map<string, { name: string, count: number }>()
-        logs.forEach(l => {
+        filteredLogs.forEach(l => {
             const id = l.studentId
             const name = (l as { student?: { name?: string } }).student?.name || 'Unknown'
             if (!studentCount.has(id)) studentCount.set(id, { name, count: 0 })
@@ -297,20 +407,22 @@ export async function getAttendanceAnalytics(days: number = 7, filters?: { branc
         })
         
         // Status Distribution
-        const statusCounts: Record<'present' | 'full_day' | 'short_session', number> = { present: 0, full_day: 0, short_session: 0 }
-        logs.forEach(l => {
-            const s = (l.status || 'present') as 'present' | 'full_day' | 'short_session'
-            if (s in statusCounts) statusCounts[s] += 1
+        const statusCounts: Record<'present' | 'short_session', number> = { present: 0, short_session: 0 }
+        filteredLogs.forEach(l => {
+            const s = (l.status || 'present') as string
+            const normalized = s === 'full_day' ? 'present' : s
+            if (normalized in statusCounts) statusCounts[normalized as 'present' | 'short_session'] += 1
         })
+        const overstayCount = filteredLogs.reduce((acc, l) => acc + (isOverstay(l) ? 1 : 0), 0)
         const statusDistribution = [
             { label: 'Present', count: statusCounts.present },
-            { label: 'Full Day', count: statusCounts.full_day },
-            { label: 'Short Session', count: statusCounts.short_session }
+            { label: 'Short Session', count: statusCounts.short_session },
+            { label: 'Overstay', count: overstayCount }
         ]
         
         // Method Distribution
         const methodMap = new Map<string, number>()
-        logs.forEach(l => {
+        filteredLogs.forEach(l => {
             const m = (l.method || 'unknown').toLowerCase()
             methodMap.set(m, (methodMap.get(m) || 0) + 1)
         })
@@ -343,7 +455,7 @@ export async function getAttendanceAnalytics(days: number = 7, filters?: { branc
             topBranches.forEach(name => { obj[name] = 0 })
             return obj
         })
-        logs.forEach(l => {
+        filteredLogs.forEach(l => {
             const dateKey = l.checkIn.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
             const branchName = (l as { branch?: { name?: string } }).branch?.name || 'Unknown'
             const idx = dateKeys.indexOf(dateKey)

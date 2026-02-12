@@ -259,7 +259,6 @@ export function StaffAttendanceLogsClient({ defaultView = 'day' }: StaffAttendan
                             options={[
                                 { label: 'All Status', value: 'all' },
                                 { label: 'Present', value: 'present' },
-                                { label: 'Full Day', value: 'full_day' },
                                 { label: 'Short Session', value: 'short_session' }
                             ]}
                             icon={Filter}
@@ -348,12 +347,11 @@ export function StaffAttendanceLogsClient({ defaultView = 'day' }: StaffAttendan
                                         </td>
                                         <td className="p-4">
                                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize
-                                                ${log.status === 'present' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 
+                                                ${(log.status === 'present' || log.status === 'full_day') ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 
                                                   log.status === 'short_session' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' :
-                                                  log.status === 'full_day' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
                                                   'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'}
                                             `}>
-                                                {log.status.replace('_', ' ')}
+                                                {(log.status === 'full_day' ? 'present' : log.status).replace('_', ' ')}
                                             </span>
                                         </td>
                                         <td className="p-4 text-right">

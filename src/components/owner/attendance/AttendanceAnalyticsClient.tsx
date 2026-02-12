@@ -280,7 +280,7 @@ export function AttendanceAnalyticsClient() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <StatCard
           title="Total Visits"
           value={data.summary.totalVisits}
@@ -642,7 +642,12 @@ export function AttendanceAnalyticsClient() {
                   onClick={(ev: unknown) => {
                     const entry = (ev as { payload?: { label?: string; count?: number } }).payload
                     if (entry?.label) {
-                      const key = entry.label === 'Present' ? 'present' : entry.label === 'Full Day' ? 'full_day' : 'short_session'
+                      if (entry.label === 'Full Day') return
+                      const key = entry.label === 'Present' 
+                        ? 'present' 
+                        : entry.label === 'Short Session' 
+                        ? 'short_session' 
+                        : 'overstay'
                       setSelectedStatuses(prev => {
                         if (prev.includes(key)) return prev.filter(s => s !== key)
                         return [...prev, key]
@@ -667,7 +672,7 @@ export function AttendanceAnalyticsClient() {
             ))}
           </div>
           <div className="mt-2 flex items-center gap-2">
-            {['present', 'full_day', 'short_session'].map(s => (
+            {['present', 'short_session', 'overstay'].map(s => (
               <button
                 key={s}
                 className={`text-xs px-2 py-1 rounded border ${selectedStatuses.includes(s) ? 'bg-purple-100 border-purple-300 dark:bg-purple-900/30 dark:border-purple-800' : 'border-gray-200 dark:border-gray-700'}`}

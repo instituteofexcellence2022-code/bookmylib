@@ -41,6 +41,7 @@ interface AttendanceLog {
     checkIn: string | Date
     checkOut?: string | Date | null
     duration?: number
+    overstayMinutes?: number
     status: string
     method?: string | null
     remarks?: string | null
@@ -70,7 +71,6 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
         search: '',
         page: 1,
         limit: 10,
-        activeOnly: false,
         durationMin: '',
         durationMax: ''
     })
@@ -108,7 +108,6 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                 date: viewMode === 'day' ? new Date(filters.date) : undefined,
                 startDate: viewMode === 'range' ? new Date(filters.startDate) : undefined,
                 endDate: viewMode === 'range' ? new Date(filters.endDate) : undefined,
-                activeOnly: filters.activeOnly || undefined,
                 durationMin: filters.durationMin ? Number(filters.durationMin) : undefined,
                 durationMax: filters.durationMax ? Number(filters.durationMax) : undefined,
             })
@@ -180,31 +179,7 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
         }
     }
 
-    const exportCSV = () => {
-        const headers = ['Student', 'Email', 'Branch', 'Date', 'Check In', 'Check Out', 'Duration(min)', 'Status', 'Method', 'Remarks']
-        const rows = logs.map(l => [
-            l.student.name,
-            l.student.email || '',
-            l.branch.name,
-            format(new Date(l.checkIn), 'yyyy-MM-dd'),
-            format(new Date(l.checkIn), 'HH:mm'),
-            l.checkOut ? format(new Date(l.checkOut), 'HH:mm') : '',
-            typeof l.duration === 'number' ? String(l.duration) : '',
-            l.status,
-            l.method || '',
-            l.remarks || ''
-        ])
-        const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `attendance-${filters.branchId || 'all'}-${filters.date}.csv`
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        URL.revokeObjectURL(url)
-    }
+    
 
     return (
         <div className="space-y-6">
@@ -274,7 +249,7 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
 
             {/* Filters */}
             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col md:flex-row gap-4 items-end md:items-center justify-between">
-                <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto flex-1">
+                <div className="grid grid-cols-2 gap-4 w-full flex-1">
                     
                     {viewMode === 'day' ? (
                         <div className="w-full md:w-48">
@@ -342,9 +317,10 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                             onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value, page: 1 }))}
                             options={[
                                 { label: 'All Status', value: 'all' },
+                                { label: 'Active', value: 'active' },
                                 { label: 'Present', value: 'present' },
-                                { label: 'Full Day', value: 'full_day' },
-                                { label: 'Short Session', value: 'short_session' }
+                                { label: 'Short Session', value: 'short_session' },
+                                { label: 'Overstay', value: 'overstay' }
                             ]}
                             icon={Filter}
                             className="text-sm py-2"
@@ -361,46 +337,14 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                             className="text-sm py-2"
                         />
                     </div>
-                    <div className="w-full md:w-48">
-                        <label className="text-xs font-medium text-gray-500 mb-1.5 block">Active Only</label>
-                        <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg">
-                            <input 
-                                type="checkbox" 
-                                checked={filters.activeOnly} 
-                                onChange={(e) => setFilters(prev => ({ ...prev, activeOnly: e.target.checked, page: 1 }))} 
-                            />
-                            <span className="text-xs text-gray-600 dark:text-gray-300">Hide checked-out</span>
-                        </div>
-                    </div>
-                    <div className="flex gap-2 w-full md:w-auto">
-                        <div className="w-full md:w-32">
-                            <FormInput
-                                label="Min Duration"
-                                placeholder="minutes"
-                                value={filters.durationMin}
-                                onChange={(e) => setFilters(prev => ({ ...prev, durationMin: e.target.value, page: 1 }))}
-                                className="text-sm py-2"
-                            />
-                        </div>
-                        <div className="w-full md:w-32">
-                            <FormInput
-                                label="Max Duration"
-                                placeholder="minutes"
-                                value={filters.durationMax}
-                                onChange={(e) => setFilters(prev => ({ ...prev, durationMax: e.target.value, page: 1 }))}
-                                className="text-sm py-2"
-                            />
-                        </div>
-                    </div>
+                    
                 </div>
 
                 <div className="flex gap-2">
                     <AnimatedButton variant="outline" onClick={handleRefresh} className="h-10 w-10 p-0 flex items-center justify-center">
                         <RefreshCw size={18} />
                     </AnimatedButton>
-                    <AnimatedButton onClick={exportCSV} className="h-10">
-                        Export CSV
-                    </AnimatedButton>
+                    
                     <AnimatedButton onClick={() => setAdding(true)} className="h-10 bg-blue-600 hover:bg-blue-700 text-white">
                         Add Attendance
                     </AnimatedButton>
@@ -420,15 +364,14 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                                 <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Check Out</th>
                                 <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
                                 <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
-                                <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th>
+                                <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Overstay Duration</th>
                                 <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={8} className="p-8 text-center text-gray-500">
+                                    <td colSpan={9} className="p-8 text-center text-gray-500">
                                         <div className="flex justify-center items-center gap-2">
                                             <RefreshCw className="animate-spin w-4 h-4" /> Loading logs...
                                         </div>
@@ -436,7 +379,7 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                                 </tr>
                             ) : logs.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="p-8 text-center text-gray-500">
+                                    <td colSpan={9} className="p-8 text-center text-gray-500">
                                         No attendance records found.
                                     </td>
                                 </tr>
@@ -475,22 +418,33 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                                         </td>
                                         <td className="p-4 text-sm text-gray-600 dark:text-gray-300">
                                             {log.duration ? `${Math.floor(log.duration / 60)}h ${log.duration % 60}m` : '-'}
+                                            {typeof log.overstayMinutes === 'number' && log.overstayMinutes > 0 && (
+                                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                                                    Overstay +{Math.floor(log.overstayMinutes / 60)}h {log.overstayMinutes % 60}m
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="p-4">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize
-                                                ${log.status === 'present' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 
-                                                  log.status === 'short_session' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' :
-                                                  log.status === 'full_day' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
-                                                  'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'}
-                                            `}>
-                                                {log.status.replace('_', ' ')}
-                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize
+                                                    ${(log.status === 'present' || log.status === 'full_day') ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 
+                                                      log.status === 'short_session' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' :
+                                                      'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'}
+                                                `}>
+                                                    {(log.status === 'full_day' ? 'present' : log.status).replace('_', ' ')}
+                                                </span>
+                                                {typeof log.overstayMinutes === 'number' && log.overstayMinutes > 0 && (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                                                        Overstay
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="p-4 text-sm text-gray-600 dark:text-gray-300">
-                                            {log.method ? log.method : '-'}
-                                        </td>
-                                        <td className="p-4 text-sm text-gray-600 dark:text-gray-300 max-w-[220px] truncate">
-                                            {log.remarks || '-'}
+                                            {typeof log.overstayMinutes === 'number' && log.overstayMinutes > 0 
+                                                ? `+${Math.floor(log.overstayMinutes / 60)}h ${log.overstayMinutes % 60}m`
+                                                : '-'
+                                            }
                                         </td>
                                         <td className="p-4 text-right">
                                             <button 
