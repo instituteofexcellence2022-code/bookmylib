@@ -22,7 +22,7 @@ export function BookingListTable({ bookings, onViewDetails, onStatusUpdate, show
   }
 
   const getPaymentStatus = (booking: any) => {
-    const isPaid = booking.payments?.some((p: any) => p.status === 'success' || p.status === 'captured')
+    const isPaid = booking.payments?.some((p: any) => p.status === 'completed')
     return isPaid ? 'paid' : 'unpaid'
   }
 
