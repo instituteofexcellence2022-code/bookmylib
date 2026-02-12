@@ -60,6 +60,8 @@ export function StaffAttendanceLogsClient({ defaultView = 'day' }: StaffAttendan
         date: format(new Date(), 'yyyy-MM-dd'),
         startDate: format(subDays(new Date(), 7), 'yyyy-MM-dd'),
         endDate: format(new Date(), 'yyyy-MM-dd'),
+        startTime: '',
+        endTime: '',
         search: '',
         page: 1,
         limit: 10
@@ -234,6 +236,18 @@ export function StaffAttendanceLogsClient({ defaultView = 'day' }: StaffAttendan
                                     />
                                 </div>
                             </div>
+                            <div className="w-full md:w-32">
+                                <label className="text-xs font-medium text-gray-500 mb-1.5 block">Start Time</label>
+                                <div className="relative">
+                                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input 
+                                        type="time"
+                                        value={filters.startTime}
+                                        onChange={(e) => setFilters(prev => ({ ...prev, startTime: e.target.value, page: 1 }))}
+                                        className="w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                                    />
+                                </div>
+                            </div>
                             <div className="flex items-center pt-6 text-gray-400">
                                 <ArrowRight size={16} />
                             </div>
@@ -245,6 +259,18 @@ export function StaffAttendanceLogsClient({ defaultView = 'day' }: StaffAttendan
                                         type="date"
                                         value={filters.endDate}
                                         onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value, page: 1 }))}
+                                        className="w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                                    />
+                                </div>
+                            </div>
+                            <div className="w-full md:w-32">
+                                <label className="text-xs font-medium text-gray-500 mb-1.5 block">End Time</label>
+                                <div className="relative">
+                                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input 
+                                        type="time"
+                                        value={filters.endTime}
+                                        onChange={(e) => setFilters(prev => ({ ...prev, endTime: e.target.value, page: 1 }))}
                                         className="w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"
                                     />
                                 </div>

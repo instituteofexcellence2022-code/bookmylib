@@ -13,6 +13,8 @@ export type AttendanceFilter = {
     date?: Date
     startDate?: Date
     endDate?: Date
+    startTime?: string
+    endTime?: string
     branchId?: string
     search?: string // Student name
     status?: string
@@ -56,8 +58,28 @@ export async function getOwnerAttendanceLogs(filters: AttendanceFilter) {
     // Date Range Filter
     else if (filters.startDate || filters.endDate) {
         where.checkIn = {}
-        if (filters.startDate) where.checkIn.gte = startOfDay(filters.startDate)
-        if (filters.endDate) where.checkIn.lte = endOfDay(filters.endDate)
+        if (filters.startDate) {
+            const base = filters.startDate
+            if (filters.startTime) {
+                const [hh, mm] = filters.startTime.split(':').map(n => parseInt(n, 10))
+                const withTime = new Date(base)
+                withTime.setHours(hh || 0, mm || 0, 0, 0)
+                where.checkIn.gte = withTime
+            } else {
+                where.checkIn.gte = startOfDay(base)
+            }
+        }
+        if (filters.endDate) {
+            const base = filters.endDate
+            if (filters.endTime) {
+                const [hh, mm] = filters.endTime.split(':').map(n => parseInt(n, 10))
+                const withTime = new Date(base)
+                withTime.setHours(hh || 23, mm || 59, 59, 999)
+                where.checkIn.lte = withTime
+            } else {
+                where.checkIn.lte = endOfDay(base)
+            }
+        }
     }
 
     // Status Filter (special-case 'overstay' handled after fetch)
