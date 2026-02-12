@@ -65,11 +65,9 @@ export default function PlansAndFeesPage() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [plansData, feesData, branchesResult] = await Promise.all([
-        getOwnerPlans(),
-        getOwnerFees(),
-        getOwnerBranches()
-      ])
+      const plansData = await getOwnerPlans()
+      const feesData = await getOwnerFees()
+      const branchesResult = await getOwnerBranches()
       setPlans(plansData || [])
       setFees(feesData || [])
       if (branchesResult.success && branchesResult.data) {

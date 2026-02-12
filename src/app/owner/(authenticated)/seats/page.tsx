@@ -4,10 +4,8 @@ import { getOwnerBranches } from '@/actions/branch'
 import { SeatsClient } from '@/components/owner/seats/SeatsClient'
 
 export default async function SeatsPage() {
-  const [seatsResult, branchesResult] = await Promise.all([
-    getSeats(),
-    getOwnerBranches()
-  ])
+  const seatsResult = await getSeats()
+  const branchesResult = await getOwnerBranches()
 
   const seats = seatsResult.success && seatsResult.data ? seatsResult.data : []
   const branches = branchesResult.success && branchesResult.data ? branchesResult.data : []

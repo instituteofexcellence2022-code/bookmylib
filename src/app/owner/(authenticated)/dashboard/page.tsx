@@ -10,10 +10,8 @@ export const metadata = {
 }
 
 export default async function DashboardPage() {
-  const [statsResult, branchesResult] = await Promise.all([
-    getDashboardStats(),
-    getOwnerBranches()
-  ])
+  const statsResult = await getDashboardStats()
+  const branchesResult = await getOwnerBranches()
 
   const initialData = (statsResult.success && statsResult.data) ? statsResult.data : null
   const branches = branchesResult.success ? branchesResult.data : []

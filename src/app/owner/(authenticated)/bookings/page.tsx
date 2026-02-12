@@ -4,10 +4,8 @@ import { getOwnerBranches } from '@/actions/branch'
 import { BookingsClient } from '@/components/owner/bookings/BookingsClient'
 
 export default async function BookingsPage() {
-  const [bookingsResult, branchesResult] = await Promise.all([
-    getBookings(),
-    getOwnerBranches()
-  ])
+  const bookingsResult = await getBookings()
+  const branchesResult = await getOwnerBranches()
 
   const bookings = bookingsResult.success && bookingsResult.data ? bookingsResult.data : []
   const branches = branchesResult.success && branchesResult.data ? branchesResult.data : []

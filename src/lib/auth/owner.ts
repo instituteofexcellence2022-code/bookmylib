@@ -13,6 +13,10 @@ export async function getAuthenticatedOwner() {
     if (!payload || !payload.userId) return null
     
     const ownerId = payload.userId as string
+    const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(ownerId)
+    if (!isUuid) {
+        return null
+    }
 
     try {
         const owner = await prisma.owner.findUnique({

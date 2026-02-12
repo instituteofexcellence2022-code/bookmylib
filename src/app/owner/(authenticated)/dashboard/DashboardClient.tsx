@@ -197,6 +197,7 @@ export default function DashboardClient({
   const [hasMore, setHasMore] = useState((initialData?.recentActivity.length || 0) >= 50)
 
   const isFirstRender = useRef(true)
+  const [initialized, setInitialized] = useState(false)
 
   const fetchExpiring = useCallback(async (reset = false) => {
     const page = reset ? 1 : expiringPage
@@ -274,12 +275,12 @@ export default function DashboardClient({
 
   // Effects for Tabs
   useEffect(() => {
-    if (isMounted) fetchExpiring(true)
-  }, [expiringSoonFilterDays, isMounted]) // Removed selectedBranch dependency to avoid double fetch with fetchData
+    if (initialized) fetchExpiring(true)
+  }, [expiringSoonFilterDays, initialized]) // Removed selectedBranch dependency to avoid double fetch with fetchData
 
   useEffect(() => {
-    if (isMounted) fetchExpired(true)
-  }, [expiredFilterDays, isMounted])
+    if (initialized) fetchExpired(true)
+  }, [expiredFilterDays, initialized])
 
   const loadMoreActivities = async () => {
     if (isLoadingMore || !hasMore || activities.length === 0) return
@@ -312,27 +313,42 @@ export default function DashboardClient({
     setIsMounted(true)
   }, [])
 
+  useEffect(() => {
+    const hydrate = async () => {
+      try {
+        await fetchData()
+        await fetchExpiring(true)
+        await fetchExpired(true)
+      } finally {
+        setInitialized(true)
+      }
+    }
+    if (isMounted && !initialized) {
+      void hydrate()
+    }
+  }, [isMounted, initialized, fetchData, fetchExpiring, fetchExpired])
+
   // Fetch stats when branch changes
   useEffect(() => {
     if (isFirstRender.current) {
         isFirstRender.current = false
         return
     }
-    fetchData()
-  }, [selectedBranch, fetchData]) // Only fetch when branch changes (after first render)
+    if (initialized) fetchData()
+  }, [selectedBranch, fetchData, initialized]) // Only fetch when branch changes (after first render)
 
   // Refetch when time range changes
   useEffect(() => {
-    if (isMounted) {
+    if (initialized) {
       fetchData()
     }
-  }, [timeRange, isMounted, fetchData])
+  }, [timeRange, initialized, fetchData])
 
   useEffect(() => {
-    if (isMounted && timeRange === 'Custom Range' && customStart && customEnd) {
+    if (initialized && timeRange === 'Custom Range' && customStart && customEnd) {
       fetchData()
     }
-  }, [customStart, customEnd, timeRange, isMounted, fetchData])
+  }, [customStart, customEnd, timeRange, initialized, fetchData])
 
   const formatTrend = (trend: number) => {
     const isPositive = trend >= 0

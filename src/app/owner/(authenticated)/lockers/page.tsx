@@ -4,10 +4,8 @@ import { getOwnerBranches } from '@/actions/branch'
 import { LockersClient } from '@/components/owner/lockers/LockersClient'
 
 export default async function LockersPage() {
-  const [lockersResult, branchesResult] = await Promise.all([
-    getLockers(),
-    getOwnerBranches()
-  ])
+  const lockersResult = await getLockers()
+  const branchesResult = await getOwnerBranches()
 
   const lockers = lockersResult.success && lockersResult.data ? lockersResult.data : []
   const branches = branchesResult.success && branchesResult.data ? branchesResult.data : []

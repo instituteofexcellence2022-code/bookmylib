@@ -6,10 +6,8 @@ import TicketListClient from './TicketListClient'
 export const dynamic = 'force-dynamic'
 
 export default async function IssuesPage() {
-  const [tickets, branchesResult] = await Promise.all([
-    getOwnerTickets(),
-    getOwnerBranches()
-  ])
+  const tickets = await getOwnerTickets()
+  const branchesResult = await getOwnerBranches()
 
   const branches = (branchesResult.success && branchesResult.data) ? branchesResult.data : []
 

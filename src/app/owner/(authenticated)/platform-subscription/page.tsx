@@ -3,12 +3,10 @@ import { getPlatformSubscription, getPlatformPayments, getAvailableSaasPlans, ge
 import { PlatformSubscriptionPageClient } from '@/components/owner/platform-subscription/PlatformSubscriptionPageClient'
 
 export default async function OwnerPlatformSubscriptionPage() {
-    const [currentSubscription, availablePlans, payments, tickets] = await Promise.all([
-        getPlatformSubscription(),
-        getAvailableSaasPlans(),
-        getPlatformPayments(),
-        getOwnerPlatformTickets()
-    ])
+    const currentSubscription = await getPlatformSubscription()
+    const availablePlans = await getAvailableSaasPlans()
+    const payments = await getPlatformPayments()
+    const tickets = await getOwnerPlatformTickets()
 
     return (
         <div className="space-y-6">

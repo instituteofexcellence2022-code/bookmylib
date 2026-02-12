@@ -232,110 +232,77 @@ export async function getDashboardStats(
             _sum: { amount: true }
         })
 
-    // Revenue Chart Queries (6 months) - Optimized to avoid fetching all records
+    // Revenue Chart Queries (6 months) - run sequentially to respect single-connection pools
     const monthsToFetch = 6
-    const chartPromises = []
     const chartLabels: string[] = []
+    const chartResults: Array<{ _sum: { amount: number | null } }> = []
     for (let i = 0; i < monthsToFetch; i++) {
         const d = subMonths(now, monthsToFetch - 1 - i)
         chartLabels.push(format(d, 'MMM yyyy'))
-        chartPromises.push(getRevenueForRange(startOfMonth(d), endOfMonth(d)))
+        const res = await getRevenueForRange(startOfMonth(d), endOfMonth(d))
+        chartResults.push(res as { _sum: { amount: number | null } })
     }
 
-    // Execute all independent queries in parallel
-    const [
-        thisRangeRevenue,
-        prevRangeRevenue,
-        activeStudents,
-        newSubsCurrentRange,
-        newSubsPrevRange,
-        totalSeats,
-        occupiedSeats,
-        openIssues,
-        pendingIssues,
-        recentPayments,
-        recentAttendance,
-        recentTickets,
-        upcomingExpirations,
-        attendanceToday,
-        revenueByMethodData,
-        recentlyExpired,
-        ...chartResults
-    ] = await Promise.all([
-        // 1. Revenue for selected time range and previous comparable range
-        getRevenueForRange(rangeStart, rangeEnd),
-        getRevenueForRange(prevRangeStart, prevRangeEnd),
-        
-        // 2. Student Counts
-        prisma.studentSubscription.count({ where: { libraryId, ...whereBranch, status: 'active', endDate: { gt: now } } }),
-        prisma.studentSubscription.count({ where: { libraryId, ...whereBranch, status: 'active', createdAt: { gte: rangeStart, lte: rangeEnd } } }),
-        prisma.studentSubscription.count({ where: { libraryId, ...whereBranch, status: 'active', createdAt: { gte: prevRangeStart, lte: prevRangeEnd } } }),
-        
-        // 3. Occupancy
-        prisma.seat.count({ where: { libraryId, ...whereBranch } }),
-        prisma.studentSubscription.count({ where: { libraryId, ...whereBranch, status: 'active', endDate: { gt: now }, seatId: { not: null } } }),
-        
-        // 4. Issues
-        prisma.supportTicket.count({ where: { libraryId, ...whereBranch, status: 'open' } }),
-        prisma.supportTicket.count({ where: { libraryId, ...whereBranch, status: 'pending' } }),
-        
-        // 5. Activity Feed Sources
-        prisma.payment.findMany({
-            where: { libraryId, ...whereBranch, date: { gte: rangeStart, lte: rangeEnd } },
-            take: 20,
-            orderBy: { date: 'desc' },
-            include: { student: { select: { name: true } }, branch: { select: { name: true } } }
-        }),
-        prisma.attendance.findMany({
-            where: { libraryId, ...whereBranch, checkIn: { gte: rangeStart, lte: rangeEnd } },
-            take: 20,
-            orderBy: { checkIn: 'desc' },
-            include: { student: { select: { name: true } }, branch: { select: { name: true } } }
-        }),
-        prisma.supportTicket.findMany({
-            where: { libraryId, ...whereBranch, createdAt: { gte: rangeStart, lte: rangeEnd } },
-            take: 10,
-            orderBy: { createdAt: 'desc' },
-            include: { student: { select: { name: true } }, branch: { select: { name: true } } }
-        }),
-        
-        // 7. Upcoming Expirations
-        prisma.studentSubscription.findMany({
-            where: { libraryId, ...whereBranch, status: 'active', endDate: { lte: addDays(now, 7), gt: now } },
-            orderBy: { endDate: 'asc' },
-            take: 5,
-            include: { student: { select: { name: true, image: true, phone: true, email: true } }, plan: { select: { name: true } } }
-        }),
-        
-        // 8. Attendance Today
-        prisma.attendance.count({
-            where: { libraryId, ...whereBranch, checkIn: { gte: startOfToday, lte: endOfToday } }
-        }),
-        
-        // 9. Revenue by Method
-        prisma.payment.groupBy({
-            by: ['method'],
-            where: { libraryId, ...whereBranch, status: 'completed', date: { gte: rangeStart, lte: rangeEnd } },
-            _sum: { amount: true }
-        }),
-        
-        // 11. Recently Expired
-        prisma.studentSubscription.findMany({
-            where: { libraryId, ...whereBranch, status: 'expired', endDate: { gte: subMonths(now, 1), lte: now } },
-            orderBy: { endDate: 'desc' },
-            take: 5,
-            include: { student: { select: { name: true, image: true, phone: true } }, plan: { select: { name: true } } }
-        }),
+    // Execute queries sequentially to avoid pool timeouts when connection_limit=1
+    const thisRangeRevenue = await getRevenueForRange(rangeStart, rangeEnd)
+    const prevRangeRevenue = await getRevenueForRange(prevRangeStart, prevRangeEnd)
 
-        // Chart Promises
-        ...chartPromises
-    ])
+    const activeStudents = await prisma.studentSubscription.count({ where: { libraryId, ...whereBranch, status: 'active', endDate: { gt: now } } })
+    const newSubsCurrentRange = await prisma.studentSubscription.count({ where: { libraryId, ...whereBranch, status: 'active', createdAt: { gte: rangeStart, lte: rangeEnd } } })
+    const newSubsPrevRange = await prisma.studentSubscription.count({ where: { libraryId, ...whereBranch, status: 'active', createdAt: { gte: prevRangeStart, lte: prevRangeEnd } } })
+
+    const totalSeats = await prisma.seat.count({ where: { libraryId, ...whereBranch } })
+    const occupiedSeats = await prisma.studentSubscription.count({ where: { libraryId, ...whereBranch, status: 'active', endDate: { gt: now }, seatId: { not: null } } })
+
+    const openIssues = await prisma.supportTicket.count({ where: { libraryId, ...whereBranch, status: 'open' } })
+    const pendingIssues = await prisma.supportTicket.count({ where: { libraryId, ...whereBranch, status: 'pending' } })
+
+    const recentPayments = await prisma.payment.findMany({
+        where: { libraryId, ...whereBranch, date: { gte: rangeStart, lte: rangeEnd } },
+        take: 20,
+        orderBy: { date: 'desc' },
+        include: { student: { select: { name: true } }, branch: { select: { name: true } } }
+    })
+    const recentAttendance = await prisma.attendance.findMany({
+        where: { libraryId, ...whereBranch, checkIn: { gte: rangeStart, lte: rangeEnd } },
+        take: 20,
+        orderBy: { checkIn: 'desc' },
+        include: { student: { select: { name: true } }, branch: { select: { name: true } } }
+    })
+    const recentTickets = await prisma.supportTicket.findMany({
+        where: { libraryId, ...whereBranch, createdAt: { gte: rangeStart, lte: rangeEnd } },
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        include: { student: { select: { name: true } }, branch: { select: { name: true } } }
+    })
+
+    const upcomingExpirations = await prisma.studentSubscription.findMany({
+        where: { libraryId, ...whereBranch, status: 'active', endDate: { lte: addDays(now, 7), gt: now } },
+        orderBy: { endDate: 'asc' },
+        take: 5,
+        include: { student: { select: { name: true, image: true, phone: true, email: true } }, plan: { select: { name: true } } }
+    })
+
+    const attendanceToday = await prisma.attendance.count({
+        where: { libraryId, ...whereBranch, checkIn: { gte: startOfToday, lte: endOfToday } }
+    })
+
+    const revenueByMethodData = await prisma.payment.groupBy({
+        by: ['method'],
+        where: { libraryId, ...whereBranch, status: 'completed', date: { gte: rangeStart, lte: rangeEnd } },
+        _sum: { amount: true }
+    })
+
+    const recentlyExpired = await prisma.studentSubscription.findMany({
+        where: { libraryId, ...whereBranch, status: 'expired', endDate: { gte: subMonths(now, 1), lte: now } },
+        orderBy: { endDate: 'desc' },
+        take: 5,
+        include: { student: { select: { name: true, image: true, phone: true } }, plan: { select: { name: true } } }
+    })
 
     // Attendance counts for trend comparison
-    const [attendanceCurrentRangeCount, attendancePrevRangeCount] = await Promise.all([
-        prisma.attendance.count({ where: { libraryId, ...whereBranch, checkIn: { gte: rangeStart, lte: rangeEnd } } }),
-        prisma.attendance.count({ where: { libraryId, ...whereBranch, checkIn: { gte: prevRangeStart, lte: prevRangeEnd } } })
-    ])
+    const attendanceCurrentRangeCount = await prisma.attendance.count({ where: { libraryId, ...whereBranch, checkIn: { gte: rangeStart, lte: rangeEnd } } })
+    const attendancePrevRangeCount = await prisma.attendance.count({ where: { libraryId, ...whereBranch, checkIn: { gte: prevRangeStart, lte: prevRangeEnd } } })
 
     // Process calculated values
     const currentRevenue = thisRangeRevenue._sum.amount || 0
@@ -401,10 +368,8 @@ export async function getDashboardStats(
     const expiredStudentIds = recentlyExpired.map(s => s.studentId)
     
     // Fetch attendance status in parallel
-    const [presentUpcomingIds, presentExpiredIds] = await Promise.all([
-        getAttendanceStatus(upcomingStudentIds, libraryId),
-        getAttendanceStatus(expiredStudentIds, libraryId)
-    ])
+    const presentUpcomingIds = await getAttendanceStatus(upcomingStudentIds, libraryId)
+    const presentExpiredIds = await getAttendanceStatus(expiredStudentIds, libraryId)
 
     // Process Revenue By Method
     const revenueByMethod = revenueByMethodData.map(r => ({
