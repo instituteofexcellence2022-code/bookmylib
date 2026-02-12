@@ -641,16 +641,16 @@ export async function loginStudent(formData: FormData) {
             if (!student.dob) {
                 return { success: false, error: 'Date of Birth not set for this account' }
             }
-            // Strict UTC Date comparison
-            // Both input 'dob' (YYYY-MM-DD) and stored 'dob' (UTC Date) should align on the date part
-            const storedDob = student.dob.toISOString().split('T')[0]
-            if (storedDob === dob) {
+            // Compare both UTC and local-normalized date strings to avoid timezone off-by-one issues
+            const storedUtc = student.dob.toISOString().split('T')[0]
+            const localIso = new Date(student.dob.getTime() - student.dob.getTimezoneOffset() * 60000).toISOString().split('T')[0]
+            if (storedUtc === dob || localIso === dob) {
                 isValid = true
             }
         }
 
         if (!isValid) {
-            return { success: false, error: 'Invalid credentials' }
+            return { success: false, error: dob ? 'Invalid date of birth' : 'Invalid credentials' }
         }
 
         // Set session
