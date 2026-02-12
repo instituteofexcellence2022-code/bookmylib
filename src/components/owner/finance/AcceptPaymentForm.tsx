@@ -650,14 +650,13 @@ export function AcceptPaymentForm({ initialStudentId }: { initialStudentId?: str
 
         // Calculate End Date
         const end = new Date(startDate)
-        for (let i = 0; i < quantity; i++) {
-            if (selectedPlan.durationUnit === 'days') {
-                end.setDate(end.getDate() + selectedPlan.duration)
-            } else if (selectedPlan.durationUnit === 'weeks') {
-                end.setDate(end.getDate() + (selectedPlan.duration * 7))
-            } else {
-                end.setMonth(end.getMonth() + selectedPlan.duration)
-            }
+        const totalDuration = (selectedPlan.duration || 1) * quantity
+        if (selectedPlan.durationUnit === 'days') {
+            end.setDate(end.getDate() + totalDuration)
+        } else if (selectedPlan.durationUnit === 'weeks') {
+            end.setDate(end.getDate() + (totalDuration * 7))
+        } else {
+            end.setMonth(end.getMonth() + totalDuration)
         }
 
         return {
@@ -670,7 +669,7 @@ export function AcceptPaymentForm({ initialStudentId }: { initialStudentId?: str
             branchAddress: `${selectedBranch.address}, ${selectedBranch.city}`,
             planName: selectedPlan.name,
             planType: selectedPlan.category,
-            planDuration: `${selectedPlan.duration} ${selectedPlan.durationUnit} (x${quantity})`,
+            planDuration: `${totalDuration} ${selectedPlan.durationUnit}`,
             planHours: selectedPlan.hoursPerDay ? `${selectedPlan.hoursPerDay} Hrs/Day` : 
                       (selectedPlan.shiftStart && selectedPlan.shiftEnd) ? `${formatTime(selectedPlan.shiftStart)} - ${formatTime(selectedPlan.shiftEnd)}` : undefined,
             seatNumber: selectedSeat ? `${formatSeatNumber(selectedSeat.number)} (${selectedSeat.section || 'General'})` : undefined,
