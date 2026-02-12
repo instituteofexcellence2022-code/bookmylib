@@ -28,6 +28,9 @@ const smtpConfig = {
   family: 4, // Force IPv4 to avoid IPv6 timeouts
   connectionTimeout: 10000, // 10 seconds timeout for connection
   socketTimeout: 10000, // 10 seconds timeout for socket
+  // Optional debug logging controlled by env
+  logger: process.env.EMAIL_DEBUG === '1',
+  debug: process.env.EMAIL_DEBUG === '1',
 };
 
 export const transporter = nodemailer.createTransport(smtpConfig);
@@ -47,5 +50,15 @@ if (typeof window === 'undefined') {
     console.log('📧 Email Service: Configured to use Resend')
   } else {
     console.warn('⚠️ Email Service: No email service configured. Please set SMTP_USER/SMTP_PASS or RESEND_API_KEY')
+  }
+}
+
+// Transport verification helper
+export async function verifyMailTransport() {
+  try {
+    const ok = await transporter.verify()
+    return { success: ok, error: null }
+  } catch (error: any) {
+    return { success: false, error: error?.message || 'Unknown error' }
   }
 }

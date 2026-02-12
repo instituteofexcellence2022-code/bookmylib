@@ -1,6 +1,6 @@
 'use server'
 
-import { resend, transporter, useResend, EMAIL_SENDER } from '@/lib/mail'
+import { resend, transporter, useResend, EMAIL_SENDER, verifyMailTransport } from '@/lib/mail'
 import ReceiptEmail from '@/emails/ReceiptEmail'
 import WelcomeEmail from '@/emails/WelcomeEmail'
 import SubscriptionExpiryEmail from '@/emails/SubscriptionExpiryEmail'
@@ -25,6 +25,12 @@ async function sendEmail({
   react: ReactElement
   attachments?: { filename: string; content: Buffer }[]
 }) {
+  // Basic recipient validation
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)
+  if (!isValidEmail) {
+    return { data: null, error: new Error('Invalid recipient email') }
+  }
+
   if (useResend) {
     console.log('Sending email via Resend to:', to)
     return resend.emails.send({
@@ -52,9 +58,31 @@ async function sendEmail({
         }))
       })
       console.log('Email sent successfully:', info.messageId)
+      const rejected = Array.isArray((info as any).rejected) ? (info as any).rejected : []
+      const accepted = Array.isArray((info as any).accepted) ? (info as any).accepted : []
+      if (rejected.length > 0 || accepted.length === 0) {
+        console.error('SMTP accepted/rejected anomaly', { accepted, rejected })
+        return { data: info, error: new Error(`SMTP rejected recipients: ${rejected.join(', ')}`) }
+      }
       return { data: info, error: null }
     } catch (error: any) {
       console.error('Email sending error (Nodemailer/Render):', error)
+      // Attempt fallback via Resend if available
+      if (process.env.RESEND_API_KEY) {
+        try {
+          console.log('Falling back to Resend for email:', to)
+          return resend.emails.send({
+            from: EMAIL_SENDER,
+            to,
+            subject,
+            react,
+            attachments
+          })
+        } catch (fallbackErr: any) {
+          console.error('Resend fallback failed:', fallbackErr)
+          return { data: null, error: error }
+        }
+      }
       return { data: null, error: error }
     }
   }
@@ -345,5 +373,26 @@ export async function sendAnnouncementEmail(data: {
   } catch (error) {
     console.error('Error sending announcement email:', error)
     return { success: false, error: 'Internal server error' }
+  }
+}
+
+// Diagnostics: verify SMTP transport and configuration
+export async function diagnoseEmailService() {
+  const smtpConfigured = !!process.env.SMTP_USER && !!process.env.SMTP_PASS
+  const resendConfigured = !!process.env.RESEND_API_KEY
+  const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com'
+  const smtpPort = parseInt(process.env.SMTP_PORT || '465')
+  const sender = EMAIL_SENDER
+
+  const verification = smtpConfigured ? await verifyMailTransport() : { success: false, error: 'SMTP not configured' }
+
+  return {
+    useResendFallback: !smtpConfigured && resendConfigured,
+    smtpConfigured,
+    resendConfigured,
+    smtpHost,
+    smtpPort,
+    sender,
+    verification
   }
 }
