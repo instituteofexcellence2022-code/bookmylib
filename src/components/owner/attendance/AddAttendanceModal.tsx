@@ -42,6 +42,7 @@ export function AddAttendanceModal({ onClose, onSuccess }: AddAttendanceModalPro
   })
   const [studentResults, setStudentResults] = useState<StudentItem[]>([])
   const [searching, setSearching] = useState(false)
+  type RawStudent = { id: string; name: string; email?: string | null }
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -68,7 +69,7 @@ export function AddAttendanceModal({ onClose, onSuccess }: AddAttendanceModalPro
       try {
         const res = await getOwnerStudents({ search: form.studentQuery, limit: 10 })
         if (res.success && res.data) {
-          const items: StudentItem[] = res.data.students.map((s: any) => ({ id: s.id, name: s.name, email: s.email }))
+          const items: StudentItem[] = res.data.students.map((s: RawStudent) => ({ id: s.id, name: s.name, email: s.email }))
           setStudentResults(items)
         }
       } catch {

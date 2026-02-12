@@ -20,6 +20,16 @@ const eslintConfig = defineConfig([
     }
   },
   {
+    files: ["src/components/owner/attendance/**/*.{ts,tsx}", "src/actions/owner/attendance.ts"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/ban-ts-comment": "error",
+      "prefer-const": "error",
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn"
+    }
+  },
+  {
     files: ["**/*.js"],
     rules: {
       "@typescript-eslint/no-require-imports": "off"

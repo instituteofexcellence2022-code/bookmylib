@@ -119,7 +119,7 @@ export function AttendanceAnalyticsClient() {
       try {
         const res = await getOwnerBranches()
         if (res.success && res.data) {
-          const list = res.data.map((b: any) => ({ id: b.id, name: b.name }))
+          const list = res.data.map((b: { id: string; name: string }) => ({ id: b.id, name: b.name }))
           setAllBranches(list)
           setSelectedBranches(prev => {
             const ids = new Set(selectedBranchIds)
@@ -418,16 +418,17 @@ export function AttendanceAnalyticsClient() {
                       outerRadius={80}
                       paddingAngle={5}
                       dataKey="count"
-                      onClick={(ev: any) => {
-                        const entry = ev?.payload as { id: string; name: string }
+                      onClick={(ev: unknown) => {
+                        const entry = (ev as { payload?: { id?: string; name?: string } }).payload
                         if (entry?.id && entry?.name) {
+                          const { id, name } = entry as { id: string; name: string }
                           setSelectedBranchIds(prev => {
-                            if (prev.includes(entry.id)) return prev.filter(id => id !== entry.id)
-                            return [...prev, entry.id]
+                            if (prev.includes(id)) return prev.filter(d => d !== id)
+                            return [...prev, id]
                           })
                           setSelectedBranches(prev => {
-                            if (prev.find(b => b.id === entry.id)) return prev.filter(b => b.id !== entry.id)
-                            return [...prev, { id: entry.id, name: entry.name }]
+                            if (prev.find(b => b.id === id)) return prev.filter(b => b.id !== id)
+                            return [...prev, { id, name }]
                           })
                         }
                       }}
@@ -638,8 +639,8 @@ export function AttendanceAnalyticsClient() {
                   outerRadius={80}
                   paddingAngle={5}
                   dataKey="count"
-                  onClick={(ev: any) => {
-                    const entry = ev?.payload as { label: string; count: number }
+                  onClick={(ev: unknown) => {
+                    const entry = (ev as { payload?: { label?: string; count?: number } }).payload
                     if (entry?.label) {
                       const key = entry.label === 'Present' ? 'present' : entry.label === 'Full Day' ? 'full_day' : 'short_session'
                       setSelectedStatuses(prev => {
@@ -694,12 +695,13 @@ export function AttendanceAnalyticsClient() {
                   outerRadius={80}
                   paddingAngle={5}
                   dataKey="count"
-                  onClick={(ev: any) => {
-                    const entry = ev?.payload as { method: string; count: number }
+                  onClick={(ev: unknown) => {
+                    const entry = (ev as { payload?: { method?: string; count?: number } }).payload
                     if (entry?.method) {
+                      const method = entry.method as string
                       setSelectedMethods(prev => {
-                        if (prev.includes(entry.method)) return prev.filter(m => m !== entry.method)
-                        return [...prev, entry.method]
+                        if (prev.includes(method)) return prev.filter(m => m !== method)
+                        return [...prev, method]
                       })
                     }
                   }}

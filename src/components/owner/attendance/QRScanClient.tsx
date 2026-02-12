@@ -138,8 +138,8 @@ export function QRScanClient() {
 
                 // Check capabilities
                 try {
-                    const capabilities = scannerRef.current.getRunningTrackCameraCapabilities() as any
-                    setHasTorch(!!capabilities.torch)
+                    const capabilities = scannerRef.current.getRunningTrackCameraCapabilities() as unknown as { torch?: boolean }
+                    setHasTorch(!!capabilities?.torch)
                 } catch (e) {
                     console.warn("Could not get camera capabilities", e)
                 }
@@ -164,7 +164,7 @@ export function QRScanClient() {
     if (!scannerRef.current) return
     try {
         await scannerRef.current.applyVideoConstraints({
-            advanced: [{ torch: !torchEnabled }] as any
+            advanced: [{ torch: !torchEnabled } as unknown as MediaTrackConstraintSet]
         })
         setTorchEnabled(!torchEnabled)
     } catch (err) {

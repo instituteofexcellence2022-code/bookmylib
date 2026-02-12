@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { startOfDay, endOfDay, subDays } from 'date-fns'
 import { getAuthenticatedOwner } from '@/lib/auth/owner'
 import { ownerPermit } from '@/lib/auth/policy'
+import { Prisma } from '@prisma/client'
 
 export type AttendanceFilter = {
     page?: number
@@ -29,7 +30,7 @@ export async function getOwnerAttendanceLogs(filters: AttendanceFilter) {
     const limit = filters.limit || 10
     const skip = (page - 1) * limit
 
-    const where: any = {
+    const where: Prisma.AttendanceWhereInput = {
         libraryId: owner.libraryId,
     }
 
@@ -132,7 +133,7 @@ export async function getOwnerAttendanceStats(branchId?: string, date: Date = ne
     const start = startOfDay(date)
     const end = endOfDay(date)
 
-    const where: any = {
+    const where: Prisma.AttendanceWhereInput = {
         libraryId: owner.libraryId,
         checkIn: {
             gte: start,
@@ -248,8 +249,8 @@ export async function getAttendanceAnalytics(days: number = 7, filters?: { branc
         // 3. Branch Comparison
         const branchMap = new Map<string, { id: string, name: string, count: number }>()
         logs.forEach(log => {
-            const id = (log as any).branch?.id as string
-            const name = (log as any).branch?.name as string
+            const id = (log as { branch?: { id?: string } }).branch?.id as string | undefined
+            const name = (log as { branch?: { name?: string } }).branch?.name as string | undefined
             if (!id || !name) return
             if (!branchMap.has(id)) branchMap.set(id, { id, name, count: 0 })
             const entry = branchMap.get(id)!
@@ -268,7 +269,7 @@ export async function getAttendanceAnalytics(days: number = 7, filters?: { branc
         // Branch Avg Durations
         const branchDurations = new Map<string, { sum: number, count: number }>()
         completedLogs.forEach(l => {
-            const name = (l as any).branch?.name || 'Unknown'
+            const name = (l as { branch?: { name?: string } }).branch?.name || 'Unknown'
             if (!branchDurations.has(name)) branchDurations.set(name, { sum: 0, count: 0 })
             const entry = branchDurations.get(name)!
             entry.sum += l.duration || 0
@@ -283,7 +284,7 @@ export async function getAttendanceAnalytics(days: number = 7, filters?: { branc
         const studentCount = new Map<string, { name: string, count: number }>()
         logs.forEach(l => {
             const id = l.studentId
-            const name = (l as any).student?.name || 'Unknown'
+            const name = (l as { student?: { name?: string } }).student?.name || 'Unknown'
             if (!studentCount.has(id)) studentCount.set(id, { name, count: 0 })
             const entry = studentCount.get(id)!
             entry.count += 1
@@ -296,10 +297,10 @@ export async function getAttendanceAnalytics(days: number = 7, filters?: { branc
         })
         
         // Status Distribution
-        const statusCounts = { present: 0, full_day: 0, short_session: 0 }
+        const statusCounts: Record<'present' | 'full_day' | 'short_session', number> = { present: 0, full_day: 0, short_session: 0 }
         logs.forEach(l => {
             const s = (l.status || 'present') as 'present' | 'full_day' | 'short_session'
-            if (s in statusCounts) (statusCounts as any)[s] += 1
+            if (s in statusCounts) statusCounts[s] += 1
         })
         const statusDistribution = [
             { label: 'Present', count: statusCounts.present },
@@ -344,7 +345,7 @@ export async function getAttendanceAnalytics(days: number = 7, filters?: { branc
         })
         logs.forEach(l => {
             const dateKey = l.checkIn.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-            const branchName = (l as any).branch?.name || 'Unknown'
+            const branchName = (l as { branch?: { name?: string } }).branch?.name || 'Unknown'
             const idx = dateKeys.indexOf(dateKey)
             if (idx >= 0 && topBranches.includes(branchName)) {
                 const curr = Number(branchDailyStack[idx][branchName] || 0)
@@ -386,7 +387,7 @@ export async function updateAttendanceRecord(id: string, data: { checkIn?: Date,
         const existing = await prisma.attendance.findUnique({ where: { id } })
         if (!existing) return { success: false, error: 'Record not found' }
 
-        const updateData: any = { ...data }
+        const updateData = { ...data } as unknown as Prisma.AttendanceUpdateInput
 
         // Recalculate duration if times changed
         if (data.checkIn || data.checkOut) {
@@ -515,13 +516,13 @@ export async function verifyStudentQR(studentId: string, branchId: string) {
         }
 
         if (!student.libraryId || !student.branchId) {
-            const updates: any = {}
+            const updates: Partial<{ libraryId: string; branchId: string }> = {}
             if (!student.libraryId) updates.libraryId = owner.libraryId
             if (!student.branchId) updates.branchId = branchId
             if (Object.keys(updates).length > 0) {
                 await prisma.student.update({
                     where: { id: studentId },
-                    data: updates
+                    data: updates as unknown as Prisma.StudentUpdateInput
                 })
             }
         }
