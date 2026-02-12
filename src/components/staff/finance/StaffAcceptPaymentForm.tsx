@@ -566,9 +566,11 @@ export function StaffAcceptPaymentForm({ initialStudentId: propInitialStudentId 
         
         const feeItems = selectedFees.map(id => {
             const fee = fees.find((f) => String(f.id) === id)
+            const isMonthly = fee?.billType === 'MONTHLY' && selectedPlan.durationUnit === 'months'
+            const base = fee ? (isMonthly ? (Number(fee.amount) * (selectedPlan.duration || 1)) : Number(fee.amount)) : 0
             return {
-                description: fee?.name || 'Additional Fee',
-                amount: fee?.amount || 0
+                description: fee ? (isMonthly ? `${fee.name} (₹${fee.amount} x ${selectedPlan.duration}mo)` : fee.name) : 'Additional Fee',
+                amount: base
             }
         })
 
@@ -610,7 +612,10 @@ export function StaffAcceptPaymentForm({ initialStudentId: propInitialStudentId 
                     description: `Plan: ${selectedPlan.name}${quantity > 1 ? ` (x${quantity})` : ''}`,
                     amount: selectedPlan.price * quantity
                 },
-                ...feeItems
+                ...feeItems.map(f => ({
+                    description: `${f.description}${quantity > 1 ? ` (x${quantity})` : ''}`,
+                    amount: f.amount * quantity
+                }))
             ]
         }
     }

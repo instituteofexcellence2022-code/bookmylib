@@ -316,8 +316,12 @@ export async function createBooking(data: {
                     })
 
                     fees.forEach(fee => {
-                        cycleAmount += fee.amount
-                        feeDescription += `, ${fee.name}`
+                        let feeAmount = fee.amount
+                        if (fee.billType === 'MONTHLY' && plan.durationUnit === 'months') {
+                            feeAmount = fee.amount * plan.duration
+                        }
+                        cycleAmount += feeAmount
+                        feeDescription += `, ${fee.name}${fee.billType === 'MONTHLY' && plan.durationUnit === 'months' ? ` (₹${fee.amount} x ${plan.duration}mo)` : ''}`
                     })
                 }
                 
@@ -436,7 +440,10 @@ export async function createBooking(data: {
                      const fees = await prisma.additionalFee.findMany({
                         where: { id: { in: additionalFeeIds } }
                      })
-                     fees.forEach(f => feeItems.push({ description: f.name, amount: f.amount }))
+                     fees.forEach(f => {
+                         const base = (f.billType === 'MONTHLY' && plan.durationUnit === 'months') ? (f.amount * plan.duration) : f.amount
+                         feeItems.push({ description: f.name, amount: base })
+                     })
                 }
 
                 const receiptData: ReceiptData = {
