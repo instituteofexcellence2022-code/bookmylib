@@ -137,7 +137,7 @@ export function AttendanceAnalyticsClient() {
   useEffect(() => {
     const key = 'analyticsBranchColors'
     const stored = typeof window !== 'undefined' ? window.localStorage.getItem(key) : null
-    let map: Record<string, string> = stored ? JSON.parse(stored) : {}
+    const map: Record<string, string> = stored ? JSON.parse(stored) : {}
     const palette = COLORS
     const usedColors = new Set(Object.values(map))
     const nextColor = () => {
