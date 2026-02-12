@@ -42,6 +42,7 @@ interface AttendanceLog {
     checkOut?: string | Date | null
     duration?: number
     overstayMinutes?: number
+    newUser?: boolean
     status: string
     method?: string | null
     remarks?: string | null
@@ -436,6 +437,11 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                                                 {typeof log.overstayMinutes === 'number' && log.overstayMinutes > 0 && (
                                                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
                                                         Overstay
+                                                    </span>
+                                                )}
+                                                {log.newUser && (
+                                                    <span className="inline-flex items-center px-2 py-0.5 ml-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+                                                        New
                                                     </span>
                                                 )}
                                             </div>

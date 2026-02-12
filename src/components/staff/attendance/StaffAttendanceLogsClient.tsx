@@ -37,6 +37,7 @@ interface AttendanceLog {
     checkIn: string | Date
     checkOut?: string | Date | null
     duration?: number
+    newUser?: boolean
     status: string
     student: Student
     branch: Branch
@@ -353,6 +354,11 @@ export function StaffAttendanceLogsClient({ defaultView = 'day' }: StaffAttendan
                                             `}>
                                                 {(log.status === 'full_day' ? 'present' : log.status).replace('_', ' ')}
                                             </span>
+                                            {log.newUser && (
+                                                <span className="inline-flex items-center px-2 py-0.5 ml-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+                                                    New
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="p-4 text-right">
                                             <button 

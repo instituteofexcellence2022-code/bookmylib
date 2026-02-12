@@ -137,6 +137,16 @@ export async function getOwnerAttendanceLogs(filters: AttendanceFilter) {
             }
         })
 
+        // Fetch whether students have any subscription history (across branches)
+        const anySubs = await prisma.studentSubscription.findMany({
+            where: {
+                libraryId: owner.libraryId,
+                studentId: { in: studentIds }
+            },
+            select: { studentId: true }
+        })
+        const studentsWithSubs = new Set<string>(anySubs.map(s => s.studentId))
+
         const byStudent = new Map<string, typeof subscriptions>()
         subscriptions.forEach(sub => {
             const list = byStudent.get(sub.studentId) || []
@@ -156,7 +166,8 @@ export async function getOwnerAttendanceLogs(filters: AttendanceFilter) {
                     overstayMinutes = log.duration - maxMinutes
                 }
             }
-            return { ...log, overstayMinutes }
+            const newUser = !studentsWithSubs.has(log.student.id)
+            return { ...log, overstayMinutes, newUser }
         })
 
         let finalLogs = enriched

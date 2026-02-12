@@ -70,7 +70,7 @@ export async function getStaffAttendanceLogs(filters: AttendanceFilter) {
             }
         }
 
-        const [logs, total] = await Promise.all([
+        const [logsRaw, total] = await Promise.all([
             prisma.attendance.findMany({
                 where,
                 include: {
@@ -97,6 +97,18 @@ export async function getStaffAttendanceLogs(filters: AttendanceFilter) {
             }),
             prisma.attendance.count({ where })
         ])
+
+        // Determine which students have any subscription history
+        const studentIds = Array.from(new Set(logsRaw.map(l => l.studentId)))
+        const anySubs = await prisma.studentSubscription.findMany({
+            where: {
+                libraryId: staff.libraryId,
+                studentId: { in: studentIds }
+            },
+            select: { studentId: true }
+        })
+        const studentsWithSubs = new Set<string>(anySubs.map(s => s.studentId))
+        const logs = logsRaw.map(l => ({ ...l, newUser: !studentsWithSubs.has(l.studentId) }))
 
         return {
             success: true,
