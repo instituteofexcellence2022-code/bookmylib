@@ -6,6 +6,7 @@ import { updateStaffAttendanceRecord } from '@/actions/staff/attendance'
 import { toast } from 'react-hot-toast'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { format } from 'date-fns'
+import { useCooldown } from '@/hooks/useCooldown'
 
 interface AttendanceRecord {
     id: string
@@ -21,6 +22,7 @@ interface StaffEditAttendanceModalProps {
 
 export function StaffEditAttendanceModal({ record, onClose, onSuccess }: StaffEditAttendanceModalProps) {
     const [loading, setLoading] = useState(false)
+    const cooldown = useCooldown(0)
     const [formData, setFormData] = useState({
         checkInDate: format(new Date(record.checkIn), 'yyyy-MM-dd'),
         checkInTime: format(new Date(record.checkIn), 'HH:mm'),
@@ -57,6 +59,9 @@ export function StaffEditAttendanceModal({ record, onClose, onSuccess }: StaffEd
                 onClose()
             } else {
                 toast.error(result.error || 'Failed to update')
+                if ((result.error || '').includes('Too many attempts')) {
+                    cooldown.start(30)
+                }
             }
         } catch {
             toast.error('Something went wrong')
@@ -143,10 +148,17 @@ export function StaffEditAttendanceModal({ record, onClose, onSuccess }: StaffEd
                         <AnimatedButton
                             type="submit"
                             isLoading={loading}
+                            disabled={cooldown.disabled}
+                            title={cooldown.tooltip}
                             className="flex-1 bg-gray-900 text-white hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100"
                         >
                             Save Changes
                         </AnimatedButton>
+                        {cooldown.disabled && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 text-right flex-1">
+                                Please wait {cooldown.seconds}s before retrying
+                            </div>
+                        )}
                     </div>
                 </form>
             </div>

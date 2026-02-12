@@ -14,6 +14,7 @@ import { cn, formatSeatNumber, formatLockerNumber } from '@/lib/utils'
 import { motion } from 'framer-motion'
 import { validateCoupon } from '@/actions/payment'
 import { generateReceiptPDF } from '@/lib/pdf-generator'
+import { useCooldown } from '@/hooks/useCooldown'
 
 interface Student {
     id: string
@@ -99,6 +100,7 @@ export function StaffAcceptPaymentForm({ initialStudentId: propInitialStudentId 
     const initialStudentId = propInitialStudentId || searchParams.get('studentId')
 
     const [submitting, setSubmitting] = useState(false)
+    const cooldown = useCooldown(0)
     const [step, setStep] = useState<'student' | 'booking' | 'payment' | 'preview' | 'success'>('student')
     
     // Search State
@@ -529,7 +531,11 @@ export function StaffAcceptPaymentForm({ initialStudentId: propInitialStudentId 
                 setStep('success')
                 toast.success('Payment collected successfully')
             } else {
-                toast.error(result.error || 'Failed to process payment')
+                const msg = result.error || 'Failed to process payment'
+                toast.error(msg)
+                if (msg.includes('Too many attempts')) {
+                    cooldown.start(30)
+                }
             }
         } catch (error) {
             toast.error('An unexpected error occurred')
@@ -1661,12 +1667,18 @@ export function StaffAcceptPaymentForm({ initialStudentId: propInitialStudentId 
                             </AnimatedButton>
                             <AnimatedButton
                                 onClick={handleSubmit}
-                                disabled={submitting}
+                                disabled={submitting || cooldown.disabled}
                                 isLoading={submitting}
+                                title={cooldown.tooltip}
                                 className="min-w-[200px]"
                             >
                                 Confirm Booking & Accept
                             </AnimatedButton>
+                            {cooldown.disabled && (
+                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                    Please wait {cooldown.seconds}s before retrying
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

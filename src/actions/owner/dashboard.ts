@@ -4,7 +4,12 @@ import { prisma } from '@/lib/prisma'
 import { cookies } from 'next/headers'
 import { startOfMonth, endOfMonth, subMonths, format, startOfDay, endOfDay, addDays, subDays, startOfWeek, endOfWeek, subWeeks, differenceInCalendarDays } from 'date-fns'
 import { formatRelativeTime } from '@/lib/utils'
+import * as Cache from '@/lib/cache'
 import { getAuthenticatedOwner } from '@/lib/auth/owner'
+import { ownerPermit } from '@/lib/auth/policy'
+import { computeRange } from '@/lib/date-range'
+
+const WEEK_START = 1
 
 export async function getExpiringSubscriptions(
     filter: string,
@@ -14,6 +19,7 @@ export async function getExpiringSubscriptions(
 ) {
     const owner = await getAuthenticatedOwner()
     if (!owner) return { success: false, error: 'Unauthorized' }
+    if (!ownerPermit('subscriptions:view')) return { success: false, error: 'Unauthorized' }
     const libraryId = owner.libraryId
     const whereBranch = branchId && branchId !== 'All Branches' ? { branchId } : {}
     
@@ -107,6 +113,7 @@ export async function getExpiredSubscriptions(
 ) {
     const owner = await getAuthenticatedOwner()
     if (!owner) return { success: false, error: 'Unauthorized' }
+    if (!ownerPermit('subscriptions:expired:view')) return { success: false, error: 'Unauthorized' }
     const libraryId = owner.libraryId
     const whereBranch = branchId && branchId !== 'All Branches' ? { branchId } : {}
     
@@ -195,11 +202,15 @@ export async function getDashboardStats(
 ) {
   const owner = await getAuthenticatedOwner()
   if (!owner) return { success: false, error: 'Unauthorized' }
+  if (!ownerPermit('dashboard:view')) return { success: false, error: 'Unauthorized' }
 
   const libraryId = owner.libraryId
   const whereBranch = branchId && branchId !== 'All Branches' ? { branchId } : {}
 
   try {
+    const cacheKey = `dash:${libraryId}:${branchId || 'all'}:${timeRange || 'Today'}:${customStart || ''}:${customEnd || ''}`
+    const cached = Cache.get<any>(cacheKey)
+    if (cached) return cached
     const now = new Date()
     const startOfCurrentMonth = startOfMonth(now)
     const endOfCurrentMonth = endOfMonth(now)
@@ -207,50 +218,7 @@ export async function getDashboardStats(
     const endOfLastMonth = endOfMonth(subMonths(now, 1))
     const startOfToday = startOfDay(now)
     const endOfToday = endOfDay(now)
-
-    // Compute selected time range and previous comparison range
-    let rangeStart = startOfToday
-    let rangeEnd = endOfToday
-    let prevRangeStart = startOfDay(subDays(now, 1))
-    let prevRangeEnd = endOfDay(subDays(now, 1))
-
-    const effectiveRange = timeRange || 'Today'
-    if (effectiveRange === 'Custom Range' && customStart && customEnd) {
-        const cs = typeof customStart === 'string' ? new Date(customStart) : customStart
-        const ce = typeof customEnd === 'string' ? new Date(customEnd) : customEnd
-        rangeStart = startOfDay(cs)
-        rangeEnd = endOfDay(ce)
-        const days = differenceInCalendarDays(rangeEnd, rangeStart) + 1
-        prevRangeStart = startOfDay(subDays(rangeStart, days))
-        prevRangeEnd = endOfDay(subDays(rangeStart, 1))
-    } else if (effectiveRange === 'Yesterday') {
-        rangeStart = startOfDay(subDays(now, 1))
-        rangeEnd = endOfDay(subDays(now, 1))
-        prevRangeStart = startOfDay(subDays(now, 2))
-        prevRangeEnd = endOfDay(subDays(now, 2))
-    } else if (effectiveRange === 'This Week') {
-        rangeStart = startOfWeek(now)
-        rangeEnd = endOfWeek(now)
-        prevRangeStart = startOfWeek(subWeeks(now, 1))
-        prevRangeEnd = endOfWeek(subWeeks(now, 1))
-    } else if (effectiveRange === 'Last Week') {
-        const lw = subWeeks(now, 1)
-        rangeStart = startOfWeek(lw)
-        rangeEnd = endOfWeek(lw)
-        const pw = subWeeks(now, 2)
-        prevRangeStart = startOfWeek(pw)
-        prevRangeEnd = endOfWeek(pw)
-    } else if (effectiveRange === 'This Month') {
-        rangeStart = startOfMonth(now)
-        rangeEnd = endOfMonth(now)
-        prevRangeStart = startOfMonth(subMonths(now, 1))
-        prevRangeEnd = endOfMonth(subMonths(now, 1))
-    } else if (effectiveRange === 'Last Month') {
-        rangeStart = startOfMonth(subMonths(now, 1))
-        rangeEnd = endOfMonth(subMonths(now, 1))
-        prevRangeStart = startOfMonth(subMonths(now, 2))
-        prevRangeEnd = endOfMonth(subMonths(now, 2))
-    } // else defaults to Today
+    const { rangeStart, rangeEnd, prevRangeStart, prevRangeEnd } = computeRange(timeRange, customStart, customEnd, WEEK_START)
 
     // Helper for revenue
     const getRevenueForRange = (start: Date, end: Date) => 
@@ -463,7 +431,7 @@ export async function getDashboardStats(
         })
     }
 
-    return {
+    const result = {
         success: true,
         data: {
             kpi: {
@@ -508,6 +476,8 @@ export async function getDashboardStats(
             }))
         }
     }
+    Cache.set(cacheKey, result, 30000)
+    return result
 
   } catch (error) {
     console.error('Error fetching dashboard stats:', error)

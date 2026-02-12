@@ -10,6 +10,7 @@ import { FormSelect } from '@/components/ui/FormSelect'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { SCANNER_CONFIG } from '@/lib/scanner'
+import { useBackoff } from '@/hooks/useBackoff'
 
 interface Branch {
   id: string
@@ -31,6 +32,7 @@ export function QRScanClient() {
 
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const mountedRef = useRef(false)
+  const backoff = useBackoff()
 
   // Sound feedback
   const playBeep = useCallback(() => {
@@ -110,6 +112,7 @@ export function QRScanClient() {
     setScanning(true)
     setResult(null)
     setError(null)
+    backoff.reset()
 
     // Wait for DOM
     setTimeout(async () => {
@@ -186,9 +189,10 @@ export function QRScanClient() {
     
     if (scanning && scannerRef.current) {
       await stopScanner()
+      const d = backoff.nextDelay()
       setTimeout(() => {
         startScannerWithId(nextCameraId)
-      }, 200)
+      }, d)
     }
   }
 
@@ -207,6 +211,7 @@ export function QRScanClient() {
       try {
           const res = await verifyStudentQR(studentId, selectedBranchId)
           if (res.success) {
+              backoff.reset()
               setResult({
                   type: res.type === 'check-in' ? 'Check-in' : 'Check-out',
                   studentName: res.studentName || 'Student',
@@ -230,7 +235,10 @@ export function QRScanClient() {
   const resetScan = () => {
       setResult(null)
       setError(null)
-      startScanner()
+      const d = backoff.nextDelay()
+      setTimeout(() => {
+        startScanner()
+      }, d)
   }
 
   return (

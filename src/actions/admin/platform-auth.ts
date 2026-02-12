@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { createSession, deleteSession } from '@/lib/auth/session'
+import { loginLimiterAsync } from '@/lib/rate-limit'
 import { redirect } from 'next/navigation'
 
 export async function loginAdmin(formData: FormData) {
@@ -11,6 +12,9 @@ export async function loginAdmin(formData: FormData) {
 
   if (!email || !password) {
     return { success: false, error: 'Email and password are required' }
+  }
+  if (!(await loginLimiterAsync(email.toLowerCase(), 'admin'))) {
+    return { success: false, error: 'Too many attempts. Please try again later.' }
   }
 
   try {

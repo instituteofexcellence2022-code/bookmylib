@@ -9,12 +9,14 @@ import { toast } from 'react-hot-toast'
 import { Users, Lock, Mail, ArrowLeft, Eye, EyeOff, User } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { useCooldown } from '@/hooks/useCooldown'
 
 export default function StaffLoginPage() {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
     const [rememberMe, setRememberMe] = useState(false)
+    const cooldown = useCooldown()
     
     const [formData, setFormData] = useState({
         identifier: '',
@@ -38,7 +40,11 @@ export default function StaffLoginPage() {
                 router.refresh()
                 router.push('/staff/dashboard')
             } else {
-                toast.error(result.error || 'Login failed')
+                const msg = result.error || 'Login failed'
+                toast.error(msg)
+                if (msg.includes('Too many attempts')) {
+                    cooldown.start(30)
+                }
             }
         } catch (error) {
             console.error('Login error:', error)
@@ -154,6 +160,8 @@ export default function StaffLoginPage() {
                             <AnimatedButton
                                 type="submit"
                                 isLoading={loading}
+                                disabled={cooldown.disabled}
+                                title={cooldown.tooltip}
                                 className="w-full justify-center bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/25"
                                 icon="logIn"
                             >

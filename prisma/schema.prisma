@@ -349,6 +349,7 @@ model StudentSubscription {
   @@index([branchId])
   @@index([studentId])
   @@index([status])
+  @@index([libraryId, branchId, status, endDate])
   @@map("student_subscriptions")
 }
 
@@ -414,6 +415,7 @@ model Attendance {
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([branchId, date])
+  @@index([libraryId, branchId, checkIn])
   @@map("attendance")
 }
 
@@ -523,6 +525,8 @@ model Payment {
   @@index([branchId])
   @@index([studentId])
   @@index([date])
+  @@index([libraryId, status, date])
+  @@index([libraryId, status, date, method])
   @@map("payments")
 }
 

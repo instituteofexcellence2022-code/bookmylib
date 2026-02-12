@@ -8,6 +8,7 @@ import { formatSeatNumber } from '@/lib/utils'
 import { Prisma } from '@prisma/client'
 
 import { getAuthenticatedOwner } from '@/lib/auth/owner'
+import { ownerPermit } from '@/lib/auth/policy'
 
 export async function getFinanceStats(filters: { startDate?: Date, endDate?: Date, branchId?: string } = {}) {
   const owner = await getAuthenticatedOwner()
@@ -197,6 +198,7 @@ export async function getFilterOptions() {
 export async function getTransactions(filters: TransactionFilters = {}, limit = 50) {
   const owner = await getAuthenticatedOwner()
   if (!owner) return { success: false, error: 'Unauthorized' }
+  if (!ownerPermit('finance:view')) return { success: false, error: 'Unauthorized' }
 
   try {
       const whereClause: Prisma.PaymentWhereInput = {
@@ -314,6 +316,7 @@ export async function getTransactions(filters: TransactionFilters = {}, limit = 
 export async function verifyPayment(paymentId: string, action: 'approve' | 'reject' = 'approve') {
     const owner = await getAuthenticatedOwner()
     if (!owner) return { success: false, error: 'Unauthorized' }
+    if (!ownerPermit('finance:view')) return { success: false, error: 'Unauthorized' }
 
     try {
         if (action === 'reject') {

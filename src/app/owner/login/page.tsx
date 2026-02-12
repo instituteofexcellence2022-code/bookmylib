@@ -9,6 +9,7 @@ import { toast } from 'react-hot-toast'
 import { LogIn, ShieldCheck, Lock, Mail, ArrowRight, Shield, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useCooldown } from '@/hooks/useCooldown'
 
 function OwnerLoginForm() {
     const router = useRouter()
@@ -19,6 +20,7 @@ function OwnerLoginForm() {
     const [tempOwnerId, setTempOwnerId] = useState('')
     const [showPassword, setShowPassword] = useState(false)
     const [rememberMe, setRememberMe] = useState(false)
+    const cooldown = useCooldown()
     
     const [formData, setFormData] = useState({
         email: '',
@@ -49,7 +51,11 @@ function OwnerLoginForm() {
                     router.push(callbackUrl)
                 }
             } else {
-                toast.error(result.error || 'Login failed')
+                const msg = result.error || 'Login failed'
+                toast.error(msg)
+                if (msg.includes('Too many attempts')) {
+                    cooldown.start(30)
+                }
             }
         } catch (error) {
             console.error('Login error:', error)
@@ -196,6 +202,8 @@ function OwnerLoginForm() {
                                     <AnimatedButton
                                         type="submit"
                                         isLoading={loading}
+                                        disabled={cooldown.disabled}
+                                        title={cooldown.tooltip}
                                         loadingText="Verifying..."
                                         className="w-full justify-center bg-amber-600 hover:bg-amber-700 text-white h-10"
                                         icon="logIn"

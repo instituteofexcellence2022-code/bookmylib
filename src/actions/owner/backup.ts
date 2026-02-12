@@ -2,10 +2,14 @@
 
 import { prisma } from '@/lib/prisma'
 import { getAuthenticatedOwner } from '@/lib/auth/owner'
+import { ownerPermit } from '@/lib/auth/policy'
 
 export async function exportDatabaseData() {
     const owner = await getAuthenticatedOwner()
     if (!owner) {
+        return { success: false, error: 'Unauthorized' }
+    }
+    if (!ownerPermit('backup:export')) {
         return { success: false, error: 'Unauthorized' }
     }
 

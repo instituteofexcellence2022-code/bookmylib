@@ -5,10 +5,13 @@ import { revalidatePath } from 'next/cache'
 import { getAuthenticatedOwner } from '@/lib/auth/owner'
 import { Prisma } from '@prisma/client'
 import { isSeatAvailable } from '@/actions/seats'
+import { ownerPermit } from '@/lib/auth/policy'
+import { z } from 'zod'
 
 export async function getSeats(branchId?: string) {
   const owner = await getAuthenticatedOwner()
   if (!owner) return { success: false, error: 'Unauthorized' }
+  if (!ownerPermit('seats:view')) return { success: false, error: 'Unauthorized' }
 
   try {
     const where: Prisma.SeatWhereInput = {
@@ -48,16 +51,22 @@ export async function getSeats(branchId?: string) {
   }
 }
 
-export async function createSeat(data: {
-  branchId: string
-  number: string
-  section?: string
-  type: string
-}) {
+const createSeatSchema = z.object({
+  branchId: z.string().min(1),
+  number: z.string().min(1),
+  section: z.string().optional(),
+  type: z.string().min(1)
+})
+
+export async function createSeat(data: unknown) {
   const owner = await getAuthenticatedOwner()
   if (!owner) return { success: false, error: 'Unauthorized' }
 
   try {
+    const parsed = createSeatSchema.safeParse(data)
+    if (!parsed.success) return { success: false, error: 'Invalid input' }
+    const { branchId, number, section, type } = parsed.data
+
     const subscription = await prisma.librarySubscription.findUnique({
       where: { libraryId: owner.libraryId },
       include: { plan: true }
@@ -76,8 +85,8 @@ export async function createSeat(data: {
     const existing = await prisma.seat.findUnique({
       where: {
         branchId_number: {
-          branchId: data.branchId,
-          number: data.number
+          branchId,
+          number
         }
       }
     })
@@ -89,16 +98,16 @@ export async function createSeat(data: {
     const seat = await prisma.seat.create({
       data: {
         libraryId: owner.libraryId,
-        branchId: data.branchId,
-        number: data.number,
-        section: data.section,
-        type: data.type
+        branchId,
+        number,
+        section,
+        type
       }
     })
 
     // Update branch seat count
     await prisma.branch.update({
-      where: { id: data.branchId },
+      where: { id: branchId },
       data: { seatCount: { increment: 1 } }
     })
 

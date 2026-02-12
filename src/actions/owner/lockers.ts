@@ -5,10 +5,13 @@ import { revalidatePath } from 'next/cache'
 import { getAuthenticatedOwner } from '@/lib/auth/owner'
 import { Prisma } from '@prisma/client'
 import { isLockerAvailable } from '@/actions/lockers'
+import { ownerPermit } from '@/lib/auth/policy'
+import { z } from 'zod'
 
 export async function getLockers(branchId?: string) {
   const owner = await getAuthenticatedOwner()
   if (!owner) return { success: false, error: 'Unauthorized' }
+  if (!ownerPermit('lockers:view')) return { success: false, error: 'Unauthorized' }
 
   try {
     const where: Prisma.LockerWhereInput = {
@@ -61,6 +64,16 @@ export async function createLocker(data: {
   if (!owner) return { success: false, error: 'Unauthorized' }
 
   try {
+    const schema = z.object({
+      branchId: z.string().min(1),
+      number: z.string().min(1),
+      section: z.string().optional(),
+      type: z.string().optional()
+    })
+    const parsed = schema.safeParse(data)
+    if (!parsed.success) return { success: false, error: 'Invalid input' }
+    const { branchId, number, section, type } = parsed.data
+
     const subscription = await prisma.librarySubscription.findUnique({
       where: { libraryId: owner.libraryId },
       include: { plan: true }
@@ -72,8 +85,8 @@ export async function createLocker(data: {
     const existing = await prisma.locker.findUnique({
       where: {
         branchId_number: {
-          branchId: data.branchId,
-          number: data.number
+          branchId,
+          number
         }
       }
     })
@@ -84,17 +97,17 @@ export async function createLocker(data: {
 
     const locker = await prisma.locker.create({
       data: {
-        branchId: data.branchId,
-        number: data.number,
-        section: data.section,
-        type: data.type,
+        branchId,
+        number,
+        section,
+        type,
         libraryId: owner.libraryId
       }
     })
 
     // Update branch locker count
     await prisma.branch.update({
-      where: { id: data.branchId },
+      where: { id: branchId },
       data: { totalLockers: { increment: 1 } }
     })
 

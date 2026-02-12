@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs'
 import { sendPasswordResetEmail, sendWelcomeEmail, sendEmailVerificationEmail } from '@/actions/email'
 import { verify } from 'otplib'
 import { createSession, deleteSession } from '@/lib/auth/session'
+import { loginLimiterAsync } from '@/lib/rate-limit'
 
 // --- Session Management ---
 
@@ -128,6 +129,9 @@ export async function loginOwner(formData: FormData) {
     if (!email || !password) {
         return { success: false, error: 'Email and password are required' }
     }
+    if (!(await loginLimiterAsync(email.toLowerCase(), 'owner'))) {
+        return { success: false, error: 'Too many attempts. Please try again later.' }
+    }
 
     try {
         const owner = await prisma.owner.findUnique({
@@ -199,6 +203,12 @@ export async function loginStaff(formData: FormData) {
 
     if (!identifier || !password) {
         return { success: false, error: 'Email/Username and password are required' }
+    }
+    if (!identifier) {
+        return { success: false, error: 'Identifier is required' }
+    }
+    if (!(await loginLimiterAsync(identifier.toLowerCase(), 'staff'))) {
+        return { success: false, error: 'Too many attempts. Please try again later.' }
     }
 
     try {
@@ -587,6 +597,9 @@ export async function loginStudent(formData: FormData) {
 
     if (!password && !dob) {
         return { success: false, error: 'Password or Date of Birth is required' }
+    }
+    if (!(await loginLimiterAsync(identifier.toLowerCase(), 'student'))) {
+        return { success: false, error: 'Too many attempts. Please try again later.' }
     }
 
     try {

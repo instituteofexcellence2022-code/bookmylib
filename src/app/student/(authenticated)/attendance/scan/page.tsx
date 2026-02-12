@@ -9,6 +9,7 @@ import { Html5Qrcode } from 'html5-qrcode'
 import { markAttendance } from '@/actions/attendance'
 import { toast } from 'sonner'
 import { SCANNER_CONFIG } from '@/lib/scanner'
+import { useBackoff } from '@/hooks/useBackoff'
 
 export default function ScanPage() {
   const searchParams = useSearchParams()
@@ -27,6 +28,7 @@ export default function ScanPage() {
   const [isAndroid, setIsAndroid] = useState(false)
   const [torchEnabled, setTorchEnabled] = useState(false)
   const [hasTorch, setHasTorch] = useState(false)
+  const backoff = useBackoff()
 
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const scannerContainerId = "reader"
@@ -120,6 +122,7 @@ export default function ScanPage() {
       try {
           const res = await markAttendance(payload)
           if (res.success) {
+              backoff.reset()
               setResult({
                   type: res.type === 'check-in' ? 'Check-in' : 'Check-out',
                   branchName: res.branchName || 'Library',
@@ -138,6 +141,14 @@ export default function ScanPage() {
               // Actually, maybe we should show error screen and let user retry?
               // Let's show error state
               setScanning(false)
+              if ((res.error || '').includes('Too many attempts')) {
+                  const d = backoff.nextDelay()
+                  window.setTimeout(() => {
+                      setResult(null)
+                      setError(null)
+                      setScanning(true)
+                  }, d)
+              }
           }
       } catch {
           setError('System error. Please try again.')
@@ -306,6 +317,7 @@ export default function ScanPage() {
     setError(null)
     setScanning(true)
     setProcessing(false)
+    backoff.reset()
   }
 
   return (

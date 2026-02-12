@@ -13,6 +13,7 @@ import Image from 'next/image'
 import { format, differenceInCalendarDays } from 'date-fns'
 import { formatSeatNumber } from '@/lib/utils'
 import { SCANNER_CONFIG } from '@/lib/scanner'
+import { useBackoff } from '@/hooks/useBackoff'
 
 export function ScannerClient({ initialCode }: { initialCode?: string }) {
     const router = useRouter()
@@ -27,6 +28,7 @@ export function ScannerClient({ initialCode }: { initialCode?: string }) {
     const scannerRef = useRef<Html5Qrcode | null>(null)
     const mountedRef = useRef(false)
     const initialProcessed = useRef(false)
+    const backoff = useBackoff()
 
     // Handle initial code
     useEffect(() => {
@@ -160,6 +162,7 @@ export function ScannerClient({ initialCode }: { initialCode?: string }) {
             const res = await getStudentDetailsForScanner(studentId)
             
             if (res.success) {
+                backoff.reset()
                 setStudentData(res.data)
                 setScanning(false)
                 setLoading(false)
@@ -173,10 +176,11 @@ export function ScannerClient({ initialCode }: { initialCode?: string }) {
                         toast.success(attendanceRes.type === 'check-in' ? 'Staff Check-in Successful' : 'Staff Check-out Successful')
                         
                         // Restart scanner after short delay
+                        const d = backoff.nextDelay()
                         setTimeout(() => {
                             setLoading(false)
                             setScanning(true)
-                        }, 2000)
+                        }, d)
                         return
                     }
                 } catch (e) {
@@ -186,11 +190,12 @@ export function ScannerClient({ initialCode }: { initialCode?: string }) {
                 toast.error(res.error || 'Student not found')
                 setError(res.error || 'Student not found')
                 // Wait a bit then restart scanner
+                const d = backoff.nextDelay()
                 setTimeout(() => {
                     setError(null)
                     setLoading(false)
                     setScanning(true)
-                }, 2000)
+                }, d)
             }
         } catch (err) {
             console.error(err)
@@ -204,6 +209,7 @@ export function ScannerClient({ initialCode }: { initialCode?: string }) {
         setScanning(true)
         setError(null)
         setLoading(false)
+        backoff.reset()
     }
 
     const handleAttendance = async (type: 'check-in' | 'check-out') => {

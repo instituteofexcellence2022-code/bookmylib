@@ -3,6 +3,8 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { startOfDay, endOfDay, subDays } from 'date-fns'
+import { z } from 'zod'
+import { allowAsync } from '@/lib/rate-limit'
 
 
 export type AttendanceFilter = {
@@ -16,6 +18,7 @@ export type AttendanceFilter = {
 }
 
 import { getAuthenticatedStaff } from '@/lib/auth/staff'
+import { staffPermit } from '@/lib/auth/policy'
 
 // Helper to get authenticated staff
 // Removed local helper in favor of imported one
@@ -24,6 +27,7 @@ export async function getStaffAttendanceLogs(filters: AttendanceFilter) {
     try {
         const staff = await getAuthenticatedStaff()
         if (!staff) return { success: false, error: 'Unauthorized' }
+        if (!staffPermit('attendance:view')) return { success: false, error: 'Unauthorized' }
 
         const page = filters.page || 1
         const limit = filters.limit || 10
@@ -111,6 +115,10 @@ export async function getStaffAttendanceLogs(filters: AttendanceFilter) {
 export async function markStudentAttendance(studentId: string, action: 'check-in' | 'check-out') {
     const staff = await getAuthenticatedStaff()
     if (!staff) return { success: false, error: 'Unauthorized' }
+    if (!staffPermit('attendance:write')) return { success: false, error: 'Unauthorized' }
+    if (!(await allowAsync(`staff:attendance:${action}:${staff.id}`, 5, 30_000))) {
+        return { success: false, error: 'Too many attempts. Please wait and try again.' }
+    }
 
     try {
         if (action === 'check-in') {
@@ -174,6 +182,7 @@ export async function markStudentAttendance(studentId: string, action: 'check-in
 export async function getStaffAttendanceStats(date: Date = new Date()) {
     const staff = await getAuthenticatedStaff()
     if (!staff) return { success: false, error: 'Unauthorized' }
+    if (!staffPermit('attendance:view')) return { success: false, error: 'Unauthorized' }
 
     const start = startOfDay(date)
     const end = endOfDay(date)
@@ -234,6 +243,7 @@ export async function getStaffAttendanceStats(date: Date = new Date()) {
 export async function getStaffAttendanceAnalytics(days: number = 7) {
     const staff = await getAuthenticatedStaff()
     if (!staff) return { success: false, error: 'Unauthorized' }
+    if (!staffPermit('attendance:view')) return { success: false, error: 'Unauthorized' }
 
     const endDate = endOfDay(new Date())
     const startDate = startOfDay(subDays(new Date(), days - 1))
@@ -312,11 +322,25 @@ export async function getStaffAttendanceAnalytics(days: number = 7) {
     }
 }
 
-export async function updateStaffAttendanceRecord(id: string, data: { checkIn?: Date, checkOut?: Date, status?: string }) {
+const attendanceUpdateSchema = z.object({
+  checkIn: z.union([z.date(), z.string()]).optional(),
+  checkOut: z.union([z.date(), z.string()]).optional(),
+  status: z.string().optional()
+})
+
+export async function updateStaffAttendanceRecord(id: string, data: { checkIn?: Date | string, checkOut?: Date | string, status?: string }) {
     const staff = await getAuthenticatedStaff()
     if (!staff) return { success: false, error: 'Unauthorized' }
+    if (!staffPermit('attendance:write')) return { success: false, error: 'Unauthorized' }
+    if (!(await allowAsync(`staff:attendance:update:${staff.id}`, 5, 30_000))) {
+        return { success: false, error: 'Too many attempts. Please wait and try again.' }
+    }
 
     try {
+        const parsed = attendanceUpdateSchema.safeParse(data)
+        if (!parsed.success) return { success: false, error: 'Invalid input' }
+        const validated = parsed.data
+
         const existing = await prisma.attendance.findUnique({ where: { id } })
         if (!existing) return { success: false, error: 'Record not found' }
         
@@ -325,19 +349,19 @@ export async function updateStaffAttendanceRecord(id: string, data: { checkIn?: 
         }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const updateData: any = { ...data }
+        const updateData: any = { ...validated }
 
         // Recalculate duration if times changed
-        if (data.checkIn || data.checkOut) {
-            const newCheckIn = data.checkIn ? new Date(data.checkIn) : existing.checkIn
-            const newCheckOut = data.checkOut ? new Date(data.checkOut) : existing.checkOut
+        if (validated.checkIn || validated.checkOut) {
+            const newCheckIn = validated.checkIn ? new Date(validated.checkIn) : existing.checkIn
+            const newCheckOut = validated.checkOut ? new Date(validated.checkOut) : existing.checkOut
 
             if (newCheckOut) {
                 const duration = Math.floor((newCheckOut.getTime() - newCheckIn.getTime()) / 60000)
                 updateData.duration = duration > 0 ? duration : 0
                 
                 // Auto update status based on duration if not manually provided
-                if (!data.status) {
+                if (!validated.status) {
                     if (duration < 120) updateData.status = 'short_session'
                     else if (duration > 360) updateData.status = 'full_day'
                     else updateData.status = 'present'
@@ -364,6 +388,10 @@ export async function updateStaffAttendanceRecord(id: string, data: { checkIn?: 
 export async function verifyStaffStudentQR(studentId: string) {
     const staff = await getAuthenticatedStaff()
     if (!staff) return { success: false, error: 'Unauthorized' }
+    if (!staffPermit('attendance:write')) return { success: false, error: 'Unauthorized' }
+    if (!(await allowAsync(`staff:attendance:qr:${staff.id}`, 5, 30_000))) {
+        return { success: false, error: 'Too many attempts. Please wait and try again.' }
+    }
 
     try {
         // 1. Verify Student Exists
@@ -546,6 +574,9 @@ export async function getStaffSelfAttendanceToday() {
 export async function markStaffSelfAttendance(qrContent: string) {
     const staff = await getAuthenticatedStaff()
     if (!staff) return { success: false, error: 'Unauthorized' }
+    if (!(await allowAsync(`staff:self-attendance:qr:${staff.id}`, 5, 30_000))) {
+        return { success: false, error: 'Too many attempts. Please wait and try again.' }
+    }
 
     try {
         let branchId = staff.branchId

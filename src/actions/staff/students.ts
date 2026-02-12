@@ -16,6 +16,7 @@ export type StudentFilter = {
 }
 
 import { getAuthenticatedStaff } from '@/lib/auth/staff'
+import { staffPermit } from '@/lib/auth/policy'
 
 export async function getStaffStudents(filters: StudentFilter = {}) {
     const staff = await getAuthenticatedStaff()
@@ -179,6 +180,7 @@ export async function getStaffStudents(filters: StudentFilter = {}) {
 export async function getStudentDetailsForScanner(studentId: string) {
     const staff = await getAuthenticatedStaff()
     if (!staff) return { success: false, error: 'Unauthorized' }
+    if (!staffPermit('students:view')) return { success: false, error: 'Unauthorized' }
 
     try {
         const student = await prisma.student.findUnique({
@@ -251,6 +253,7 @@ import { studentSchema } from '@/lib/validators/student'
 export async function createStudent(formData: FormData) {
     const staff = await getAuthenticatedStaff()
     if (!staff) return { success: false, error: 'Unauthorized' }
+    if (!staffPermit('students:view')) return { success: false, error: 'Unauthorized' }
 
     // Extract text fields for validation
     const rawData: Record<string, any> = {}
@@ -377,6 +380,7 @@ export async function createStudent(formData: FormData) {
 export async function getStudentDetails(studentId: string) {
     const staff = await getAuthenticatedStaff()
     if (!staff) return { success: false, error: 'Unauthorized' }
+    if (!staffPermit('students:view')) return { success: false, error: 'Unauthorized' }
 
     try {
         // STRICT BRANCH CHECK: Use findFirst with branch filters instead of findUnique

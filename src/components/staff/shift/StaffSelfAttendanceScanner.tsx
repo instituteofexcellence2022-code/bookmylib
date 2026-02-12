@@ -9,6 +9,8 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { cn } from '@/lib/utils'
 import { SCANNER_CONFIG } from '@/lib/scanner'
+import { useCooldown } from '@/hooks/useCooldown'
+import { useBackoff } from '@/hooks/useBackoff'
 
 interface StaffSelfAttendanceScannerProps {
     isCheckedIn: boolean
@@ -19,6 +21,8 @@ export function StaffSelfAttendanceScanner({ isCheckedIn }: StaffSelfAttendanceS
   const [result, setResult] = useState<{ type: string; timestamp: Date; duration?: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [processing, setProcessing] = useState(false)
+  const cooldown = useCooldown(0)
+  const backoff = useBackoff()
   const scannerRef = useRef<Html5Qrcode | null>(null)
   const mountedRef = useRef(false)
 
@@ -91,6 +95,7 @@ export function StaffSelfAttendanceScanner({ isCheckedIn }: StaffSelfAttendanceS
       try {
           const res = await markStaffSelfAttendance(qrContent)
           if (res.success) {
+              backoff.reset()
               setResult({
                   type: res.type === 'check-in' ? 'Check-in' : 'Check-out',
                   timestamp: res.timestamp ? new Date(res.timestamp) : new Date(),
@@ -98,8 +103,16 @@ export function StaffSelfAttendanceScanner({ isCheckedIn }: StaffSelfAttendanceS
               })
               toast.success(`${res.type === 'check-in' ? 'Check-in' : 'Check-out'} Successful`)
           } else {
-              setError(res.error || 'Scan failed')
-              toast.error(res.error || 'Scan failed')
+              const msg = res.error || 'Scan failed'
+              setError(msg)
+              toast.error(msg)
+              if (msg.includes('Too many attempts')) {
+                  cooldown.start(30)
+                  const d = backoff.nextDelay()
+                  window.setTimeout(() => {
+                      startScanner()
+                  }, d)
+              }
           }
       } catch {
           setError('An unexpected error occurred')
@@ -113,6 +126,7 @@ export function StaffSelfAttendanceScanner({ isCheckedIn }: StaffSelfAttendanceS
       setResult(null)
       setError(null)
       setScanning(false)
+      backoff.reset()
   }
 
   return (
@@ -168,6 +182,8 @@ export function StaffSelfAttendanceScanner({ isCheckedIn }: StaffSelfAttendanceS
 
                     <AnimatedButton 
                         onClick={startScanner}
+                        disabled={cooldown.disabled}
+                        title={cooldown.tooltip}
                         className={cn(
                             "min-w-[180px] shadow-lg hover:shadow-xl transition-shadow py-2",
                             isCheckedIn 
@@ -178,6 +194,11 @@ export function StaffSelfAttendanceScanner({ isCheckedIn }: StaffSelfAttendanceS
                         <Camera className="mr-2 h-4 w-4" />
                         {isCheckedIn ? 'Scan to Check Out' : 'Scan to Check In'}
                     </AnimatedButton>
+                    {cooldown.disabled && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                            Please wait {cooldown.seconds}s before retrying
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -276,7 +297,12 @@ export function StaffSelfAttendanceScanner({ isCheckedIn }: StaffSelfAttendanceS
                             <AnimatedButton onClick={() => setError(null)} variant="secondary" className="flex-1">
                                 Cancel
                             </AnimatedButton>
-                            <AnimatedButton onClick={startScanner} className="flex-1 bg-red-600 hover:bg-red-700 text-white">
+                            <AnimatedButton 
+                                onClick={startScanner} 
+                                disabled={cooldown.disabled}
+                                title={cooldown.tooltip}
+                                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                            >
                                 Try Again
                             </AnimatedButton>
                         </div>

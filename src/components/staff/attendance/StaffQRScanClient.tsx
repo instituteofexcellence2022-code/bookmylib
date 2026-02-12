@@ -8,12 +8,16 @@ import { toast } from 'sonner'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { SCANNER_CONFIG } from '@/lib/scanner'
+import { useCooldown } from '@/hooks/useCooldown'
+import { useBackoff } from '@/hooks/useBackoff'
 
 export function StaffQRScanClient() {
   const [scanning, setScanning] = useState(false)
   const [result, setResult] = useState<{ type: string; studentName: string; timestamp: Date; duration?: number; message?: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [processing, setProcessing] = useState(false)
+  const cooldown = useCooldown(0)
+  const backoff = useBackoff()
   const [cameras, setCameras] = useState<Array<{ id: string; label: string }>>([])
   const [currentCameraId, setCurrentCameraId] = useState<string | null>(null)
   const [soundEnabled, setSoundEnabled] = useState(true)
@@ -209,6 +213,7 @@ export function StaffQRScanClient() {
       try {
           const res = await verifyStaffStudentQR(studentId)
           if (res.success) {
+              backoff.reset()
               setResult({
                   type: res.type === 'check-in' ? 'Check-in' : 'Check-out',
                   studentName: res.studentName || 'Student',
@@ -218,8 +223,16 @@ export function StaffQRScanClient() {
               })
               toast.success(`${res.type === 'check-in' ? 'Check-in' : 'Check-out'} Successful`)
           } else {
-              setError(res.error || 'Scan failed')
-              toast.error(res.error || 'Scan failed')
+              const msg = res.error || 'Scan failed'
+              setError(msg)
+              toast.error(msg)
+              if (msg.includes('Too many attempts')) {
+                  cooldown.start(30)
+                  const d = backoff.nextDelay()
+                  window.setTimeout(() => {
+                      startScanner()
+                  }, d)
+              }
           }
       } catch {
           setError('An unexpected error occurred')
@@ -285,9 +298,18 @@ export function StaffQRScanClient() {
                 <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl">
                     <Camera size={48} className="text-gray-300 mb-4" />
                     <p className="text-gray-500 mb-6">Ready to scan student digital ID</p>
-                    <AnimatedButton onClick={startScanner}>
+                    <AnimatedButton 
+                        onClick={startScanner}
+                        disabled={cooldown.disabled}
+                        title={cooldown.tooltip}
+                    >
                         Start Scanner
                     </AnimatedButton>
+                    {cooldown.disabled && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                            Please wait {cooldown.seconds}s before retrying
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -351,7 +373,11 @@ export function StaffQRScanClient() {
                             <AnimatedButton onClick={() => setError(null)} variant="secondary">
                                 Cancel
                             </AnimatedButton>
-                            <AnimatedButton onClick={resetScan}>
+                            <AnimatedButton 
+                                onClick={resetScan}
+                                disabled={cooldown.disabled}
+                                title={cooldown.tooltip}
+                            >
                                 Try Again
                             </AnimatedButton>
                         </div>

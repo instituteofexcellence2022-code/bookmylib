@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { startOfDay, endOfDay, subDays } from 'date-fns'
 import { getAuthenticatedOwner } from '@/lib/auth/owner'
+import { ownerPermit } from '@/lib/auth/policy'
 
 export type AttendanceFilter = {
     page?: number
@@ -19,6 +20,7 @@ export type AttendanceFilter = {
 export async function getOwnerAttendanceLogs(filters: AttendanceFilter) {
     const owner = await getAuthenticatedOwner()
     if (!owner) return { success: false, error: 'Unauthorized' }
+    if (!ownerPermit('attendance:view')) return { success: false, error: 'Unauthorized' }
 
     const page = filters.page || 1
     const limit = filters.limit || 10
@@ -110,6 +112,7 @@ export async function getOwnerAttendanceLogs(filters: AttendanceFilter) {
 export async function getOwnerAttendanceStats(branchId?: string, date: Date = new Date()) {
     const owner = await getAuthenticatedOwner()
     if (!owner) return { success: false, error: 'Unauthorized' }
+    if (!ownerPermit('attendance:view')) return { success: false, error: 'Unauthorized' }
 
     const start = startOfDay(date)
     const end = endOfDay(date)
@@ -172,6 +175,7 @@ export async function getOwnerAttendanceStats(branchId?: string, date: Date = ne
 export async function getAttendanceAnalytics(days: number = 7) {
     const owner = await getAuthenticatedOwner()
     if (!owner) return { success: false, error: 'Unauthorized' }
+    if (!ownerPermit('attendance:view')) return { success: false, error: 'Unauthorized' }
 
     const endDate = endOfDay(new Date())
     const startDate = startOfDay(subDays(new Date(), days - 1))

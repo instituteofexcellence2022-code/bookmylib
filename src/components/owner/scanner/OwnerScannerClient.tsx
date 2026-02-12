@@ -14,6 +14,7 @@ import { format, differenceInCalendarDays, formatDistanceToNow } from 'date-fns'
 import { formatSeatNumber } from '@/lib/utils'
 import { verifyPayment } from '@/actions/owner/finance'
 import { SCANNER_CONFIG } from '@/lib/scanner'
+import { useBackoff } from '@/hooks/useBackoff'
 
 export function OwnerScannerClient() {
     const router = useRouter()
@@ -27,6 +28,7 @@ export function OwnerScannerClient() {
     const [hasTorch, setHasTorch] = useState(false)
     const scannerRef = useRef<Html5Qrcode | null>(null)
     const mountedRef = useRef(false)
+    const backoff = useBackoff()
     
     // Owner specific state
     // const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]) // Not strictly needed for auto-scan but kept if we need to select for registration
@@ -199,6 +201,7 @@ export function OwnerScannerClient() {
             const res = await getStudentDetailsForScanner(studentId)
             
             if (res.success && res.data) {
+                backoff.reset()
                 setStudentData(res.data)
                 // Auto-detect branch from subscription or student home branch
                 if (res.data.subscription?.branchId) {
@@ -213,11 +216,12 @@ export function OwnerScannerClient() {
                 toast.error(res.error || 'Student not found')
                 setError(res.error || 'Student not found')
                 // Wait a bit then restart scanner
+                const d = backoff.nextDelay()
                 setTimeout(() => {
                     setError(null)
                     setLoading(false)
                     setScanning(true)
-                }, 2000)
+                }, d)
             }
         } catch (err) {
             console.error(err)
@@ -236,6 +240,7 @@ export function OwnerScannerClient() {
         setSelectedBranchId(null)
         setSuccessState(null)
         setProcessing(false)
+        backoff.reset()
     }
 
     const handleAttendance = async (type: 'check-in' | 'check-out') => { // type ignored as verifyStudentQR handles it logic internally mostly, but we can use it for UI
@@ -250,6 +255,7 @@ export function OwnerScannerClient() {
             const res = await verifyStudentQR(studentData.student.id, selectedBranchId)
             
             if (res.success) {
+                backoff.reset()
                 toast.success(res.type === 'check-in' ? 'Successfully checked in' : 'Successfully checked out')
                 
                 // Update local state
@@ -258,7 +264,16 @@ export function OwnerScannerClient() {
                     setStudentData(updatedRes.data)
                 }
             } else {
-                toast.error(res.error || 'Failed to process attendance')
+                const msg = res.error || 'Failed to process attendance'
+                toast.error(msg)
+                if (msg.includes('Too many attempts')) {
+                    const d = backoff.nextDelay()
+                    setTimeout(() => {
+                        getStudentDetailsForScanner(studentData.student.id).then(r => {
+                            if (r.success) setStudentData(r.data)
+                        })
+                    }, d)
+                }
             }
         } catch (error) {
             toast.error('System error')
@@ -269,12 +284,20 @@ export function OwnerScannerClient() {
         if (!studentData?.pendingPayment?.id) return
         try {
             await verifyPayment(studentData.pendingPayment.id, action)
+            backoff.reset()
             toast.success(action === 'approve' ? 'Payment verified' : 'Payment rejected')
             const updatedRes = await getStudentDetailsForScanner(studentData.student.id)
             if (updatedRes.success) setStudentData(updatedRes.data)
         } catch (e) {
             console.error(e)
-            toast.error('Failed to verify payment')
+            const msg = 'Failed to verify payment'
+            toast.error(msg)
+            const d = backoff.nextDelay()
+            setTimeout(() => {
+                getStudentDetailsForScanner(studentData.student.id).then(r => {
+                    if (r.success) setStudentData(r.data)
+                })
+            }, d)
         }
     }
     

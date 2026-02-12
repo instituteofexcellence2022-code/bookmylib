@@ -6,6 +6,9 @@ import { sendReceiptEmail } from '@/actions/email'
 import { startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns'
 import { formatSeatNumber } from '@/lib/utils'
 import { getAuthenticatedStaff } from '@/lib/auth/staff'
+import { staffPermit } from '@/lib/auth/policy'
+import { z } from 'zod'
+import { allowAsync } from '@/lib/rate-limit'
 
 // Helper to get authenticated staff
 // Removed local helper in favor of imported one
@@ -14,6 +17,7 @@ export async function getStaffFinanceStats() {
   try {
     const staff = await getAuthenticatedStaff()
     if (!staff) return { success: false, error: 'Unauthorized' }
+    if (!staffPermit('finance:view')) return { success: false, error: 'Unauthorized' }
 
     const now = new Date()
     const startOfToday = startOfDay(now)
@@ -96,6 +100,7 @@ export async function getStaffTransactions(filters: TransactionFilters = {}, lim
   try {
     const staff = await getAuthenticatedStaff()
     if (!staff) return { success: false, error: 'Unauthorized' }
+    if (!staffPermit('finance:view')) return { success: false, error: 'Unauthorized' }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const whereClause: any = {
@@ -166,30 +171,41 @@ export async function getStaffTransactions(filters: TransactionFilters = {}, lim
 
 
 
-export async function createStaffPayment(data: {
-    studentId: string
-    amount: number
-    method: string
-    type: string
-    remarks?: string
-    planId?: string
-    feeId?: string
-    additionalFeeIds?: string[]
-    seatId?: string
-    lockerId?: string
-    discount?: number
-    promoCode?: string
-    quantity?: number
-    startDate?: string | Date
-}) {
+const createPaymentSchema = z.object({
+  studentId: z.string().min(1),
+  amount: z.number().positive(),
+  method: z.string().min(1),
+  type: z.string().min(1),
+  remarks: z.string().optional(),
+  planId: z.string().optional(),
+  feeId: z.string().optional(),
+  additionalFeeIds: z.array(z.string()).optional(),
+  seatId: z.string().optional(),
+  lockerId: z.string().optional(),
+  discount: z.number().min(0).optional(),
+  promoCode: z.string().optional(),
+  quantity: z.number().min(1).optional(),
+  startDate: z.union([z.string(), z.date()]).optional()
+})
+
+export async function createStaffPayment(payload: unknown) {
     try {
         const staff = await getAuthenticatedStaff()
         if (!staff) return { success: false, error: 'Unauthorized' }
+        if (!staffPermit('finance:create_payment')) return { success: false, error: 'Unauthorized' }
+        if (!(await allowAsync(`staff:finance:create:${staff.id}`, 5, 30_000))) {
+            return { success: false, error: 'Too many attempts. Please wait and try again.' }
+        }
+
+        const parsed = createPaymentSchema.safeParse(payload)
+        if (!parsed.success) return { success: false, error: 'Invalid input' }
+        const d = parsed.data
+        const data = d
 
         // Validate student belongs to branch
         const student = await prisma.student.findFirst({
             where: { 
-                id: data.studentId, 
+                id: d.studentId, 
                 libraryId: staff.libraryId,
                 OR: [
                     { branchId: staff.branchId },
@@ -203,8 +219,8 @@ export async function createStaffPayment(data: {
 
         // Pre-validate Plan and Seat existence to avoid throwing inside transaction
         let plan = null
-        if (data.type === 'subscription' && data.planId) {
-            plan = await prisma.plan.findUnique({ where: { id: data.planId } })
+        if (d.type === 'subscription' && d.planId) {
+            plan = await prisma.plan.findUnique({ where: { id: d.planId } })
             if (!plan) return { success: false, error: 'Plan not found' }
         }
 
@@ -501,6 +517,7 @@ export async function getStaffBranchDetails() {
     try {
         const staff = await getAuthenticatedStaff()
         if (!staff) return { success: false, error: 'Unauthorized' }
+        if (!staffPermit('finance:view')) return { success: false, error: 'Unauthorized' }
 
         const branch = await prisma.branch.findUnique({
             where: { id: staff.branchId },
@@ -599,6 +616,7 @@ export async function updatePaymentRemarks(paymentId: string, remarks: string) {
     try {
         const staff = await getAuthenticatedStaff()
         if (!staff) return { success: false, error: 'Unauthorized' }
+        if (!staffPermit('finance:view')) return { success: false, error: 'Unauthorized' }
 
         const payment = await prisma.payment.findUnique({
             where: { id: paymentId, libraryId: staff.libraryId },

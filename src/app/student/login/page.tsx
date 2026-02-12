@@ -9,12 +9,14 @@ import { toast } from 'react-hot-toast'
 import { Mail, ArrowLeft, BookOpen, Calendar, Lock, LogIn, ArrowRight, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { useCooldown } from '@/hooks/useCooldown'
 
 export default function StudentLoginPage() {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [loginMethod, setLoginMethod] = useState<'password' | 'dob'>('password')
     const [rememberMe, setRememberMe] = useState(false)
+    const cooldown = useCooldown()
 
     const [formData, setFormData] = useState({
         identifier: '',
@@ -44,7 +46,11 @@ export default function StudentLoginPage() {
                 toast.success('Login successful')
                 router.push('/student/home')
             } else {
-                toast.error(result.error || 'Login failed')
+                const msg = result.error || 'Login failed'
+                toast.error(msg)
+                if (msg.includes('Too many attempts')) {
+                    cooldown.start(30)
+                }
             }
         } catch {
             toast.error('An error occurred')
@@ -181,7 +187,8 @@ export default function StudentLoginPage() {
                         <Button
                             type="submit"
                             className="w-full justify-center bg-blue-600 hover:bg-blue-700 text-white h-10"
-                            disabled={loading}
+                            disabled={loading || cooldown.disabled}
+                            title={cooldown.tooltip}
                         >
                             {loading ? (
                                 <>

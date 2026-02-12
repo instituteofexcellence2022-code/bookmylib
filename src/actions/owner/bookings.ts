@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { getAuthenticatedOwner } from '@/lib/auth/owner'
 import { Prisma } from '@prisma/client'
+import { ownerPermit } from '@/lib/auth/policy'
+import { z } from 'zod'
 
 export async function getBookings(filters?: {
   branchId?: string
@@ -12,6 +14,7 @@ export async function getBookings(filters?: {
 }) {
   const owner = await getAuthenticatedOwner()
   if (!owner) return { success: false, error: 'Unauthorized' }
+  if (!ownerPermit('bookings:view')) return { success: false, error: 'Unauthorized' }
 
   try {
     const where: Prisma.StudentSubscriptionWhereInput = {
@@ -61,29 +64,34 @@ export async function getBookings(filters?: {
 
 export async function updateBookingDetails(
   id: string,
-  data: {
-    seatId?: string | null
-    lockerId?: string | null
-    startDate?: string
-    endDate?: string
-  }
+  data: unknown
 ) {
   const owner = await getAuthenticatedOwner()
   if (!owner) return { success: false, error: 'Unauthorized' }
 
   try {
+    const schema = z.object({
+      seatId: z.string().min(1).nullable().optional(),
+      lockerId: z.string().min(1).nullable().optional(),
+      startDate: z.string().min(1).optional(),
+      endDate: z.string().min(1).optional()
+    })
+    const parsed = schema.safeParse(data)
+    if (!parsed.success) return { success: false, error: 'Invalid input' }
+    const { seatId, lockerId, startDate, endDate } = parsed.data
+
     // 1. Parallelize checks for seat and locker occupancy
     const [existingSeat, existingLocker] = await Promise.all([
-      data.seatId ? prisma.studentSubscription.findFirst({
+      seatId ? prisma.studentSubscription.findFirst({
         where: {
-          seatId: data.seatId,
+          seatId,
           status: 'active',
           id: { not: id }
         }
       }) : null,
-      data.lockerId ? prisma.studentSubscription.findFirst({
+      lockerId ? prisma.studentSubscription.findFirst({
         where: {
-          lockerId: data.lockerId,
+          lockerId,
           status: 'active',
           id: { not: id }
         }
@@ -101,10 +109,10 @@ export async function updateBookingDetails(
     const booking = await prisma.studentSubscription.update({
       where: { id },
       data: {
-        ...(data.seatId !== undefined && { seatId: data.seatId }),
-        ...(data.lockerId !== undefined && { lockerId: data.lockerId }),
-        ...(data.startDate && { startDate: new Date(data.startDate) }),
-        ...(data.endDate && { endDate: new Date(data.endDate) })
+        ...(seatId !== undefined && { seatId }),
+        ...(lockerId !== undefined && { lockerId }),
+        ...(startDate && { startDate: new Date(startDate) }),
+        ...(endDate && { endDate: new Date(endDate) })
       }
     })
 

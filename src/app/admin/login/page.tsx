@@ -10,12 +10,14 @@ import { toast } from 'react-hot-toast'
 import { Lock, Mail, ArrowRight, ShieldCheck } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { useCooldown } from '@/hooks/useCooldown'
 
 function AdminLoginForm() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const callbackUrl = searchParams.get('callbackUrl') || '/admin/dashboard'
     const [loading, setLoading] = useState(false)
+    const cooldown = useCooldown()
     
     const [formData, setFormData] = useState({
         email: '',
@@ -38,7 +40,11 @@ function AdminLoginForm() {
                 router.refresh()
                 router.push(callbackUrl)
             } else {
-                toast.error(result.error || 'Login failed')
+                const msg = result.error || 'Login failed'
+                toast.error(msg)
+                if (msg.includes('Too many attempts')) {
+                    cooldown.start(30)
+                }
             }
         } catch (error) {
             console.error('Login error:', error)
@@ -113,6 +119,8 @@ function AdminLoginForm() {
                         <AnimatedButton
                             type="submit"
                             isLoading={loading}
+                            disabled={cooldown.disabled}
+                            title={cooldown.tooltip}
                             variant="purple"
                             className="w-full justify-center h-10"
                         >

@@ -7,6 +7,7 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { Check, X, ExternalLink, Loader2, Image as ImageIcon, Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
+import { useBackoff } from '@/hooks/useBackoff'
 
 interface PaymentRequest {
   id: string
@@ -33,6 +34,7 @@ export function VerifyPaymentList() {
     const [payments, setPayments] = useState<PaymentRequest[]>([])
     const [loading, setLoading] = useState(true)
     const [processingId, setProcessingId] = useState<string | null>(null)
+    const backoff = useBackoff()
 
     const fetchPayments = async () => {
         try {
@@ -59,11 +61,17 @@ export function VerifyPaymentList() {
         setProcessingId(id)
         try {
             await verifyPayment(id, action)
+            backoff.reset()
             toast.success(action === 'approve' ? 'Payment verified successfully' : 'Payment rejected')
             fetchPayments() // Refresh list
         } catch (error) {
             console.error(error)
-            toast.error('Operation failed')
+            const msg = 'Operation failed'
+            toast.error(msg)
+            const d = backoff.nextDelay()
+            window.setTimeout(() => {
+                fetchPayments()
+            }, d)
         } finally {
             setProcessingId(null)
         }

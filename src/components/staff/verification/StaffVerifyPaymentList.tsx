@@ -1,14 +1,15 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { getPendingPayments } from '@/actions/staff/verification'
-import { verifyPayment } from '@/actions/payment'
+import { getPendingPayments, verifyPendingPayment } from '@/actions/staff/verification'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { Check, X, ExternalLink, Loader2, Image as ImageIcon, Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { useCooldown } from '@/hooks/useCooldown'
+import { useBackoff } from '@/hooks/useBackoff'
 
 // Define types locally or import if available
 interface PaymentRequest {
@@ -46,6 +47,8 @@ export function StaffVerifyPaymentList() {
     const [payments, setPayments] = useState<PaymentRequest[]>([])
     const [loading, setLoading] = useState(true)
     const [processingId, setProcessingId] = useState<string | null>(null)
+    const cooldown = useCooldown(0)
+    const backoff = useBackoff()
     const searchParams = useSearchParams()
     const router = useRouter()
     const studentId = searchParams.get('studentId') || undefined
@@ -75,14 +78,28 @@ export function StaffVerifyPaymentList() {
     const handleVerify = async (id: string, action: 'approve' | 'reject') => {
         setProcessingId(id)
         try {
-            const status = action === 'approve' ? 'completed' : 'failed'
-            const result = await verifyPayment(id, status)
+            const result = await verifyPendingPayment(id, action)
             
             if (result.success) {
+                backoff.reset()
                 toast.success(action === 'approve' ? 'Payment verified successfully' : 'Payment rejected')
                 fetchPayments() // Refresh list
             } else {
-                toast.error(result.error || 'Operation failed')
+                const errorMsg = result.error || 'Operation failed'
+                if (errorMsg.includes('Active student limit')) {
+                    toast.error('Active student limit reached for your library plan. Please contact the owner to upgrade.')
+                } else if (errorMsg.includes('Platform subscription inactive')) {
+                    toast.error('Library subscription is inactive. Please contact the owner.')
+                } else if (errorMsg.includes('Too many attempts')) {
+                    toast.error('Too many attempts. Please wait before retrying.')
+                    cooldown.start(30)
+                    const d = backoff.nextDelay()
+                    window.setTimeout(() => {
+                        fetchPayments()
+                    }, d)
+                } else {
+                    toast.error(errorMsg)
+                }
             }
         } catch (error) {
             console.error(error)
@@ -214,8 +231,9 @@ export function StaffVerifyPaymentList() {
                         <div className="flex flex-row md:flex-col gap-2 justify-center border-t md:border-t-0 md:border-l border-gray-100 dark:border-gray-700 pt-4 md:pt-0 md:pl-6">
                             <AnimatedButton
                                 onClick={() => handleVerify(payment.id, 'approve')}
-                                disabled={!!processingId}
+                                disabled={!!processingId || cooldown.disabled}
                                 isLoading={processingId === payment.id}
+                                title={cooldown.tooltip}
                                 className="bg-green-600 hover:bg-green-700 text-white w-full"
                             >
                                 <Check size={16} className="mr-2" />
@@ -223,13 +241,19 @@ export function StaffVerifyPaymentList() {
                             </AnimatedButton>
                             <AnimatedButton
                                 onClick={() => handleVerify(payment.id, 'reject')}
-                                disabled={!!processingId}
+                                disabled={!!processingId || cooldown.disabled}
                                 variant="outline"
+                                title={cooldown.tooltip}
                                 className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-900/30 dark:hover:bg-red-900/20 w-full"
                             >
                                 <X size={16} className="mr-2" />
                                 Reject
                             </AnimatedButton>
+                            {cooldown.disabled && (
+                                <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                                    Please wait {cooldown.seconds}s before retrying
+                                </div>
+                            )}
                         </div>
                     </div>
                 </AnimatedCard>

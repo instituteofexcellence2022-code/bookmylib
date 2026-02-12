@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth/admin'
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
 
 export async function getPlatformSettings() {
     await requireAdmin()
@@ -23,7 +24,17 @@ export async function getPlatformSettings() {
     return settings
 }
 
-export async function updatePlatformSettings(data: any) {
+const updateSchema = z.object({
+    platformName: z.string().min(1),
+    supportEmail: z.string().email().optional().or(z.literal('')),
+    supportPhone: z.string().optional().or(z.literal('')),
+    maintenanceMode: z.boolean(),
+    maintenanceMsg: z.string().optional().or(z.literal('')),
+    enableRegistrations: z.boolean(),
+    enableEmailNotifs: z.boolean()
+})
+
+export async function updatePlatformSettings(data: unknown) {
     const session = await requireAdmin()
 
     const settings = await prisma.platformSettings.findFirst()
@@ -31,17 +42,21 @@ export async function updatePlatformSettings(data: any) {
     if (!settings) {
         return { success: false, error: 'Settings not found' }
     }
+    const parsed = updateSchema.safeParse(data)
+    if (!parsed.success) {
+        return { success: false, error: 'Invalid settings' }
+    }
 
     await prisma.platformSettings.update({
         where: { id: settings.id },
         data: {
-            platformName: data.platformName,
-            supportEmail: data.supportEmail,
-            supportPhone: data.supportPhone,
-            maintenanceMode: data.maintenanceMode,
-            maintenanceMsg: data.maintenanceMsg,
-            enableRegistrations: data.enableRegistrations,
-            enableEmailNotifs: data.enableEmailNotifs
+            platformName: parsed.data.platformName,
+            supportEmail: parsed.data.supportEmail || null,
+            supportPhone: parsed.data.supportPhone || null,
+            maintenanceMode: parsed.data.maintenanceMode,
+            maintenanceMsg: parsed.data.maintenanceMsg || null,
+            enableRegistrations: parsed.data.enableRegistrations,
+            enableEmailNotifs: parsed.data.enableEmailNotifs
         }
     })
 

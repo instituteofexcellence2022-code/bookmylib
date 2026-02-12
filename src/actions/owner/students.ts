@@ -6,6 +6,7 @@ import { uploadFile } from '@/actions/upload'
 import { sendWelcomeEmail } from '@/actions/email'
 import { formatSeatNumber } from '@/lib/utils'
 import { getAuthenticatedOwner } from '@/lib/auth/owner'
+import { ownerPermit } from '@/lib/auth/policy'
 import bcrypt from 'bcryptjs'
 import { Prisma } from '@prisma/client'
 
@@ -381,6 +382,7 @@ export async function getOwnerStudents(filters: StudentFilter = {}) {
 export async function verifyStudentGovtId(studentId: string, status: 'verified' | 'rejected') {
     const owner = await getAuthenticatedOwner()
     if (!owner) return { success: false, error: 'Unauthorized' }
+    if (!ownerPermit('students:verify')) return { success: false, error: 'Unauthorized' }
 
     try {
         const student = await prisma.student.findUnique({
@@ -407,6 +409,7 @@ export async function verifyStudentGovtId(studentId: string, status: 'verified' 
 export async function getPendingVerifications() {
     const owner = await getAuthenticatedOwner()
     if (!owner) return { success: false, error: 'Unauthorized' }
+    if (!ownerPermit('students:view')) return { success: false, error: 'Unauthorized' }
 
     try {
         const students = await prisma.student.findMany({
@@ -437,6 +440,7 @@ export async function getPendingVerifications() {
 export async function getStudentDetails(studentId: string) {
     const owner = await getAuthenticatedOwner()
     if (!owner) return { success: false, error: 'Unauthorized' }
+    if (!ownerPermit('students:view')) return { success: false, error: 'Unauthorized' }
 
     try {
         const student = await prisma.student.findUnique({
