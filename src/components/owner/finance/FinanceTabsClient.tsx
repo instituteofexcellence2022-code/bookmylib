@@ -7,14 +7,15 @@ import { RevenueChartClient } from '@/components/owner/finance/RevenueChartClien
 import { RevenueDistributionClient } from '@/components/owner/finance/RevenueDistributionClient'
 import { PaymentHistoryClient } from '@/components/owner/finance/PaymentHistoryClient'
 import { FinanceFilterBar } from '@/components/owner/finance/FinanceFilterBar'
-import { LayoutDashboard, History } from 'lucide-react'
+import { LayoutDashboard, History, BarChart3 } from 'lucide-react'
+import { EnhancedRevenueAnalyticsClient } from '@/components/owner/finance/EnhancedRevenueAnalyticsClient'
 
 export function FinanceTabsClient() {
     const router = useRouter()
     const searchParams = useSearchParams()
-    const activeTab = (searchParams.get('tab') as 'overview' | 'transactions') || 'overview'
+    const activeTab = (searchParams.get('tab') as 'overview' | 'transactions' | 'analytics') || 'overview'
 
-    const setActiveTab = (tab: 'overview' | 'transactions') => {
+    const setActiveTab = (tab: 'overview' | 'transactions' | 'analytics') => {
         router.push(`/owner/finance?tab=${tab}`)
     }
 
@@ -45,6 +46,17 @@ export function FinanceTabsClient() {
                         <History className="w-4 h-4" />
                         <span>Recent Transactions</span>
                     </button>
+                    <button
+                        onClick={() => setActiveTab('analytics')}
+                        className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                            activeTab === 'analytics'
+                                ? 'bg-white text-emerald-600 shadow-sm dark:bg-gray-950 dark:text-emerald-400'
+                                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700/50'
+                        }`}
+                    >
+                        <BarChart3 className="w-4 h-4" />
+                        <span>Analytics</span>
+                    </button>
                 </div>
             </div>
 
@@ -67,6 +79,13 @@ export function FinanceTabsClient() {
 
                 {activeTab === 'transactions' && (
                     <PaymentHistoryClient />
+                )}
+                
+                {activeTab === 'analytics' && (
+                    <div className="space-y-6">
+                        <FinanceFilterBar />
+                        <EnhancedRevenueAnalyticsClient />
+                    </div>
                 )}
             </div>
         </div>

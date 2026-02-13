@@ -689,6 +689,215 @@ export async function getRevenueDistribution(filters: { startDate?: Date, endDat
     }
 }
 
+export async function getEnhancedRevenueInsights(filters: { startDate?: Date, endDate?: Date, branchId?: string } = {}) {
+    const owner = await getAuthenticatedOwner()
+    if (!owner) return { success: false, error: 'Unauthorized' }
+
+    try {
+        const now = new Date()
+        const startDate = filters.startDate || startOfMonth(now)
+        const endDate = filters.endDate || endOfMonth(now)
+
+        const completedWhere: Prisma.PaymentWhereInput = {
+            libraryId: owner.libraryId,
+            status: 'completed',
+            date: { gte: startOfDay(startDate), lte: endOfDay(endDate) }
+        }
+        if (filters.branchId && filters.branchId !== 'all') {
+            completedWhere.branchId = filters.branchId
+        }
+
+        const completedPayments = await prisma.payment.findMany({
+            where: completedWhere,
+            include: {
+                branch: { select: { id: true, name: true } },
+                subscription: {
+                    include: {
+                        plan: { select: { id: true, name: true } }
+                    }
+                },
+                student: { select: { id: true, name: true } }
+            },
+            orderBy: { date: 'asc' }
+        })
+
+        const pendingAgg = await prisma.payment.aggregate({
+            where: {
+                libraryId: owner.libraryId,
+                status: { in: ['pending', 'pending_verification'] },
+                date: { gte: startOfDay(startDate), lte: endOfDay(endDate) },
+                ...(filters.branchId && filters.branchId !== 'all' ? { branchId: filters.branchId } : {})
+            },
+            _sum: { amount: true },
+            _count: { id: true }
+        })
+
+        const refundedAgg = await prisma.payment.aggregate({
+            where: {
+                libraryId: owner.libraryId,
+                status: 'refunded',
+                date: { gte: startOfDay(startDate), lte: endOfDay(endDate) },
+                ...(filters.branchId && filters.branchId !== 'all' ? { branchId: filters.branchId } : {})
+            },
+            _sum: { amount: true },
+            _count: { id: true }
+        })
+
+        let previousRevenue = 0
+        if (filters.startDate && filters.endDate) {
+            const duration = filters.endDate.getTime() - filters.startDate.getTime()
+            const prevEnd = new Date(filters.startDate.getTime() - 1)
+            const prevStart = new Date(prevEnd.getTime() - duration)
+            const prevAgg = await prisma.payment.aggregate({
+                where: {
+                    libraryId: owner.libraryId,
+                    status: 'completed',
+                    date: { gte: prevStart, lte: prevEnd },
+                    ...(filters.branchId && filters.branchId !== 'all' ? { branchId: filters.branchId } : {})
+                },
+                _sum: { amount: true }
+            })
+            previousRevenue = prevAgg._sum.amount || 0
+        } else {
+            const startOfCurrentMonth = startOfMonth(now)
+            const endOfCurrentMonth = endOfMonth(now)
+            const startOfLastMonth = startOfMonth(subMonths(now, 1))
+            const endOfLastMonth = endOfMonth(subMonths(now, 1))
+            const [thisMonth, lastMonth] = await Promise.all([
+                prisma.payment.aggregate({
+                    where: { 
+                        libraryId: owner.libraryId,
+                        status: 'completed',
+                        date: { gte: startOfCurrentMonth, lte: endOfCurrentMonth },
+                        ...(filters.branchId && filters.branchId !== 'all' ? { branchId: filters.branchId } : {})
+                    },
+                    _sum: { amount: true }
+                }),
+                prisma.payment.aggregate({
+                    where: { 
+                        libraryId: owner.libraryId,
+                        status: 'completed',
+                        date: { gte: startOfLastMonth, lte: endOfLastMonth },
+                        ...(filters.branchId && filters.branchId !== 'all' ? { branchId: filters.branchId } : {})
+                    },
+                    _sum: { amount: true }
+                })
+            ])
+            previousRevenue = lastMonth._sum.amount || 0
+        }
+
+        const totalRevenue = completedPayments.reduce((sum, p) => sum + p.amount, 0)
+        const growthPercent = previousRevenue > 0 ? ((totalRevenue - previousRevenue) / previousRevenue) * 100 : (totalRevenue > 0 ? 100 : 0)
+        const transactionCount = completedPayments.length
+        const avgTxnValue = transactionCount > 0 ? totalRevenue / transactionCount : 0
+
+        const byBranch: Record<string, number> = {}
+        const byPlan: Record<string, number> = {}
+        const byMethod: Record<string, number> = {}
+        const bySource: Record<string, number> = {}
+        const byStudent: Record<string, number> = {}
+        const timeseriesRevenue: Record<string, number> = {}
+        const timeseriesCount: Record<string, number> = {}
+
+        const durationDays = Math.max(0, Math.floor((endDate.getTime() - startOfDay(startDate).getTime()) / (1000 * 60 * 60 * 24)))
+        const isDaily = durationDays <= 31
+
+        if (isDaily) {
+            for (let i = 0; i <= durationDays; i++) {
+                const d = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000)
+                const key = format(d, 'MMM dd')
+                timeseriesRevenue[key] = 0
+                timeseriesCount[key] = 0
+            }
+        } else {
+            let current = startOfMonth(startDate)
+            const end = endOfMonth(endDate)
+            while (current <= end) {
+                const key = format(current, 'MMM yyyy')
+                timeseriesRevenue[key] = 0
+                timeseriesCount[key] = 0
+                current = new Date(current.setMonth(current.getMonth() + 1))
+            }
+        }
+
+        completedPayments.forEach(p => {
+            const branchName = p.branch?.name || 'Unknown'
+            byBranch[branchName] = (byBranch[branchName] || 0) + p.amount
+
+            const planName = p.subscription?.plan?.name || 'Custom Payment'
+            byPlan[planName] = (byPlan[planName] || 0) + p.amount
+
+            const method = (p as any).method || 'unknown'
+            byMethod[method] = (byMethod[method] || 0) + p.amount
+
+            const source = (() => {
+                const gp = (p as any).gatewayProvider
+                if (gp && typeof gp === 'string') {
+                    const l = gp.toLowerCase()
+                    if (l === 'razorpay') return 'Razorpay'
+                    if (l === 'cashfree') return 'Cashfree'
+                    return gp
+                }
+                const m = method?.toLowerCase()
+                if (m === 'upi' || m === 'upi_app') return 'UPI Apps'
+                if (m === 'qr' || m === 'qr_code') return 'QR'
+                return 'Frontdesk'
+            })()
+            bySource[source] = (bySource[source] || 0) + p.amount
+
+            const studentName = p.student?.name || 'Unknown'
+            byStudent[studentName] = (byStudent[studentName] || 0) + p.amount
+
+            const key = format(p.date, isDaily ? 'MMM dd' : 'MMM yyyy')
+            if (timeseriesRevenue[key] !== undefined) {
+                timeseriesRevenue[key] += p.amount
+                timeseriesCount[key] += 1
+            }
+        })
+
+        const timeseries = Object.keys(timeseriesRevenue).map(name => ({
+            name,
+            revenue: timeseriesRevenue[name],
+            count: timeseriesCount[name]
+        }))
+
+        const bestPeriod = timeseries.reduce((max, cur) => cur.revenue > (max?.revenue || 0) ? cur : max, { name: '', revenue: 0, count: 0 })
+        const refundedCount = refundedAgg._count.id || 0
+        const refundRate = (refundedCount + transactionCount) > 0 ? (refundedCount / (refundedCount + transactionCount)) * 100 : 0
+
+        return {
+            success: true,
+            data: {
+                totals: {
+                    revenue: totalRevenue,
+                    previousRevenue,
+                    growthPercent,
+                    transactionCount,
+                    averageTransactionValue: avgTxnValue,
+                    refundRate,
+                    bestPeriod
+                },
+                pending: {
+                    amount: pendingAgg._sum.amount || 0,
+                    count: pendingAgg._count.id || 0
+                },
+                refunded: {
+                    amount: refundedAgg._sum.amount || 0,
+                    count: refundedAgg._count.id || 0
+                },
+                byBranch: Object.entries(byBranch).map(([name, value]) => ({ name, value })),
+                byPlan: Object.entries(byPlan).map(([name, value]) => ({ name, value })),
+                byMethod: Object.entries(byMethod).map(([name, value]) => ({ name, value })),
+                bySource: Object.entries(bySource).map(([name, value]) => ({ name, value })),
+                topStudents: Object.entries(byStudent).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10),
+                timeseries
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching enhanced revenue insights:', error)
+        return { success: false, error: 'Failed to fetch enhanced revenue insights' }
+    }
+}
 export async function updatePaymentRemarks(id: string, remarks: string) {
     const owner = await getAuthenticatedOwner()
     if (!owner) return { success: false, error: 'Unauthorized' }
