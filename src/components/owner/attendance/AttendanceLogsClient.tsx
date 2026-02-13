@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { 
     Calendar, 
     Search, 
@@ -10,7 +10,9 @@ import {
     UserCheck,
     Users,
     MapPin,
-    Edit
+    Edit,
+    ChevronDown,
+    ChevronUp
 } from 'lucide-react'
 import Image from 'next/image'
 import { format, subDays } from 'date-fns'
@@ -90,7 +92,74 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
     // Modal
     const [editingRecord, setEditingRecord] = useState<AttendanceLog | null>(null)
     const [adding, setAdding] = useState(false)
+    const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
+    const grouped = useMemo(() => {
+        const map = new Map<string, {
+            key: string
+            student: Student
+            dateKey: string
+            branchName: string
+            startTime: Date
+            endTime: Date | null
+            totalDuration: number
+            sessions: AttendanceLog[]
+            hasActive: boolean
+            totalOverstay: number
+        }>()
+        logs.forEach(log => {
+            const d = new Date(log.checkIn)
+            const dateKey = format(d, 'yyyy-MM-dd')
+            const stuKey = `${(log.student as any).email || log.student.name}-${dateKey}`
+            const existing = map.get(stuKey)
+            const durationVal = typeof log.duration === 'number' ? log.duration : 0
+            const overstayVal = typeof log.overstayMinutes === 'number' ? log.overstayMinutes : 0
+            const branchName = log.branch?.name || 'Unknown'
+            if (!existing) {
+                map.set(stuKey, {
+                    key: stuKey,
+                    student: log.student,
+                    dateKey,
+                    branchName,
+                    startTime: new Date(log.checkIn),
+                    endTime: log.checkOut ? new Date(log.checkOut) : null,
+                    totalDuration: durationVal,
+                    sessions: [log],
+                    hasActive: !log.checkOut,
+                    totalOverstay: overstayVal
+                })
+            } else {
+                existing.startTime = new Date(Math.min(existing.startTime.getTime(), new Date(log.checkIn).getTime()))
+                const eo = log.checkOut ? new Date(log.checkOut) : null
+                if (eo) {
+                    if (!existing.endTime || eo.getTime() > existing.endTime.getTime()) existing.endTime = eo
+                }
+                existing.totalDuration += durationVal
+                existing.sessions.push(log)
+                existing.hasActive = existing.hasActive || !log.checkOut
+                if (existing.branchName !== branchName) existing.branchName = 'Multiple'
+                existing.totalOverstay += overstayVal
+            }
+        })
+        return Array.from(map.values()).sort((a, b) => {
+            if (a.dateKey === b.dateKey) return a.student.name.localeCompare(b.student.name)
+            return b.dateKey.localeCompare(a.dateKey)
+        })
+    }, [logs])
 
+    const toggleRow = (key: string) => {
+        setExpandedRows(prev => ({ ...prev, [key]: !prev[key] }))
+    }
+    useEffect(() => {
+        setExpandedRows(prev => {
+            const next: Record<string, boolean> = { ...prev }
+            grouped.forEach(r => {
+                if (typeof prev[r.key] === 'undefined') {
+                    next[r.key] = r.sessions.length > 1
+                }
+            })
+            return next
+        })
+    }, [grouped])
     const fetchBranches = useCallback(async () => {
         try {
             const result = await getOwnerBranches()
@@ -403,9 +472,9 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                                 <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
                                 <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                                 <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
-                                <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Check In</th>
-                                <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Check Out</th>
-                                <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                                <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Start</th>
+                                <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">End</th>
+                                <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Total Duration</th>
                                 <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                 <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Overstay Duration</th>
                                 <th className="p-4 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Actions</th>
@@ -420,99 +489,137 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                                         </div>
                                     </td>
                                 </tr>
-                            ) : logs.length === 0 ? (
+                            ) : grouped.length === 0 ? (
                                 <tr>
                                     <td colSpan={9} className="p-8 text-center text-gray-500">
                                         No attendance records found.
                                     </td>
                                 </tr>
                             ) : (
-                                logs.map((log) => (
-                                    <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
+                                grouped.map(row => (
+                                    <>
+                                    <tr key={row.key} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
+                                                <button 
+                                                    onClick={() => toggleRow(row.key)}
+                                                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                                    title={expandedRows[row.key] ? 'Hide Sessions' : 'Show Sessions'}
+                                                >
+                                                    {expandedRows[row.key] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                                </button>
                                                 <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-xs relative overflow-hidden">
-                                                {log.student.image ? (
-                                                    <Image src={log.student.image} alt={log.student.name} fill className="object-cover" sizes="32px" />
-                                                ) : (
-                                                    log.student.name.charAt(0).toUpperCase()
-                                                )}
-                                            </div>
+                                                    {row.student.image ? (
+                                                        <Image src={row.student.image} alt={row.student.name} fill className="object-cover" sizes="32px" />
+                                                    ) : (
+                                                        row.student.name.charAt(0).toUpperCase()
+                                                    )}
+                                                </div>
                                                 <div>
-                                                    <div className="font-medium text-gray-900 dark:text-white text-sm">{log.student.name}</div>
-                                                    <div className="text-xs text-gray-500">{log.student.email}</div>
+                                                    <div className="font-medium text-gray-900 dark:text-white text-sm">{row.student.name}</div>
+                                                    <div className="text-xs text-gray-500">{(row.student as any).email || ''}</div>
+                                                    <div className="mt-1">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                                            {row.sessions.length} sessions
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="p-4 text-sm text-gray-600 dark:text-gray-300">
-                                            {format(new Date(log.checkIn), 'MMM dd, yyyy')}
+                                            {format(new Date(row.startTime), 'MMM dd, yyyy')}
                                         </td>
                                         <td className="p-4 text-sm text-gray-600 dark:text-gray-300">
                                             <div className="flex items-center gap-1.5">
                                                 <MapPin size={12} className="text-gray-400" />
-                                                {log.branch.name}
+                                                {row.branchName}
                                             </div>
                                         </td>
                                         <td className="p-4 text-sm text-gray-900 dark:text-white font-medium">
-                                            {format(new Date(log.checkIn), 'hh:mm a')}
+                                            {format(new Date(row.startTime), 'hh:mm a')}
                                         </td>
                                         <td className="p-4 text-sm text-gray-600 dark:text-gray-300">
-                                            {log.checkOut ? format(new Date(log.checkOut), 'hh:mm a') : <span className="text-green-600 dark:text-green-400 text-xs font-medium px-2 py-0.5 bg-green-50 dark:bg-green-900/20 rounded-full animate-pulse">Active</span>}
-                                        </td>
-                                        <td className="p-4 text-sm text-gray-600 dark:text-gray-300">
-                                            {log.duration ? `${Math.floor(log.duration / 60)}h ${log.duration % 60}m` : '-'}
-                                            {typeof log.overstayMinutes === 'number' && log.overstayMinutes > 0 && (
-                                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                                                    Overstay +{Math.floor(log.overstayMinutes / 60)}h {log.overstayMinutes % 60}m
-                                                </span>
+                                            {row.endTime ? format(new Date(row.endTime), 'hh:mm a') : (
+                                                <span className="text-green-600 dark:text-green-400 text-xs font-medium px-2 py-0.5 bg-green-50 dark:bg-green-900/20 rounded-full animate-pulse">Active</span>
                                             )}
+                                        </td>
+                                        <td className="p-4 text-sm text-gray-600 dark:text-gray-300">
+                                            {row.totalDuration ? `${Math.floor(row.totalDuration / 60)}h ${row.totalDuration % 60}m` : '-'}
                                         </td>
                                         <td className="p-4">
                                             <div className="flex items-center gap-2">
                                                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize
-                                                    ${(log.status === 'present' || log.status === 'full_day') ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 
-                                                      log.status === 'short_session' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' :
-                                                      'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'}
+                                                    ${row.hasActive ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'}
                                                 `}>
-                                                    {(log.status === 'full_day' ? 'present' : log.status).replace('_', ' ')}
+                                                    {row.hasActive ? 'active' : 'present'}
                                                 </span>
-                                                {typeof log.overstayMinutes === 'number' && log.overstayMinutes > 0 && (
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                                                        Overstay
-                                                    </span>
-                                                )}
-                                                {log.newUser && (
-                                                    <span className="inline-flex items-center px-2 py-0.5 ml-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
-                                                        New
-                                                    </span>
-                                                )}
                                             </div>
                                         </td>
                                         <td className="p-4 text-sm text-gray-600 dark:text-gray-300">
-                                            {typeof log.overstayMinutes === 'number' && log.overstayMinutes > 0 
-                                                ? `+${Math.floor(log.overstayMinutes / 60)}h ${log.overstayMinutes % 60}m`
-                                                : '-'
-                                            }
+                                            {row.totalOverstay > 0 ? `+${Math.floor(row.totalOverstay / 60)}h ${row.totalOverstay % 60}m` : '-'}
                                         </td>
                                         <td className="p-4 text-right">
                                             <button 
-                                                onClick={() => setEditingRecord(log)}
+                                                onClick={() => toggleRow(row.key)}
                                                 className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                                                title="Edit Record"
+                                                title={expandedRows[row.key] ? 'Hide Sessions' : 'Show Sessions'}
                                             >
-                                                <Edit size={16} />
+                                                {expandedRows[row.key] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                                             </button>
-                                            {!log.checkOut && (
-                                                <button
-                                                    onClick={() => handleQuickCheckout(log)}
-                                                    className="p-1.5 ml-1 text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
-                                                    title="Checkout Now"
-                                                >
-                                                    <UserCheck size={16} />
-                                                </button>
-                                            )}
                                         </td>
                                     </tr>
+                                    {expandedRows[row.key] && (
+                                        <tr key={row.key + '-details'} className="bg-gray-50/50 dark:bg-gray-800/50">
+                                            <td colSpan={9} className="p-4">
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-left text-sm">
+                                                        <thead className="text-gray-500">
+                                                            <tr>
+                                                                <th className="p-2">Branch</th>
+                                                                <th className="p-2">Start</th>
+                                                                <th className="p-2">End</th>
+                                                                <th className="p-2">Duration</th>
+                                                                <th className="p-2">Status</th>
+                                                                <th className="p-2">Method</th>
+                                                                <th className="p-2">Remarks</th>
+                                                                <th className="p-2 text-right">Actions</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {row.sessions.map(s => (
+                                                                <tr key={s.id} className="border-t border-gray-200 dark:border-gray-700">
+                                                                    <td className="p-2">{s.branch?.name || '-'}</td>
+                                                                    <td className="p-2">{format(new Date(s.checkIn), 'MMM dd, yyyy hh:mm a')}</td>
+                                                                    <td className="p-2">{s.checkOut ? format(new Date(s.checkOut), 'MMM dd, yyyy hh:mm a') : 'Active'}</td>
+                                                                    <td className="p-2">{typeof s.duration === 'number' ? `${Math.floor(s.duration / 60)}h ${s.duration % 60}m` : '-'}</td>
+                                                                    <td className="p-2 capitalize">{(s.status === 'full_day' ? 'present' : s.status).replace('_', ' ')}</td>
+                                                                    <td className="p-2">{s.method || '-'}</td>
+                                                                    <td className="p-2">{s.remarks || '-'}</td>
+                                                                    <td className="p-2 text-right">
+                                                                        <button 
+                                                                            onClick={() => setEditingRecord(s)}
+                                                                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                                                        >
+                                                                            <Edit size={16} />
+                                                                        </button>
+                                                                        {!s.checkOut && (
+                                                                            <button
+                                                                                onClick={() => handleQuickCheckout(s)}
+                                                                                className="p-1.5 ml-1 text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                                                                            >
+                                                                                <UserCheck size={16} />
+                                                                            </button>
+                                                                        )}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                    </>
                                 ))
                             )}
                         </tbody>
