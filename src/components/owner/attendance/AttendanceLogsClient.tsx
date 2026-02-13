@@ -140,7 +140,16 @@ export function AttendanceLogsClient({ defaultView = 'day' }: AttendanceLogsClie
                 existing.totalOverstay += overstayVal
             }
         })
-        return Array.from(map.values()).sort((a, b) => {
+        const rows = Array.from(map.values())
+        rows.forEach(entry => {
+            entry.sessions.sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime())
+            if (entry.sessions.length > 0) {
+                entry.startTime = new Date(entry.sessions[0].checkIn)
+                const last = entry.sessions[entry.sessions.length - 1]
+                entry.endTime = last.checkOut ? new Date(last.checkOut) : null
+            }
+        })
+        return rows.sort((a, b) => {
             if (a.dateKey === b.dateKey) return a.student.name.localeCompare(b.student.name)
             return b.dateKey.localeCompare(a.dateKey)
         })

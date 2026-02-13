@@ -1,22 +1,24 @@
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
-import { getUpcomingExpiries, getOverdueSubscriptions } from '@/actions/subscriptions'
+import { getUpcomingExpiries, getOverdueSubscriptions, getSubscriptionDues } from '@/actions/subscriptions'
 import { getOwnerBranches } from '@/actions/branch'
 import { AnimatedCard } from '@/components/ui/AnimatedCard'
 import { AnimatedButton } from '@/components/ui/AnimatedButton'
 import { FormSelect } from '@/components/ui/FormSelect'
-import { MessageCircle, RefreshCw, AlertCircle, Clock, Search, User, Calendar, CheckCircle2, Mail, MessageSquare, Copy, ExternalLink, MapPin, Armchair, CreditCard } from 'lucide-react'
+import { MessageCircle, RefreshCw, AlertCircle, Clock, Search, User, Calendar, CheckCircle2, Mail, MessageSquare, Copy, ExternalLink, MapPin, Armchair, CreditCard, IndianRupee } from 'lucide-react'
 import { format, differenceInDays } from 'date-fns'
 import { formatSeatNumber, cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import Image from 'next/image'
+import { recordDuePayment } from '@/actions/owner/finance'
 
 interface SubscriptionItem {
     id: string
     endDate: Date
     status: string
+    amount: number
     student: {
         id: string
         name: string
@@ -41,12 +43,13 @@ interface SubscriptionItem {
 export function ExpiriesClient() {
     const [upcoming, setUpcoming] = useState<SubscriptionItem[]>([])
     const [overdue, setOverdue] = useState<SubscriptionItem[]>([])
+    const [dues, setDues] = useState<Array<SubscriptionItem & { paidTotal: number, dueAmount: number }>>([])
     const [branches, setBranches] = useState<{ id: string, name: string }[]>([])
     const [selectedBranchId, setSelectedBranchId] = useState<string>('all')
     const [selectedDays, setSelectedDays] = useState<string>('0-3')
     const [customDays, setCustomDays] = useState<string>('90')
     const [loading, setLoading] = useState(true)
-    const [activeTab, setActiveTab] = useState<'upcoming' | 'overdue'>('upcoming')
+    const [activeTab, setActiveTab] = useState<'upcoming' | 'overdue' | 'dues'>('upcoming')
     const [searchQuery, setSearchQuery] = useState('')
 
     useEffect(() => {
@@ -67,9 +70,10 @@ export function ExpiriesClient() {
         try {
             setLoading(true)
             const days = selectedDays === 'custom' ? (parseInt(customDays) || 7) : selectedDays
-            const [upcomingRes, overdueRes] = await Promise.all([
+            const [upcomingRes, overdueRes, duesRes] = await Promise.all([
                 getUpcomingExpiries(days, selectedBranchId),
-                getOverdueSubscriptions(days, selectedBranchId)
+                getOverdueSubscriptions(days, selectedBranchId),
+                getSubscriptionDues(selectedBranchId)
             ])
             
             if (upcomingRes.success && upcomingRes.data) {
@@ -82,6 +86,12 @@ export function ExpiriesClient() {
                 setOverdue(overdueRes.data)
             } else {
                 toast.error(overdueRes.error || 'Failed to fetch overdue subscriptions')
+            }
+            
+            if (duesRes.success && duesRes.data) {
+                setDues(duesRes.data)
+            } else if (!duesRes.success) {
+                toast.error(duesRes.error || 'Failed to fetch dues')
             }
         } catch {
             toast.error('Failed to fetch dues and expiries')
@@ -166,9 +176,15 @@ export function ExpiriesClient() {
         item.student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.student.phone?.includes(searchQuery)
     )
+    
+    const filteredDues = dues.filter(item => 
+        item.student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.student.phone?.includes(searchQuery)
+    )
 
     const totalUpcomingAmount = filteredUpcoming.reduce((sum, item) => sum + item.plan.price, 0)
     const totalOverdueAmount = filteredOverdue.reduce((sum, item) => sum + item.plan.price, 0)
+    const totalDueAmount = filteredDues.reduce((sum, item) => sum + item.dueAmount, 0)
 
     const renderCard = (item: SubscriptionItem, type: 'upcoming' | 'overdue') => {
         const endDate = new Date(item.endDate)
@@ -342,7 +358,7 @@ export function ExpiriesClient() {
                                 : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-100"
                         )}
                     >
-                        Upcoming Expiries
+                        Expiring Soon
                         {upcoming.length > 0 && (
                             <span className="ml-2 bg-primary/10 text-primary text-xs px-1.5 py-0.5 rounded-full">
                                 {upcoming.length}
@@ -358,10 +374,26 @@ export function ExpiriesClient() {
                                 : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-100"
                         )}
                     >
-                        Overdue
+                        Recently Expired
                         {overdue.length > 0 && (
                             <span className="ml-2 bg-red-100 text-red-600 text-xs px-1.5 py-0.5 rounded-full">
                                 {overdue.length}
+                            </span>
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('dues')}
+                        className={cn(
+                            "px-4 py-2 rounded-md text-sm font-medium transition-all",
+                            activeTab === 'dues' 
+                                ? "bg-white dark:bg-gray-900 text-amber-600 shadow-sm" 
+                                : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-100"
+                        )}
+                    >
+                        Dues
+                        {dues.length > 0 && (
+                            <span className="ml-2 bg-amber-100 text-amber-700 text-xs px-1.5 py-0.5 rounded-full">
+                                {dues.length}
                             </span>
                         )}
                     </button>
@@ -408,7 +440,7 @@ export function ExpiriesClient() {
                             { value: '7-15', label: 'Next 15 Days' },
                             { value: '15-30', label: 'Next 30 Days' },
                             { value: 'custom', label: 'Custom Range' }
-                        ] : [
+                        ] : activeTab === 'overdue' ? [
                             { value: 'today', label: 'Expired Today' },
                             { value: 'yesterday', label: 'Expired Yesterday' },
                             { value: '0-3', label: 'Last 3 Days' },
@@ -416,6 +448,8 @@ export function ExpiriesClient() {
                             { value: '7-15', label: 'Last 15 Days' },
                             { value: '15-30', label: 'Last 30 Days' },
                             { value: 'custom', label: 'Custom Range' }
+                        ] : [
+                            { value: '0-3', label: 'Next 3 Days' }
                         ]}
                         className="h-10 text-sm"
                     />
@@ -442,7 +476,7 @@ export function ExpiriesClient() {
             {/* Stats Summary */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
-                    <div className="text-sm text-blue-600 dark:text-blue-400 font-medium mb-1">Total Upcoming</div>
+                    <div className="text-sm text-blue-600 dark:text-blue-400 font-medium mb-1">Expiring Soon</div>
                     <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
                         {filteredUpcoming.length} <span className="text-sm font-normal text-blue-500">students</span>
                     </div>
@@ -454,7 +488,7 @@ export function ExpiriesClient() {
                     </div>
                 </div>
                 <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-xl border border-red-100 dark:border-red-800">
-                    <div className="text-sm text-red-600 dark:text-red-400 font-medium mb-1">Total Overdue</div>
+                    <div className="text-sm text-red-600 dark:text-red-400 font-medium mb-1">Recently Expired</div>
                     <div className="text-2xl font-bold text-red-700 dark:text-red-300">
                         {filteredOverdue.length} <span className="text-sm font-normal text-red-500">students</span>
                     </div>
@@ -478,7 +512,7 @@ export function ExpiriesClient() {
                             {filteredUpcoming.length === 0 ? (
                                 <div className="text-center py-20 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
                                     <Clock className="mx-auto text-gray-300 mb-3" size={48} />
-                                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">No upcoming expiries</h3>
+                                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">No expiring soon</h3>
                                     <p className="text-gray-500">No subscriptions are expiring in the selected period.</p>
                                 </div>
                             ) : (
@@ -494,12 +528,112 @@ export function ExpiriesClient() {
                             {filteredOverdue.length === 0 ? (
                                 <div className="text-center py-20 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
                                     <CheckCircle2 className="mx-auto text-gray-300 mb-3" size={48} />
-                                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">No overdue subscriptions</h3>
+                                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">No recently expired subscriptions</h3>
                                     <p className="text-gray-500">All subscriptions are up to date for the selected period.</p>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                                     {filteredOverdue.map(item => renderCard(item, 'overdue'))}
+                                </div>
+                            )}
+                        </>
+                    )}
+                    
+                    {activeTab === 'dues' && (
+                        <>
+                            {filteredDues.length === 0 ? (
+                                <div className="text-center py-20 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                                    <CheckCircle2 className="mx-auto text-gray-300 mb-3" size={48} />
+                                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">No outstanding dues</h3>
+                                    <p className="text-gray-500">All subscriptions are fully paid.</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                    {filteredDues.map(item => (
+                                        <AnimatedCard key={item.id} className="group relative overflow-hidden border border-gray-200 dark:border-gray-800 hover:border-amber-400/50 transition-all duration-300 hover:shadow-lg bg-white dark:bg-gray-900">
+                                            <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
+                                            <div className="p-5 pl-7">
+                                                <div className="flex justify-between items-start gap-4 mb-4">
+                                                    <div className="flex gap-3">
+                                                        <Link href={`/owner/students/${item.student.id}`}>
+                                                            <div className="relative w-12 h-12 rounded-full overflow-hidden bg-gray-100 ring-2 ring-gray-100 dark:ring-gray-800 flex-shrink-0 transition-transform group-hover:scale-105">
+                                                                {item.student.image ? (
+                                                                    <Image src={item.student.image} alt={item.student.name} fill className="object-cover" />
+                                                                ) : (
+                                                                    <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-50 dark:bg-gray-800">
+                                                                        <User size={24} />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </Link>
+                                                        <div>
+                                                            <Link href={`/owner/students/${item.student.id}`} className="group-hover:text-amber-700 transition-colors">
+                                                                <h4 className="font-bold text-gray-900 dark:text-gray-100 text-base">{item.student.name}</h4>
+                                                            </Link>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 rounded-full shadow-sm flex items-center gap-1.5">
+                                                                    <IndianRupee size={10} />
+                                                                    Due ₹{item.dueAmount.toFixed(0)}
+                                                                </span>
+                                                                <span className="px-2 py-0.5 text-[10px] font-medium tracking-wider bg-blue-100 text-blue-700 rounded-full shadow-sm">
+                                                                    Paid ₹{item.paidTotal.toFixed(0)}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Plan</div>
+                                                        <div className="text-sm font-bold text-gray-900 dark:text-gray-100">{item.plan.name}</div>
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-y-3 gap-x-4 py-4 border-t border-b border-gray-100 dark:border-gray-800">
+                                                    <div className="flex items-center gap-2 text-sm">
+                                                        <Armchair size={14} className="text-gray-400" />
+                                                        <span className="text-gray-600 dark:text-gray-300">
+                                                            {item.seat ? formatSeatNumber(item.seat.number) : 'No Seat'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-sm">
+                                                        <MapPin size={14} className="text-gray-400" />
+                                                        <span className="text-gray-600 dark:text-gray-300 truncate">{item.branch.name}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-sm">
+                                                        <Calendar size={14} className="text-gray-400" />
+                                                        <span className="text-gray-600 dark:text-gray-300">
+                                                            {format(new Date(item.endDate), 'dd MMM yyyy')}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-sm">
+                                                        <CreditCard size={14} className="text-gray-400" />
+                                                        <span className="text-gray-600 dark:text-gray-300">Total ₹{item.amount.toFixed(0)}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-4 flex items-center justify-between gap-3">
+                                                    <Link href={`/owner/bookings?view=create&studentId=${item.student.id}`} className="flex-1 max-w-[140px]">
+                                                        <AnimatedButton size="sm" variant="outline" className="w-full h-9 text-xs font-semibold shadow-sm">
+                                                            Collect Payment
+                                                        </AnimatedButton>
+                                                    </Link>
+                                                    <AnimatedButton
+                                                        size="sm"
+                                                        variant="primary"
+                                                        className="h-9 text-xs font-semibold shadow-md hover:shadow-lg transition-all bg-amber-600 hover:bg-amber-700"
+                                                        onClick={async () => {
+                                                            const res = await recordDuePayment({ subscriptionId: item.id, amount: item.dueAmount })
+                                                            if (res.success) {
+                                                                toast.success('Due payment recorded')
+                                                                fetchData()
+                                                            } else {
+                                                                toast.error(res.error || 'Failed to record payment')
+                                                            }
+                                                        }}
+                                                    >
+                                                        Mark Paid ₹{item.dueAmount.toFixed(0)}
+                                                    </AnimatedButton>
+                                                </div>
+                                            </div>
+                                        </AnimatedCard>
+                                    ))}
                                 </div>
                             )}
                         </>

@@ -409,14 +409,23 @@ export async function verifyPayment(paymentId: string, action: 'approve' | 'reje
             }
 
             if (updatedPayment.subscriptionId && !activatedIds.includes(updatedPayment.subscriptionId)) {
+                // Activate only when fully paid against payable (subscription.amount)
+                const expected = await tx.studentSubscription.findUnique({
+                    where: { id: updatedPayment.subscriptionId },
+                    select: { amount: true }
+                })
+                const paidAgg = await tx.payment.aggregate({
+                    where: { subscriptionId: updatedPayment.subscriptionId, status: 'completed' },
+                    _sum: { amount: true }
+                })
+                const paidTotal = paidAgg._sum.amount || 0
+                const isFullyPaid = paidTotal >= (expected?.amount || 0)
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const updateData: any = { status: 'active' }
-                
+                const updateData: any = { status: isFullyPaid ? 'active' : 'pending' }
                 if (lockerIdToAdd) {
                     updateData.hasLocker = true
                     updateData.lockerId = lockerIdToAdd
                 }
-
                 await tx.studentSubscription.update({
                     where: { id: updatedPayment.subscriptionId },
                     data: updateData
@@ -629,6 +638,67 @@ export async function getRevenueAnalytics(filters: { startDate?: Date, endDate?:
     } catch (error) {
         console.error('Error fetching revenue analytics:', error)
         return { success: false, error: 'Failed to fetch revenue analytics' }
+    }
+}
+
+export async function recordDuePayment(params: { subscriptionId: string, amount: number, method?: string }) {
+    const owner = await getAuthenticatedOwner()
+    if (!owner) return { success: false, error: 'Unauthorized' }
+
+    const { subscriptionId, amount, method = 'cash' } = params
+    if (!subscriptionId || !amount || amount <= 0) {
+        return { success: false, error: 'Invalid payment input' }
+    }
+
+    try {
+        const subscription = await prisma.studentSubscription.findUnique({
+            where: { id: subscriptionId },
+            include: {
+                student: true,
+                branch: true,
+                payments: { where: { status: 'completed' }, select: { amount: true } }
+            }
+        })
+        if (!subscription || subscription.libraryId !== owner.libraryId) {
+            return { success: false, error: 'Subscription not found' }
+        }
+
+        const paidSoFar = (subscription.payments || []).reduce((sum, p) => sum + (p.amount || 0), 0)
+        const remainingBefore = Math.max((subscription.amount || 0) - paidSoFar, 0)
+        const toPay = Math.min(amount, remainingBefore)
+        if (toPay <= 0) {
+            return { success: false, error: 'No outstanding due for this subscription' }
+        }
+
+        const payment = await prisma.payment.create({
+            data: {
+                libraryId: owner.libraryId,
+                branchId: subscription.branchId,
+                studentId: subscription.studentId,
+                type: 'subscription',
+                method,
+                amount: toPay,
+                status: 'completed',
+                subscriptionId: subscription.id,
+                relatedId: subscription.planId,
+                notes: 'Due payment recorded via Owner Dues tab'
+            }
+        })
+
+        const newPaid = paidSoFar + toPay
+        if (newPaid >= (subscription.amount || 0)) {
+            await prisma.studentSubscription.update({
+                where: { id: subscription.id },
+                data: { status: subscription.status === 'pending' ? 'active' : subscription.status }
+            })
+        }
+
+        revalidatePath('/owner/finance')
+        revalidatePath('/owner/expiries')
+        return { success: true, data: { paymentId: payment.id } }
+    } catch (error) {
+        console.error('Error recording due payment:', error)
+        return { success: false, error: 'Failed to record due payment' }
     }
 }
 
@@ -896,18 +966,28 @@ export async function getEnhancedRevenueInsights(filters: { startDate?: Date, en
             orderBy: { date: 'asc' }
         })
         const monthlyBuckets: Record<string, number> = {}
+        const monthlyTxnBuckets: Record<string, number> = {}
         let cursor = startOfMonth(trendStart)
         while (cursor <= trendEnd) {
             monthlyBuckets[format(cursor, 'MMM yyyy')] = 0
+            monthlyTxnBuckets[format(cursor, 'MMM yyyy')] = 0
             cursor = new Date(cursor.setMonth(cursor.getMonth() + 1))
         }
         monthlyPayments.forEach(p => {
             const key = format(p.date, 'MMM yyyy')
             if (monthlyBuckets[key] !== undefined) {
                 monthlyBuckets[key] += p.amount
+                monthlyTxnBuckets[key] += 1
             }
         })
-        const monthlyTrend = Object.keys(monthlyBuckets).map(name => ({ name, revenue: monthlyBuckets[name] }))
+        const monthlyKeys = Object.keys(monthlyBuckets)
+        const monthlyTrend = monthlyKeys.map((name, idx) => {
+            const revenue = monthlyBuckets[name]
+            const count = monthlyTxnBuckets[name]
+            const prevRevenue = idx > 0 ? monthlyBuckets[monthlyKeys[idx - 1]] : 0
+            const growthPercent = prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : (revenue > 0 ? 100 : 0)
+            return { name, revenue, count, growthPercent }
+        })
 
         return {
             success: true,

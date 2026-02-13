@@ -33,7 +33,7 @@
      timeseries: { name: string; revenue: number; count: number }[]
      byDayOfWeek: { name: string; value: number }[]
      byHourOfDay: { name: string; value: number }[]
-     monthlyTrend: { name: string; revenue: number }[]
+     monthlyTrend: { name: string; revenue: number; count: number; growthPercent: number }[]
    } | null>(null)
  
    useEffect(() => {
@@ -95,6 +95,27 @@
           <p className="text-gray-600">Revenue: ₹{revenue.toLocaleString()}</p>
           <p className="text-gray-600">Transactions: {count}</p>
           <p className="text-gray-600">Avg/Txn: ₹{Math.round(avg).toLocaleString()}</p>
+        </div>
+      )
+    }
+    return null
+  }
+  const GrowthDot = (props: any) => {
+    const { cx, cy, payload } = props
+    const positive = (payload?.growthPercent || 0) >= 0
+    return <circle cx={cx} cy={cy} r={4} fill={positive ? '#10B981' : '#EF4444'} stroke="#FFFFFF" strokeWidth={1} />
+  }
+  const MonthlyTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const revenue = Number(payload.find((p: any) => p.dataKey === 'revenue')?.value || 0)
+      const count = Number(payload.find((p: any) => p.dataKey === 'count')?.value || 0)
+      const growth = Number((payload[0]?.payload?.growthPercent || 0).toFixed(1))
+      return (
+        <div className="bg-white p-2 border border-gray-200 rounded shadow-sm text-sm">
+          <p className="font-medium">{label}</p>
+          <p className="text-gray-600">Revenue: ₹{revenue.toLocaleString()}</p>
+          <p className="text-gray-600">Transactions: {count}</p>
+          <p className={`text-gray-600 ${growth >= 0 ? 'text-green-600' : 'text-red-600'}`}>MoM: {growth}%</p>
         </div>
       )
     }
@@ -206,9 +227,11 @@
               <ComposedChart data={insights?.monthlyTrend || []}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                 <XAxis dataKey="name" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `₹${Math.round(v / 1000)}k`} />
-                <Tooltip formatter={(value: number | undefined) => [`₹${Number(value || 0).toLocaleString()}`, 'Revenue']} />
-                <Line type="monotone" dataKey="revenue" stroke="#4F46E5" strokeWidth={2} dot={false} />
+                <YAxis yAxisId="left" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `₹${Math.round(v / 1000)}k`} />
+                <YAxis yAxisId="right" orientation="right" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <Tooltip content={<MonthlyTooltip />} />
+                <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#4F46E5" strokeWidth={2} dot={<GrowthDot />} />
+                <Bar yAxisId="right" dataKey="count" fill="#10B981" radius={[6, 6, 0, 0]} />
                 <Brush dataKey="name" height={16} stroke="#4F46E5" />
               </ComposedChart>
             </ResponsiveContainer>

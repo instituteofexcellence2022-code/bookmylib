@@ -13,6 +13,8 @@ import { getOwnerBranches } from '@/actions/branch'
 import { getBranchDetails, createBooking } from '@/actions/booking'
 import { validateCoupon } from '@/actions/payment'
 import { generateReceiptPDF } from '@/lib/pdf-generator'
+import { getSubscriptionDues } from '@/actions/subscriptions'
+import { recordDuePayment } from '@/actions/owner/finance'
 
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -21,6 +23,7 @@ import { cn, formatSeatNumber, formatLockerNumber } from '@/lib/utils'
 import { motion } from 'framer-motion'
 import { sendReceiptEmail } from '@/actions/email'
 import { ReceiptData } from '@/lib/pdf-generator'
+import { format } from 'date-fns'
 
 interface Student {
     id: string
@@ -198,6 +201,24 @@ export function AcceptPaymentForm({ initialStudentId }: { initialStudentId?: str
             return matchCategory && matchDuration
         })
     }, [plans, filterCategory, filterDuration])
+
+    const [studentDues, setStudentDues] = useState<Array<any>>([])
+    const [duePayAmount, setDuePayAmount] = useState<Record<string, string>>({})
+    const refreshStudentDues = async () => {
+        if (!selectedStudent || !selectedBranch) {
+            setStudentDues([])
+            return
+        }
+        const res = await getSubscriptionDues(selectedBranch.id)
+        if (res.success && Array.isArray(res.data)) {
+            const filtered = res.data.filter((d: any) => d.student?.id === selectedStudent.id)
+            setStudentDues(filtered)
+        }
+    }
+    useEffect(() => {
+        refreshStudentDues()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedStudent?.id, selectedBranch?.id])
 
     // Payment State
     const [amount, setAmount] = useState('')
@@ -1828,6 +1849,65 @@ Thank you!`
                                 />
                             </div>
                         </div>
+
+                        {studentDues.length > 0 && (
+                            <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 space-y-3 border border-gray-200 dark:border-gray-700">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                                        <ShieldCheck className="w-4 h-4 text-amber-600" />
+                                        Existing Dues
+                                    </h3>
+                                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">₹{studentDues.reduce((s: number, d: any) => s + d.dueAmount, 0).toFixed(0)} total</span>
+                                </div>
+                                <div className="space-y-3">
+                                    {studentDues.map((d: any) => (
+                                        <div key={d.id} className="flex items-center justify-between gap-3 bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-100 dark:border-gray-700">
+                                            <div className="flex-1">
+                                                <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{d.plan?.name || 'Subscription'}</div>
+                                                <div className="text-xs text-gray-500">
+                                                    {d.branch?.name || '-'} • Ends {format(new Date(d.endDate), 'dd MMM yyyy')}
+                                                </div>
+                                                <div className="mt-1 text-xs">
+                                                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-semibold">Due ₹{d.dueAmount?.toFixed(0)}</span>
+                                                    <span className="ml-2 px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">Paid ₹{d.paidTotal?.toFixed(0)}</span>
+                                                    <span className="ml-2 px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">Total ₹{d.amount?.toFixed(0)}</span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <FormInput
+                                                    label="Amount"
+                                                    type="number"
+                                                    value={duePayAmount[d.id] ?? String(Math.max(0, d.dueAmount || 0))}
+                                                    onChange={(e) => setDuePayAmount(prev => ({ ...prev, [d.id]: e.target.value }))}
+                                                    className="w-28"
+                                                />
+                                                <AnimatedButton
+                                                    variant="primary"
+                                                    onClick={async () => {
+                                                        const raw = duePayAmount[d.id] ?? String(d.dueAmount || 0)
+                                                        const toPay = Math.max(0, parseFloat(raw) || 0)
+                                                        if (toPay <= 0) {
+                                                            toast.error('Enter a valid amount')
+                                                            return
+                                                        }
+                                                        const res = await recordDuePayment({ subscriptionId: d.id, amount: toPay, method })
+                                                        if (res.success) {
+                                                            toast.success('Due payment recorded')
+                                                            setDuePayAmount(prev => ({ ...prev, [d.id]: '' }))
+                                                            await refreshStudentDues()
+                                                        } else {
+                                                            toast.error(res.error || 'Failed to record payment')
+                                                        }
+                                                    }}
+                                                >
+                                                    Collect
+                                                </AnimatedButton>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         <FormInput
                             label="Remarks (Optional)"

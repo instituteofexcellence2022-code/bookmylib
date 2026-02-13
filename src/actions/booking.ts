@@ -325,16 +325,19 @@ export async function createBooking(data: {
                     })
                 }
                 
-                // Total for ALL cycles
+                // Total for ALL cycles (before discounts)
                 let totalAmount = cycleAmount * quantity
                 
                 // Override with manual details if provided
+                // Apply discounts (coupon + additional manual) to compute final payable
+                discount = (paymentDetails?.discount || 0)
+                const payableAmount = Math.max(0, totalAmount - discount)
+                
                 if (paymentDetails) {
                     amountPaid = paymentDetails.amount
                     paymentStatus = 'completed' // Manual payments are completed
-                    discount = paymentDetails.discount || 0
-                    // If partial amount paid, keep subscription pending until dues recovered
-                    if (amountPaid < totalAmount) {
+                    // If partial amount paid against payable, keep subscription pending until dues recovered
+                    if (amountPaid < payableAmount) {
                         subscriptionStatus = 'pending'
                     } else {
                         subscriptionStatus = 'active'
@@ -345,7 +348,8 @@ export async function createBooking(data: {
                     subscriptionStatus = 'pending'
                 }
                 
-                finalAmount = totalAmount
+                // Store the true payable in subscription for dues tracking
+                finalAmount = payableAmount
 
                 // 6. Create Payment Record (Simulated/Manual)
                 const generatedInvoiceNo = `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`
