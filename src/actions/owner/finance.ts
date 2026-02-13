@@ -880,6 +880,35 @@ export async function getEnhancedRevenueInsights(filters: { startDate?: Date, en
             byHourOfDay[hour] = (byHourOfDay[hour] || 0) + p.amount
         })
 
+        const trendStart = startOfMonth(subMonths(now, 11))
+        const trendEnd = endOfMonth(now)
+        const monthlyWhere: Prisma.PaymentWhereInput = {
+            libraryId: owner.libraryId,
+            status: 'completed',
+            date: { gte: trendStart, lte: trendEnd }
+        }
+        if (filters.branchId && filters.branchId !== 'all') {
+            monthlyWhere.branchId = filters.branchId
+        }
+        const monthlyPayments = await prisma.payment.findMany({
+            where: monthlyWhere,
+            select: { amount: true, date: true },
+            orderBy: { date: 'asc' }
+        })
+        const monthlyBuckets: Record<string, number> = {}
+        let cursor = startOfMonth(trendStart)
+        while (cursor <= trendEnd) {
+            monthlyBuckets[format(cursor, 'MMM yyyy')] = 0
+            cursor = new Date(cursor.setMonth(cursor.getMonth() + 1))
+        }
+        monthlyPayments.forEach(p => {
+            const key = format(p.date, 'MMM yyyy')
+            if (monthlyBuckets[key] !== undefined) {
+                monthlyBuckets[key] += p.amount
+            }
+        })
+        const monthlyTrend = Object.keys(monthlyBuckets).map(name => ({ name, revenue: monthlyBuckets[name] }))
+
         return {
             success: true,
             data: {
@@ -907,7 +936,8 @@ export async function getEnhancedRevenueInsights(filters: { startDate?: Date, en
                 topStudents: Object.entries(byStudent).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10),
                 timeseries,
                 byDayOfWeek: dowNames.map(name => ({ name, value: byDayOfWeek[name] })),
-                byHourOfDay: Object.keys(byHourOfDay).sort((a, b) => Number(a) - Number(b)).map(name => ({ name, value: byHourOfDay[name] }))
+                byHourOfDay: Object.keys(byHourOfDay).sort((a, b) => Number(a) - Number(b)).map(name => ({ name, value: byHourOfDay[name] })),
+                monthlyTrend
             }
         }
     } catch (error) {

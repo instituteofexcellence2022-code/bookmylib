@@ -33,6 +33,7 @@
      timeseries: { name: string; revenue: number; count: number }[]
      byDayOfWeek: { name: string; value: number }[]
      byHourOfDay: { name: string; value: number }[]
+     monthlyTrend: { name: string; revenue: number }[]
    } | null>(null)
  
    useEffect(() => {
@@ -197,6 +198,22 @@
              </ResponsiveContainer>
            </div>
          </div>
+ 
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Monthly Revenue Trend (Last 12 months)</h3>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={insights?.monthlyTrend || []}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                <XAxis dataKey="name" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `₹${Math.round(v / 1000)}k`} />
+                <Tooltip formatter={(value: number | undefined) => [`₹${Number(value || 0).toLocaleString()}`, 'Revenue']} />
+                <Line type="monotone" dataKey="revenue" stroke="#4F46E5" strokeWidth={2} dot={false} />
+                <Brush dataKey="name" height={16} stroke="#4F46E5" />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
  
          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Revenue by Branch</h3>
