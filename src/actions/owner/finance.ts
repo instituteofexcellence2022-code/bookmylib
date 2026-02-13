@@ -865,6 +865,21 @@ export async function getEnhancedRevenueInsights(filters: { startDate?: Date, en
         const refundedCount = refundedAgg._count.id || 0
         const refundRate = (refundedCount + transactionCount) > 0 ? (refundedCount / (refundedCount + transactionCount)) * 100 : 0
 
+        const dowNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        const byDayOfWeek: Record<string, number> = { Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 }
+        const byHourOfDay: Record<string, number> = {}
+        for (let h = 0; h < 24; h++) {
+            const label = h.toString().padStart(2, '0')
+            byHourOfDay[label] = 0
+        }
+        completedPayments.forEach(p => {
+            const d = p.date
+            const dow = dowNames[d.getDay()]
+            byDayOfWeek[dow] = (byDayOfWeek[dow] || 0) + p.amount
+            const hour = d.getHours().toString().padStart(2, '0')
+            byHourOfDay[hour] = (byHourOfDay[hour] || 0) + p.amount
+        })
+
         return {
             success: true,
             data: {
@@ -890,7 +905,9 @@ export async function getEnhancedRevenueInsights(filters: { startDate?: Date, en
                 byMethod: Object.entries(byMethod).map(([name, value]) => ({ name, value })),
                 bySource: Object.entries(bySource).map(([name, value]) => ({ name, value })),
                 topStudents: Object.entries(byStudent).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10),
-                timeseries
+                timeseries,
+                byDayOfWeek: dowNames.map(name => ({ name, value: byDayOfWeek[name] })),
+                byHourOfDay: Object.keys(byHourOfDay).sort((a, b) => Number(a) - Number(b)).map(name => ({ name, value: byHourOfDay[name] }))
             }
         }
     } catch (error) {

@@ -10,6 +10,7 @@
    Bar,
    Line,
    ComposedChart,
+   Brush,
    XAxis,
    YAxis,
    CartesianGrid,
@@ -20,7 +21,7 @@
  export function EnhancedRevenueAnalyticsClient() {
    const searchParams = useSearchParams()
    const [loading, setLoading] = useState(true)
-   const [insights, setInsights] = useState<{
+  const [insights, setInsights] = useState<{
      totals: { revenue: number; previousRevenue: number; growthPercent: number; transactionCount: number; averageTransactionValue: number; refundRate: number; bestPeriod: { name: string; revenue: number; count: number } }
      pending: { amount: number; count: number }
      refunded: { amount: number; count: number }
@@ -30,6 +31,8 @@
      bySource: { name: string; value: number }[]
      topStudents: { name: string; value: number }[]
      timeseries: { name: string; revenue: number; count: number }[]
+     byDayOfWeek: { name: string; value: number }[]
+     byHourOfDay: { name: string; value: number }[]
    } | null>(null)
  
    useEffect(() => {
@@ -52,6 +55,51 @@
    const isFiltered = !!searchParams.get('startDate')
    const growthUp = (insights?.totals.growthPercent || 0) >= 0
  
+  const totalRevenue = insights?.totals.revenue || 0
+  const timeseries = insights?.timeseries || []
+  const cumulative = timeseries.reduce<{ name: string; cumulative: number }[]>((acc, cur, idx) => {
+    const prev = idx > 0 ? acc[idx - 1].cumulative : 0
+    acc.push({ name: cur.name, cumulative: prev + cur.revenue })
+    return acc
+  }, [])
+  const movingAvg = timeseries.map((_, idx) => {
+    const start = Math.max(0, idx - 6)
+    const span = idx - start + 1
+    const sum = timeseries.slice(start, idx + 1).reduce((s, p) => s + p.revenue, 0)
+    return { name: timeseries[idx].name, avg: span > 0 ? sum / span : 0 }
+  })
+
+  const PercentTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const v = Number(payload[0].value || 0)
+      const pct = totalRevenue > 0 ? (v / totalRevenue) * 100 : 0
+      return (
+        <div className="bg-white p-2 border border-gray-200 rounded shadow-sm text-sm">
+          <p className="font-medium">{label}</p>
+          <p className="text-gray-600">₹{v.toLocaleString()} ({pct.toFixed(1)}%)</p>
+        </div>
+      )
+    }
+    return null
+  }
+
+  const TimeseriesTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const revenue = Number(payload.find((p: any) => p.dataKey === 'revenue')?.value || 0)
+      const count = Number(payload.find((p: any) => p.dataKey === 'count')?.value || 0)
+      const avg = count > 0 ? revenue / count : 0
+      return (
+        <div className="bg-white p-2 border border-gray-200 rounded shadow-sm text-sm">
+          <p className="font-medium">{label}</p>
+          <p className="text-gray-600">Revenue: ₹{revenue.toLocaleString()}</p>
+          <p className="text-gray-600">Transactions: {count}</p>
+          <p className="text-gray-600">Avg/Txn: ₹{Math.round(avg).toLocaleString()}</p>
+        </div>
+      )
+    }
+    return null
+  }
+
    return (
      <div className="space-y-6">
        <div className="grid grid-cols-2 gap-3">
@@ -134,14 +182,17 @@
            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Revenue & Transactions</h3>
            <div className="h-[300px] w-full">
              <ResponsiveContainer width="100%" height="100%">
-               <ComposedChart data={insights?.timeseries || []}>
+               <ComposedChart data={timeseries}>
                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                  <XAxis dataKey="name" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
                  <YAxis yAxisId="left" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `₹${Math.round(v / 1000)}k`} />
                  <YAxis yAxisId="right" orientation="right" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
-                 <Tooltip />
+                 <Tooltip content={<TimeseriesTooltip />} />
                  <Bar yAxisId="left" dataKey="revenue" fill="#4F46E5" radius={[6, 6, 0, 0]} />
                  <Line yAxisId="right" type="monotone" dataKey="count" stroke="#10B981" strokeWidth={2} dot={false} />
+                 <Line yAxisId="left" type="monotone" dataKey="cumulative" stroke="#6B7280" strokeWidth={1.5} dot={false} data={cumulative} />
+                 <Line yAxisId="left" type="monotone" dataKey="avg" stroke="#A78BFA" strokeWidth={1.5} dot={false} data={movingAvg} />
+                 <Brush dataKey="name" height={16} stroke="#4F46E5" />
                </ComposedChart>
              </ResponsiveContainer>
            </div>
@@ -155,7 +206,7 @@
                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                  <XAxis dataKey="name" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
                  <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `₹${Math.round(v / 1000)}k`} />
-                 <Tooltip formatter={(value: number | undefined) => [`₹${Number(value || 0).toLocaleString()}`, 'Revenue']} />
+                 <Tooltip content={<PercentTooltip />} />
                  <Bar dataKey="value" fill="#8B5CF6" radius={[6, 6, 0, 0]} />
                </BarChart>
              </ResponsiveContainer>
@@ -170,7 +221,7 @@
                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                  <XAxis dataKey="name" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
                  <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `₹${Math.round(v / 1000)}k`} />
-                 <Tooltip formatter={(value: number | undefined) => [`₹${Number(value || 0).toLocaleString()}`, 'Revenue']} />
+                 <Tooltip content={<PercentTooltip />} />
                  <Bar dataKey="value" fill="#10B981" radius={[6, 6, 0, 0]} />
                </BarChart>
              </ResponsiveContainer>
@@ -185,7 +236,7 @@
                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                  <XAxis dataKey="name" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
                  <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `₹${Math.round(v / 1000)}k`} />
-                 <Tooltip formatter={(value: number | undefined) => [`₹${Number(value || 0).toLocaleString()}`, 'Revenue']} />
+                 <Tooltip content={<PercentTooltip />} />
                  <Bar dataKey="value" fill="#F59E0B" radius={[6, 6, 0, 0]} />
                </BarChart>
              </ResponsiveContainer>
@@ -200,7 +251,7 @@
                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                  <XAxis dataKey="name" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
                  <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `₹${Math.round(v / 1000)}k`} />
-                 <Tooltip formatter={(value: number | undefined) => [`₹${Number(value || 0).toLocaleString()}`, 'Revenue']} />
+                 <Tooltip content={<PercentTooltip />} />
                  <Bar dataKey="value" fill="#EF4444" radius={[6, 6, 0, 0]} />
                </BarChart>
              </ResponsiveContainer>
@@ -215,8 +266,38 @@
                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                  <XAxis dataKey="name" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
                  <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `₹${Math.round(v / 1000)}k`} />
-                 <Tooltip formatter={(value: number | undefined) => [`₹${Number(value || 0).toLocaleString()}`, 'Revenue']} />
+                 <Tooltip content={<PercentTooltip />} />
                  <Bar dataKey="value" fill="#8B5CF6" radius={[6, 6, 0, 0]} />
+               </BarChart>
+             </ResponsiveContainer>
+           </div>
+         </div>
+ 
+         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Revenue by Day of Week</h3>
+           <div className="h-[250px] w-full">
+             <ResponsiveContainer width="100%" height="100%">
+               <BarChart data={insights?.byDayOfWeek || []}>
+                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                 <XAxis dataKey="name" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
+                 <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `₹${Math.round(v / 1000)}k`} />
+                 <Tooltip content={<PercentTooltip />} />
+                 <Bar dataKey="value" fill="#4F46E5" radius={[6, 6, 0, 0]} />
+               </BarChart>
+             </ResponsiveContainer>
+           </div>
+         </div>
+ 
+         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Revenue by Hour of Day</h3>
+           <div className="h-[250px] w-full">
+             <ResponsiveContainer width="100%" height="100%">
+               <BarChart data={insights?.byHourOfDay || []}>
+                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                 <XAxis dataKey="name" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
+                 <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `₹${Math.round(v / 1000)}k`} />
+                 <Tooltip content={<PercentTooltip />} />
+                 <Bar dataKey="value" fill="#10B981" radius={[6, 6, 0, 0]} />
                </BarChart>
              </ResponsiveContainer>
            </div>
